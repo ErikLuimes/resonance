@@ -1,0 +1,11 @@
+# Cargo build output for the apple/ workspace
+/target/
+# xcodebuild -derivedDataPath output used by the README commands
+/build/
+# Regenerated from the Rust core by scripts/build-core.sh on every build
+/PhosphorCore/Generated/
+# Per-user Xcode state
+xcuserdata/
+*.xcuserstate
+# LLVM coverage output from running a test-instrumented build
+*.profraw
