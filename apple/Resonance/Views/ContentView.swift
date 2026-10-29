@@ -15,6 +15,8 @@ struct ContentView: View {
     @State private var showInspector = true
     @State private var isDropTargeted = false
     @State private var choosingHvscFolder = false
+    /// Each sidebar section keeps its own search text.
+    @State private var searches: [SidebarItem: String] = [:]
 
     var body: some View {
         @Bindable var store = store
@@ -55,6 +57,11 @@ struct ContentView: View {
             }
         }
         .navigationTitle("Resonance")
+        // One search field for the whole window, with a fixed prompt. Each
+        // section used to bring its own (the HVSC one with scope buttons),
+        // so the toolbar changed on every sidebar click — which made SwiftUI
+        // re-run the window layout until AppKit aborted the app.
+        .searchable(text: searchText, placement: .toolbar, prompt: "Search")
         .fileImporter(
             isPresented: $store.isImporting,
             allowedContentTypes: [.sidTune, .m3uPlaylist, .folder],
@@ -113,14 +120,23 @@ struct ContentView: View {
         }
     }
 
+    private var section: SidebarItem { sidebarSelection ?? .playlist }
+
+    private var searchText: Binding<String> {
+        Binding(
+            get: { searches[section, default: ""] },
+            set: { searches[section] = $0 }
+        )
+    }
+
     @ViewBuilder
     private var detail: some View {
-        switch sidebarSelection ?? .playlist {
+        switch section {
         case .playlist:
-            PlaylistView()
+            PlaylistView(search: searchText.wrappedValue)
         case .hvsc(let category):
             // A fresh view (and selection) per category.
-            HVSCBrowserView(category: category)
+            HVSCBrowserView(category: category, search: searchText.wrappedValue)
                 .id(category)
         }
     }

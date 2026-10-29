@@ -2,15 +2,20 @@ import SwiftUI
 import PhosphorCore
 
 /// One HVSC category: authors (or alphabetical sections) on the left, the
-/// selected one's tunes on the right; typing in the search field switches to
-/// ranked results from this category or all of HVSC.
+/// selected one's tunes on the right; typing in the window's search field
+/// switches to ranked results from this category or all of HVSC.
+///
+/// Nothing here touches the toolbar (search field, scopes, subtitle): a
+/// toolbar that changes when the sidebar selection changes made SwiftUI
+/// re-run the window layout until AppKit aborted the app.
 struct HVSCBrowserView: View {
     let category: HvscCategory
+    /// The window search field's text for this category.
+    let search: String
 
     @Environment(LibraryStore.self) private var library
     @Environment(PlayerStore.self) private var player
     @State private var selectedAuthor: String?
-    @State private var search = ""
     @State private var scope = SearchScope.category
     @State private var results: HvscSearchResult?
     @State private var searchError: String?
@@ -24,23 +29,22 @@ struct HVSCBrowserView: View {
     var body: some View {
         Group {
             if query.isEmpty {
-                HSplitView {
+                // Not HSplitView: its panes' minimum widths become AppKit
+                // constraints that fight the window's own split view
+                // (sidebar / content / inspector) until AppKit aborts the
+                // app. A fixed author column can't conflict.
+                HStack(spacing: 0) {
                     AuthorList(category: category, selection: $selectedAuthor)
-                        .frame(minWidth: 160, idealWidth: 230, maxWidth: 340)
+                        .frame(width: 240)
+                    Divider()
                     authorTunes
-                        .frame(minWidth: 200, maxWidth: .infinity)
+                        .frame(minWidth: 0, maxWidth: .infinity)
                 }
             } else {
                 searchResults
             }
         }
-        .searchable(text: $search, placement: .toolbar, prompt: "Search \(category.displayName)")
-        .searchScopes($scope) {
-            Text(category.displayName).tag(SearchScope.category)
-            Text("All HVSC").tag(SearchScope.all)
-        }
         .task(id: SearchRequest(query: query, scope: scope)) { await runSearch() }
-        .navigationSubtitle(subtitle)
     }
 
     // MARK: Author tunes
@@ -90,8 +94,35 @@ struct HVSCBrowserView: View {
         }
     }
 
-    @ViewBuilder
     private var searchResults: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                Picker("Search in", selection: $scope) {
+                    Text(category.displayName).tag(SearchScope.category)
+                    Text("All HVSC").tag(SearchScope.all)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                if let results, !isIndexing, searchError == nil, !results.items.isEmpty {
+                    Text(resultsSummary(results))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .frame(minWidth: 0, maxWidth: .infinity)
+            .background(.bar)
+            Divider()
+            resultsBody
+        }
+    }
+
+    @ViewBuilder
+    private var resultsBody: some View {
         if let searchError {
             ContentUnavailableView("Search Failed", systemImage: "exclamationmark.triangle", description: Text(searchError))
         } else if let results, !isIndexing {
@@ -99,15 +130,6 @@ struct HVSCBrowserView: View {
                 ContentUnavailableView.search(text: query)
             } else {
                 LibraryTable(rows: results.items.map(LibraryRow.init))
-                    .safeAreaInset(edge: .top, spacing: 0) {
-                        Text(resultsSummary(results))
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(.bar)
-                    }
             }
         } else {
             VStack(spacing: 10) {
@@ -145,14 +167,6 @@ struct HVSCBrowserView: View {
         return r.totalMatches > UInt32(r.items.count)
             ? "Best \(r.items.count) of \(total) matches among \(indexed) tunes"
             : "\(total) matches among \(indexed) tunes"
-    }
-
-    private var subtitle: String {
-        if !query.isEmpty, let results {
-            return "\(results.totalMatches.formatted()) matches"
-        }
-        guard let authors = library.authors[category] else { return category.displayName }
-        return "\(authors.count.formatted()) \(category.groupNoun)"
     }
 }
 
@@ -324,7 +338,7 @@ private struct LibraryTable: View {
 }
 
 #Preview {
-    HVSCBrowserView(category: .musicians)
+    HVSCBrowserView(category: .musicians, search: "")
         .environment(PlayerStore.preview)
         .environment(LibraryStore(player: .preview))
         .frame(width: 900, height: 500)

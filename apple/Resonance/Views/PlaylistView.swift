@@ -7,7 +7,8 @@ struct PlaylistView: View {
     @Environment(PlayerStore.self) private var store
     @State private var selection = Set<TrackRow.ID>()
     @State private var sortOrder = [KeyPathComparator(\TrackRow.index)]
-    @State private var search = ""
+    /// The window search field's text for the playlist.
+    let search: String
 
     var body: some View {
         Group {
@@ -17,8 +18,6 @@ struct PlaylistView: View {
                 table
             }
         }
-        .searchable(text: $search, placement: .toolbar, prompt: "Search playlist")
-        .navigationSubtitle(store.rows.count == 1 ? "1 tune" : "\(store.rows.count) tunes")
     }
 
     private var table: some View {
@@ -140,7 +139,7 @@ struct PlaylistView: View {
 }
 
 #Preview {
-    PlaylistView()
+    PlaylistView(search: "")
         .environment(PlayerStore.preview)
         .frame(width: 800, height: 400)
 }
