@@ -1,0 +1,4 @@
+# Keep terminal and Xcode builds on the same deployment target; otherwise the
+# cc-built C/C++ dependencies get rebuilt every time you switch between them.
+[env]
+MACOSX_DEPLOYMENT_TARGET = "27.0"

@@ -1,0 +1,8 @@
+[bindings.swift]
+# The generated Swift is compiled into the PhosphorCore framework target;
+# its C header and modulemap form the PhosphorCoreFFI clang module.
+module_name = "PhosphorCore"
+ffi_module_name = "PhosphorCoreFFI"
+ffi_module_filename = "PhosphorCoreFFI"
+# Lets SwiftUI pickers iterate Engine / Repeat / PseudoStereo directly.
+generate_case_iterable_conformance = true

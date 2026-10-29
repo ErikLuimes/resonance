@@ -1,0 +1,615 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0E07FDAAF4E88A1E0C881555 /* PhosphorCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D3083881103BCAC2EE1BC2C /* PhosphorCore.swift */; };
+		F4005B06ADC159B135A39223 /* libphosphor_apple.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 048F94C7F0099B4300B897EA /* libphosphor_apple.a */; };
+		E836E96C5BC45F7A1EFF5F86 /* PhosphorCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */; };
+		0BC0465548DDA9FA7F88FFB1 /* PhosphorCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		FA99E36DFC9909E36EFDFFA1 /* PhosphorCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		BABA6A74AB0022A87B1CF6E9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AF0D8A68B51A43F4FE134FAF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C24B8C53059C663F18684913;
+			remoteInfo = PhosphorCore;
+		};
+		E20C3AA4C7545CF4B2D0376B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AF0D8A68B51A43F4FE134FAF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DCFDDD02CCFD5D33F14599BA;
+			remoteInfo = Resonance;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		6A387C50522DEA4C3160CAEB /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				0BC0465548DDA9FA7F88FFB1 /* PhosphorCore.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		3D3083881103BCAC2EE1BC2C /* PhosphorCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhosphorCore.swift; sourceTree = "<group>"; };
+		83AFC7F4CE4A875AF8328ED6 /* PhosphorCoreFFI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PhosphorCoreFFI.h; sourceTree = "<group>"; };
+		734B8B880EBCCD5A623EE2FD /* module.modulemap */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; path = module.modulemap; sourceTree = "<group>"; };
+		048F94C7F0099B4300B897EA /* libphosphor_apple.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libphosphor_apple.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		763213B2949B2A0EC2A955D0 /* Resonance-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Resonance-Info.plist"; sourceTree = "<group>"; };
+		2DB47D97055BF12AC55F3F15 /* build-core.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "build-core.sh"; sourceTree = "<group>"; };
+		9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = PhosphorCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		BD618DF38BE01ED7BAC0B411 /* Resonance.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Resonance.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F8024CBD8CE4F2DA043269EF /* ResonanceTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ResonanceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		8918060A678BD452D61B3B6B /* Resonance */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Resonance;
+			sourceTree = "<group>";
+		};
+		C6453AC673229E64EE9991B0 /* ResonanceTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ResonanceTests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		1C106756B531690ED28C0DF5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F4005B06ADC159B135A39223 /* libphosphor_apple.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		241F3D41DC945C95CE73B323 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E836E96C5BC45F7A1EFF5F86 /* PhosphorCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E595DF9F4AF1431D32A776F5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FA99E36DFC9909E36EFDFFA1 /* PhosphorCore.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		AF62C528221C8940CE4CCAD7 = {
+			isa = PBXGroup;
+			children = (
+				8918060A678BD452D61B3B6B /* Resonance */,
+				C6453AC673229E64EE9991B0 /* ResonanceTests */,
+				411E8B423831D7B4B6F29CF1 /* PhosphorCore */,
+				44A88AA8803A35B8CB3E1767 /* Config */,
+				6D960DB7A3C67A976CF668BD /* scripts */,
+				2AB91D63C9C73ECC697336D4 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		411E8B423831D7B4B6F29CF1 /* PhosphorCore */ = {
+			isa = PBXGroup;
+			children = (
+				B34188EFE858AC6D9C3C1D98 /* Generated */,
+			);
+			path = PhosphorCore;
+			sourceTree = "<group>";
+		};
+		B34188EFE858AC6D9C3C1D98 /* Generated */ = {
+			isa = PBXGroup;
+			children = (
+				3D3083881103BCAC2EE1BC2C /* PhosphorCore.swift */,
+				83AFC7F4CE4A875AF8328ED6 /* PhosphorCoreFFI.h */,
+				734B8B880EBCCD5A623EE2FD /* module.modulemap */,
+			);
+			path = Generated;
+			sourceTree = "<group>";
+		};
+		44A88AA8803A35B8CB3E1767 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				763213B2949B2A0EC2A955D0 /* Resonance-Info.plist */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		6D960DB7A3C67A976CF668BD /* scripts */ = {
+			isa = PBXGroup;
+			children = (
+				2DB47D97055BF12AC55F3F15 /* build-core.sh */,
+			);
+			path = scripts;
+			sourceTree = "<group>";
+		};
+		2AB91D63C9C73ECC697336D4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */,
+				BD618DF38BE01ED7BAC0B411 /* Resonance.app */,
+				F8024CBD8CE4F2DA043269EF /* ResonanceTests.xctest */,
+				048F94C7F0099B4300B897EA /* libphosphor_apple.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		C24B8C53059C663F18684913 /* PhosphorCore */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 18BA73C846654749E9561CCC /* Build configuration list for PBXNativeTarget "PhosphorCore" */;
+			buildPhases = (
+				2A758382E9A932B68A41B44B /* Build Rust core */,
+				2A1965C1D80DB04F7CB5814A /* Sources */,
+				1C106756B531690ED28C0DF5 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PhosphorCore;
+			productName = PhosphorCore;
+			productReference = 9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		DCFDDD02CCFD5D33F14599BA /* Resonance */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7514E69D7D90F9AB8091A4F8 /* Build configuration list for PBXNativeTarget "Resonance" */;
+			buildPhases = (
+				B9267B542A7577A098AEB47B /* Sources */,
+				241F3D41DC945C95CE73B323 /* Frameworks */,
+				A8A3262CFE440FB154D11D6E /* Resources */,
+				6A387C50522DEA4C3160CAEB /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				FB9E6AE35070A8202EEAF928 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				8918060A678BD452D61B3B6B /* Resonance */,
+			);
+			name = Resonance;
+			packageProductDependencies = (
+			);
+			productName = Resonance;
+			productReference = BD618DF38BE01ED7BAC0B411 /* Resonance.app */;
+			productType = "com.apple.product-type.application";
+		};
+		4FA88B2A7757441228804026 /* ResonanceTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BADE6B42B4B12B2F54DC24B4 /* Build configuration list for PBXNativeTarget "ResonanceTests" */;
+			buildPhases = (
+				0A1DDCF13581EF9C0FEECCD5 /* Sources */,
+				E595DF9F4AF1431D32A776F5 /* Frameworks */,
+				9DE6A966D711B823330E4FAA /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				06C90C261AF3B31CE9C5ECA0 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				C6453AC673229E64EE9991B0 /* ResonanceTests */,
+			);
+			name = ResonanceTests;
+			packageProductDependencies = (
+			);
+			productName = ResonanceTests;
+			productReference = F8024CBD8CE4F2DA043269EF /* ResonanceTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AF0D8A68B51A43F4FE134FAF /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					C24B8C53059C663F18684913 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					DCFDDD02CCFD5D33F14599BA = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					4FA88B2A7757441228804026 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = DCFDDD02CCFD5D33F14599BA;
+					};
+				};
+			};
+			buildConfigurationList = 443D57C354C1A3722F9AF8C5 /* Build configuration list for PBXProject "Resonance" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = AF62C528221C8940CE4CCAD7;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 2AB91D63C9C73ECC697336D4 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				DCFDDD02CCFD5D33F14599BA /* Resonance */,
+				C24B8C53059C663F18684913 /* PhosphorCore */,
+				4FA88B2A7757441228804026 /* ResonanceTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A8A3262CFE440FB154D11D6E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9DE6A966D711B823330E4FAA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		2A758382E9A932B68A41B44B /* Build Rust core */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build Rust core";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/PhosphorCore/Generated/PhosphorCore.swift",
+				"$(SRCROOT)/PhosphorCore/Generated/PhosphorCoreFFI.h",
+				"$(SRCROOT)/PhosphorCore/Generated/module.modulemap",
+				"$(BUILT_PRODUCTS_DIR)/libphosphor_apple.a",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"$SRCROOT/scripts/build-core.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		2A1965C1D80DB04F7CB5814A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0E07FDAAF4E88A1E0C881555 /* PhosphorCore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B9267B542A7577A098AEB47B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0A1DDCF13581EF9C0FEECCD5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		FB9E6AE35070A8202EEAF928 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C24B8C53059C663F18684913 /* PhosphorCore */;
+			targetProxy = BABA6A74AB0022A87B1CF6E9 /* PBXContainerItemProxy */;
+		};
+		06C90C261AF3B31CE9C5ECA0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DCFDDD02CCFD5D33F14599BA /* Resonance */;
+			targetProxy = E20C3AA4C7545CF4B2D0376B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		52BC5990FB655EB008ED4180 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/PhosphorCore/Generated";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		E96E22D6CD86F590AA96C20A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/PhosphorCore/Generated";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		AC49ED88A8D71643B3B85EB7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CURRENT_PROJECT_VERSION = 1;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				OTHER_LDFLAGS = (
+					"-lc++",
+					"-liconv",
+					"-framework",
+					Security,
+					"-framework",
+					SystemConfiguration,
+					"-framework",
+					AudioUnit,
+					"-framework",
+					CoreAudio,
+					"-framework",
+					CoreFoundation,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = nl.luimes.resonance.PhosphorCore;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_INSTALL_OBJC_HEADER = NO;
+			};
+			name = Debug;
+		};
+		3008B4A4A23FA5BB65C1A8AC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CURRENT_PROJECT_VERSION = 1;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				OTHER_LDFLAGS = (
+					"-lc++",
+					"-liconv",
+					"-framework",
+					Security,
+					"-framework",
+					SystemConfiguration,
+					"-framework",
+					AudioUnit,
+					"-framework",
+					CoreAudio,
+					"-framework",
+					CoreFoundation,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = nl.luimes.resonance.PhosphorCore;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_INSTALL_OBJC_HEADER = NO;
+			};
+			name = Release;
+		};
+		9F43363451E01D2FE700BB5C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/Resonance-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Resonance;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = nl.luimes.resonance;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Debug;
+		};
+		6E4314B3FDB9CCCC2ECC31DA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/Resonance-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Resonance;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = nl.luimes.resonance;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Release;
+		};
+		763169414422A77E8E8A3E36 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = nl.luimes.resonance.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Resonance.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Resonance";
+			};
+			name = Debug;
+		};
+		799B72BCA542FA613B264F86 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = nl.luimes.resonance.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Resonance.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Resonance";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		443D57C354C1A3722F9AF8C5 /* Build configuration list for PBXProject "Resonance" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				52BC5990FB655EB008ED4180 /* Debug */,
+				E96E22D6CD86F590AA96C20A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		18BA73C846654749E9561CCC /* Build configuration list for PBXNativeTarget "PhosphorCore" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC49ED88A8D71643B3B85EB7 /* Debug */,
+				3008B4A4A23FA5BB65C1A8AC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7514E69D7D90F9AB8091A4F8 /* Build configuration list for PBXNativeTarget "Resonance" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9F43363451E01D2FE700BB5C /* Debug */,
+				6E4314B3FDB9CCCC2ECC31DA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BADE6B42B4B12B2F54DC24B4 /* Build configuration list for PBXNativeTarget "ResonanceTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				763169414422A77E8E8A3E36 /* Debug */,
+				799B72BCA542FA613B264F86 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = AF0D8A68B51A43F4FE134FAF /* Project object */;
+}
