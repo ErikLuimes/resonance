@@ -9,10 +9,11 @@ struct ResonanceApp: App {
         Window("Resonance", id: "main") {
             ContentView()
                 .environment(appDelegate.store)
+                .environment(appDelegate.library)
         }
         .defaultSize(width: 1100, height: 680)
         .commands {
-            PlaybackCommands(store: appDelegate.store)
+            PlaybackCommands(store: appDelegate.store, library: appDelegate.library)
         }
 
         Settings {

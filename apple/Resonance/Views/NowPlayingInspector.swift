@@ -31,6 +31,14 @@ struct NowPlayingInspector: View {
                         LabeledContent("Length", value: Duration.seconds(duration).formatted(.time(pattern: .minuteSecond)))
                     }
                 }
+                if let stil = store.stil {
+                    Section("STIL") {
+                        Text(stil)
+                            .font(.callout)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
                 Section("Tune") {
                     LabeledContent("Format", value: track.sidType)
                     LabeledContent("SID Model", value: sidModelName(track.sidModel))

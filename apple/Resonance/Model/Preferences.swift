@@ -11,6 +11,7 @@ nonisolated enum Pref {
     static let defaultSongLength = "defaultSongLengthSecs"
     static let forceStereo2SID = "forceStereo2SID"
     static let pseudoStereo = "pseudoStereo"
+    static let hvscRoot = "hvscRoot"
 }
 
 nonisolated extension PlaybackOptions {
@@ -85,6 +86,29 @@ nonisolated extension Repeat {
 
     var symbolName: String {
         self == .one ? "repeat.1" : "repeat"
+    }
+}
+
+nonisolated extension HvscCategory {
+    var displayName: String {
+        switch self {
+        case .musicians: "Musicians"
+        case .games: "Games"
+        case .demos: "Demos"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .musicians: "music.mic"
+        case .games: "gamecontroller"
+        case .demos: "sparkles.tv"
+        }
+    }
+
+    /// Games and Demos are split into alphabetical sections, not authors.
+    var groupNoun: String {
+        self == .musicians ? "authors" : "sections"
     }
 }
 

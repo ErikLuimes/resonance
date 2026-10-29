@@ -1,9 +1,13 @@
 //! The UniFFI surface Swift sees.
 //!
-//! Every method is non-blocking: commands are queued to the session thread
-//! and reads clone the latest published read model. Swift polls
+//! Playback methods are non-blocking: commands are queued to the session
+//! thread and reads clone the latest published read model. Swift polls
 //! `snapshot()` (cheap), refetches `playlist()` when `playlist_revision`
 //! changes, and reads `viz_frame()` once per display frame.
+//!
+//! The HVSC library methods are `async` (Swift `await`s them): they list
+//! folders, read SID headers or build a search index, on tokio's blocking
+//! pool.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -11,7 +15,10 @@ use std::time::Duration;
 
 use crossbeam_channel::bounded;
 
+use crate::databases;
 use crate::driver::{Command, Driver, Published, StartConfig};
+use crate::hvsc_browser::{self, HvscAuthor, HvscIndexEntry, HvscTune};
+use crate::library::{Library, LibraryError};
 use crate::player::pseudo_stereo::DetuneStrength;
 use crate::player::{PlayState, TrackInfo};
 use crate::playlist::{PlaylistEntry, RepeatMode};
@@ -72,6 +79,8 @@ pub struct CoreConfig {
     pub repeat: Repeat,
     /// Where the playlist is saved between launches.
     pub session_path: String,
+    /// The HVSC collection's root folder (the one holding MUSICIANS/).
+    pub hvsc_root: Option<String>,
 }
 
 /// Settings read from the Iced Phosphor app's config.json, for a one-time
@@ -143,6 +152,10 @@ pub struct Snapshot {
     /// Background loading progress, when files are being read.
     pub loading: Option<String>,
     pub error: Option<String>,
+    /// HVSC categories whose search index is being built.
+    pub hvsc_indexing: Vec<HvscCategory>,
+    /// STIL commentary for the playing tune's current subtune.
+    pub stil: Option<String>,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -156,6 +169,79 @@ pub struct VizFrame {
     pub num_sids: u32,
 }
 
+/// The top-level HVSC folders.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Enum)]
+pub enum HvscCategory {
+    Musicians,
+    Games,
+    Demos,
+}
+
+/// An author folder (MUSICIANS) or an alphabetical section (GAMES, DEMOS).
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct HvscAuthorItem {
+    /// Folder name, e.g. "Hubbard_Rob".
+    pub name: String,
+    /// e.g. "Hubbard, Rob".
+    pub display_name: String,
+    /// The letter folder it lives in ("0" for 0-9).
+    pub letter: String,
+    pub path: String,
+}
+
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct HvscTuneItem {
+    pub path: String,
+    pub title: String,
+    /// The author from the tune header, or in search results the folder it
+    /// lives in.
+    pub author: String,
+    pub released: String,
+    pub songs: u16,
+    /// The tune's default subtune (1-based).
+    pub start_song: u16,
+    /// Length of the start subtune, if the Songlengths database knows it.
+    pub duration_secs: Option<u32>,
+    pub has_stil: bool,
+    /// Unknown in search results (the index doesn't store it).
+    pub is_rsid: Option<bool>,
+    pub category: HvscCategory,
+}
+
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct HvscSearchResult {
+    /// Best matches first, at most 500.
+    pub items: Vec<HvscTuneItem>,
+    /// All matches, including those past the cap.
+    pub total_matches: u32,
+    /// How many tunes were searched.
+    pub indexed: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, uniffi::Error)]
+pub enum HvscError {
+    /// No HVSC folder is set.
+    NoRoot,
+    /// A category folder or path isn't in the collection.
+    NotFound {
+        message: String,
+    },
+    Io {
+        message: String,
+    },
+}
+
+impl std::fmt::Display for HvscError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HvscError::NoRoot => f.write_str("No HVSC folder is set."),
+            HvscError::NotFound { message } | HvscError::Io { message } => f.write_str(message),
+        }
+    }
+}
+
+impl std::error::Error for HvscError {}
+
 // ── PlayerCore ───────────────────────────────────────────────────────────────
 
 /// The player. Create one per app; it owns the engine, playlist and session
@@ -163,12 +249,16 @@ pub struct VizFrame {
 #[derive(uniffi::Object)]
 pub struct PlayerCore {
     driver: Driver,
+    library: Library,
 }
 
 #[uniffi::export]
 impl PlayerCore {
     #[uniffi::constructor]
     pub fn new(config: CoreConfig) -> Arc<Self> {
+        let hvsc_root = config.hvsc_root.map(PathBuf::from);
+        let databases = databases::shared();
+        let library = Library::new(hvsc_root.clone(), databases.clone());
         let driver = Driver::start(StartConfig {
             engine: config.engine.into(),
             volume: config.volume,
@@ -176,8 +266,10 @@ impl PlayerCore {
             shuffle: config.shuffle,
             repeat: config.repeat.into(),
             session_path: PathBuf::from(config.session_path),
+            hvsc_root,
+            databases,
         });
-        Arc::new(Self { driver })
+        Arc::new(Self { driver, library })
     }
 
     // ── Playlist ──
@@ -268,6 +360,14 @@ impl PlayerCore {
         self.send(Command::SetOptions(options.into()));
     }
 
+    /// Switch to another HVSC folder (or none). Clears the library's lists
+    /// and indexes.
+    pub fn set_hvsc_root(&self, root: Option<String>) {
+        let root = root.map(PathBuf::from);
+        self.library.set_root(root.clone());
+        self.send(Command::SetHvscRoot(root));
+    }
+
     // ── Reads ──
 
     pub fn snapshot(&self) -> Snapshot {
@@ -292,6 +392,13 @@ impl PlayerCore {
             track_revision: view.track_revision,
             loading: p.loading.clone(),
             error: p.error.clone(),
+            hvsc_indexing: self
+                .library
+                .indexing()
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+            stil: p.stil.clone(),
         }
     }
 
@@ -321,6 +428,59 @@ impl PlayerCore {
         if self.driver.commands.send(Command::Shutdown(ack_tx)).is_ok() {
             let _ = ack_rx.recv_timeout(Duration::from_secs(1));
         }
+    }
+}
+
+#[uniffi::export(async_runtime = "tokio")]
+impl PlayerCore {
+    /// Author folders (MUSICIANS) or alphabetical sections (GAMES, DEMOS),
+    /// in folder order.
+    pub async fn hvsc_authors(
+        &self,
+        category: HvscCategory,
+    ) -> Result<Vec<HvscAuthorItem>, HvscError> {
+        let authors = self.library.authors(category.into()).await?;
+        Ok(authors.iter().map(HvscAuthorItem::from).collect())
+    }
+
+    /// The tunes in one author folder or section.
+    pub async fn hvsc_tunes(&self, author_path: String) -> Result<Vec<HvscTuneItem>, HvscError> {
+        let path = PathBuf::from(author_path);
+        let root = self.library.root();
+        let tunes = self.library.tunes(path).await?;
+        Ok(tunes
+            .iter()
+            .map(|t| HvscTuneItem::from_tune(t, root.as_deref()))
+            .collect())
+    }
+
+    /// Fuzzy search by title, author, file name and release; `scope` limits
+    /// it to one category. The first search in a category builds its index
+    /// (or loads it from the cache shared with Phosphor).
+    pub async fn hvsc_search(
+        &self,
+        query: String,
+        scope: Option<HvscCategory>,
+    ) -> Result<HvscSearchResult, HvscError> {
+        let r = self.library.search(query, scope.map(Into::into)).await?;
+        Ok(HvscSearchResult {
+            items: r
+                .hits
+                .iter()
+                .map(|(category, entry)| HvscTuneItem::from_index(entry, (*category).into()))
+                .collect(),
+            total_matches: r.total_matches as u32,
+            indexed: r.indexed as u32,
+        })
+    }
+
+    /// A random tune's path, from `scope` or the whole collection.
+    pub async fn hvsc_surprise(
+        &self,
+        scope: Option<HvscCategory>,
+    ) -> Result<Option<String>, HvscError> {
+        let path = self.library.surprise(scope.map(Into::into)).await?;
+        Ok(path.map(|p| p.to_string_lossy().into_owned()))
     }
 }
 
@@ -366,7 +526,103 @@ fn to_usize(v: Vec<u32>) -> Vec<usize> {
     v.into_iter().map(|i| i as usize).collect()
 }
 
+/// "Hubbard_Rob" → "Hubbard, Rob", other folder names with spaces. Mirrors
+/// upstream's private `derive_display_name` (src/hvsc_browser.rs:1175), which
+/// names authors in the browse lists.
+fn display_name(folder: &str) -> String {
+    match folder.split('_').collect::<Vec<_>>()[..] {
+        [last, first] if first.starts_with(|c: char| c.is_ascii_uppercase()) => {
+            format!("{last}, {first}")
+        }
+        _ => folder.replace('_', " "),
+    }
+}
+
 // ── Conversions ──────────────────────────────────────────────────────────────
+
+impl From<HvscCategory> for hvsc_browser::HvscCategory {
+    fn from(c: HvscCategory) -> Self {
+        match c {
+            HvscCategory::Musicians => hvsc_browser::HvscCategory::Musicians,
+            HvscCategory::Games => hvsc_browser::HvscCategory::Games,
+            HvscCategory::Demos => hvsc_browser::HvscCategory::Demos,
+        }
+    }
+}
+
+impl From<hvsc_browser::HvscCategory> for HvscCategory {
+    fn from(c: hvsc_browser::HvscCategory) -> Self {
+        match c {
+            hvsc_browser::HvscCategory::Musicians => HvscCategory::Musicians,
+            hvsc_browser::HvscCategory::Games => HvscCategory::Games,
+            hvsc_browser::HvscCategory::Demos => HvscCategory::Demos,
+        }
+    }
+}
+
+impl From<LibraryError> for HvscError {
+    fn from(e: LibraryError) -> Self {
+        match e {
+            LibraryError::NoRoot => HvscError::NoRoot,
+            LibraryError::NotFound(message) => HvscError::NotFound { message },
+            LibraryError::Io(message) => HvscError::Io { message },
+        }
+    }
+}
+
+impl From<&HvscAuthor> for HvscAuthorItem {
+    fn from(a: &HvscAuthor) -> Self {
+        HvscAuthorItem {
+            name: a.raw_name.clone(),
+            display_name: a.display_name.clone(),
+            letter: a.letter.to_string(),
+            path: a.path.to_string_lossy().into_owned(),
+        }
+    }
+}
+
+impl HvscTuneItem {
+    fn from_tune(t: &HvscTune, root: Option<&std::path::Path>) -> Self {
+        let e = &t.entry;
+        let category = root
+            .and_then(|r| e.path.strip_prefix(r).ok())
+            .and_then(|rel| rel.components().next())
+            .and_then(|c| c.as_os_str().to_str())
+            .and_then(|dir| {
+                crate::library::CATEGORIES
+                    .into_iter()
+                    .find(|c| c.dir_name() == dir)
+            })
+            .unwrap_or(hvsc_browser::HvscCategory::Musicians);
+        HvscTuneItem {
+            path: e.path.to_string_lossy().into_owned(),
+            title: e.title.clone(),
+            author: e.author.clone(),
+            released: e.released.clone(),
+            songs: e.songs,
+            start_song: e.selected_song,
+            duration_secs: e.duration_secs,
+            has_stil: t.has_stil,
+            is_rsid: Some(e.is_rsid),
+            category: category.into(),
+        }
+    }
+
+    fn from_index(e: &HvscIndexEntry, category: HvscCategory) -> Self {
+        HvscTuneItem {
+            path: e.path.to_string_lossy().into_owned(),
+            title: e.title.clone(),
+            author: display_name(&e.author_raw),
+            released: e.released.clone(),
+            songs: e.songs,
+            start_song: 1,
+            duration_secs: e.duration_secs,
+            has_stil: e.has_stil,
+            is_rsid: None,
+            category,
+        }
+    }
+}
 
 impl From<Engine> for session::Engine {
     fn from(e: Engine) -> Self {

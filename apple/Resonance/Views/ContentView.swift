@@ -1,31 +1,31 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import PhosphorCore
 
-/// Library sources in the sidebar. Only the playlist exists in M1; HVSC,
-/// Favorites and Recent slot in here later.
+/// What the sidebar can show. Favorites and Recent slot in here later.
 enum SidebarItem: Hashable {
     case playlist
+    case hvsc(HvscCategory)
 }
 
 struct ContentView: View {
     @Environment(PlayerStore.self) private var store
+    @Environment(LibraryStore.self) private var library
     @State private var sidebarSelection: SidebarItem? = .playlist
     @State private var showInspector = true
     @State private var isDropTargeted = false
+    @State private var choosingHvscFolder = false
 
     var body: some View {
         @Bindable var store = store
         NavigationSplitView {
-            List(selection: $sidebarSelection) {
-                Section("Library") {
-                    Label("Playlist", systemImage: "music.note.list")
-                        .badge(store.rows.count)
-                        .tag(SidebarItem.playlist)
-                }
-            }
-            .navigationSplitViewColumnWidth(min: 160, ideal: 190, max: 260)
+            sidebar
+                .navigationSplitViewColumnWidth(min: 160, ideal: 190, max: 260)
         } detail: {
-            PlaylistView()
+            detail
+                // The column's minimum width must not follow its content
+                // (see NowPlayingBar): pin it, and let content adapt.
+                .frame(minWidth: 0, maxWidth: .infinity)
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     NowPlayingBar()
                         .padding(.horizontal, 12)
@@ -39,6 +39,13 @@ struct ContentView: View {
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
+                Button("Surprise Me", systemImage: "dice") {
+                    Task { await library.surpriseMe() }
+                }
+                .help("Play a random tune from HVSC")
+                .disabled(!library.hasRoot)
+            }
+            ToolbarItem(placement: .primaryAction) {
                 Button("Add Files", systemImage: "plus") { store.isImporting = true }
                     .help("Add SID files, folders or playlists")
             }
@@ -48,7 +55,6 @@ struct ContentView: View {
             }
         }
         .navigationTitle("Resonance")
-        .navigationSubtitle(subtitle)
         .fileImporter(
             isPresented: $store.isImporting,
             allowedContentTypes: [.sidTune, .m3uPlaylist, .folder],
@@ -70,11 +76,53 @@ struct ContentView: View {
                     .allowsHitTesting(false)
             }
         }
+        .onChange(of: sidebarSelection, initial: true) { _, selection in
+            if case .hvsc(let category) = selection {
+                library.activeCategory = category
+            } else {
+                library.activeCategory = nil
+            }
+        }
     }
 
-    private var subtitle: String {
-        let count = store.rows.count
-        return count == 1 ? "1 tune" : "\(count) tunes"
+    private var sidebar: some View {
+        List(selection: $sidebarSelection) {
+            Section("Library") {
+                Label("Playlist", systemImage: "music.note.list")
+                    .badge(store.rows.count)
+                    .tag(SidebarItem.playlist)
+            }
+            Section("HVSC") {
+                if library.hasRoot {
+                    ForEach(HvscCategory.allCases, id: \.self) { category in
+                        Label(category.displayName, systemImage: category.symbolName)
+                            .tag(SidebarItem.hvsc(category))
+                    }
+                } else {
+                    Button("Choose HVSC Folder…", systemImage: "folder.badge.plus") {
+                        choosingHvscFolder = true
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+        }
+        .fileImporter(isPresented: $choosingHvscFolder, allowedContentTypes: [.folder]) { result in
+            if case .success(let url) = result {
+                store.hvscRoot = url.path
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var detail: some View {
+        switch sidebarSelection ?? .playlist {
+        case .playlist:
+            PlaylistView()
+        case .hvsc(let category):
+            // A fresh view (and selection) per category.
+            HVSCBrowserView(category: category)
+                .id(category)
+        }
     }
 }
 
@@ -119,5 +167,6 @@ private struct StatusBanner: View {
 #Preview {
     ContentView()
         .environment(PlayerStore.preview)
+        .environment(LibraryStore(player: .preview))
         .frame(width: 1100, height: 680)
 }

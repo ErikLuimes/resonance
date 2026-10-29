@@ -22,7 +22,9 @@ doctest = false
 usb = []
 
 [dependencies]
-uniffi.workspace = true
+# tokio: async FFI methods run on UniFFI's tokio runtime (library queries
+# do blocking disk work via spawn_blocking).
+uniffi = { workspace = true, features = ["tokio"] }
 
 # ── Mirrors of the root Cargo.toml ───────────────────────────────────────────
 # Same versions and features as ../../Cargo.toml for the engine sources this
@@ -41,6 +43,7 @@ url = "2.5"
 rand = "0.8"
 md5 = "0.7"
 walkdir = "2"
+nucleo-matcher = "0.3"
 mp3lame-encoder = "0.2.4"
 tokio = { version = "1.49.0", features = ["rt", "fs", "io-util", "macros", "time"] }
 reqwest = { version = "0.13.2", features = ["json", "stream"] }

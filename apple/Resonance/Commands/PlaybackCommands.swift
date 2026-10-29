@@ -3,6 +3,7 @@ import PhosphorCore
 
 struct PlaybackCommands: Commands {
     let store: PlayerStore
+    let library: LibraryStore
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
@@ -30,6 +31,12 @@ struct PlaybackCommands: Commands {
             Button("Previous Subtune") { store.previousSubtune() }
                 .keyboardShortcut(.leftArrow, modifiers: [.command, .option])
                 .disabled(!store.hasSubtunes)
+
+            Divider()
+
+            Button("Surprise Me") { Task { await library.surpriseMe() } }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+                .disabled(!library.hasRoot)
 
             Divider()
 

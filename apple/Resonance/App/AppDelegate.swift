@@ -4,14 +4,16 @@ import AppKit
 /// before the window exists still reach it.
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let store: PlayerStore
+    let library: LibraryStore
     private var nowPlaying: NowPlayingController?
     private var activity: PlaybackActivity?
 
     override init() {
         // Under unit tests the app is only a host: no audio, no saved session.
         store = Self.isRunningTests
-            ? PlayerStore(defaults: UserDefaults(suiteName: "tests")!) { _ in PreviewCore.empty }
+            ? PlayerStore(defaults: UserDefaults(suiteName: "tests")!, phosphorHvscRoot: { nil }) { _ in PreviewCore.empty }
             : .live()
+        library = LibraryStore(player: store)
         super.init()
     }
 

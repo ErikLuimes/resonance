@@ -26,6 +26,10 @@ final class PlayerStore {
     private(set) var error: String?
     /// Changes on every track or subtune switch.
     private(set) var trackRevision: UInt64 = 0
+    /// HVSC categories whose search index is being built.
+    private(set) var hvscIndexing: [HvscCategory] = []
+    /// STIL commentary for what's playing.
+    private(set) var stil: String?
 
     // MARK: Settings (persisted, pushed to the core)
 
@@ -77,20 +81,35 @@ final class PlayerStore {
         }
     }
 
+    /// The HVSC collection's root folder (the one holding MUSICIANS/), or
+    /// nil when there's none.
+    var hvscRoot: String? {
+        didSet {
+            guard hvscRoot != oldValue else { return }
+            // "" records an explicit "none", so Phosphor's folder isn't
+            // picked up again on the next launch.
+            defaults.set(hvscRoot ?? "", forKey: Pref.hvscRoot)
+            core.setHvscRoot(root: hvscRoot)
+        }
+    }
+
     /// Set by menu commands; the main window presents the file importer.
     var isImporting = false
 
     let core: any PlayerCoreProtocol
 
     @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private let phosphorHvscRoot: () -> String?
     @ObservationIgnored private var playlistRevision: UInt64?
     @ObservationIgnored private var pollTask: Task<Void, Never>?
 
     /// Reads the saved settings from `defaults` and starts a core configured
-    /// with them via `makeCore`.
+    /// with them via `makeCore`. Until an HVSC folder is chosen, Phosphor's
+    /// (`phosphorHvscRoot`) is used.
     init(
         defaults: UserDefaults = .standard,
         sessionPath: URL = AppPaths.sessionPlaylist,
+        phosphorHvscRoot: @escaping () -> String? = { sharedDefaults().hvscRoot },
         makeCore: (CoreConfig) -> any PlayerCoreProtocol
     ) {
         let engine = Engine(storageValue: defaults.string(forKey: Pref.engine)) ?? .sidLite
@@ -98,19 +117,24 @@ final class PlayerStore {
         let shuffle = defaults.bool(forKey: Pref.shuffle)
         let repeatMode = Repeat(storageValue: defaults.string(forKey: Pref.repeatMode)) ?? .off
         let options = PlaybackOptions(from: defaults)
+        let hvscRoot = (defaults.object(forKey: Pref.hvscRoot) as? String)
+            .map { $0.isEmpty ? nil : $0 } ?? phosphorHvscRoot()
         self.defaults = defaults
+        self.phosphorHvscRoot = phosphorHvscRoot
         self.engine = engine
         self.volume = volume
         self.shuffle = shuffle
         self.repeatMode = repeatMode
         self.options = options
+        self.hvscRoot = hvscRoot
         core = makeCore(CoreConfig(
             engine: engine,
             volume: Float(volume),
             options: options,
             shuffle: shuffle,
             repeat: repeatMode,
-            sessionPath: sessionPath.path
+            sessionPath: sessionPath.path,
+            hvscRoot: hvscRoot
         ))
     }
 
@@ -151,6 +175,8 @@ final class PlayerStore {
         update(\.loading, s.loading)
         update(\.error, s.error)
         update(\.trackRevision, s.trackRevision)
+        update(\.hvscIndexing, s.hvscIndexing)
+        update(\.stil, s.stil)
     }
 
     private func update<Value: Equatable>(_ keyPath: ReferenceWritableKeyPath<PlayerStore, Value>, _ value: Value) {
@@ -206,6 +232,11 @@ final class PlayerStore {
         case .all: .one
         case .one: .off
         }
+    }
+
+    /// Use the HVSC folder Phosphor is configured with.
+    func usePhosphorHvscRoot() {
+        hvscRoot = phosphorHvscRoot()
     }
 
     /// Start from the Iced Phosphor app's settings.

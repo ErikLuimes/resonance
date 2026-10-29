@@ -8,7 +8,9 @@
 
 use std::time::Duration;
 
-use phosphor_apple::{CoreConfig, Engine, PlaybackOptions, PlaybackState, PlayerCore, Repeat};
+use phosphor_apple::{
+    shared_defaults, CoreConfig, Engine, PlaybackOptions, PlaybackState, PlayerCore, Repeat,
+};
 
 fn main() {
     let paths: Vec<String> = std::env::args().skip(1).collect();
@@ -39,6 +41,7 @@ fn main() {
         shuffle: false,
         repeat: Repeat::Off,
         session_path: session.to_string_lossy().into_owned(),
+        hvsc_root: shared_defaults().hvsc_root,
     });
     core.add_paths(paths, true);
 

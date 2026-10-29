@@ -18,6 +18,7 @@ struct PlaylistView: View {
             }
         }
         .searchable(text: $search, placement: .toolbar, prompt: "Search playlist")
+        .navigationSubtitle(store.rows.count == 1 ? "1 tune" : "\(store.rows.count) tunes")
     }
 
     private var table: some View {

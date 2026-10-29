@@ -6,10 +6,10 @@
 //! under their upstream names because they refer to each other as
 //! `crate::config`, `crate::player`, and so on.
 //!
-//! Only the software-emulation path is included. The USB modules
-//! (`sid_direct`, `usb_bridge`, `daemon_installer`) are absent and the `usb`
-//! feature is never enabled, so `sid_device::create_engine` can't reach the
-//! bridge daemon or its osascript install prompt.
+//! Only the software-emulation and HVSC-library paths are included. The USB
+//! modules (`sid_direct`, `usb_bridge`, `daemon_installer`) are absent and the
+//! `usb` feature is never enabled, so `sid_device::create_engine` can't reach
+//! the bridge daemon or its osascript install prompt.
 
 // ── Upstream engine sources ──────────────────────────────────────────────────
 
@@ -35,6 +35,12 @@ pub(crate) mod dsp;
 #[path = "../../../src/favorites.rs"]
 pub(crate) mod favorites;
 #[allow(dead_code, unused, clippy::all)]
+#[path = "../../../src/hvsc_browser.rs"]
+pub(crate) mod hvsc_browser;
+#[allow(dead_code, unused, clippy::all)]
+#[path = "../../../src/hvsc_index_cache.rs"]
+pub(crate) mod hvsc_index_cache;
+#[allow(dead_code, unused, clippy::all)]
 #[path = "../../../src/hvsc_sync.rs"]
 pub(crate) mod hvsc_sync;
 #[allow(dead_code, unused, clippy::all)]
@@ -55,25 +61,39 @@ pub(crate) mod sid_sidlite;
 #[allow(dead_code, unused, clippy::all)]
 #[path = "../../../src/sid_u64.rs"]
 pub(crate) mod sid_u64;
+#[allow(dead_code, unused, clippy::all)]
+#[path = "../../../src/stil.rs"]
+pub(crate) mod stil;
 
 uniffi::setup_scaffolding!();
 
+mod databases;
 mod driver;
 mod ffi;
+mod library;
 pub(crate) mod session;
 
 pub use ffi::*;
 
 // ── Stand-ins for items the engine sources borrow from the Iced app ─────────
 
-/// `player` and `sid_device` name `crate::ui::DeviceConfigSnapshot` in
-/// USB device-config signatures. Values are only ever built by the USB
-/// backends, which aren't compiled here, so an uninhabitable placeholder is
-/// enough and can't drift from the real struct.
 pub(crate) mod ui {
+    /// `player` and `sid_device` name `crate::ui::DeviceConfigSnapshot` in
+    /// USB device-config signatures. Values are only ever built by the USB
+    /// backends, which aren't compiled here, so an uninhabitable placeholder
+    /// is enough and can't drift from the real struct.
     #[derive(Debug, Clone)]
     pub struct DeviceConfigSnapshot {
         _never: (),
+    }
+
+    /// `hvsc_browser` sorts with `crate::ui::SortDirection`. Same variants
+    /// and derives as src/ui/mod.rs (its `flip`/`arrow` helpers are UI-only);
+    /// if upstream changes the enum, hvsc_browser fails to compile here.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum SortDirection {
+        Ascending,
+        Descending,
     }
 }
 

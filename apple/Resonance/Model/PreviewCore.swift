@@ -49,7 +49,9 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
             elapsedMs: current == nil ? 0 : 83_000,
             durationMs: current.flatMap { items[$0].durationSecs }.map { UInt64($0) * 1000 },
             shuffle: false, repeat: .off, engine: .sidLite,
-            playlistRevision: 1, trackRevision: 1, loading: nil, error: nil
+            playlistRevision: 1, trackRevision: 1, loading: nil, error: nil,
+            hvscIndexing: [],
+            stil: current == nil ? nil : "COMMENT: Rob Hubbard's arrangement for Elite's arcade conversion."
         )
     }
 
@@ -64,6 +66,31 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
         return VizFrame(seq: UInt64(t * 50), voiceLevels: levels, sidRegs: Data(regs), numSids: 1)
     }
 
+    func hvscAuthors(category: HvscCategory) async throws -> [HvscAuthorItem] {
+        [("G", "Galway, Martin"), ("H", "Hubbard, Rob"), ("T", "Tel, Jeroen")].map { letter, name in
+            HvscAuthorItem(name: name, displayName: name, letter: letter, path: "/HVSC/MUSICIANS/\(letter)/\(name)")
+        }
+    }
+
+    func hvscTunes(authorPath: String) async throws -> [HvscTuneItem] {
+        items.map(Self.tune)
+    }
+
+    func hvscSearch(query: String, scope: HvscCategory?) async throws -> HvscSearchResult {
+        let hits = items.filter { $0.title.localizedStandardContains(query) }.map(Self.tune)
+        return HvscSearchResult(items: hits, totalMatches: UInt32(hits.count), indexed: 61_157)
+    }
+
+    func hvscSurprise(scope: HvscCategory?) async throws -> String? { items.randomElement()?.path }
+
+    private static func tune(_ it: PlaylistItem) -> HvscTuneItem {
+        HvscTuneItem(
+            path: it.path, title: it.title, author: it.author, released: it.released, songs: it.songs,
+            startSong: 1, durationSecs: it.durationSecs, hasStil: true, isRsid: false, category: .musicians
+        )
+    }
+
+    func setHvscRoot(root: String?) {}
     func addPaths(paths: [String], playFirst: Bool) {}
     func clear() {}
     func moveEntries(from: [UInt32], to: UInt32) {}

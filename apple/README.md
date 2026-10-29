@@ -32,11 +32,19 @@ cd apple && cargo test -p phosphor-apple
 xcodebuild test -project apple/Resonance.xcodeproj -scheme Resonance -destination 'platform=macOS,arch=arm64' -derivedDataPath apple/build/DD
 ```
 
-Play tunes without any UI (handy when working on the Rust side):
+Play tunes, or query the HVSC library, without any UI (handy when working on
+the Rust side):
 
 ```bash
 cd apple && cargo run -p phosphor-apple --example headless -- path/to/tune.sid
 ```
+
+```bash
+cd apple && cargo run -p phosphor-apple --example library -- search commando
+```
+
+The library example also takes `authors [category]`, `tunes <author folder>`
+and `surprise [category]`.
 
 ## How it fits together
 
@@ -54,11 +62,17 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
     (play, auto-advance, subtunes, songlengths), ported as a plain state
     machine with unit tests. Each block names its `main.rs` origin.
   - `driver.rs` — one thread owns the session and serialises commands,
-    player statuses and the auto-advance tick; a loader thread parses files.
-    It publishes an immutable snapshot after every step.
-  - `ffi.rs` — `PlayerCore`, the UniFFI object Swift talks to. Every call
-    returns immediately; Swift polls `snapshot()` at 20 Hz and `viz_frame()`
-    per display frame.
+    player statuses and the auto-advance tick; a loader thread parses files
+    and loads the Songlengths/STIL databases (`databases.rs`). It publishes
+    an immutable snapshot after every step.
+  - `library.rs` — the HVSC collection: authors, tunes, fuzzy search and
+    random picks, wrapping upstream's `hvsc_browser` model (one per
+    category) and its index cache. Index builds wait for the databases and
+    run detached, so a cancelled search can't leave one stuck.
+  - `ffi.rs` — `PlayerCore`, the UniFFI object Swift talks to. Playback calls
+    return immediately; Swift polls `snapshot()` at 20 Hz and `viz_frame()`
+    per display frame. Library calls are `async` (Swift `await`s them) and
+    run on tokio's blocking pool.
 - **`iced-shim/`** — `src/hvsc_sync.rs` imports `iced::futures`; this maps
   that path to `futures-util` so the GUI toolkit isn't built.
 - **`uniffi-bindgen/`** — the Swift binding generator, pinned to the same
@@ -67,24 +81,33 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
   builds the Rust library and regenerates the bindings, copying files only
   when they change so Xcode doesn't rebuild needlessly.
 - **`Resonance/`** — the app. `PlayerStore` wraps the core and owns the
-  settings; views bind to it.
+  settings; `LibraryStore` caches the HVSC lists; views bind to both.
 
 ## Data and settings
 
-- Reads (never writes) Phosphor's `~/Library/Application Support/phosphor/`:
-  `config.json` (HVSC location, and *Settings → Import Settings from Phosphor*)
-  and `Songlengths.md5`.
+- Reads Phosphor's `~/Library/Application Support/phosphor/`: `config.json`
+  (default HVSC folder, and *Settings → Import Settings from Phosphor*),
+  `Songlengths.md5` and `STIL.txt`. It never writes there, with one exception:
+  the HVSC search-index cache in `hvsc_index/`, which both apps share. It's
+  disposable and self-validating, and either app's index build saves the
+  other one (Musicians takes ~6 s cold on an SSD).
+- The HVSC folder defaults to Phosphor's and can be changed in Settings.
 - Keeps its own playlist in `~/Library/Application Support/Resonance/session.m3u`
   and its settings in its own user defaults (`nl.luimes.resonance`). The two apps
   can't overwrite each other's playlist or settings.
 - Engine diagnostics are appended to Phosphor's `phosphor-debug.log` (shared
   `dlog!` code). Prefer not to run both apps at once.
 
-## Scope (milestone 1)
+## Scope
 
-Software emulation only: SIDLite and reSID. USBSID-Pico and Ultimate 64, the
-HVSC browser, favourites, STIL, the DSP pedalboard and the HTTP remote are
-not wired up yet. The core only includes the modules it needs, and the `usb`
+- **Milestone 1:** playlist, transport, subtunes, auto-advance, visualizer,
+  Now Playing and media keys, on the software engines (SIDLite and reSID).
+- **Milestone 2:** the HVSC library in the sidebar (browse authors and
+  sections, fuzzy search per category or across HVSC, Surprise Me) and STIL
+  commentary in the inspector.
+
+USBSID-Pico and Ultimate 64, HVSC sync, favourites and recently played, the DSP
+pedalboard and the HTTP remote are not wired up yet. The core only includes the modules it needs, and the `usb`
 feature is never enabled, so the USB bridge daemon and its admin prompt
 can't be reached.
 
@@ -96,7 +119,11 @@ After merging upstream into this fork:
    a new module or dependency used by an included file (add a `#[path]`
    module to `core/src/lib.rs` or the dependency to `core/Cargo.toml`, using
    the root `Cargo.toml`'s version), or a changed engine type.
-2. If `src/main.rs` changed `play_track`, `play_cmd`, `poll_status` or
+2. Two small mirrors of upstream code: the `SortDirection` stand-in in
+   `core/src/lib.rs` (from `src/ui/mod.rs`) and `display_name` in
+   `core/src/ffi.rs` (upstream's private `derive_display_name` in
+   `src/hvsc_browser.rs`). Update them if those change.
+3. If `src/main.rs` changed `play_track`, `play_cmd`, `poll_status` or
    `update_entry_subtune`, carry the change into `core/src/session/`.
 
 ## Notes

@@ -32,8 +32,43 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     static let stoppedSnapshot = Snapshot(
         state: .stopped, currentIndex: nil, track: nil, elapsedMs: 0, durationMs: nil,
         shuffle: false, repeat: .off, engine: .sidLite, playlistRevision: 0, trackRevision: 0,
-        loading: nil, error: nil
+        loading: nil, error: nil, hvscIndexing: [], stil: nil
     )
+
+    // Library: canned answers, settable per test.
+    private var _authors: [HvscAuthorItem] = []
+    private var _surprise: String?
+    private var _authorLoads = 0
+
+    var authorLoads: Int { lock.withLock { _authorLoads } }
+
+    func set(authors: [HvscAuthorItem] = [], surprise: String? = nil) {
+        lock.withLock {
+            _authors = authors
+            _surprise = surprise
+        }
+    }
+
+    func hvscAuthors(category: HvscCategory) async throws -> [HvscAuthorItem] {
+        lock.withLock {
+            _authorLoads += 1
+            return _authors
+        }
+    }
+
+    func hvscTunes(authorPath: String) async throws -> [HvscTuneItem] { [] }
+
+    func hvscSearch(query: String, scope: HvscCategory?) async throws -> HvscSearchResult {
+        record("search \(query) \(scope.map { "\($0)" } ?? "all")")
+        return HvscSearchResult(items: [], totalMatches: 0, indexed: 0)
+    }
+
+    func hvscSurprise(scope: HvscCategory?) async throws -> String? {
+        record("surprise \(scope.map { "\($0)" } ?? "all")")
+        return lock.withLock { _surprise }
+    }
+
+    func setHvscRoot(root: String?) { record("hvscRoot \(root ?? "nil")") }
 
     func snapshot() -> Snapshot { lock.withLock { _snapshot } }
     func playlist() -> [PlaylistItem] {
@@ -75,9 +110,13 @@ struct PlayerStoreTests {
         defaults.removePersistentDomain(forName: suite)
     }
 
-    private func makeStore() -> (PlayerStore, CoreConfig) {
+    private func makeStore(phosphorHvscRoot: String? = nil) -> (PlayerStore, CoreConfig) {
         var config: CoreConfig?
-        let store = PlayerStore(defaults: defaults, sessionPath: URL(filePath: "/tmp/session.m3u")) {
+        let store = PlayerStore(
+            defaults: defaults,
+            sessionPath: URL(filePath: "/tmp/session.m3u"),
+            phosphorHvscRoot: { phosphorHvscRoot }
+        ) {
             config = $0
             return fake
         }
@@ -173,6 +212,108 @@ struct PlayerStoreTests {
         store.cycleRepeat()
 
         #expect(fake.calls == ["play 2", "playPause 4", "remove [1, 3]", "move [0, 1] 3", "repeat all"])
+    }
+}
+
+@MainActor
+struct HvscSettingsTests {
+    let defaults: UserDefaults
+    let fake = FakeCore()
+
+    init() {
+        let suite = "ResonanceTests.\(UUID().uuidString)"
+        defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+    }
+
+    private func makeStore(phosphor: String?) -> (PlayerStore, CoreConfig) {
+        var config: CoreConfig?
+        let store = PlayerStore(defaults: defaults, phosphorHvscRoot: { phosphor }) {
+            config = $0
+            return fake
+        }
+        return (store, config!)
+    }
+
+    @Test func usesPhosphorsFolderUntilOneIsChosen() {
+        let (store, config) = makeStore(phosphor: "/HVSC")
+        #expect(config.hvscRoot == "/HVSC")
+        #expect(store.hvscRoot == "/HVSC")
+    }
+
+    @Test func aChosenFolderIsPushedAndRemembered() {
+        let (store, _) = makeStore(phosphor: "/HVSC")
+        store.hvscRoot = "/Music/C64"
+        #expect(fake.calls == ["hvscRoot /Music/C64"])
+
+        let (_, relaunched) = makeStore(phosphor: "/HVSC")
+        #expect(relaunched.hvscRoot == "/Music/C64")
+    }
+
+    @Test func clearingTheFolderSticksAcrossLaunches() {
+        let (store, _) = makeStore(phosphor: "/HVSC")
+        store.hvscRoot = nil
+        let (_, relaunched) = makeStore(phosphor: "/HVSC")
+        #expect(relaunched.hvscRoot == nil)
+    }
+}
+
+@MainActor
+struct LibraryStoreTests {
+    let fake = FakeCore()
+
+    private func makeLibrary(root: String? = "/HVSC") -> (LibraryStore, PlayerStore) {
+        let suite = "ResonanceTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let player = PlayerStore(defaults: defaults, phosphorHvscRoot: { root }) { _ in fake }
+        return (LibraryStore(player: player), player)
+    }
+
+    private func author(_ name: String) -> HvscAuthorItem {
+        HvscAuthorItem(name: name, displayName: name, letter: "H", path: "/HVSC/MUSICIANS/H/\(name)")
+    }
+
+    @Test func authorsAreLoadedOncePerFolder() async {
+        let (library, player) = makeLibrary()
+        fake.set(authors: [author("Hubbard_Rob")])
+
+        await library.loadAuthors(.musicians)
+        await library.loadAuthors(.musicians)
+        #expect(fake.authorLoads == 1)
+        #expect(library.authors[.musicians]?.map(\.name) == ["Hubbard_Rob"])
+
+        // A new HVSC folder invalidates the cache.
+        player.hvscRoot = "/Other"
+        await library.loadAuthors(.musicians)
+        #expect(fake.authorLoads == 2)
+    }
+
+    @Test func surprisePlaysFromTheCategoryOnScreen() async {
+        let (library, _) = makeLibrary()
+        fake.set(surprise: "/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid")
+
+        library.activeCategory = .games
+        await library.surpriseMe()
+        library.activeCategory = nil
+        await library.surpriseMe()
+
+        #expect(fake.calls == [
+            "surprise games", "add [\"/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid\"] true",
+            "surprise all", "add [\"/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid\"] true",
+        ])
+    }
+
+    @Test func searchPassesItsScope() async throws {
+        let (library, _) = makeLibrary()
+        _ = try await library.search("commando", scope: .musicians)
+        _ = try await library.search("commando", scope: nil)
+        #expect(fake.calls == ["search commando musicians", "search commando all"])
+    }
+
+    @Test func noFolderMeansNoLibrary() {
+        let (library, _) = makeLibrary(root: nil)
+        #expect(!library.hasRoot)
     }
 }
 

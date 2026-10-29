@@ -3,6 +3,7 @@ import PhosphorCore
 
 struct SettingsView: View {
     @Environment(PlayerStore.self) private var store
+    @State private var choosingHvscFolder = false
 
     var body: some View {
         @Bindable var store = store
@@ -43,6 +44,22 @@ struct SettingsView: View {
                 }
             }
 
+            Section("HVSC") {
+                LabeledContent("Collection folder") {
+                    Text(store.hvscRoot.map { ($0 as NSString).abbreviatingWithTildeInPath } ?? "Not set")
+                        .foregroundStyle(store.hvscRoot == nil ? .secondary : .primary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                HStack {
+                    Button("Choose…") { choosingHvscFolder = true }
+                    Button("Use Phosphor's") { store.usePhosphorHvscRoot() }
+                }
+                Text("The folder that holds MUSICIANS, GAMES and DEMOS.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section {
                 Button("Import Settings from Phosphor") { store.importPhosphorSettings() }
             } footer: {
@@ -50,6 +67,11 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .fileImporter(isPresented: $choosingHvscFolder, allowedContentTypes: [.folder]) { result in
+            if case .success(let url) = result {
+                store.hvscRoot = url.path
+            }
+        }
         .frame(width: 460)
         .fixedSize(horizontal: false, vertical: true)
     }

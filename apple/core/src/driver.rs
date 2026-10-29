@@ -17,8 +17,9 @@ use std::time::{Duration, Instant};
 
 use crossbeam_channel::{select, unbounded, Receiver, Sender};
 
+use crate::databases::{self, Databases, SharedDatabases};
 use crate::player::{self, PlayState, PlayerCmd, PlayerStatus};
-use crate::playlist::{self, LoadingProgress, PlaylistEntry, RepeatMode, SonglengthDb};
+use crate::playlist::{self, LoadingProgress, PlaylistEntry, RepeatMode};
 use crate::session::{persist, Engine, Options, Session};
 use crate::{audio_volume, config};
 
@@ -54,6 +55,7 @@ pub(crate) enum Command {
     SetRepeat(RepeatMode),
     SetEngine(Engine),
     SetOptions(Options),
+    SetHvscRoot(Option<PathBuf>),
     /// Save, stop the player and end the thread; acknowledged on the sender.
     Shutdown(Sender<()>),
 }
@@ -65,6 +67,8 @@ pub(crate) struct Published {
     pub playlist: Arc<Vec<PlaylistEntry>>,
     pub loading: Option<String>,
     pub error: Option<String>,
+    /// STIL text for the playing tune's current subtune.
+    pub stil: Option<String>,
 }
 
 /// The parts of `Session` the FFI layer turns into records.
@@ -88,6 +92,9 @@ pub(crate) struct StartConfig {
     pub shuffle: bool,
     pub repeat: RepeatMode,
     pub session_path: PathBuf,
+    pub hvsc_root: Option<PathBuf>,
+    /// Filled by the loader; shared with the library.
+    pub databases: SharedDatabases,
 }
 
 pub(crate) struct Driver {
@@ -112,6 +119,7 @@ impl Driver {
             playlist: Arc::new(Vec::new()),
             loading: None,
             error: None,
+            stil: None,
         })));
         let out = published.clone();
         thread::Builder::new()
@@ -128,7 +136,7 @@ impl Driver {
 // ── Loader ───────────────────────────────────────────────────────────────────
 
 enum Job {
-    Songlengths(PathBuf),
+    Databases,
     RestoreSession(PathBuf),
     Paths {
         paths: Vec<PathBuf>,
@@ -137,13 +145,13 @@ enum Job {
 }
 
 enum Loaded {
-    Songlengths(SonglengthDb),
+    /// Boxed: far larger than the other variants.
+    Databases(Box<Databases>),
     SessionRestored(Vec<PlaylistEntry>),
     Entries {
         entries: Vec<PlaylistEntry>,
         play_first: bool,
     },
-    Failed(String),
 }
 
 fn spawn_loader(progress: LoadingProgress) -> (Sender<Job>, Receiver<Loaded>) {
@@ -154,10 +162,10 @@ fn spawn_loader(progress: LoadingProgress) -> (Sender<Job>, Receiver<Loaded>) {
         .spawn(move || {
             for job in job_rx.iter() {
                 let result = match job {
-                    Job::Songlengths(path) => match SonglengthDb::load(&path) {
-                        Ok(db) => Loaded::Songlengths(db),
-                        Err(e) => Loaded::Failed(format!("Songlengths: {e}")),
-                    },
+                    Job::Databases => {
+                        // Read-only: Resonance never writes Phosphor's config.json.
+                        Loaded::Databases(Box::new(Databases::load(&config::Config::load())))
+                    }
                     Job::RestoreSession(path) => {
                         set_progress(&progress, "Restoring playlist…");
                         match persist::load(&path, progress.clone()) {
@@ -271,21 +279,21 @@ struct State {
     status_seq: u64,
     error: Option<String>,
     published_playlist: (u64, Arc<Vec<PlaylistEntry>>),
+    databases: SharedDatabases,
+    /// STIL text keyed by the (path, subtune) it was looked up for.
+    published_stil: Option<((PathBuf, u16), Option<String>)>,
 }
 
 fn run(start: StartConfig, commands: Receiver<Command>, out: Arc<Mutex<Arc<Published>>>) {
     let now = Instant::now();
     audio_volume::set(start.volume);
-    // Read-only: Resonance never writes the Iced app's config.json.
-    let shared = config::Config::load();
-    let hvsc_root = shared.hvsc_root.map(PathBuf::from);
 
     let player = spawn_player(start.engine);
     let mut session = Session::new(
         player.commands.clone(),
         start.options,
         start.engine,
-        hvsc_root,
+        start.hvsc_root,
         now,
     );
     session.set_shuffle(start.shuffle);
@@ -295,9 +303,7 @@ fn run(start: StartConfig, commands: Receiver<Command>, out: Arc<Mutex<Arc<Publi
     let (loader, loaded) = spawn_loader(progress.clone());
     // FIFO: the songlengths land before any file the user adds, so a default
     // length can't claim tunes the database knows.
-    if let Some(path) = config::songlength_db_path().filter(|p| p.exists()) {
-        let _ = loader.send(Job::Songlengths(path));
-    }
+    let _ = loader.send(Job::Databases);
     let _ = loader.send(Job::RestoreSession(start.session_path.clone()));
 
     let mut st = State {
@@ -312,6 +318,8 @@ fn run(start: StartConfig, commands: Receiver<Command>, out: Arc<Mutex<Arc<Publi
         status_seq: 0,
         error: None,
         published_playlist: (u64::MAX, Arc::new(Vec::new())),
+        databases: start.databases,
+        published_stil: None,
     };
 
     loop {
@@ -397,6 +405,10 @@ impl State {
             Command::SetRepeat(mode) => s.set_repeat(mode),
             Command::SetEngine(engine) => s.set_engine(engine, now),
             Command::SetOptions(options) => s.set_options(options, now),
+            Command::SetHvscRoot(root) => {
+                s.set_hvsc_root(root);
+                self.published_stil = None;
+            }
             Command::Shutdown(_) => unreachable!("handled by the loop"),
         }
     }
@@ -411,7 +423,13 @@ impl State {
     fn apply_loaded(&mut self, result: Loaded) {
         let now = Instant::now();
         match result {
-            Loaded::Songlengths(db) => self.session.set_songlength_db(db),
+            Loaded::Databases(db) => {
+                if let Some(songlengths) = &db.songlengths {
+                    self.session.set_songlength_db(songlengths.clone());
+                }
+                databases::install(&self.databases, *db);
+                self.published_stil = None;
+            }
             Loaded::SessionRestored(entries) => {
                 // Restored entries go first, ahead of anything the user added
                 // while the restore was running (those are queued behind it).
@@ -427,10 +445,6 @@ impl State {
                     self.error = Some("No playable SID files found.".into());
                 }
                 self.session.add_entries(entries, play_first, now);
-            }
-            Loaded::Failed(e) => {
-                eprintln!("[resonance] {e}");
-                self.error = Some(e);
             }
         }
     }
@@ -475,6 +489,22 @@ impl State {
         let _ = self.player.commands.try_send(PlayerCmd::Quit);
     }
 
+    /// STIL text for what's playing, looked up again only when the tune or
+    /// subtune changes.
+    fn current_stil(&mut self) -> Option<String> {
+        let info = self.session.status.track_info.as_ref()?;
+        let key = (info.path.clone(), info.current_song);
+        if let Some((cached_key, text)) = &self.published_stil {
+            if *cached_key == key {
+                return text.clone();
+            }
+        }
+        let db = databases::current(&self.databases);
+        let text = db.stil_text(&key.0, self.session.hvsc_root(), key.1);
+        self.published_stil = Some((key, text.clone()));
+        text
+    }
+
     fn publish(&mut self, out: &Mutex<Arc<Published>>) {
         let s = &self.session;
         if self.published_playlist.0 != s.playlist_revision {
@@ -486,6 +516,8 @@ impl State {
             .ok()
             .map(|p| p.clone())
             .filter(|p| !p.is_empty());
+        let stil = self.current_stil();
+        let s = &self.session;
         let published = Published {
             session: SessionView {
                 status: s.status.clone(),
@@ -500,6 +532,7 @@ impl State {
             playlist: self.published_playlist.1.clone(),
             loading,
             error: self.error.clone().or_else(|| s.status.error.clone()),
+            stil,
         };
         if let Ok(mut slot) = out.lock() {
             *slot = Arc::new(published);

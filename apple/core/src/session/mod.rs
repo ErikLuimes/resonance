@@ -458,6 +458,16 @@ impl Session {
         }
     }
 
+    /// The HVSC folder, used to look up song lengths and STIL by HVSC path
+    /// when a file's bytes differ from what the databases were built from.
+    pub fn hvsc_root(&self) -> Option<&std::path::Path> {
+        self.hvsc_root.as_deref()
+    }
+
+    pub fn set_hvsc_root(&mut self, root: Option<PathBuf>) {
+        self.hvsc_root = root;
+    }
+
     /// Install a freshly loaded Songlengths DB and apply it.
     pub fn set_songlength_db(&mut self, db: SonglengthDb) {
         self.songlength_db = Some(db);
