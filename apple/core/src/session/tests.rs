@@ -65,7 +65,8 @@ impl Harness {
         self.player.try_iter().collect()
     }
 
-    /// A status as the player would send it for `entry_idx` playing `song`.
+    /// A status as the player would send it for playlist row `entry_idx`
+    /// playing `song`.
     fn status(
         &self,
         entry_idx: usize,
@@ -73,28 +74,24 @@ impl Harness {
         elapsed_secs: u64,
         writes: usize,
     ) -> PlayerStatus {
-        let e = &self.session.playlist.entries[entry_idx];
-        PlayerStatus {
-            state: PlayState::Playing,
-            track_info: Some(TrackInfo {
-                path: e.path.clone(),
-                name: e.title.clone(),
-                author: e.author.clone(),
-                released: e.released.clone(),
-                songs: e.songs,
-                current_song: song,
-                is_pal: e.is_pal,
-                is_rsid: e.is_rsid,
-                num_sids: e.num_sids,
-                sid_type: "PSID".to_string(),
-                sid_model: 1,
-                md5: e.md5.clone().unwrap_or_default(),
-                mus_comments: Vec::new(),
-            }),
-            elapsed: Duration::from_secs(elapsed_secs),
-            writes_per_frame: writes,
-            ..PlayerStatus::default()
-        }
+        status_of(
+            &self.session.playlist.entries[entry_idx],
+            song,
+            elapsed_secs,
+            writes,
+        )
+    }
+
+    /// Like `status`, for row `entry_idx` of the playing queue.
+    fn queue_status(
+        &self,
+        entry_idx: usize,
+        song: u16,
+        elapsed_secs: u64,
+        writes: usize,
+    ) -> PlayerStatus {
+        let queue = self.session.queue.as_ref().expect("a queue is playing");
+        status_of(&queue.entries[entry_idx], song, elapsed_secs, writes)
     }
 
     /// Feed one status at `secs` and run a tick.
@@ -102,6 +99,30 @@ impl Harness {
         let now = self.at(secs);
         self.session.ingest_statuses([status], now);
         self.session.tick(now);
+    }
+}
+
+fn status_of(e: &PlaylistEntry, song: u16, elapsed_secs: u64, writes: usize) -> PlayerStatus {
+    PlayerStatus {
+        state: PlayState::Playing,
+        track_info: Some(TrackInfo {
+            path: e.path.clone(),
+            name: e.title.clone(),
+            author: e.author.clone(),
+            released: e.released.clone(),
+            songs: e.songs,
+            current_song: song,
+            is_pal: e.is_pal,
+            is_rsid: e.is_rsid,
+            num_sids: e.num_sids,
+            sid_type: "PSID".to_string(),
+            sid_model: 1,
+            md5: e.md5.clone().unwrap_or_default(),
+            mus_comments: Vec::new(),
+        }),
+        elapsed: Duration::from_secs(elapsed_secs),
+        writes_per_frame: writes,
+        ..PlayerStatus::default()
     }
 }
 
@@ -444,6 +465,172 @@ fn default_length_fills_and_clears() {
 
     h.session.set_options(Options::default(), now);
     assert_eq!(h.session.playlist.entries[0].duration_secs, None);
+}
+
+// ── Queue ────────────────────────────────────────────────────────────────────
+
+fn queue(names: &[&str], duration: Option<u32>) -> Vec<PlaylistEntry> {
+    names.iter().map(|n| entry(n, 1, duration)).collect()
+}
+
+#[test]
+fn queue_plays_without_touching_the_playlist() {
+    let mut h = Harness::new(vec![entry("a", 1, None), entry("b", 1, None)]);
+    h.session.play_track(0, h.t0);
+    h.sent();
+    let rev = h.session.playlist_revision;
+
+    h.session
+        .play_queue(queue(&["x", "y", "z"], None), &path("y"), h.t0);
+
+    assert_eq!(played(&h.sent()), vec![(path("y"), 1)]);
+    assert_eq!(h.session.playlist.len(), 2);
+    assert_eq!(
+        h.session.playlist_revision, rev,
+        "the playlist didn't change"
+    );
+    assert_eq!(
+        h.session.playlist_current(),
+        None,
+        "no playlist row is playing"
+    );
+    assert_eq!(
+        h.session.current_entry().map(|e| e.path.clone()),
+        Some(path("y"))
+    );
+}
+
+#[test]
+fn next_and_previous_stay_in_the_queue() {
+    let mut h = Harness::new(vec![entry("a", 1, None), entry("b", 1, None)]);
+    h.session
+        .play_queue(queue(&["x", "y"], None), &path("x"), h.t0);
+    h.sent();
+
+    h.session.next(h.t0);
+    assert_eq!(played(&h.sent()), vec![(path("y"), 1)]);
+    h.session.next(h.t0);
+    assert!(played(&h.sent()).is_empty(), "end of the queue, repeat off");
+
+    h.session.previous(h.t0);
+    assert_eq!(played(&h.sent()), vec![(path("x"), 1)]);
+    h.session.previous(h.t0);
+    assert_eq!(
+        played(&h.sent()),
+        vec![(path("x"), 1)],
+        "the queue's start restarts its first tune, never the playlist's"
+    );
+}
+
+#[test]
+fn queue_auto_advance_stops_at_its_end() {
+    let mut h = Harness::new(vec![entry("a", 1, Some(10)), entry("b", 1, Some(10))]);
+    h.session
+        .play_queue(queue(&["x", "y"], Some(10)), &path("x"), h.t0);
+    h.sent();
+
+    h.feed(h.queue_status(0, 1, 10, 5), 10.0);
+    assert_eq!(played(&h.sent()), vec![(path("y"), 1)]);
+
+    h.feed(h.queue_status(1, 1, 10, 5), 20.0);
+    let cmds = h.sent();
+    assert!(stopped(&cmds));
+    assert!(played(&cmds).is_empty());
+}
+
+#[test]
+fn queue_takes_the_playlist_modes() {
+    let mut h = Harness::new(vec![entry("a", 1, None)]);
+    h.session.set_repeat(RepeatMode::All);
+    h.session.set_shuffle(true);
+    h.session
+        .play_queue(queue(&["x", "y"], None), &path("x"), h.t0);
+    let q = h.session.queue.as_ref().unwrap();
+    assert!(q.shuffle);
+    assert_eq!(q.repeat, RepeatMode::All);
+
+    // Changing a mode while the queue plays changes both lists.
+    h.session.set_shuffle(false);
+    assert!(!h.session.queue.as_ref().unwrap().shuffle);
+    assert!(!h.session.playlist.shuffle);
+
+    h.sent();
+    h.session.next(h.t0);
+    h.session.next(h.t0);
+    assert_eq!(
+        played(&h.sent()),
+        vec![(path("y"), 1), (path("x"), 1)],
+        "repeat all wraps within the queue"
+    );
+}
+
+#[test]
+fn playing_from_the_playlist_ends_the_queue() {
+    let mut h = Harness::new(vec![
+        entry("a", 1, None),
+        entry("b", 1, None),
+        entry("c", 1, None),
+    ]);
+    h.session
+        .play_queue(queue(&["x", "y"], None), &path("x"), h.t0);
+    h.sent();
+
+    h.session.play_index(1, h.t0);
+    assert_eq!(played(&h.sent()), vec![(path("b"), 1)]);
+    assert!(!h.session.queue_active());
+    assert_eq!(h.session.playlist_current(), Some(1));
+
+    h.session.next(h.t0);
+    assert_eq!(played(&h.sent()), vec![(path("c"), 1)]);
+}
+
+#[test]
+fn play_pause_when_stopped_resumes_the_queue_unless_a_row_is_given() {
+    let mut h = Harness::new(vec![entry("a", 1, None), entry("b", 1, None)]);
+    h.session
+        .play_queue(queue(&["x", "y"], None), &path("y"), h.t0);
+    h.sent();
+
+    // No status fed, so the player still counts as stopped.
+    h.session.play_pause(None, h.t0);
+    assert_eq!(played(&h.sent()), vec![(path("y"), 1)]);
+    assert!(h.session.queue_active());
+
+    h.session.play_pause(Some(1), h.t0);
+    assert_eq!(played(&h.sent()), vec![(path("b"), 1)]);
+    assert!(!h.session.queue_active());
+}
+
+#[test]
+fn editing_the_playlist_keeps_the_queue_playing() {
+    let mut h = Harness::new(vec![entry("a", 1, None), entry("b", 1, None)]);
+    h.session.play_track(0, h.t0);
+    h.session.play_queue(queue(&["x"], None), &path("x"), h.t0);
+    h.sent();
+
+    h.session.remove(vec![0]);
+    h.session.clear();
+    assert!(!stopped(&h.sent()));
+    assert!(h.session.queue_active());
+    assert!(h.session.playlist.is_empty());
+}
+
+#[test]
+fn queue_subtune_changes_stay_out_of_the_playlist() {
+    let mut h = Harness::new(vec![entry("a", 1, None)]);
+    h.session
+        .play_queue(vec![entry("x", 3, Some(10))], &path("x"), h.t0);
+    h.sent();
+    let rev = h.session.playlist_revision;
+
+    h.feed(h.queue_status(0, 1, 1, 5), 1.0);
+    h.session.set_subtune(2, h.at(1.0));
+    assert_eq!(subtunes(&h.sent()), vec![2]);
+    assert_eq!(
+        h.session.queue.as_ref().unwrap().entries[0].selected_song,
+        2
+    );
+    assert_eq!(h.session.playlist_revision, rev, "nothing to save");
 }
 
 // ── Persistence ──────────────────────────────────────────────────────────────

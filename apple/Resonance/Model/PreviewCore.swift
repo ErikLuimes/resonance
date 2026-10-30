@@ -45,6 +45,7 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
         return Snapshot(
             state: current == nil ? .stopped : .playing,
             currentIndex: current.map(UInt32.init),
+            queueActive: false,
             track: track,
             elapsedMs: current == nil ? 0 : 83_000,
             durationMs: current.flatMap { items[$0].durationSecs }.map { UInt64($0) * 1000 },
@@ -97,6 +98,7 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
     func next() {}
     func nextSubtune() {}
     func playIndex(index: UInt32) {}
+    func playQueue(paths: [String], start: String) {}
     func playPause(fallback: UInt32?) {}
     func prevSubtune() {}
     func previous() {}

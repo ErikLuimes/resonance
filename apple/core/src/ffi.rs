@@ -135,8 +135,10 @@ pub struct TrackDetails {
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct Snapshot {
     pub state: PlaybackState,
-    /// Playlist row of the current track.
+    /// Playlist row of the current track; None while a queue plays.
     pub current_index: Option<u32>,
+    /// Playing from a temporary list (`play_queue`) rather than the playlist.
+    pub queue_active: bool,
     /// What the player reports it's playing.
     pub track: Option<TrackDetails>,
     pub elapsed_ms: u64,
@@ -299,6 +301,18 @@ impl PlayerCore {
 
     // ── Transport ──
 
+    /// Play SID files as a temporary list, starting at `start` (one of
+    /// `paths`): Next, Previous and auto-advance stay inside it and the
+    /// playlist isn't touched. Playing a playlist row ends it.
+    pub fn play_queue(&self, paths: Vec<String>, start: String) {
+        let paths = paths.into_iter().map(PathBuf::from).collect();
+        self.send(Command::PlayQueue {
+            paths,
+            start: PathBuf::from(start),
+        });
+    }
+
+    /// Play playlist row `index` (ends a playing queue).
     pub fn play_index(&self, index: u32) {
         self.send(Command::PlayIndex(index as usize));
     }
@@ -374,14 +388,11 @@ impl PlayerCore {
         let p = self.published();
         let view = &p.session;
         let status = &view.status;
-        let duration_ms = view
-            .current
-            .and_then(|i| p.playlist.get(i))
-            .and_then(|e| e.duration_secs)
-            .map(|s| u64::from(s) * 1000);
+        let duration_ms = view.current_duration_secs.map(|s| u64::from(s) * 1000);
         Snapshot {
             state: status.state.clone().into(),
             current_index: view.current.map(|i| i as u32),
+            queue_active: view.queue_active,
             track: status.track_info.as_ref().map(TrackDetails::from),
             elapsed_ms: status.elapsed.as_millis() as u64,
             duration_ms,

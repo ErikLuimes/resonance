@@ -49,7 +49,7 @@ struct NowPlayingBar: View {
         }
         .labelStyle(.iconOnly)
         .buttonStyle(.borderless)
-        .disabled(store.rows.isEmpty)
+        .disabled(store.rows.isEmpty && !store.queueActive)
     }
 
     private var trackInfo: some View {

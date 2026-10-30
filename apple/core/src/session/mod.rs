@@ -15,7 +15,7 @@ pub(crate) mod persist;
 #[cfg(test)]
 mod tests;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use crossbeam_channel::Sender;
@@ -58,6 +58,11 @@ pub struct Options {
 pub struct Session {
     cmd_tx: Sender<PlayerCmd>,
     pub(crate) playlist: Playlist,
+    /// Tunes played from the library: a temporary list that transport and
+    /// auto-advance walk instead of the playlist, until something in the
+    /// playlist is played. Never saved. Not in upstream, whose library adds
+    /// what it plays to the playlist.
+    pub(crate) queue: Option<Playlist>,
     /// Latest status from the player thread, with timing fields zeroed when
     /// it belongs to a track or subtune we've already moved away from.
     pub(crate) status: PlayerStatus,
@@ -91,6 +96,7 @@ impl Session {
         Self {
             cmd_tx,
             playlist: Playlist::new(),
+            queue: None,
             status: PlayerStatus::default(),
             songlength_db: None,
             hvsc_root,
@@ -155,7 +161,7 @@ impl Session {
     }
 
     fn is_stale(&self, status: &PlayerStatus) -> bool {
-        match (status.track_info.as_ref(), self.playlist.current_entry()) {
+        match (status.track_info.as_ref(), self.current_entry()) {
             (Some(info), Some(entry)) => {
                 info.path != entry.path || info.current_song != entry.selected_song
             }
@@ -189,24 +195,65 @@ impl Session {
         }
     }
 
+    // ── Active list ───────────────────────────────────────────────────────
+
+    /// The list transport works on: the queue while there is one, else the
+    /// playlist.
+    fn active(&self) -> &Playlist {
+        self.queue.as_ref().unwrap_or(&self.playlist)
+    }
+
+    fn active_mut(&mut self) -> &mut Playlist {
+        self.queue.as_mut().unwrap_or(&mut self.playlist)
+    }
+
+    /// Note a change to an entry of the active list. Only the playlist's
+    /// changes are visible and saved; the queue's stay private.
+    fn active_changed(&mut self) {
+        if self.queue.is_none() {
+            self.playlist_revision += 1;
+        }
+    }
+
+    /// The playing (or last played) entry, in whichever list it's in.
+    pub(crate) fn current_entry(&self) -> Option<&PlaylistEntry> {
+        self.active().current_entry()
+    }
+
+    /// The playlist row that's playing; None while the queue plays.
+    pub(crate) fn playlist_current(&self) -> Option<usize> {
+        if self.queue.is_some() {
+            None
+        } else {
+            self.playlist.current
+        }
+    }
+
+    pub(crate) fn queue_active(&self) -> bool {
+        self.queue.is_some()
+    }
+
     // ── Transport ─────────────────────────────────────────────────────────
 
     /// main.rs `play_track`, minus the recently-played / heard / favourites
-    /// bookkeeping, karaoke, tracker and STIL.
+    /// bookkeeping, karaoke, tracker and STIL. Plays row `idx` of the active
+    /// list; `play_index` is the entry point for playlist rows.
     ///
     /// Skip-RSID is a bounded loop rather than upstream's recursion
     /// (main.rs:4395), which never terminates when every entry is RSID and
     /// repeat is All.
     pub fn play_track(&mut self, idx: usize, now: Instant) {
         let mut idx = idx;
-        for _ in 0..=self.playlist.len() {
-            let Some(entry) = self.playlist.entries.get(idx) else {
+        for _ in 0..=self.active().len() {
+            let Some(entry) = self.active().entries.get(idx) else {
                 return;
             };
-            if self.options.skip_rsid && entry.is_rsid {
+            let (path, song, is_rsid) = (entry.path.clone(), entry.selected_song, entry.is_rsid);
+            if self.options.skip_rsid && is_rsid {
                 eprintln!("[resonance] Skipping RSID tune: \"{}\"", entry.title);
-                self.playlist.current = Some(idx);
-                match self.playlist.next() {
+                let list = self.active_mut();
+                list.current = Some(idx);
+                match list.next() {
                     Some(next) if next != idx => {
                         idx = next;
                         continue;
@@ -215,8 +262,8 @@ impl Session {
                 }
             }
 
-            let cmd = self.play_cmd(entry.path.clone(), entry.selected_song);
-            self.playlist.current = Some(idx);
+            let cmd = self.play_cmd(path, song);
+            self.active_mut().current = Some(idx);
             self.send(cmd);
             self.clear_advance_status(now);
             // Fresh track — the previous track's debounce must not gate
@@ -229,14 +276,23 @@ impl Session {
         self.stop();
     }
 
+    /// Play playlist row `idx`, ending the queue if one is playing.
+    pub fn play_index(&mut self, idx: usize, now: Instant) {
+        self.queue = None;
+        self.play_track(idx, now);
+    }
+
     /// main.rs `Message::PlayPause`. When stopped, starts `fallback` (the
-    /// UI's selection), else the current entry, else the first.
+    /// playlist selection), else the active list's current entry, else its
+    /// first.
     pub fn play_pause(&mut self, fallback: Option<usize>, now: Instant) {
         if self.status.state == PlayState::Stopped {
-            let idx = fallback
-                .or(self.playlist.current)
-                .or((!self.playlist.is_empty()).then_some(0));
-            if let Some(i) = idx {
+            if let Some(i) = fallback {
+                self.play_index(i, now);
+                return;
+            }
+            let list = self.active();
+            if let Some(i) = list.current.or((!list.is_empty()).then_some(0)) {
                 self.play_track(i, now);
             }
         } else {
@@ -255,7 +311,7 @@ impl Session {
     /// Honours shuffle and repeat via `Playlist::next` — unlike the HTTP
     /// remote's `cur + 1` (main.rs:5301).
     pub fn next(&mut self, now: Instant) {
-        if let Some(idx) = self.playlist.next() {
+        if let Some(idx) = self.active_mut().next() {
             self.play_track(idx, now);
         }
     }
@@ -264,12 +320,43 @@ impl Session {
     /// (main.rs `Message::PrevTrack`).
     pub fn previous(&mut self, now: Instant) {
         if self.status.elapsed.as_secs() > 3 {
-            if let Some(idx) = self.playlist.current {
+            if let Some(idx) = self.active().current {
                 self.play_track(idx, now);
             }
-        } else if let Some(idx) = self.playlist.prev() {
+        } else if let Some(idx) = self.active_mut().prev() {
             self.play_track(idx, now);
         }
+    }
+
+    // ── Queue ─────────────────────────────────────────────────────────────
+
+    /// Play `entries` as a temporary list, starting at the one at `start`
+    /// (else the first). Next, Previous and auto-advance stay inside it, it
+    /// takes the playlist's shuffle and repeat, and the playlist itself is
+    /// left alone. Replaces any earlier queue.
+    pub fn play_queue(&mut self, entries: Vec<PlaylistEntry>, start: &Path, now: Instant) {
+        if entries.is_empty() {
+            return;
+        }
+        let mut queue = Playlist::new();
+        queue.repeat = self.playlist.repeat;
+        queue.add_entries(entries);
+        if self.playlist.shuffle {
+            queue.toggle_shuffle();
+        }
+        fill_lengths(
+            &mut queue,
+            self.songlength_db.as_ref(),
+            self.hvsc_root.as_deref(),
+            self.options.default_song_length_secs,
+        );
+        let idx = queue
+            .entries
+            .iter()
+            .position(|e| e.path == start)
+            .unwrap_or(0);
+        self.queue = Some(queue);
+        self.play_track(idx, now);
     }
 
     // ── Subtunes ──────────────────────────────────────────────────────────
@@ -305,16 +392,16 @@ impl Session {
     /// Record the playing entry's new subtune and its length
     /// (main.rs `update_entry_subtune`).
     fn update_entry_subtune(&mut self, song: u16) {
-        let Some(cur) = self.playlist.current else {
+        let Some(cur) = self.active().current else {
             return;
         };
-        let md5 = self.playlist.entries.get(cur).and_then(|e| e.md5.clone());
+        let md5 = self.active().entries.get(cur).and_then(|e| e.md5.clone());
         let duration = self.subtune_length(md5.as_deref(), song);
-        if let Some(e) = self.playlist.entries.get_mut(cur) {
+        if let Some(e) = self.active_mut().entries.get_mut(cur) {
             e.selected_song = song;
             e.duration_secs = duration;
         }
-        self.playlist_revision += 1;
+        self.active_changed();
     }
 
     /// Songlength DB entry for `song` (1-based), else the default length.
@@ -332,7 +419,8 @@ impl Session {
 
     /// Append parsed entries (main.rs `ProcessPendingEntries` +
     /// `FinalizePendingEntries`). Entries already in the playlist are kept
-    /// where they are. With `play_first`, starts the first of `entries`.
+    /// where they are. With `play_first`, starts the first of `entries` from
+    /// the playlist.
     pub fn add_entries(&mut self, entries: Vec<PlaylistEntry>, play_first: bool, now: Instant) {
         let Some(first_path) = entries.first().map(|e| e.path.clone()) else {
             return;
@@ -347,13 +435,13 @@ impl Session {
                 .iter()
                 .position(|e| e.path == first_path)
             {
-                self.play_track(idx, now);
+                self.play_index(idx, now);
             }
         }
     }
 
     /// Remove rows; stops playback if the playing row is among them
-    /// (main.rs `Message::RemoveSelected`).
+    /// (main.rs `Message::RemoveSelected`). A playing queue plays on.
     pub fn remove(&mut self, mut indices: Vec<usize>) {
         indices.sort_unstable();
         indices.dedup();
@@ -361,7 +449,10 @@ impl Session {
         if indices.is_empty() {
             return;
         }
-        if self.playlist.current.is_some_and(|c| indices.contains(&c)) {
+        if self
+            .playlist_current()
+            .is_some_and(|c| indices.contains(&c))
+        {
             self.stop();
         }
         // Descending, so earlier removals don't shift later indices.
@@ -371,8 +462,11 @@ impl Session {
         self.playlist_revision += 1;
     }
 
+    /// Empty the playlist; stops playback unless the queue is playing.
     pub fn clear(&mut self) {
-        self.stop();
+        if self.queue.is_none() {
+            self.stop();
+        }
         self.playlist.clear();
         self.playlist_revision += 1;
     }
@@ -404,14 +498,19 @@ impl Session {
 
     // ── Modes and settings ────────────────────────────────────────────────
 
+    /// The modes are global: they apply to the playlist and the queue alike.
     pub fn set_shuffle(&mut self, on: bool) {
-        if self.playlist.shuffle != on {
-            self.playlist.toggle_shuffle();
+        for list in std::iter::once(&mut self.playlist).chain(self.queue.as_mut()) {
+            if list.shuffle != on {
+                list.toggle_shuffle();
+            }
         }
     }
 
     pub fn set_repeat(&mut self, mode: RepeatMode) {
-        self.playlist.repeat = mode;
+        for list in std::iter::once(&mut self.playlist).chain(self.queue.as_mut()) {
+            list.repeat = mode;
+        }
     }
 
     /// Switch engine and resume the current track on it
@@ -428,7 +527,7 @@ impl Session {
             String::new(),
         ));
         if was_playing {
-            if let Some(idx) = self.playlist.current {
+            if let Some(idx) = self.active().current {
                 self.play_track(idx, now);
             }
         }
@@ -440,11 +539,16 @@ impl Session {
     /// (main.rs `restart_current_track_if_playing`).
     pub fn set_options(&mut self, options: Options, now: Instant) {
         let old = std::mem::replace(&mut self.options, options);
-        if old.default_song_length_secs != self.options.default_song_length_secs {
-            if self.options.default_song_length_secs > 0 {
-                apply_default_length(&mut self.playlist, self.options.default_song_length_secs);
-            } else {
-                clear_default_lengths(&mut self.playlist);
+        let default_secs = self.options.default_song_length_secs;
+        if old.default_song_length_secs != default_secs {
+            for list in std::iter::once(&mut self.playlist).chain(self.queue.as_mut()) {
+                if default_secs > 0 {
+                    apply_default_length(list, default_secs);
+                } else {
+                    clear_default_lengths(list);
+                }
+            }
+            if default_secs == 0 {
                 self.apply_songlengths();
             }
             self.playlist_revision += 1;
@@ -452,7 +556,7 @@ impl Session {
         let stereo_changed = old.force_stereo_2sid != self.options.force_stereo_2sid
             || old.pseudo_stereo != self.options.pseudo_stereo;
         if stereo_changed && self.status.state == PlayState::Playing {
-            if let Some(idx) = self.playlist.current {
+            if let Some(idx) = self.active().current {
                 self.play_track(idx, now);
             }
         }
@@ -475,15 +579,31 @@ impl Session {
         self.playlist_revision += 1;
     }
 
-    /// main.rs `apply_songlengths`: DB durations for entries that have none,
-    /// then the default length for whatever is still unknown.
+    /// main.rs `apply_songlengths`, for the playlist and the queue.
     fn apply_songlengths(&mut self) {
-        if let Some(db) = &self.songlength_db {
-            db.apply_to_playlist(&mut self.playlist, self.hvsc_root.as_deref());
+        let db = self.songlength_db.as_ref();
+        let root = self.hvsc_root.as_deref();
+        let default_secs = self.options.default_song_length_secs;
+        fill_lengths(&mut self.playlist, db, root, default_secs);
+        if let Some(queue) = &mut self.queue {
+            fill_lengths(queue, db, root, default_secs);
         }
-        if self.options.default_song_length_secs > 0 {
-            apply_default_length(&mut self.playlist, self.options.default_song_length_secs);
-        }
+    }
+}
+
+/// main.rs `apply_songlengths` for one list: DB durations for entries that
+/// have none, then the default length for whatever is still unknown.
+fn fill_lengths(
+    list: &mut Playlist,
+    db: Option<&SonglengthDb>,
+    hvsc_root: Option<&Path>,
+    default_secs: u32,
+) {
+    if let Some(db) = db {
+        db.apply_to_playlist(list, hvsc_root);
+    }
+    if default_secs > 0 {
+        apply_default_length(list, default_secs);
     }
 }
 

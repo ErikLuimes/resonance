@@ -17,7 +17,10 @@ final class PlayerStore {
     // MARK: Playback state (read from the core)
 
     private(set) var state: PlaybackState = .stopped
+    /// The playlist row that's playing; nil while a library queue plays.
     private(set) var currentIndex: Int?
+    /// Playing a temporary list of library tunes rather than the playlist.
+    private(set) var queueActive = false
     private(set) var nowPlaying: TrackDetails?
     private(set) var elapsed: TimeInterval = 0
     private(set) var duration: TimeInterval?
@@ -169,6 +172,7 @@ final class PlayerStore {
         }
         update(\.state, s.state)
         update(\.currentIndex, s.currentIndex.map(Int.init))
+        update(\.queueActive, s.queueActive)
         update(\.nowPlaying, s.track)
         update(\.elapsed, TimeInterval(s.elapsedMs) / 1000)
         update(\.duration, s.durationMs.map { TimeInterval($0) / 1000 })
@@ -194,6 +198,13 @@ final class PlayerStore {
 
     func play(index: Int) {
         core.playIndex(index: UInt32(index))
+    }
+
+    /// Play `urls` as a temporary list from `start`, leaving the playlist
+    /// alone; Next and Previous stay inside the list.
+    func playQueue(_ urls: [URL], startAt start: URL) {
+        guard !urls.isEmpty else { return }
+        core.playQueue(paths: urls.map(\.path), start: start.path)
     }
 
     /// Pause / resume; when stopped, start `fallback` (the selection).

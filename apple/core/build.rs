@@ -20,7 +20,10 @@ fn package_version(toml: &str) -> Option<&str> {
         if line.starts_with('[') {
             in_package = line == "[package]";
         } else if in_package {
-            if let Some(value) = line.strip_prefix("version").and_then(|r| r.trim_start().strip_prefix('=')) {
+            if let Some(value) = line
+                .strip_prefix("version")
+                .and_then(|r| r.trim_start().strip_prefix('='))
+            {
                 return value.trim().strip_prefix('"')?.split('"').next();
             }
         }

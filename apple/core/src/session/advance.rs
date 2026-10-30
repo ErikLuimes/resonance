@@ -27,15 +27,21 @@ impl Session {
             self.last_writes_at = now;
             return;
         }
-        let Some(cur) = self.playlist.current else {
+        // The queue's current entry while there is one, else the playlist's.
+        let Some(cur) = self.active().current else {
             return;
         };
-        let Some(entry) = self.playlist.entries.get(cur) else {
+        let Some(entry) = self.active().entries.get(cur) else {
             return;
         };
+        let (duration, song, songs, md5) = (
+            entry.duration_secs,
+            entry.selected_song,
+            entry.songs,
+            entry.md5.clone(),
+        );
 
         let elapsed = self.status.elapsed.as_secs();
-        let duration = entry.duration_secs;
         let duration_ended = duration.is_some_and(|d| elapsed >= u64::from(d));
         let silence_ended = now.duration_since(self.last_writes_at) >= SILENCE
             && elapsed > SILENCE_MIN_ELAPSED_SECS;
@@ -51,7 +57,6 @@ impl Session {
         }
         self.last_advance_at = Some(now);
 
-        let (song, songs, md5) = (entry.selected_song, entry.songs, entry.md5.clone());
         eprintln!(
             "[resonance] advance: song {song}/{songs} elapsed={elapsed}s length={duration:?} trigger={}",
             if duration_ended { "duration" } else { "silence" }
@@ -63,22 +68,22 @@ impl Session {
             let length = self.subtune_length(md5.as_deref(), next);
             self.send(PlayerCmd::SetSubtune(next));
             self.clear_advance_status(now);
-            if let Some(e) = self.playlist.entries.get_mut(cur) {
+            if let Some(e) = self.active_mut().entries.get_mut(cur) {
                 e.selected_song = next;
                 e.duration_secs = length;
             }
-            self.playlist_revision += 1;
+            self.active_changed();
             self.track_revision += 1;
         } else {
             // Last subtune: rewind this entry to its first subtune for the
             // next time round, then move on to the next track.
             let length = self.subtune_length(md5.as_deref(), 1);
-            if let Some(e) = self.playlist.entries.get_mut(cur) {
+            if let Some(e) = self.active_mut().entries.get_mut(cur) {
                 e.selected_song = 1;
                 e.duration_secs = length;
             }
-            self.playlist_revision += 1;
-            match self.playlist.next() {
+            self.active_changed();
+            match self.active_mut().next() {
                 Some(idx) => self.play_track(idx, now),
                 None => self.stop(),
             }

@@ -60,7 +60,10 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
   upstream changes flow in with no merge conflicts. On top of that:
   - `session/` — the player logic the Iced app keeps in `src/main.rs`
     (play, auto-advance, subtunes, songlengths), ported as a plain state
-    machine with unit tests. Each block names its `main.rs` origin.
+    machine with unit tests. Each block names its `main.rs` origin. One
+    addition of its own: a temporary play queue. Tunes played from the HVSC
+    library go there instead of into the playlist (as they do upstream), and
+    transport walks the queue until a playlist row is played.
   - `driver.rs` — one thread owns the session and serialises commands,
     player statuses and the auto-advance tick; a loader thread parses files
     and loads the Songlengths/STIL databases (`databases.rs`). It publishes

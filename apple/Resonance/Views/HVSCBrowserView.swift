@@ -292,17 +292,34 @@ private struct AuthorTunes: View {
 // MARK: - Tune table
 
 /// Library tunes: double-click (or Return) plays, the context menu adds to
-/// the playlist or reveals the file. Sorting only changes the view.
+/// the playlist or reveals the file. Sorting only changes the view. The
+/// playing tune is marked like the playlist's current row.
+///
+/// Playing works like Music: one tune plays the whole list as shown,
+/// starting there; several selected tunes play just those. Either way the
+/// player walks that list, not the playlist.
 private struct LibraryTable: View {
     let rows: [LibraryRow]
 
     @Environment(LibraryStore.self) private var library
+    @Environment(PlayerStore.self) private var player
     @State private var selection = Set<LibraryRow.ID>()
     @State private var sortOrder: [KeyPathComparator<LibraryRow>] = []
 
     var body: some View {
         Table(sortedRows, selection: $selection, sortOrder: $sortOrder) {
-            TableColumn("Title", value: \.title)
+            TableColumn("") { row in
+                if isCurrent(row) {
+                    Image(systemName: player.isPlaying ? "speaker.wave.2.fill" : "speaker.fill")
+                        .foregroundStyle(.tint)
+                        .accessibilityLabel(player.isPlaying ? "Playing" : "Paused")
+                }
+            }
+            .width(22)
+            TableColumn("Title", value: \.title) { row in
+                Text(row.title)
+                    .fontWeight(isCurrent(row) ? .semibold : .regular)
+            }
             TableColumn("Author", value: \.author)
             TableColumn("Released", value: \.released)
             TableColumn("Songs", value: \.songs) { row in
@@ -324,7 +341,7 @@ private struct LibraryTable: View {
         }
         .contextMenu(forSelectionType: LibraryRow.ID.self) { ids in
             if !ids.isEmpty {
-                Button("Play") { library.play(chosen(ids)) }
+                Button("Play") { play(ids) }
                 Button("Add to Playlist") { library.addToPlaylist(chosen(ids)) }
                 Divider()
                 Button("Show in Finder") {
@@ -332,12 +349,26 @@ private struct LibraryTable: View {
                 }
             }
         } primaryAction: { ids in
-            library.play(chosen(ids))
+            play(ids)
+        }
+    }
+
+    private func play(_ ids: Set<LibraryRow.ID>) {
+        let picked = chosen(ids)
+        if picked.count == 1 {
+            library.play(sortedRows, startAt: picked[0])
+        } else {
+            library.play(picked)
         }
     }
 
     private var sortedRows: [LibraryRow] {
         sortOrder.isEmpty ? rows : rows.sorted(using: sortOrder)
+    }
+
+    /// Played from here or from the playlist, the core reports the same path.
+    private func isCurrent(_ row: LibraryRow) -> Bool {
+        row.id == player.nowPlaying?.path
     }
 
     /// Selected rows, in the order shown.

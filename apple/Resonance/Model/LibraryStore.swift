@@ -73,8 +73,11 @@ final class LibraryStore {
 
     // MARK: Actions
 
-    func play(_ rows: [LibraryRow]) {
-        player.add(rows.map(\.url), playFirst: true)
+    /// Play `rows` as a temporary list from `start` (else the first). The
+    /// playlist is left alone: playing from the library never adds to it.
+    func play(_ rows: [LibraryRow], startAt start: LibraryRow? = nil) {
+        guard let first = rows.first else { return }
+        player.playQueue(rows.map(\.url), startAt: (start ?? first).url)
     }
 
     func addToPlaylist(_ rows: [LibraryRow]) {
@@ -90,7 +93,8 @@ final class LibraryStore {
     func surpriseMe() async {
         do {
             if let path = try await core.hvscSurprise(scope: activeCategory) {
-                player.add([URL(filePath: path)], playFirst: true)
+                let url = URL(filePath: path)
+                player.playQueue([url], startAt: url)
             }
         } catch {
             if let category = activeCategory {

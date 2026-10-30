@@ -41,6 +41,11 @@ pub(crate) enum Command {
         to: usize,
     },
     Clear,
+    /// Play SID files as a temporary list, from `start`.
+    PlayQueue {
+        paths: Vec<PathBuf>,
+        start: PathBuf,
+    },
     PlayIndex(usize),
     PlayPause {
         fallback: Option<usize>,
@@ -75,7 +80,11 @@ pub(crate) struct Published {
 #[derive(Clone)]
 pub(crate) struct SessionView {
     pub status: PlayerStatus,
+    /// Playlist row that's playing; None while the queue plays.
     pub current: Option<usize>,
+    /// Length of the playing subtune, from whichever list it's in.
+    pub current_duration_secs: Option<u32>,
+    pub queue_active: bool,
     pub shuffle: bool,
     pub repeat: RepeatMode,
     pub engine: Engine,
@@ -109,6 +118,8 @@ impl Driver {
             session: SessionView {
                 status: PlayerStatus::default(),
                 current: None,
+                current_duration_secs: None,
+                queue_active: false,
                 shuffle: start.shuffle,
                 repeat: start.repeat,
                 engine: start.engine,
@@ -142,6 +153,10 @@ enum Job {
         paths: Vec<PathBuf>,
         play_first: bool,
     },
+    Queue {
+        paths: Vec<PathBuf>,
+        start: PathBuf,
+    },
 }
 
 enum Loaded {
@@ -151,6 +166,10 @@ enum Loaded {
     Entries {
         entries: Vec<PlaylistEntry>,
         play_first: bool,
+    },
+    Queue {
+        entries: Vec<PlaylistEntry>,
+        start: PathBuf,
     },
 }
 
@@ -181,6 +200,12 @@ fn spawn_loader(progress: LoadingProgress) -> (Sender<Job>, Receiver<Loaded>) {
                     Job::Paths { paths, play_first } => Loaded::Entries {
                         entries: parse_paths(paths, &progress),
                         play_first,
+                    },
+                    // Nothing is added, so no "Adding files" progress: a
+                    // private counter keeps it out of the UI.
+                    Job::Queue { paths, start } => Loaded::Queue {
+                        entries: playlist::parse_files(paths, LoadingProgress::default()),
+                        start,
                     },
                 };
                 if job_rx.is_empty() {
@@ -393,7 +418,10 @@ impl State {
             Command::Remove(indices) => s.remove(indices),
             Command::Move { from, to } => s.move_entries(from, to),
             Command::Clear => s.clear(),
-            Command::PlayIndex(i) => s.play_track(i, now),
+            Command::PlayQueue { paths, start } => {
+                let _ = self.loader.send(Job::Queue { paths, start });
+            }
+            Command::PlayIndex(i) => s.play_index(i, now),
             Command::PlayPause { fallback } => s.play_pause(fallback, now),
             Command::Stop => s.stop(),
             Command::Next => s.next(now),
@@ -445,6 +473,12 @@ impl State {
                     self.error = Some("No playable SID files found.".into());
                 }
                 self.session.add_entries(entries, play_first, now);
+            }
+            Loaded::Queue { entries, start } => {
+                if entries.is_empty() {
+                    self.error = Some("No playable SID files found.".into());
+                }
+                self.session.play_queue(entries, &start, now);
             }
         }
     }
@@ -521,7 +555,9 @@ impl State {
         let published = Published {
             session: SessionView {
                 status: s.status.clone(),
-                current: s.playlist.current,
+                current: s.playlist_current(),
+                current_duration_secs: s.current_entry().and_then(|e| e.duration_secs),
+                queue_active: s.queue_active(),
                 shuffle: s.playlist.shuffle,
                 repeat: s.playlist.repeat,
                 engine: s.engine,

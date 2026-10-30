@@ -30,7 +30,7 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     }
 
     static let stoppedSnapshot = Snapshot(
-        state: .stopped, currentIndex: nil, track: nil, elapsedMs: 0, durationMs: nil,
+        state: .stopped, currentIndex: nil, queueActive: false, track: nil, elapsedMs: 0, durationMs: nil,
         shuffle: false, repeat: .off, engine: .sidLite, playlistRevision: 0, trackRevision: 0,
         loading: nil, error: nil, hvscIndexing: [], stil: nil
     )
@@ -85,6 +85,7 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     func next() { record("next") }
     func nextSubtune() { record("nextSubtune") }
     func playIndex(index: UInt32) { record("play \(index)") }
+    func playQueue(paths: [String], start: String) { record("queue \(paths) from \(start)") }
     func playPause(fallback: UInt32?) { record("playPause \(fallback.map(String.init) ?? "nil")") }
     func prevSubtune() { record("prevSubtune") }
     func previous() { record("previous") }
@@ -191,6 +192,7 @@ struct PlayerStoreTests {
         var snapshot = FakeCore.stoppedSnapshot
         snapshot.state = .playing
         snapshot.currentIndex = 3
+        snapshot.queueActive = true
         snapshot.elapsedMs = 30_000
         snapshot.durationMs = 120_000
         fake.set(snapshot: snapshot)
@@ -199,6 +201,7 @@ struct PlayerStoreTests {
 
         #expect(store.isPlaying)
         #expect(store.currentIndex == 3)
+        #expect(store.queueActive)
         #expect(store.elapsed == 30)
         #expect(store.progress == 0.25)
     }
@@ -212,6 +215,14 @@ struct PlayerStoreTests {
         store.cycleRepeat()
 
         #expect(fake.calls == ["play 2", "playPause 4", "remove [1, 3]", "move [0, 1] 3", "repeat all"])
+    }
+
+    @Test func playQueueForwardsPathsAndStart() {
+        let (store, _) = makeStore()
+        store.playQueue([URL(filePath: "/a.sid"), URL(filePath: "/b.sid")], startAt: URL(filePath: "/b.sid"))
+        store.playQueue([], startAt: URL(filePath: "/a.sid"))
+
+        #expect(fake.calls == ["queue [\"/a.sid\", \"/b.sid\"] from /b.sid"])
     }
 }
 
@@ -299,8 +310,10 @@ struct LibraryStoreTests {
         await library.surpriseMe()
 
         #expect(fake.calls == [
-            "surprise games", "add [\"/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid\"] true",
-            "surprise all", "add [\"/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid\"] true",
+            "surprise games",
+            "queue [\"/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid\"] from /HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid",
+            "surprise all",
+            "queue [\"/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid\"] from /HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid",
         ])
     }
 
