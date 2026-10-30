@@ -75,6 +75,13 @@ struct PlaylistView: View {
         } primaryAction: { ids in
             play(ids)
         }
+        // Over the table rather than instead of it, so the column headers
+        // (and any widths the user dragged) stay put while typing.
+        .overlay {
+            if displayedRows.isEmpty {
+                ContentUnavailableView.search(text: query)
+            }
+        }
         .onDeleteCommand { remove(selection) }
         .onKeyPress(.space) {
             store.playPause(fallback: rows(for: selection).first?.index)
@@ -95,8 +102,9 @@ struct PlaylistView: View {
 
     // MARK: Rows
 
+    private var query: String { search.trimmingCharacters(in: .whitespaces) }
+
     private var displayedRows: [TrackRow] {
-        let query = search.trimmingCharacters(in: .whitespaces)
         let filtered = query.isEmpty
             ? store.rows
             : store.rows.filter {

@@ -192,8 +192,9 @@ private struct AuthorList: View {
                     SettingsLink { Text("Open Settings…") }
                 }
             } else if let authors = library.authors[category] {
+                let shown = groups(authors)
                 List(selection: $selection) {
-                    ForEach(groups(authors), id: \.letter) { group in
+                    ForEach(shown, id: \.letter) { group in
                         Section(group.letter == "0" ? "0–9" : group.letter) {
                             ForEach(group.authors, id: \.path) { author in
                                 Text(author.displayName)
@@ -204,6 +205,13 @@ private struct AuthorList: View {
                                     }
                             }
                         }
+                    }
+                }
+                // Before the inset, so it centres in the list below the
+                // filter field rather than covering it.
+                .overlay {
+                    if shown.isEmpty {
+                        ContentUnavailableView.search(text: needle)
                     }
                 }
                 .safeAreaInset(edge: .top, spacing: 0) {
@@ -224,9 +232,10 @@ private struct AuthorList: View {
         let authors: [HvscAuthorItem]
     }
 
+    private var needle: String { filter.trimmingCharacters(in: .whitespaces) }
+
     /// Consecutive authors sharing a letter folder, after filtering.
     private func groups(_ authors: [HvscAuthorItem]) -> [LetterGroup] {
-        let needle = filter.trimmingCharacters(in: .whitespaces)
         let shown = needle.isEmpty
             ? authors
             : authors.filter { $0.displayName.localizedStandardContains(needle) || $0.name.localizedStandardContains(needle) }
