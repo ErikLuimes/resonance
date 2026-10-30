@@ -55,12 +55,21 @@ struct PlaylistView: View {
             TableColumn("Type", value: \.format)
                 .width(48)
         } rows: {
-            ForEach(displayedRows) { row in
-                TableRow(row)
-                    .draggable(PlaylistRowDrag(path: row.id))
-            }
-            .dropDestination(for: PlaylistRowDrag.self) { offset, drags in
-                reorder(drags, to: offset)
+            // Rows only drag in playlist order. Sorted or filtered, a drop
+            // position doesn't map to a playlist position, and an insertion
+            // line that then does nothing reads as a bug.
+            if isInPlaylistOrder {
+                ForEach(displayedRows) { row in
+                    TableRow(row)
+                        .draggable(PlaylistRowDrag(path: row.id))
+                }
+                .dropDestination(for: PlaylistRowDrag.self) { offset, drags in
+                    reorder(drags, to: offset)
+                }
+            } else {
+                ForEach(displayedRows) { row in
+                    TableRow(row)
+                }
             }
         }
         .contextMenu(forSelectionType: TrackRow.ID.self) { ids in
@@ -117,7 +126,7 @@ struct PlaylistView: View {
 
     /// Reordering is only meaningful when the view shows playlist order.
     private var isInPlaylistOrder: Bool {
-        search.isEmpty && sortOrder.first?.keyPath == \TrackRow.index && sortOrder.first?.order == .forward
+        query.isEmpty && sortOrder.first?.keyPath == \TrackRow.index && sortOrder.first?.order == .forward
     }
 
     private func rows(for ids: Set<TrackRow.ID>) -> [TrackRow] {
