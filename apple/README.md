@@ -132,4 +132,9 @@ After merging upstream into this fork:
   resampler overflows an `i32` multiply (`sampler.rs:297`), which release
   builds wrap silently but debug builds turn into a panic on the reSID
   engine. Debug builds of the Iced app hit the same panic.
-- No app icon yet; `Resonance/Assets.xcassets/AppIcon.appiconset` is empty.
+- The app icon is an Icon Composer document, `Resonance/AppIcon.icon`: its
+  layers are SVGs in `Assets/`. Edit it in Icon Composer (in Xcode's
+  Applications folder), or preview a change from the terminal with
+  `ictool Resonance/AppIcon.icon --export-image --output-file icon.png
+  --platform macOS --rendition Default --width 512 --height 512 --scale 1`
+  (`ictool` is in `Icon Composer.app/Contents/Executables`).

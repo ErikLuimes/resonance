@@ -1,0 +1,46 @@
+{
+  "fill" : {
+    "automatic-gradient" : "extended-srgb:0.07059,0.07843,0.12157,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "glass" : true,
+          "image-name" : "Peaks.svg",
+          "name" : "Peaks",
+          "opacity" : 0.85
+        },
+        {
+          "glass" : true,
+          "image-name" : "Voice 1.svg",
+          "name" : "Voice 1"
+        },
+        {
+          "glass" : true,
+          "image-name" : "Voice 2.svg",
+          "name" : "Voice 2"
+        },
+        {
+          "glass" : true,
+          "image-name" : "Voice 3.svg",
+          "name" : "Voice 3"
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.2
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : [
+      "macOS"
+    ]
+  }
+}
