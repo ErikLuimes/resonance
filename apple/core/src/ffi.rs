@@ -522,6 +522,12 @@ pub fn shared_defaults() -> SharedDefaults {
     }
 }
 
+/// The version of upstream Phosphor whose engine this build compiles in.
+#[uniffi::export]
+pub fn phosphor_version() -> String {
+    env!("PHOSPHOR_VERSION").to_string()
+}
+
 fn to_usize(v: Vec<u32>) -> Vec<usize> {
     v.into_iter().map(|i| i as usize).collect()
 }

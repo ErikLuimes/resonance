@@ -57,6 +57,8 @@ struct ContentView: View {
             }
         }
         .navigationTitle("Resonance")
+        // Constant on purpose, like the rest of the toolbar (see below).
+        .navigationSubtitle("powered by Phosphor")
         // One search field for the whole window, with a fixed prompt. Each
         // section used to bring its own (the HVSC one with scope buttons),
         // so the toolbar changed on every sidebar click — which made SwiftUI

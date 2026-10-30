@@ -73,6 +73,8 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
     return immediately; Swift polls `snapshot()` at 20 Hz and `viz_frame()`
     per display frame. Library calls are `async` (Swift `await`s them) and
     run on tokio's blocking pool.
+  - `build.rs` — reads upstream's version from the root `Cargo.toml`, so
+    `phosphor_version()` (shown in About Resonance) follows upstream merges.
 - **`iced-shim/`** — `src/hvsc_sync.rs` imports `iced::futures`; this maps
   that path to `futures-util` so the GUI toolkit isn't built.
 - **`uniffi-bindgen/`** — the Swift binding generator, pinned to the same
