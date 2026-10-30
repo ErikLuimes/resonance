@@ -9,6 +9,7 @@
 //! A second thread, the loader, parses files in FIFO order (folders and big
 //! playlists can take seconds) and hands entries back to the session thread.
 
+use std::collections::HashSet;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -18,6 +19,7 @@ use std::time::{Duration, Instant};
 use crossbeam_channel::{select, unbounded, Receiver, Sender};
 
 use crate::databases::{self, Databases, SharedDatabases};
+use crate::library::{Library, LibraryError};
 use crate::player::{self, PlayState, PlayerCmd, PlayerStatus};
 use crate::playlist::{self, LoadingProgress, PlaylistEntry, RepeatMode};
 use crate::session::{persist, Engine, Options, Session};
@@ -47,6 +49,8 @@ pub(crate) enum Command {
         start: PathBuf,
     },
     PlayIndex(usize),
+    /// Start Surprise Me's radio.
+    Surprise,
     PlayPause {
         fallback: Option<usize>,
     },
@@ -85,6 +89,8 @@ pub(crate) struct SessionView {
     /// Length of the playing subtune, from whichever list it's in.
     pub current_duration_secs: Option<u32>,
     pub queue_active: bool,
+    /// The queue is Surprise Me's radio.
+    pub surprise_active: bool,
     pub shuffle: bool,
     pub repeat: RepeatMode,
     pub engine: Engine,
@@ -104,6 +110,8 @@ pub(crate) struct StartConfig {
     pub hvsc_root: Option<PathBuf>,
     /// Filled by the loader; shared with the library.
     pub databases: SharedDatabases,
+    /// Where Surprise Me's picks come from.
+    pub library: Library,
 }
 
 pub(crate) struct Driver {
@@ -120,6 +128,7 @@ impl Driver {
                 current: None,
                 current_duration_secs: None,
                 queue_active: false,
+                surprise_active: false,
                 shuffle: start.shuffle,
                 repeat: start.repeat,
                 engine: start.engine,
@@ -157,6 +166,11 @@ enum Job {
         paths: Vec<PathBuf>,
         start: PathBuf,
     },
+    /// A random tune for Surprise Me, not one of `exclude`.
+    Pick {
+        exclude: HashSet<PathBuf>,
+        first: bool,
+    },
 }
 
 enum Loaded {
@@ -171,9 +185,11 @@ enum Loaded {
         entries: Vec<PlaylistEntry>,
         start: PathBuf,
     },
+    /// Ok(None): HVSC had nothing left to pick.
+    Picked(Result<Option<PlaylistEntry>, String>),
 }
 
-fn spawn_loader(progress: LoadingProgress) -> (Sender<Job>, Receiver<Loaded>) {
+fn spawn_loader(progress: LoadingProgress, library: Library) -> (Sender<Job>, Receiver<Loaded>) {
     let (job_tx, job_rx) = unbounded::<Job>();
     let (done_tx, done_rx) = unbounded();
     thread::Builder::new()
@@ -207,6 +223,12 @@ fn spawn_loader(progress: LoadingProgress) -> (Sender<Job>, Receiver<Loaded>) {
                         entries: playlist::parse_files(paths, LoadingProgress::default()),
                         start,
                     },
+                    Job::Pick { exclude, first } => {
+                        if first {
+                            set_progress(&progress, "Picking a surprise…");
+                        }
+                        Loaded::Picked(pick_tune(&library, exclude))
+                    }
                 };
                 if job_rx.is_empty() {
                     set_progress(&progress, "");
@@ -252,12 +274,42 @@ fn parse_paths(paths: Vec<PathBuf>, progress: &LoadingProgress) -> Vec<PlaylistE
     out
 }
 
+/// A random HVSC tune, parsed. A file that won't parse is skipped for
+/// another pick rather than ending the radio.
+fn pick_tune(
+    library: &Library,
+    mut exclude: HashSet<PathBuf>,
+) -> Result<Option<PlaylistEntry>, String> {
+    for _ in 0..5 {
+        let path = match library.pick_blocking(&exclude) {
+            Ok(Some(path)) => path,
+            Ok(None) => return Ok(None),
+            Err(LibraryError::NoRoot) => return Err("Choose your HVSC folder in Settings.".into()),
+            Err(LibraryError::NotFound(m) | LibraryError::Io(m)) => return Err(m),
+        };
+        match PlaylistEntry::from_path(&path) {
+            Ok(entry) => return Ok(Some(entry)),
+            Err(e) => {
+                eprintln!("[resonance] surprise: skipping {}: {e}", path.display());
+                exclude.insert(path);
+            }
+        }
+    }
+    Ok(None)
+}
+
 fn is_playlist_file(path: &Path) -> bool {
     path.extension().and_then(|e| e.to_str()).is_some_and(|e| {
         ["m3u", "m3u8", "pls"]
             .iter()
             .any(|x| e.eq_ignore_ascii_case(x))
     })
+}
+
+/// Upstream's progress text without the "⏳" its Iced UI shows: the app
+/// draws its own spinner.
+fn progress_text(raw: &str) -> String {
+    raw.trim_start_matches('⏳').trim().to_string()
 }
 
 fn set_progress(progress: &LoadingProgress, text: &str) {
@@ -325,7 +377,7 @@ fn run(start: StartConfig, commands: Receiver<Command>, out: Arc<Mutex<Arc<Publi
     session.set_repeat(start.repeat);
 
     let progress = LoadingProgress::default();
-    let (loader, loaded) = spawn_loader(progress.clone());
+    let (loader, loaded) = spawn_loader(progress.clone(), start.library);
     // FIFO: the songlengths land before any file the user adds, so a default
     // length can't claim tunes the database knows.
     let _ = loader.send(Job::Databases);
@@ -384,6 +436,12 @@ fn run(start: StartConfig, commands: Receiver<Command>, out: Arc<Mutex<Arc<Publi
             // Device-config replies only come from USB engines; drop them.
             for _ in st.player.device_events.try_iter() {}
             st.session.tick(now);
+            if let Some(request) = st.session.take_radio_request() {
+                let _ = st.loader.send(Job::Pick {
+                    exclude: request.exclude,
+                    first: request.first,
+                });
+            }
             st.maybe_save(now);
             true
         }));
@@ -422,6 +480,7 @@ impl State {
                 let _ = self.loader.send(Job::Queue { paths, start });
             }
             Command::PlayIndex(i) => s.play_index(i, now),
+            Command::Surprise => s.surprise(),
             Command::PlayPause { fallback } => s.play_pause(fallback, now),
             Command::Stop => s.stop(),
             Command::Next => s.next(now),
@@ -479,6 +538,13 @@ impl State {
                     self.error = Some("No playable SID files found.".into());
                 }
                 self.session.play_queue(entries, &start, now);
+            }
+            Loaded::Picked(result) => {
+                let pick = result.unwrap_or_else(|e| {
+                    self.error = Some(e);
+                    None
+                });
+                self.session.radio_picked(pick, now);
             }
         }
     }
@@ -548,7 +614,7 @@ impl State {
             .progress
             .lock()
             .ok()
-            .map(|p| p.clone())
+            .map(|p| progress_text(&p))
             .filter(|p| !p.is_empty());
         let stil = self.current_stil();
         let s = &self.session;
@@ -558,6 +624,7 @@ impl State {
                 current: s.playlist_current(),
                 current_duration_secs: s.current_entry().and_then(|e| e.duration_secs),
                 queue_active: s.queue_active(),
+                surprise_active: s.radio_active(),
                 shuffle: s.playlist.shuffle,
                 repeat: s.playlist.repeat,
                 engine: s.engine,
@@ -573,5 +640,20 @@ impl State {
         if let Ok(mut slot) = out.lock() {
             *slot = Arc::new(published);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::progress_text;
+
+    #[test]
+    fn progress_text_drops_upstreams_hourglass() {
+        assert_eq!(
+            progress_text("⏳ Adding files: 3 / 9"),
+            "Adding files: 3 / 9"
+        );
+        assert_eq!(progress_text("Picking a surprise…"), "Picking a surprise…");
+        assert_eq!(progress_text(""), "");
     }
 }

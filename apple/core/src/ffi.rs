@@ -139,6 +139,8 @@ pub struct Snapshot {
     pub current_index: Option<u32>,
     /// Playing from a temporary list (`play_queue`) rather than the playlist.
     pub queue_active: bool,
+    /// That list is Surprise Me's radio (`surprise_me`).
+    pub surprise_active: bool,
     /// What the player reports it's playing.
     pub track: Option<TrackDetails>,
     pub elapsed_ms: u64,
@@ -270,6 +272,7 @@ impl PlayerCore {
             session_path: PathBuf::from(config.session_path),
             hvsc_root,
             databases,
+            library: library.clone(),
         });
         Arc::new(Self { driver, library })
     }
@@ -393,6 +396,7 @@ impl PlayerCore {
             state: status.state.clone().into(),
             current_index: view.current.map(|i| i as u32),
             queue_active: view.queue_active,
+            surprise_active: view.surprise_active,
             track: status.track_info.as_ref().map(TrackDetails::from),
             elapsed_ms: status.elapsed.as_millis() as u64,
             duration_ms,
@@ -483,6 +487,15 @@ impl PlayerCore {
             total_matches: r.total_matches as u32,
             indexed: r.indexed as u32,
         })
+    }
+
+    /// Surprise Me: an endless stream of random tunes from all of HVSC, one
+    /// subtune each, never one played since launch. Next picks a new tune,
+    /// Previous goes back; playing anything else ends it. Returns once the
+    /// search indexes are loaded (until then, picks walk the disk).
+    pub async fn surprise_me(&self) {
+        self.send(Command::Surprise);
+        self.library.warm_indexes().await;
     }
 
     /// A random tune's path, from `scope` or the whole collection.

@@ -633,6 +633,150 @@ fn queue_subtune_changes_stay_out_of_the_playlist() {
     assert_eq!(h.session.playlist_revision, rev, "nothing to save");
 }
 
+// ── Surprise Me ──────────────────────────────────────────────────────────────
+
+/// Press Surprise Me and deliver `first` as the driver's pick.
+fn start_radio(h: &mut Harness, first: PlaylistEntry) {
+    h.session.surprise();
+    let request = h.session.take_radio_request().expect("a first pick");
+    assert!(request.first);
+    h.session.radio_picked(Some(first), h.t0);
+}
+
+#[test]
+fn surprise_starts_the_radio_and_stays_one_pick_ahead() {
+    let mut h = Harness::new(vec![entry("a", 1, None)]);
+    h.session.surprise();
+    let first = h.session.take_radio_request().expect("a first pick");
+    assert!(first.first);
+    assert!(
+        h.session.take_radio_request().is_none(),
+        "one request per pick"
+    );
+
+    assert!(!h.session.radio_active(), "not until the first pick plays");
+
+    h.session.radio_picked(Some(entry("x", 1, Some(10))), h.t0);
+    assert_eq!(played(&h.sent()), vec![(path("x"), 1)]);
+    assert!(h.session.queue_active());
+    assert!(h.session.radio_active());
+    assert_eq!(h.session.playlist.len(), 1, "the playlist is left alone");
+
+    let ahead = h.session.take_radio_request().expect("the next pick");
+    assert!(!ahead.first);
+    assert!(
+        ahead.exclude.contains(&path("x")),
+        "never a tune already heard"
+    );
+}
+
+#[test]
+fn radio_plays_one_subtune_then_the_next_pick() {
+    let mut h = Harness::new(Vec::new());
+    start_radio(&mut h, entry("x", 3, Some(10)));
+    h.session.take_radio_request();
+    h.session.radio_picked(Some(entry("y", 1, Some(10))), h.t0);
+    let cmds = h.sent();
+    assert_eq!(
+        played(&cmds),
+        vec![(path("x"), 1)],
+        "a prefetch doesn't play"
+    );
+
+    h.feed(h.queue_status(0, 1, 10, 5), 10.0);
+    let cmds = h.sent();
+    assert!(subtunes(&cmds).is_empty(), "no second subtune");
+    assert_eq!(played(&cmds), vec![(path("y"), 1)]);
+}
+
+#[test]
+fn next_waits_for_a_pick_the_radio_ran_out_of() {
+    let mut h = Harness::new(Vec::new());
+    start_radio(&mut h, entry("x", 1, None));
+    h.sent();
+    assert!(h.session.take_radio_request().is_some());
+
+    h.session.next(h.t0);
+    assert!(played(&h.sent()).is_empty());
+    h.session.radio_picked(Some(entry("y", 1, None)), h.t0);
+    assert_eq!(played(&h.sent()), vec![(path("y"), 1)]);
+}
+
+#[test]
+fn previous_walks_back_through_the_radio() {
+    let mut h = Harness::new(Vec::new());
+    start_radio(&mut h, entry("x", 1, None));
+    h.session.take_radio_request();
+    h.session.radio_picked(Some(entry("y", 1, None)), h.t0);
+    h.session.next(h.t0);
+    h.sent();
+
+    h.session.previous(h.t0);
+    assert_eq!(played(&h.sent()), vec![(path("x"), 1)]);
+}
+
+#[test]
+fn playing_something_else_ends_the_radio_and_drops_late_picks() {
+    let mut h = Harness::new(vec![entry("a", 1, None)]);
+    start_radio(&mut h, entry("x", 1, None));
+    assert!(h.session.take_radio_request().is_some());
+    h.sent();
+
+    h.session.play_index(0, h.t0);
+    h.session.radio_picked(Some(entry("y", 1, None)), h.t0);
+    assert_eq!(played(&h.sent()), vec![(path("a"), 1)]);
+    assert!(!h.session.queue_active());
+    assert!(!h.session.radio_active());
+    assert!(h.session.take_radio_request().is_none());
+}
+
+#[test]
+fn radio_repicks_instead_of_playing_a_skipped_rsid() {
+    let mut h = Harness::with_options(
+        Vec::new(),
+        Options {
+            skip_rsid: true,
+            ..Options::default()
+        },
+    );
+    h.session.surprise();
+    h.session.take_radio_request();
+    h.session.radio_picked(Some(rsid("r")), h.t0);
+    assert!(played(&h.sent()).is_empty());
+
+    let again = h.session.take_radio_request().expect("another pick");
+    assert!(again.first);
+    assert!(again.exclude.contains(&path("r")));
+}
+
+#[test]
+fn nothing_to_pick_means_no_radio() {
+    let mut h = Harness::new(Vec::new());
+    h.session.surprise();
+    h.session.take_radio_request();
+    h.session.radio_picked(None, h.t0);
+    assert!(h.sent().is_empty());
+    assert!(!h.session.queue_active());
+}
+
+#[test]
+fn radio_never_shuffles_and_only_repeats_one_tune() {
+    let mut h = Harness::new(vec![entry("a", 1, None)]);
+    h.session.set_repeat(RepeatMode::All);
+    h.session.set_shuffle(true);
+    start_radio(&mut h, entry("x", 1, None));
+    let q = h.session.queue.as_ref().unwrap();
+    assert_eq!(q.repeat, RepeatMode::Off);
+    assert!(!q.shuffle);
+
+    h.session.set_repeat(RepeatMode::Single);
+    assert_eq!(h.session.queue.as_ref().unwrap().repeat, RepeatMode::Single);
+    h.session.set_shuffle(false);
+    h.session.set_shuffle(true);
+    assert!(!h.session.queue.as_ref().unwrap().shuffle);
+    assert!(h.session.playlist.shuffle);
+}
+
 // ── Persistence ──────────────────────────────────────────────────────────────
 
 #[test]

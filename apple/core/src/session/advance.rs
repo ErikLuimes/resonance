@@ -62,7 +62,14 @@ impl Session {
             if duration_ended { "duration" } else { "silence" }
         );
 
-        if song < songs {
+        if self.radio {
+            // Surprise Me plays one subtune per tune, and keeps it selected
+            // so Previous replays the same one.
+            match self.active_mut().next() {
+                Some(idx) => self.play_track(idx, now),
+                None => self.radio_ran_out(),
+            }
+        } else if song < songs {
             // Next subtune of the same tune.
             let next = song + 1;
             let length = self.subtune_length(md5.as_deref(), next);

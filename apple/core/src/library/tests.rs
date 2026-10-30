@@ -312,6 +312,40 @@ async fn index_builds_wait_for_the_databases() {
 // ── Surprise ─────────────────────────────────────────────────────────────────
 
 #[tokio::test]
+async fn radio_picks_skip_excluded_tunes_with_or_without_indexes() {
+    let tree = Tree::sample();
+    let lib = library(Some(tree.root()));
+    let musicians: Vec<PathBuf> = [
+        "MUSICIANS/H/Hubbard_Rob/Commando.sid",
+        "MUSICIANS/H/Hubbard_Rob/Monty_on_the_Run.sid",
+        "MUSICIANS/G/Galway_Martin/Wizball.sid",
+    ]
+    .iter()
+    .map(|rel| tree.root().join(rel))
+    .collect();
+
+    // Cold: walks MUSICIANS, so with two of its three excluded only one is
+    // left, and with all three nothing is.
+    let exclude: HashSet<PathBuf> = musicians[..2].iter().cloned().collect();
+    assert_eq!(lib.pick_blocking(&exclude), Ok(Some(musicians[2].clone())));
+    let all: HashSet<PathBuf> = musicians.iter().cloned().collect();
+    assert_eq!(lib.pick_blocking(&all), Ok(None));
+
+    // Warm: every category's index, so GAMES is in reach too.
+    lib.warm_indexes().await;
+    for _ in 0..10 {
+        let pick = lib.pick_blocking(&all).unwrap().unwrap();
+        assert!(pick.ends_with("Bubble_Bobble.sid"), "{}", pick.display());
+    }
+
+    let lost = library(None);
+    assert_eq!(
+        lost.pick_blocking(&HashSet::new()),
+        Err(LibraryError::NoRoot)
+    );
+}
+
+#[tokio::test]
 async fn surprise_picks_a_tune_in_scope_with_or_without_an_index() {
     let tree = Tree::sample();
     let lib = library(Some(tree.root()));

@@ -21,6 +21,8 @@ final class PlayerStore {
     private(set) var currentIndex: Int?
     /// Playing a temporary list of library tunes rather than the playlist.
     private(set) var queueActive = false
+    /// That list is Surprise Me's endless random one.
+    private(set) var surpriseActive = false
     private(set) var nowPlaying: TrackDetails?
     private(set) var elapsed: TimeInterval = 0
     private(set) var duration: TimeInterval?
@@ -173,6 +175,7 @@ final class PlayerStore {
         update(\.state, s.state)
         update(\.currentIndex, s.currentIndex.map(Int.init))
         update(\.queueActive, s.queueActive)
+        update(\.surpriseActive, s.surpriseActive)
         update(\.nowPlaying, s.track)
         update(\.elapsed, TimeInterval(s.elapsedMs) / 1000)
         update(\.duration, s.durationMs.map { TimeInterval($0) / 1000 })

@@ -22,9 +22,6 @@ struct NowPlayingBar: View {
                 if store.hasSubtunes {
                     subtunes
                 }
-                if width >= 560 {
-                    modes
-                }
                 if width >= 700 {
                     volume
                 }
@@ -37,25 +34,62 @@ struct NowPlayingBar: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
     }
 
+    /// Laid out like Music: shuffle · previous · play/pause · next · repeat,
+    /// the middle three a size up. Shuffle and repeat drop out first when
+    /// the bar narrows.
     private var transport: some View {
-        HStack(spacing: 6) {
-            Button("Previous", systemImage: "backward.fill") { store.previous() }
-            Button(store.isPlaying ? "Pause" : "Play", systemImage: store.isPlaying ? "pause.fill" : "play.fill") {
-                store.playPause()
+        HStack(spacing: 10) {
+            if width >= 480 {
+                shuffle
             }
-            .font(.title2)
-            .contentTransition(.symbolEffect(.replace))
-            Button("Next", systemImage: "forward.fill") { store.next() }
+            HStack(spacing: 6) {
+                Button("Previous", systemImage: "backward.fill") { store.previous() }
+                    .font(.title3)
+                Button(store.isPlaying ? "Pause" : "Play", systemImage: store.isPlaying ? "pause.fill" : "play.fill") {
+                    store.playPause()
+                }
+                .font(.title)
+                .contentTransition(.symbolEffect(.replace))
+                Button("Next", systemImage: "forward.fill") { store.next() }
+                    .font(.title3)
+            }
+            .disabled(store.rows.isEmpty && !store.queueActive)
+            if width >= 480 {
+                repeatMode
+            }
         }
         .labelStyle(.iconOnly)
         .buttonStyle(.borderless)
-        .disabled(store.rows.isEmpty && !store.queueActive)
+    }
+
+    private var shuffle: some View {
+        Button("Shuffle", systemImage: "shuffle") { store.shuffle.toggle() }
+            .foregroundStyle(modeStyle(on: store.shuffle))
+            .accessibilityValue(store.shuffle ? "On" : "Off")
+            .help(store.shuffle ? "Shuffle: On" : "Shuffle: Off")
+    }
+
+    private var repeatMode: some View {
+        Button("Repeat: \(store.repeatMode.displayName)", systemImage: store.repeatMode.symbolName) {
+            store.cycleRepeat()
+        }
+        .foregroundStyle(modeStyle(on: store.repeatMode != .off))
+        .contentTransition(.symbolEffect(.replace))
+        .help("Repeat: \(store.repeatMode.displayName)")
+    }
+
+    /// Both modes read the same way: accent colour when on, dimmed when off.
+    private func modeStyle(on: Bool) -> AnyShapeStyle {
+        on ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary)
     }
 
     private var trackInfo: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let track = store.nowPlaying {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    if store.surpriseActive {
+                        SurpriseBadge(compact: width < 560)
+                    }
                     Text(track.title).font(.headline)
                     Text(track.author).foregroundStyle(.secondary)
                 }
@@ -63,7 +97,12 @@ struct NowPlayingBar: View {
             } else {
                 Text("Not Playing").foregroundStyle(.secondary)
             }
-            ProgressRow(elapsed: store.elapsed, duration: store.duration, progress: store.progress)
+            ProgressRow(
+                elapsed: store.elapsed,
+                duration: store.duration,
+                progress: store.progress,
+                hasSubtunes: store.hasSubtunes
+            )
         }
     }
 
@@ -81,20 +120,6 @@ struct NowPlayingBar: View {
         .help("Subtune")
     }
 
-    private var modes: some View {
-        @Bindable var store = store
-        return HStack(spacing: 6) {
-            Toggle("Shuffle", systemImage: "shuffle", isOn: $store.shuffle)
-            Button("Repeat: \(store.repeatMode.displayName)", systemImage: store.repeatMode.symbolName) {
-                store.cycleRepeat()
-            }
-            .foregroundStyle(store.repeatMode == .off ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
-        }
-        .labelStyle(.iconOnly)
-        .toggleStyle(.button)
-        .buttonStyle(.borderless)
-    }
-
     private var volume: some View {
         @Bindable var store = store
         return HStack(spacing: 6) {
@@ -109,11 +134,43 @@ struct NowPlayingBar: View {
     }
 }
 
-/// Elapsed / length with a read-only bar (SID tunes can't be seeked).
+/// Marks Surprise Me's radio, so it's clear why Next plays a random tune.
+/// Just the dice when the bar is narrow. A solid pill: the bar is glass, so
+/// whatever scrolls under it shows through anything lighter.
+private struct SurpriseBadge: View {
+    let compact: Bool
+
+    var body: some View {
+        Group {
+            if compact {
+                Image(systemName: "dice.fill")
+            } else {
+                Label("Surprise Me", systemImage: "dice.fill")
+            }
+        }
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(.white)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 2)
+        .background(.tint, in: .capsule)
+        .fixedSize()
+        .help("Surprise Me: Next plays another random tune from HVSC. Play anything else to stop.")
+        .accessibilityLabel("Surprise Me")
+    }
+}
+
+/// Elapsed / length with a read-only bar. SID tunes can't be seeked (the
+/// engine runs each one as a C64 program, in real time), but people expect
+/// to scrub: hovering explains, and so does a click or drag on the bar.
 private struct ProgressRow: View {
     let elapsed: TimeInterval
     let duration: TimeInterval?
     let progress: Double?
+    let hasSubtunes: Bool
+
+    @State private var explaining = false
+
+    private static let why = "SID tunes play in real time, so you can't skip within a tune."
 
     var body: some View {
         HStack(spacing: 8) {
@@ -121,11 +178,34 @@ private struct ProgressRow: View {
             ProgressView(value: progress ?? 0)
                 .progressViewStyle(.linear)
                 .opacity(progress == nil ? 0.3 : 1)
+                // The row's height, so the thin bar is easy to hit.
+                .frame(height: 14)
+                .contentShape(.rect)
+                // A click is a drag that didn't move.
+                .gesture(DragGesture(minimumDistance: 0).onEnded { _ in explaining = true })
+                .help(Self.why)
+                .accessibilityHint(Self.why)
+                .popover(isPresented: $explaining, arrowEdge: .bottom) { explanation }
             Text(duration.map(format) ?? "--:--")
         }
         .font(.caption)
         .monospacedDigit()
         .foregroundStyle(.secondary)
+    }
+
+    private var explanation: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("No Scrubbing in SID Tunes")
+                .font(.headline)
+            Text("A SID tune is a little C64 program that plays in real time, so there's no skipping ahead or back within it.")
+            if hasSubtunes {
+                Text("Use \(Image(systemName: "chevron.left")) \(Image(systemName: "chevron.right")) to jump between the songs in this tune.")
+            }
+        }
+        .font(.callout)
+        .frame(width: 260, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(14)
     }
 
     private func format(_ t: TimeInterval) -> String {

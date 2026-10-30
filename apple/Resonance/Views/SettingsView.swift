@@ -18,7 +18,7 @@ struct SettingsView: View {
                 Text("SIDLite picks the chip model from each tune's header. Changing the engine restarts the current tune.")
             }
 
-            Section("Playback") {
+            Section {
                 Toggle("Skip RSID tunes", isOn: $store.options.skipRsid)
                 LabeledContent("Default song length") {
                     HStack {
@@ -29,9 +29,10 @@ struct SettingsView: View {
                         Text("seconds")
                     }
                 }
-                Text("Used for tunes missing from the Songlengths database. 0 means play until silence.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            } header: {
+                Text("Playback")
+            } footer: {
+                Text("The default length is used for tunes missing from the Songlengths database. 0 means play until silence.")
             }
 
             Section("Stereo") {
@@ -44,7 +45,7 @@ struct SettingsView: View {
                 }
             }
 
-            Section("HVSC") {
+            Section {
                 LabeledContent("Collection folder") {
                     Text(store.hvscRoot.map { ($0 as NSString).abbreviatingWithTildeInPath } ?? "Not set")
                         .foregroundStyle(store.hvscRoot == nil ? .secondary : .primary)
@@ -55,9 +56,10 @@ struct SettingsView: View {
                     Button("Choose…") { choosingHvscFolder = true }
                     Button("Use Phosphor's") { store.usePhosphorHvscRoot() }
                 }
+            } header: {
+                Text("HVSC")
+            } footer: {
                 Text("The folder that holds MUSICIANS, GAMES and DEMOS.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
 
             Section {

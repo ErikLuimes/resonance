@@ -15,6 +15,7 @@ pub(crate) mod persist;
 #[cfg(test)]
 mod tests;
 
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -63,6 +64,16 @@ pub struct Session {
     /// playlist is played. Never saved. Not in upstream, whose library adds
     /// what it plays to the playlist.
     pub(crate) queue: Option<Playlist>,
+    /// The queue is Surprise Me's radio: random tunes from all of HVSC, one
+    /// subtune each, kept one pick ahead of playback.
+    radio: bool,
+    /// Surprise Me pressed; the radio starts when the first pick arrives.
+    radio_starting: bool,
+    /// The radio ran out before its next pick arrived: play it on arrival.
+    radio_waiting: bool,
+    radio_pick: RadioPick,
+    /// Every tune played since launch; Surprise Me doesn't pick these.
+    heard: HashSet<PathBuf>,
     /// Latest status from the player thread, with timing fields zeroed when
     /// it belongs to a track or subtune we've already moved away from.
     pub(crate) status: PlayerStatus,
@@ -85,6 +96,23 @@ pub struct Session {
     pub(crate) track_revision: u64,
 }
 
+/// Where Surprise Me's next pick stands. The driver does the picking (it
+/// reads the disk); the session only says when it needs one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RadioPick {
+    Idle,
+    Wanted,
+    Pending,
+}
+
+/// A pick the driver should make: any tune not in `exclude`.
+pub struct RadioRequest {
+    pub exclude: HashSet<PathBuf>,
+    /// The first pick of a new radio (worth a progress message: with no
+    /// index loaded yet it walks the disk).
+    pub first: bool,
+}
+
 impl Session {
     pub fn new(
         cmd_tx: Sender<PlayerCmd>,
@@ -97,6 +125,11 @@ impl Session {
             cmd_tx,
             playlist: Playlist::new(),
             queue: None,
+            radio: false,
+            radio_starting: false,
+            radio_waiting: false,
+            radio_pick: RadioPick::Idle,
+            heard: HashSet::new(),
             status: PlayerStatus::default(),
             songlength_db: None,
             hvsc_root,
@@ -233,6 +266,11 @@ impl Session {
         self.queue.is_some()
     }
 
+    /// The queue is Surprise Me's radio.
+    pub(crate) fn radio_active(&self) -> bool {
+        self.radio
+    }
+
     // ── Transport ─────────────────────────────────────────────────────────
 
     /// main.rs `play_track`, minus the recently-played / heard / favourites
@@ -262,6 +300,7 @@ impl Session {
                 }
             }
 
+            self.heard.insert(path.clone());
             let cmd = self.play_cmd(path, song);
             self.active_mut().current = Some(idx);
             self.send(cmd);
@@ -270,6 +309,7 @@ impl Session {
             // this one's first auto-advance (main.rs:4444-4446).
             self.last_advance_at = None;
             self.track_revision += 1;
+            self.want_radio_pick();
             return;
         }
         // Nothing playable left.
@@ -278,6 +318,7 @@ impl Session {
 
     /// Play playlist row `idx`, ending the queue if one is playing.
     pub fn play_index(&mut self, idx: usize, now: Instant) {
+        self.end_radio();
         self.queue = None;
         self.play_track(idx, now);
     }
@@ -313,6 +354,8 @@ impl Session {
     pub fn next(&mut self, now: Instant) {
         if let Some(idx) = self.active_mut().next() {
             self.play_track(idx, now);
+        } else if self.radio {
+            self.radio_ran_out();
         }
     }
 
@@ -344,19 +387,109 @@ impl Session {
         if self.playlist.shuffle {
             queue.toggle_shuffle();
         }
-        fill_lengths(
-            &mut queue,
-            self.songlength_db.as_ref(),
-            self.hvsc_root.as_deref(),
-            self.options.default_song_length_secs,
-        );
+        self.fill_lengths_of(&mut queue);
         let idx = queue
             .entries
             .iter()
             .position(|e| e.path == start)
             .unwrap_or(0);
+        self.end_radio();
         self.queue = Some(queue);
         self.play_track(idx, now);
+    }
+
+    // ── Surprise Me ───────────────────────────────────────────────────────
+    //
+    // A radio over all of HVSC: a queue the session tops up one random pick
+    // ahead of playback, so Next and auto-advance always have a fresh tune
+    // and Previous walks back through what played. Each tune plays only its
+    // default subtune and none repeats a tune heard since launch. Repeat One
+    // still loops a tune; shuffle and Repeat All don't apply. Playing
+    // anything else ends it. Upstream's Surprise Me plays one tune.
+
+    /// Start the radio. It begins when the driver's first pick arrives.
+    pub fn surprise(&mut self) {
+        self.radio_starting = true;
+        if self.radio_pick == RadioPick::Idle {
+            self.radio_pick = RadioPick::Wanted;
+        }
+    }
+
+    /// The pick the driver should make now, once per pick.
+    pub fn take_radio_request(&mut self) -> Option<RadioRequest> {
+        if self.radio_pick != RadioPick::Wanted {
+            return None;
+        }
+        self.radio_pick = RadioPick::Pending;
+        Some(RadioRequest {
+            exclude: self.heard.clone(),
+            first: self.radio_starting,
+        })
+    }
+
+    /// The driver's pick (None when there was nothing to pick). Starts the
+    /// radio, or joins it as the next tune and plays if it had run out.
+    pub fn radio_picked(&mut self, pick: Option<PlaylistEntry>, now: Instant) {
+        self.radio_pick = RadioPick::Idle;
+        let Some(entry) = pick else {
+            self.radio_starting = false;
+            self.radio_waiting = false;
+            return;
+        };
+        if self.options.skip_rsid && entry.is_rsid {
+            // Pick again, and never this one.
+            self.heard.insert(entry.path);
+            if self.radio_starting || self.radio {
+                self.radio_pick = RadioPick::Wanted;
+            }
+            return;
+        }
+        if std::mem::take(&mut self.radio_starting) {
+            let mut queue = Playlist::new();
+            queue.repeat = radio_repeat(self.playlist.repeat);
+            queue.add_entries(vec![entry]);
+            self.fill_lengths_of(&mut queue);
+            self.queue = Some(queue);
+            self.radio = true;
+            self.radio_waiting = false;
+            self.play_track(0, now);
+            return;
+        }
+        if !self.radio {
+            // The radio ended while this pick was on its way.
+            return;
+        }
+        let mut queue = self.queue.take().expect("the radio is a queue");
+        queue.add_entries(vec![entry]);
+        self.fill_lengths_of(&mut queue);
+        self.queue = Some(queue);
+        if std::mem::take(&mut self.radio_waiting) {
+            self.next(now);
+        }
+    }
+
+    /// Keep the radio one pick ahead: on its last tune, ask for another.
+    fn want_radio_pick(&mut self) {
+        let on_last = self
+            .queue
+            .as_ref()
+            .is_some_and(|q| q.current.is_some_and(|c| c + 1 >= q.len()));
+        if self.radio && on_last && self.radio_pick == RadioPick::Idle {
+            self.radio_pick = RadioPick::Wanted;
+        }
+    }
+
+    /// Next or auto-advance reached the radio's end before the next pick
+    /// did; it plays as soon as it arrives.
+    fn radio_ran_out(&mut self) {
+        self.radio_waiting = true;
+        self.want_radio_pick();
+    }
+
+    fn end_radio(&mut self) {
+        self.radio = false;
+        self.radio_starting = false;
+        self.radio_waiting = false;
     }
 
     // ── Subtunes ──────────────────────────────────────────────────────────
@@ -498,9 +631,11 @@ impl Session {
 
     // ── Modes and settings ────────────────────────────────────────────────
 
-    /// The modes are global: they apply to the playlist and the queue alike.
+    /// The modes are global: they apply to the playlist and the queue alike,
+    /// except that the radio never shuffles and only repeats one tune.
     pub fn set_shuffle(&mut self, on: bool) {
-        for list in std::iter::once(&mut self.playlist).chain(self.queue.as_mut()) {
+        let queue = self.queue.as_mut().filter(|_| !self.radio);
+        for list in std::iter::once(&mut self.playlist).chain(queue) {
             if list.shuffle != on {
                 list.toggle_shuffle();
             }
@@ -508,8 +643,9 @@ impl Session {
     }
 
     pub fn set_repeat(&mut self, mode: RepeatMode) {
-        for list in std::iter::once(&mut self.playlist).chain(self.queue.as_mut()) {
-            list.repeat = mode;
+        self.playlist.repeat = mode;
+        if let Some(queue) = &mut self.queue {
+            queue.repeat = if self.radio { radio_repeat(mode) } else { mode };
         }
     }
 
@@ -579,6 +715,17 @@ impl Session {
         self.playlist_revision += 1;
     }
 
+    /// `fill_lengths` with the session's databases and settings, for a list
+    /// that isn't (yet) the session's.
+    fn fill_lengths_of(&self, list: &mut Playlist) {
+        fill_lengths(
+            list,
+            self.songlength_db.as_ref(),
+            self.hvsc_root.as_deref(),
+            self.options.default_song_length_secs,
+        );
+    }
+
     /// main.rs `apply_songlengths`, for the playlist and the queue.
     fn apply_songlengths(&mut self) {
         let db = self.songlength_db.as_ref();
@@ -588,6 +735,16 @@ impl Session {
         if let Some(queue) = &mut self.queue {
             fill_lengths(queue, db, root, default_secs);
         }
+    }
+}
+
+/// The radio only ever loops one tune: Repeat All would replay its history
+/// instead of picking new tunes.
+fn radio_repeat(mode: RepeatMode) -> RepeatMode {
+    if mode == RepeatMode::Single {
+        RepeatMode::Single
+    } else {
+        RepeatMode::Off
     }
 }
 

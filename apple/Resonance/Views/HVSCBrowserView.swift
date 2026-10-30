@@ -16,6 +16,8 @@ struct HVSCBrowserView: View {
     @Environment(LibraryStore.self) private var library
     @Environment(PlayerStore.self) private var player
     @State private var selectedAuthor: String?
+    /// Scrolls the author list to an author the inspector's link revealed.
+    @State private var authorScroll: AuthorScroll?
     @State private var scope = SearchScope.category
     @State private var results: HvscSearchResult?
     @State private var searchError: String?
@@ -34,7 +36,7 @@ struct HVSCBrowserView: View {
                 // (sidebar / content / inspector) until AppKit aborts the
                 // app. A fixed author column can't conflict.
                 HStack(spacing: 0) {
-                    AuthorList(category: category, selection: $selectedAuthor)
+                    AuthorList(category: category, selection: $selectedAuthor, scrollTarget: authorScroll)
                         .frame(width: 240)
                     Divider()
                     authorTunes
@@ -45,6 +47,17 @@ struct HVSCBrowserView: View {
             }
         }
         .task(id: SearchRequest(query: query, scope: scope)) { await runSearch() }
+        .onChange(of: library.reveal, initial: true) { applyReveal() }
+    }
+
+    /// Follow the inspector's author link: select the composer, and leave
+    /// the tune for their tune table to select.
+    private func applyReveal() {
+        guard category == .musicians, let reveal = library.reveal else { return }
+        selectedAuthor = reveal.authorPath
+        authorScroll = AuthorScroll(path: reveal.authorPath, request: reveal.id)
+        library.revealedTune = reveal.tunePath
+        library.reveal = nil
     }
 
     // MARK: Author tunes
@@ -117,7 +130,10 @@ struct HVSCBrowserView: View {
             .frame(minWidth: 0, maxWidth: .infinity)
             .background(.bar)
             Divider()
+            // Filling the rest keeps the scope bar at the top: an empty
+            // state's own height let the whole stack float to the middle.
             resultsBody
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -142,7 +158,6 @@ struct HVSCBrowserView: View {
                         .foregroundStyle(.tertiary)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -172,10 +187,18 @@ struct HVSCBrowserView: View {
 
 // MARK: - Author list
 
+/// An author to scroll to, once per reveal (the same author can be revealed
+/// again after the user scrolled away).
+private struct AuthorScroll: Equatable {
+    let path: String
+    let request: UUID
+}
+
 /// Authors (or sections) grouped under their letter folder, with a filter.
 private struct AuthorList: View {
     let category: HvscCategory
     @Binding var selection: String?
+    let scrollTarget: AuthorScroll?
 
     @Environment(LibraryStore.self) private var library
     @Environment(PlayerStore.self) private var player
@@ -193,18 +216,27 @@ private struct AuthorList: View {
                 }
             } else if let authors = library.authors[category] {
                 let shown = groups(authors)
-                List(selection: $selection) {
-                    ForEach(shown, id: \.letter) { group in
-                        Section(group.letter == "0" ? "0–9" : group.letter) {
-                            ForEach(group.authors, id: \.path) { author in
-                                Text(author.displayName)
-                                    .lineLimit(1)
-                                    .tag(author.path)
-                                    .contextMenu {
-                                        Button("Add All to Playlist") { library.addAll(authorPath: author.path) }
-                                    }
+                ScrollViewReader { proxy in
+                    List(selection: $selection) {
+                        ForEach(shown, id: \.letter) { group in
+                            Section(group.letter == "0" ? "0–9" : group.letter) {
+                                ForEach(group.authors, id: \.path) { author in
+                                    Text(author.displayName)
+                                        .lineLimit(1)
+                                        .tag(author.path)
+                                        .contextMenu {
+                                            Button("Add All to Playlist") { library.addAll(authorPath: author.path) }
+                                        }
+                                }
                             }
                         }
+                    }
+                    .onChange(of: scrollTarget, initial: true) { _, target in
+                        guard let target else { return }
+                        // The filter could hide the author.
+                        filter = ""
+                        // After the list has its rows back.
+                        Task { proxy.scrollTo(target.path, anchor: .center) }
                     }
                 }
                 // Before the inset, so it centres in the list below the
@@ -307,6 +339,22 @@ private struct LibraryTable: View {
     @State private var sortOrder: [KeyPathComparator<LibraryRow>] = []
 
     var body: some View {
+        ScrollViewReader { proxy in
+            table
+                // The inspector's author link: select the tune once it's here.
+                .onChange(of: rows, initial: true) { revealTune(proxy) }
+                .onChange(of: library.revealedTune) { revealTune(proxy) }
+        }
+    }
+
+    private func revealTune(_ proxy: ScrollViewProxy) {
+        guard let path = library.revealedTune, rows.contains(where: { $0.id == path }) else { return }
+        selection = [path]
+        library.revealedTune = nil
+        Task { proxy.scrollTo(path, anchor: .center) }
+    }
+
+    private var table: some View {
         Table(sortedRows, selection: $selection, sortOrder: $sortOrder) {
             TableColumn("") { row in
                 if isCurrent(row) {

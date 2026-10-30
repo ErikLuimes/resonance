@@ -10,6 +10,7 @@
 //! tokio blocking pool, and the lock around the browsers is only held for
 //! cheap steps (directory listings, scoring an index).
 
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -50,6 +51,8 @@ pub(crate) struct SearchResults {
     pub indexed: usize,
 }
 
+/// Clones share everything: the session thread holds one for Surprise Me.
+#[derive(Clone)]
 pub(crate) struct Library {
     inner: Arc<Mutex<Inner>>,
     databases: SharedDatabases,
@@ -294,6 +297,47 @@ impl Library {
         blocking(move || hvsc_browser::random_hvsc_path_walk(root, category)).await
     }
 
+    /// A random tune from all of HVSC that isn't in `exclude`, for Surprise
+    /// Me. Blocking: call it off the UI's threads. Uniform over the loaded
+    /// indexes; with none loaded, a cold walk of MUSICIANS (~90% of HVSC).
+    pub fn pick_blocking(
+        &self,
+        exclude: &HashSet<PathBuf>,
+    ) -> Result<Option<PathBuf>, LibraryError> {
+        let root = self.root().ok_or(LibraryError::NoRoot)?;
+        {
+            let inner = self.lock();
+            let total: usize = CATEGORIES.iter().map(|&c| inner.index(c).len()).sum();
+            let mut rng = rand::thread_rng();
+            // A session hears a sliver of ~60,000 tunes, so a few draws
+            // always find a fresh one in practice.
+            for _ in 0..(if total > 0 { 32 } else { 0 }) {
+                let mut pick = rng.gen_range(0..total);
+                for &c in &CATEGORIES {
+                    let index = inner.index(c);
+                    if pick < index.len() {
+                        if !exclude.contains(&index[pick].path) {
+                            return Ok(Some(index[pick].path.clone()));
+                        }
+                        break;
+                    }
+                    pick -= index.len();
+                }
+            }
+        }
+        Ok(walk_pick(&root, HvscCategory::Musicians, exclude))
+    }
+
+    /// Load (or build) every category's index, so `pick_blocking` covers all
+    /// of HVSC and needs no walk.
+    pub async fn warm_indexes(&self) {
+        let _ = tokio::join!(
+            self.ensure_index(HvscCategory::Musicians),
+            self.ensure_index(HvscCategory::Games),
+            self.ensure_index(HvscCategory::Demos),
+        );
+    }
+
     /// Wait until `category`'s search index is ready, starting a build if
     /// none is running. The build (cache load, else a full walk, then a
     /// cache save) runs detached: a cancelled caller can't leave the
@@ -370,6 +414,34 @@ fn load_or_build_index(
         hvsc_index_cache::save(root, category, db.hvsc_version, &index);
     }
     index
+}
+
+/// A uniformly random tune under `category` that isn't in `exclude`, by
+/// walking the folder (reservoir sampling, like upstream's
+/// `random_hvsc_path_walk`, which can't exclude).
+fn walk_pick(root: &Path, category: HvscCategory, exclude: &HashSet<PathBuf>) -> Option<PathBuf> {
+    let mut rng = rand::thread_rng();
+    let mut chosen = None;
+    let mut seen = 0u64;
+    for entry in walkdir::WalkDir::new(root.join(category.dir_name()))
+        .follow_links(true)
+        .into_iter()
+        .filter_map(Result::ok)
+    {
+        let path = entry.path();
+        let is_tune = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| crate::player::sid_file::is_sid_extension(&e.to_ascii_lowercase()));
+        if !entry.file_type().is_file() || !is_tune || exclude.contains(path) {
+            continue;
+        }
+        seen += 1;
+        if rng.gen_range(0..seen) == 0 {
+            chosen = Some(path.to_path_buf());
+        }
+    }
+    chosen
 }
 
 /// Which category folder `path` lies in.

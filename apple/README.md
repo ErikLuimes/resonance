@@ -63,7 +63,10 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
     machine with unit tests. Each block names its `main.rs` origin. One
     addition of its own: a temporary play queue. Tunes played from the HVSC
     library go there instead of into the playlist (as they do upstream), and
-    transport walks the queue until a playlist row is played.
+    transport walks the queue until a playlist row is played. Surprise Me
+    is the queue as a radio: the session asks for a random pick one tune
+    ahead, the driver's loader picks it from all of HVSC (skipping anything
+    heard since launch), and each pick plays only its default subtune.
   - `driver.rs` — one thread owns the session and serialises commands,
     player statuses and the auto-advance tick; a loader thread parses files
     and loads the Songlengths/STIL databases (`databases.rs`). It publishes

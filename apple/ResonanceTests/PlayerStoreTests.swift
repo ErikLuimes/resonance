@@ -30,7 +30,8 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     }
 
     static let stoppedSnapshot = Snapshot(
-        state: .stopped, currentIndex: nil, queueActive: false, track: nil, elapsedMs: 0, durationMs: nil,
+        state: .stopped, currentIndex: nil, queueActive: false, surpriseActive: false, track: nil,
+        elapsedMs: 0, durationMs: nil,
         shuffle: false, repeat: .off, engine: .sidLite, playlistRevision: 0, trackRevision: 0,
         loading: nil, error: nil, hvscIndexing: [], stil: nil
     )
@@ -67,6 +68,8 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
         record("surprise \(scope.map { "\($0)" } ?? "all")")
         return lock.withLock { _surprise }
     }
+
+    func surpriseMe() async { record("surpriseMe") }
 
     func setHvscRoot(root: String?) { record("hvscRoot \(root ?? "nil")") }
 
@@ -193,6 +196,7 @@ struct PlayerStoreTests {
         snapshot.state = .playing
         snapshot.currentIndex = 3
         snapshot.queueActive = true
+        snapshot.surpriseActive = true
         snapshot.elapsedMs = 30_000
         snapshot.durationMs = 120_000
         fake.set(snapshot: snapshot)
@@ -202,6 +206,7 @@ struct PlayerStoreTests {
         #expect(store.isPlaying)
         #expect(store.currentIndex == 3)
         #expect(store.queueActive)
+        #expect(store.surpriseActive)
         #expect(store.elapsed == 30)
         #expect(store.progress == 0.25)
     }
@@ -300,21 +305,52 @@ struct LibraryStoreTests {
         #expect(fake.authorLoads == 2)
     }
 
-    @Test func surprisePlaysFromTheCategoryOnScreen() async {
+    @Test func surpriseLeavesThePickingToTheCore() async {
         let (library, _) = makeLibrary()
-        fake.set(surprise: "/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid")
-
-        library.activeCategory = .games
         await library.surpriseMe()
-        library.activeCategory = nil
-        await library.surpriseMe()
+        #expect(fake.calls == ["surpriseMe"])
+        #expect(library.surprises == 1)
+    }
 
-        #expect(fake.calls == [
-            "surprise games",
-            "queue [\"/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid\"] from /HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid",
-            "surprise all",
-            "queue [\"/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid\"] from /HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid",
-        ])
+    private func track(_ path: String, author: String) -> TrackDetails {
+        TrackDetails(
+            path: path, title: "Tune", author: author, released: "1987", songs: 1, currentSong: 1,
+            isPal: true, isRsid: false, numSids: 1, sidType: "PSID", sidModel: 1, md5: ""
+        )
+    }
+
+    @Test func authorLinkOpensTheFolderTheTuneIsIn() async {
+        let (library, _) = makeLibrary(root: "/HVSC/")
+        #expect(library.revealAuthor(of: track("/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid", author: "Rob Hubbard")) == nil,
+                "not before MUSICIANS is loaded")
+
+        fake.set(authors: [author("Hubbard_Rob")])
+        await library.loadAuthors(.musicians)
+        // The folder wins over the header, whatever it says.
+        let reveal = library.revealAuthor(of: track("/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid", author: "<?>"))
+        #expect(reveal?.authorPath == "/HVSC/MUSICIANS/H/Hubbard_Rob")
+        #expect(reveal?.tunePath == "/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid")
+    }
+
+    @Test func authorLinkMatchesTheHeaderToAComposerFolder() async {
+        let (library, _) = makeLibrary()
+        fake.set(authors: [author("Hubbard_Rob"), author("Laxity"), author("Tel_Jeroen")])
+        await library.loadAuthors(.musicians)
+        let path = { (author: String) in library.revealAuthor(of: self.track("/HVSC/GAMES/A-F/X.sid", author: author))?.authorPath }
+
+        #expect(path("Rob Hubbard") == "/HVSC/MUSICIANS/H/Hubbard_Rob")
+        #expect(path("Thomas E. Petersen (Laxity)") == "/HVSC/MUSICIANS/H/Laxity")
+        #expect(path("Charles Deenen & Jeroen Tel") == "/HVSC/MUSICIANS/H/Tel_Jeroen")
+        // No composer folder, and nothing else to search: no link.
+        #expect(path("Krzysztof Niedzwiecki (Radius75)") == nil)
+        #expect(path("<?>") == nil)
+    }
+
+    @Test func headerAuthorsSplitIntoNamesAndHandles() {
+        #expect(LibraryStore.names(in: "Thomas E. Petersen (Laxity)") == ["Thomas E. Petersen", "Laxity"])
+        #expect(LibraryStore.names(in: "A & B and C") == ["A & B and C", "A", "B", "C"])
+        #expect(LibraryStore.words("Hubbard_Rob") == LibraryStore.words("Rob  Hubbard"))
+        #expect(LibraryStore.words("Lukáš") == ["lukas"])
     }
 
     @Test func searchPassesItsScope() async throws {

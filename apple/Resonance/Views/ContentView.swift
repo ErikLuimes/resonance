@@ -44,7 +44,10 @@ struct ContentView: View {
                 Button("Surprise Me", systemImage: "dice") {
                     Task { await library.surpriseMe() }
                 }
-                .help("Play a random tune from HVSC")
+                // Menu shortcut included. Only the symbol animates, so the
+                // toolbar itself stays the same (see searchable below).
+                .symbolEffect(.wiggle, value: library.surprises)
+                .help("Play random tunes from all of HVSC")
                 .disabled(!library.hasRoot)
             }
             ToolbarItem(placement: .primaryAction) {
@@ -85,12 +88,12 @@ struct ContentView: View {
                     .allowsHitTesting(false)
             }
         }
-        .onChange(of: sidebarSelection, initial: true) { _, selection in
-            if case .hvsc(let category) = selection {
-                library.activeCategory = category
-            } else {
-                library.activeCategory = nil
-            }
+        // The inspector's author link: Musicians, with no search, so the
+        // author list shows.
+        .onChange(of: library.reveal) { _, reveal in
+            guard reveal != nil else { return }
+            searches[.hvsc(.musicians)] = ""
+            sidebarSelection = .hvsc(.musicians)
         }
     }
 
@@ -153,7 +156,7 @@ private struct StatusBanner: View {
         VStack(spacing: 8) {
             if let loading = store.loading {
                 Label {
-                    Text(loading.trimmingCharacters(in: .whitespaces.union(["⏳"])))
+                    Text(loading)
                 } icon: {
                     ProgressView().controlSize(.small)
                 }

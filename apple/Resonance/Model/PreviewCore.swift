@@ -46,6 +46,7 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
             state: current == nil ? .stopped : .playing,
             currentIndex: current.map(UInt32.init),
             queueActive: false,
+            surpriseActive: false,
             track: track,
             elapsedMs: current == nil ? 0 : 83_000,
             durationMs: current.flatMap { items[$0].durationSecs }.map { UInt64($0) * 1000 },
@@ -83,6 +84,7 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
     }
 
     func hvscSurprise(scope: HvscCategory?) async throws -> String? { items.randomElement()?.path }
+    func surpriseMe() async {}
 
     private static func tune(_ it: PlaylistItem) -> HvscTuneItem {
         HvscTuneItem(
