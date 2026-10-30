@@ -17,9 +17,10 @@ struct NowPlayingInspector: View {
         }
     }
 
+    @ViewBuilder
     private var details: some View {
-        Form {
-            if let track = store.nowPlaying {
+        if let track = store.nowPlaying {
+            Form {
                 Section("Now Playing") {
                     LabeledContent("Title", value: track.title)
                     LabeledContent("Author", value: track.author)
@@ -57,14 +58,18 @@ struct NowPlayingInspector: View {
                         NSWorkspace.shared.activateFileViewerSelecting([URL(filePath: track.path)])
                     }
                 }
-            } else {
-                Section {
-                    Text("Nothing playing")
-                        .foregroundStyle(.secondary)
-                }
             }
+            .formStyle(.grouped)
+        } else {
+            ContentUnavailableView {
+                Label("Not Playing", systemImage: "waveform")
+            } description: {
+                Text("Double-click a tune to play it. Its details and STIL commentary appear here.")
+            }
+            // Pinned like the playlist column: the empty state's ideal
+            // width must not become the inspector column's.
+            .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
         }
-        .formStyle(.grouped)
     }
 
     private func sidModelName(_ model: UInt8) -> String {
