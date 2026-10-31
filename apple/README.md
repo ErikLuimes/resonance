@@ -134,6 +134,34 @@ After merging upstream into this fork:
 3. If `src/main.rs` changed `play_track`, `play_cmd`, `poll_status` or
    `update_entry_subtune`, carry the change into `core/src/session/`.
 
+## Website
+
+`site/` is Resonance's GitHub Pages site: static HTML, CSS and ES modules,
+no build step. Upstream's Phosphor site stays in `../docs`.
+
+Preview it locally (modules and the audio worklet need HTTP, not `file://`):
+
+```bash
+python3 -m http.server 8642 --directory apple/site
+```
+
+- The hero window is HTML, not a screenshot. Its demo tunes are composed
+  in the browser (`js/tune.js`) and played by a small SID-style synth and
+  50 Hz driver in an AudioWorklet (`js/sid-worklet.js`); the visualizer
+  (`js/visualizer.js`) ports `VisualizerView` and `VoiceMeter`.
+- The library search runs over `assets/hvsc-sample.json`, title, author,
+  released, songs and length for a few composers' folders in HVSC's
+  MUSICIANS, ranked like upstream's `score_entry`.
+- Download buttons follow the latest GitHub release of
+  `ErikLuimes/resonance` (`REPO` in `js/main.js`), preferring a `.dmg`,
+  then `.zip` or `.pkg`. Until there's a public release, they point to the
+  build instructions.
+- `.github/workflows/resonance-site.yml` deploys `site/` on pushes to main
+  that touch it. Set the repository's Pages source to "GitHub Actions"
+  first.
+- The icons in `assets/` are exported from `Resonance/AppIcon.icon` with
+  `ictool` (see Notes); `og-card.png` is the 1200×630 social preview.
+
 ## Notes
 
 - `Cargo.toml` turns off overflow checks for `resid-rs` in debug builds: its

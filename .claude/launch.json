@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "resonance-site",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8642", "--bind", "127.0.0.1", "--directory", "apple/site"],
+      "port": 8642
+    }
+  ]
+}
