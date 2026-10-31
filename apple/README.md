@@ -174,3 +174,9 @@ python3 -m http.server 8642 --directory apple/site
   `ictool Resonance/AppIcon.icon --export-image --output-file icon.png
   --platform macOS --rendition Default --width 512 --height 512 --scale 1`
   (`ictool` is in `Icon Composer.app/Contents/Executables`).
+
+## License
+
+Resonance's own code — everything under `apple/` — is MIT-licensed; see
+[`LICENSE`](LICENSE). The Phosphor engine it compiles from `../src` keeps
+Phosphor's MIT license, in [`../LICENSE`](../LICENSE).

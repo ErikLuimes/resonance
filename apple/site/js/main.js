@@ -402,7 +402,7 @@ async function loadRelease() {
     const when = release.published_at ? ` · released ${relativeDate(new Date(release.published_at))}` : '';
     const size = asset ? ` · ${(asset.size / 1_048_576).toFixed(1)} MB` : '';
     status.innerHTML = `Version <strong>${escapeHtml(version)}</strong>${when}${size} · <a href="${escapeHtml(release.html_url)}">release notes</a>`;
-    textOf('[data-release-line]', `Free · ${version}`);
+    textOf('[data-release-line]', `Free and open source · ${version}`);
     for (const a of $$('a[data-download]')) a.href = asset ? asset.browser_download_url : release.html_url;
   } catch {
     status.innerHTML = 'There\'s no public build yet — <a href="#build">build it from source</a> in a few minutes.';

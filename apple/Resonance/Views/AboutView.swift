@@ -49,7 +49,7 @@ struct AboutView: View {
             .font(.callout)
 
             VStack(spacing: 2) {
-                Text("Resonance © 2026 Erik Luimes")
+                Text("Resonance © 2026 Erik Luimes · MIT License")
                 Text("Phosphor © 2026 Marcin Spoczynski · MIT License")
             }
             .font(.caption)
