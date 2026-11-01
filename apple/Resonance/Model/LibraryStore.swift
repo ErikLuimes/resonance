@@ -13,8 +13,11 @@ final class LibraryStore {
     private(set) var authors: [HvscCategory: [HvscAuthorItem]] = [:]
     /// Tunes per author folder path; absent until loaded.
     private(set) var tunes: [String: [LibraryRow]] = [:]
+    /// STIL's note per author folder path, "" when it has none; absent
+    /// until loaded.
+    private(set) var authorNotes: [String: String] = [:]
     private(set) var errors: [HvscCategory: String] = [:]
-    /// An author the browser should show (the inspector's author link). The
+    /// An author the browser should show (the composer card's link). The
     /// window switches to Musicians and the browser selects the author,
     /// then hands the tune on to `revealedTune`.
     var reveal: LibraryReveal?
@@ -71,6 +74,14 @@ final class LibraryStore {
         }
     }
 
+    func loadAuthorNote(authorPath: String) async {
+        dropCachesIfRootChanged()
+        guard authorNotes[authorPath] == nil else { return }
+        let note = try? await core.hvscAuthorNote(authorPath: authorPath)
+        dropCachesIfRootChanged()
+        authorNotes[authorPath] = note ?? ""
+    }
+
     /// Fuzzy search; `nil` scope searches all of HVSC. Throws on failure or
     /// cancellation.
     func search(_ query: String, scope: HvscCategory?) async throws -> HvscSearchResult {
@@ -82,6 +93,7 @@ final class LibraryStore {
         cachedRoot = player.hvscRoot
         authors = [:]
         tunes = [:]
+        authorNotes = [:]
         errors = [:]
         composersByWords = [:]
     }
@@ -111,37 +123,87 @@ final class LibraryStore {
         await core.surpriseMe()
     }
 
-    /// Where the inspector's author link goes: `track`'s composer folder in
-    /// MUSICIANS. Nil when there isn't one, or MUSICIANS isn't loaded yet.
+    /// Who the inspector's composer card is about: `track`'s composer folder
+    /// in MUSICIANS. Nil when there isn't one, or MUSICIANS isn't loaded yet.
     ///
     /// A tune filed under its composer names the folder in its path. GAMES
     /// and DEMOS file tunes by title, so for those the header's author has
-    /// to match a folder's name. When nothing matches there's no link: the
+    /// to match a folder's name. When nothing matches there's no card: the
     /// search index (upstream's) has no author field to fall back on.
-    func revealAuthor(of track: TrackDetails) -> LibraryReveal? {
+    func composer(of track: TrackDetails) -> Composer? {
         guard let root = player.hvscRoot, let composers = authors[.musicians] else { return nil }
+        let names = Self.names(in: track.author)
         let rootParts = URL(filePath: root).standardizedFileURL.pathComponents
         let parts = URL(filePath: track.path).standardizedFileURL.pathComponents
         // MUSICIANS/<letter>/<composer>/<tune>
         if parts.starts(with: rootParts) {
             let inside = Array(parts.dropFirst(rootParts.count))
             if inside.count >= 4, inside[0] == "MUSICIANS",
-               let composer = composers.first(where: { $0.name == inside[2] }) {
-                return LibraryReveal(authorPath: composer.path, tunePath: track.path)
+               let folder = composers.first(where: { $0.name == inside[2] }) {
+                // The header's spelling ("Thomas E. Petersen") when it names
+                // this folder; the folder's otherwise.
+                let folderWords = Self.words(folder.name)
+                if let name = names.first(where: { Self.words($0) == folderWords }) {
+                    let subtitle = Self.subtitle(for: name, in: track.author)
+                    return Composer(authorPath: folder.path, name: name, subtitle: subtitle)
+                }
+                return Composer(authorPath: folder.path, name: Self.spokenName(folder.displayName))
             }
         }
-        for name in Self.names(in: track.author) {
-            if let composer = composersByWords[Self.words(name)] {
-                return LibraryReveal(authorPath: composer.path, tunePath: track.path)
+        for name in names {
+            if let folder = composersByWords[Self.words(name)] {
+                let subtitle = Self.subtitle(for: name, in: track.author)
+                return Composer(authorPath: folder.path, name: name, subtitle: subtitle)
             }
         }
         return nil
+    }
+
+    /// The card's line under `name`, one of the names in a header's
+    /// `author`: the real name behind a handle ("Alexander Rotzsch (Fanta)"
+    /// → "Alexander Rotzsch"), the handle behind a name, or who else is
+    /// credited ("with Charles Deenen"). Nil when there's nothing more.
+    nonisolated static func subtitle(for name: String, in author: String) -> String? {
+        let key = words(name)
+        let credit = Self.credit(in: author)
+        let people = Self.people(in: credit.base)
+        if credit.handles.contains(where: { words($0) == key }) {
+            return people.count == 1 ? people[0] : nil
+        }
+        guard let index = people.firstIndex(where: { words($0) == key }) else { return nil }
+        if people.count > 1 {
+            var others = people
+            others.remove(at: index)
+            return "with \(others.formatted(.list(type: .and)))"
+        }
+        return credit.handles.count == 1 ? credit.handles[0] : nil
+    }
+
+    /// A folder's display name as you'd say it: "Hubbard, Rob" → "Rob
+    /// Hubbard". Handles and other names stay as they are.
+    nonisolated static func spokenName(_ displayName: String) -> String {
+        let parts = displayName.split(separator: ", ", maxSplits: 1)
+        return parts.count == 2 ? "\(parts[1]) \(parts[0])" : displayName
     }
 
     /// The names a SID header's author field may hold, most specific
     /// first: "Thomas E. Petersen (Laxity)" → the name, then the handle;
     /// "Jeroen Tel & Charles Deenen" → both, then each.
     nonisolated static func names(in author: String) -> [String] {
+        let credit = Self.credit(in: author)
+        var seen = Set<Set<String>>()
+        return ([credit.base] + Self.people(in: credit.base) + credit.handles)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { name in
+                let key = words(name)
+                return !key.isEmpty && seen.insert(key).inserted
+            }
+    }
+
+    /// A header's author split into the text outside parentheses and the
+    /// handles inside them: "Thomas E. Petersen (Laxity)" → ("Thomas E.
+    /// Petersen ", ["Laxity"]).
+    private nonisolated static func credit(in author: String) -> (base: String, handles: [String]) {
         var handles: [String] = []
         var base = ""
         var depth = 0
@@ -160,17 +222,15 @@ final class LibraryStore {
                 if depth > 0 { handle.append(character) } else { base.append(character) }
             }
         }
-        let parts = base
-            .replacing(" and ", with: "&")
+        return (base, handles)
+    }
+
+    /// The people in an author field: "Jeroen Tel & Charles Deenen" → both.
+    private nonisolated static func people(in base: String) -> [String] {
+        base.replacing(" and ", with: "&")
             .split(whereSeparator: { "&,/".contains($0) })
-            .map(String.init)
-        var seen = Set<Set<String>>()
-        return ([base] + parts + handles)
             .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { name in
-                let key = words(name)
-                return !key.isEmpty && seen.insert(key).inserted
-            }
+            .filter { !$0.isEmpty }
     }
 
     /// Lowercased words without accents: "Hubbard_Rob" and "Rob Hubbard"
@@ -189,7 +249,24 @@ final class LibraryStore {
     }
 }
 
-/// A composer the browser should show, from the inspector's author link.
+/// A tune's composer, as the inspector's composer card shows them.
+nonisolated struct Composer: Equatable, Sendable {
+    /// Their MUSICIANS folder.
+    let authorPath: String
+    /// "Rob Hubbard".
+    let name: String
+    /// A real name, handle or co-authors; see `LibraryStore.subtitle`.
+    var subtitle: String? = nil
+
+    /// "RH": the first letters of the first and last word of the name.
+    var initials: String {
+        let words = name.split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+        let picked = words.count > 1 ? [words[0], words[words.count - 1]] : words
+        return String(picked.compactMap(\.first)).uppercased()
+    }
+}
+
+/// A composer the browser should show, from the composer card's link.
 nonisolated struct LibraryReveal: Equatable, Sendable {
     let id = UUID()
     /// The composer's MUSICIANS folder.

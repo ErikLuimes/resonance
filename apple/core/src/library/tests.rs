@@ -143,6 +143,39 @@ async fn lists_an_authors_tunes_with_their_headers() {
 }
 
 #[tokio::test]
+async fn author_notes_come_from_stil_folder_entries() {
+    let tree = Tree::sample();
+    let stil = tree.root().join("STIL.txt");
+    std::fs::write(
+        &stil,
+        "/MUSICIANS/H/Hubbard_Rob/\n\
+         COMMENT: People have often stolen Hubbard's routine causing some tunes to be\n         \
+         falsely credited to him.\n\
+         \n\
+         /MUSICIANS/H/Hubbard_Rob/Commando.sid\n\
+         COMMENT: Not about the composer.\n",
+    )
+    .unwrap();
+    let shared = databases::shared();
+    databases::install(
+        &shared,
+        Databases {
+            stil: Some(crate::stil::StilDb::load(&stil).unwrap()),
+            ..Databases::default()
+        },
+    );
+    let lib = Library::new(Some(tree.root()), shared).without_index_cache();
+
+    let hubbard = tree.root().join("MUSICIANS/H/Hubbard_Rob");
+    assert_eq!(
+        lib.author_note(hubbard).await.unwrap().as_deref(),
+        Some("People have often stolen Hubbard's routine causing some tunes to be falsely credited to him.")
+    );
+    let galway = tree.root().join("MUSICIANS/G/Galway_Martin");
+    assert_eq!(lib.author_note(galway).await.unwrap(), None);
+}
+
+#[tokio::test]
 async fn tunes_outside_the_collection_are_rejected() {
     let tree = Tree::sample();
     let lib = library(Some(tree.root()));

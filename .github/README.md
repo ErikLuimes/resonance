@@ -48,8 +48,9 @@ is played.
   and let it run.
 - **See every voice.** A live visualizer with a level bar and peak hold for each SID voice,
   plus the note and waveform it's playing, redrawn every display frame.
-- **STIL in the inspector.** Composer comments and cover credits next to title, release, SID
-  model, clock and MD5. Click the author to jump to all of their tunes.
+- **Who made it, and why.** The inspector gives the composer a card, with STIL's notes on
+  them and a link to all their tunes. Covers read "Cover of … by …", and the original is one
+  click away.
 - **A proper Mac app.** Now Playing in Control Center, your keyboard's media keys, a Playback
   menu with shortcuts, and drag and drop for SID files, folders and M3U playlists.
 - **Two engines.** SIDLite (from libsidplayfp) picks the chip model from each tune's header;

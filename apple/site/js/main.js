@@ -163,6 +163,8 @@ const actions = {
     $('.mac-table-wrap').scrollTop = 1e6;
     updateUI();
   },
+  'all-tunes': () => banner("In Resonance, Show All Tunes opens the composer's folder in the HVSC browser."),
+  finder: () => banner('In Resonance, this shows the SID file in Finder. This tune only exists in your browser.'),
 };
 
 mac.addEventListener('click', (e) => {
@@ -199,6 +201,19 @@ for (const el of $$('[data-demo-toggle], [data-demo-start]')) {
 // State → UI
 
 const formatTime = (secs) => formatLength(secs);
+
+// The header's released field in words, as the app's inspector puts it:
+// "1985 Gremlin Graphics" → "Released 1985 by Gremlin Graphics". A year
+// with fewer than three digits ("19??") and "<?>" say nothing.
+function releasedLine(field) {
+  const [first = '', ...rest] = field.trim().split(' ');
+  const isYear = first !== '' && /^[\d?/-]+$/.test(first);
+  const year = isYear && (first.match(/\d/g) || []).length >= 3 ? first : null;
+  const by = [isYear ? rest.join(' ') : field.trim()].find((s) => s !== '' && s !== '<?>');
+  if (year && by) return `Released ${year} by ${by}`;
+  if (year) return `Released ${year}`;
+  return by ? `Released by ${by}` : '';
+}
 const textOf = (sel, text) => { for (const el of $$(sel)) if (el.textContent !== text) el.textContent = text; };
 
 function updateUI() {
@@ -229,20 +244,23 @@ function updateUI() {
   $('[data-insp-empty]').hidden = !!tune;
   $('[data-insp-details]').hidden = !tune;
   if (tune) {
-    $('[data-np-source]').innerHTML = fromPlaylist
-      ? `${icon('i-list')}Playlist`
+    const source = $('[data-np-source]');
+    source.classList.toggle('is-surprise', !fromPlaylist);
+    source.innerHTML = fromPlaylist
+      ? `${icon('i-list')}From Playlist`
       : `${icon('i-dice-fill')}Surprise Me`;
     textOf('[data-np-title2]', tune.title);
     textOf('[data-np-author2]', tune.author);
-    textOf('[data-np-released]', tune.released);
-    textOf('[data-np-song2]', `${tune.subtune} of ${player.subtunes}`);
+    textOf('[data-np-released]', releasedLine(tune.released));
+    textOf('[data-np-song2]', `Song ${tune.subtune} of ${player.subtunes}`);
     textOf('[data-np-length]', formatTime(tune.lengthSecs));
     textOf('[data-np-key]', tune.key);
     textOf('[data-np-bpm]', `${tune.bpm} BPM`);
+    // Add to Playlist until it's kept, then a label saying so; neither
+    // while it plays from the playlist anyway.
     const kept = playlist.some((r) => r.seed === tune.seed);
-    const keep = $('[data-act="keep"]');
-    keep.disabled = kept;
-    keep.innerHTML = kept ? `${icon('i-check')}<span>In Playlist</span>` : `${icon('i-add-list')}<span>Add to Playlist</span>`;
+    $('[data-act="keep"]').hidden = kept;
+    $('[data-np-kept]').hidden = !kept || fromPlaylist;
   }
 
   renderPlaylist();
@@ -293,7 +311,7 @@ function frame(now) {
   if (now - lastText > 120) {
     lastText = now;
     textOf('[data-np-elapsed]', formatTime(player.elapsed));
-    textOf('[data-np-filter]', `LP ${Math.round(player.cutoff).toLocaleString('en')} Hz`);
+    textOf('[data-np-filter]', `${Math.round(player.cutoff).toLocaleString('en')} Hz`);
     player.voices.forEach((v, i) => {
       textOf(`[data-note="${i}"]`, (v[2] && v[0] >= 0 && noteName(v[0])) || '·');
       textOf(`[data-wave="${i}"]`, waveName(v[1]) || '—');

@@ -38,14 +38,18 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
 
     // Library: canned answers, settable per test.
     private var _authors: [HvscAuthorItem] = []
+    private var _notes: [String: String] = [:]
     private var _surprise: String?
     private var _authorLoads = 0
+    private var _noteLoads = 0
 
     var authorLoads: Int { lock.withLock { _authorLoads } }
+    var noteLoads: Int { lock.withLock { _noteLoads } }
 
-    func set(authors: [HvscAuthorItem] = [], surprise: String? = nil) {
+    func set(authors: [HvscAuthorItem] = [], notes: [String: String] = [:], surprise: String? = nil) {
         lock.withLock {
             _authors = authors
+            _notes = notes
             _surprise = surprise
         }
     }
@@ -58,6 +62,13 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     }
 
     func hvscTunes(authorPath: String) async throws -> [HvscTuneItem] { [] }
+
+    func hvscAuthorNote(authorPath: String) async throws -> String? {
+        lock.withLock {
+            _noteLoads += 1
+            return _notes[authorPath]
+        }
+    }
 
     func hvscSearch(query: String, scope: HvscCategory?) async throws -> HvscSearchResult {
         record("search \(query) \(scope.map { "\($0)" } ?? "all")")
@@ -286,8 +297,8 @@ struct LibraryStoreTests {
         return (LibraryStore(player: player), player)
     }
 
-    private func author(_ name: String) -> HvscAuthorItem {
-        HvscAuthorItem(name: name, displayName: name, letter: "H", path: "/HVSC/MUSICIANS/H/\(name)")
+    private func author(_ name: String, displayName: String? = nil) -> HvscAuthorItem {
+        HvscAuthorItem(name: name, displayName: displayName ?? name, letter: "H", path: "/HVSC/MUSICIANS/H/\(name)")
     }
 
     @Test func authorsAreLoadedOncePerFolder() async {
@@ -319,31 +330,35 @@ struct LibraryStoreTests {
         )
     }
 
-    @Test func authorLinkOpensTheFolderTheTuneIsIn() async {
+    @Test func composerIsTheFolderTheTuneIsIn() async {
         let (library, _) = makeLibrary(root: "/HVSC/")
-        #expect(library.revealAuthor(of: track("/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid", author: "Rob Hubbard")) == nil,
+        let commando = "/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid"
+        #expect(library.composer(of: track(commando, author: "Rob Hubbard")) == nil,
                 "not before MUSICIANS is loaded")
 
-        fake.set(authors: [author("Hubbard_Rob")])
+        fake.set(authors: [author("Hubbard_Rob", displayName: "Hubbard, Rob")])
         await library.loadAuthors(.musicians)
-        // The folder wins over the header, whatever it says.
-        let reveal = library.revealAuthor(of: track("/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid", author: "<?>"))
-        #expect(reveal?.authorPath == "/HVSC/MUSICIANS/H/Hubbard_Rob")
-        #expect(reveal?.tunePath == "/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid")
+        // The folder wins over the header, whatever it says; its name is
+        // the header's spelling when that matches, the folder's otherwise.
+        let composer = library.composer(of: track(commando, author: "<?>"))
+        #expect(composer?.authorPath == "/HVSC/MUSICIANS/H/Hubbard_Rob")
+        #expect(composer?.name == "Rob Hubbard")
+        #expect(library.composer(of: track(commando, author: "ROB HUBBARD"))?.name == "ROB HUBBARD")
     }
 
-    @Test func authorLinkMatchesTheHeaderToAComposerFolder() async {
+    @Test func composerMatchesTheHeaderToAComposerFolder() async {
         let (library, _) = makeLibrary()
         fake.set(authors: [author("Hubbard_Rob"), author("Laxity"), author("Tel_Jeroen")])
         await library.loadAuthors(.musicians)
-        let path = { (author: String) in library.revealAuthor(of: self.track("/HVSC/GAMES/A-F/X.sid", author: author))?.authorPath }
+        let composer = { (author: String) in library.composer(of: self.track("/HVSC/GAMES/A-F/X.sid", author: author)) }
 
-        #expect(path("Rob Hubbard") == "/HVSC/MUSICIANS/H/Hubbard_Rob")
-        #expect(path("Thomas E. Petersen (Laxity)") == "/HVSC/MUSICIANS/H/Laxity")
-        #expect(path("Charles Deenen & Jeroen Tel") == "/HVSC/MUSICIANS/H/Tel_Jeroen")
-        // No composer folder, and nothing else to search: no link.
-        #expect(path("Krzysztof Niedzwiecki (Radius75)") == nil)
-        #expect(path("<?>") == nil)
+        #expect(composer("Rob Hubbard")?.authorPath == "/HVSC/MUSICIANS/H/Hubbard_Rob")
+        #expect(composer("Thomas E. Petersen (Laxity)")?.authorPath == "/HVSC/MUSICIANS/H/Laxity")
+        #expect(composer("Charles Deenen & Jeroen Tel")?.authorPath == "/HVSC/MUSICIANS/H/Tel_Jeroen")
+        #expect(composer("Charles Deenen & Jeroen Tel")?.name == "Jeroen Tel")
+        // No composer folder, and nothing else to search: no card.
+        #expect(composer("Krzysztof Niedzwiecki (Radius75)") == nil)
+        #expect(composer("<?>") == nil)
     }
 
     @Test func headerAuthorsSplitIntoNamesAndHandles() {
@@ -351,6 +366,48 @@ struct LibraryStoreTests {
         #expect(LibraryStore.names(in: "A & B and C") == ["A & B and C", "A", "B", "C"])
         #expect(LibraryStore.words("Hubbard_Rob") == LibraryStore.words("Rob  Hubbard"))
         #expect(LibraryStore.words("Lukáš") == ["lukas"])
+    }
+
+    @Test func composerSubtitlesAddTheOtherNamesInTheCredit() {
+        #expect(LibraryStore.subtitle(for: "Fanta", in: "Alexander Rotzsch (Fanta)") == "Alexander Rotzsch")
+        #expect(LibraryStore.subtitle(for: "Thomas E. Petersen", in: "Thomas E. Petersen (Laxity)") == "Laxity")
+        #expect(LibraryStore.subtitle(for: "Jeroen Tel", in: "Jeroen Tel & Charles Deenen") == "with Charles Deenen")
+        #expect(LibraryStore.subtitle(for: "Rob Hubbard", in: "Rob Hubbard") == nil)
+        #expect(LibraryStore.subtitle(for: "Rob Hubbard", in: "<?>") == nil)
+    }
+
+    @Test func composerCardsCarryTheSubtitle() async {
+        let (library, _) = makeLibrary()
+        fake.set(authors: [author("Fanta")])
+        await library.loadAuthors(.musicians)
+        let composer = library.composer(of: track("/HVSC/MUSICIANS/F/Fanta/3DEH.sid", author: "Alexander Rotzsch (Fanta)"))
+        #expect(composer?.name == "Fanta")
+        #expect(composer?.subtitle == "Alexander Rotzsch")
+    }
+
+    @Test func composersAreNamedAndInitialledAsSpoken() {
+        #expect(LibraryStore.spokenName("Hubbard, Rob") == "Rob Hubbard")
+        #expect(LibraryStore.spokenName("Agemixer") == "Agemixer")
+        #expect(Composer(authorPath: "", name: "Thomas E. Petersen").initials == "TP")
+        #expect(Composer(authorPath: "", name: "Agemixer").initials == "A")
+        #expect(Composer(authorPath: "", name: "<?>").initials == "")
+    }
+
+    @Test func authorNotesAreLoadedOncePerFolder() async {
+        let (library, player) = makeLibrary()
+        let hubbard = "/HVSC/MUSICIANS/H/Hubbard_Rob"
+        fake.set(notes: [hubbard: "People have often stolen Hubbard's routine."])
+
+        await library.loadAuthorNote(authorPath: hubbard)
+        await library.loadAuthorNote(authorPath: hubbard)
+        await library.loadAuthorNote(authorPath: "/HVSC/MUSICIANS/G/Galway_Martin")
+        #expect(fake.noteLoads == 2)
+        #expect(library.authorNotes[hubbard] == "People have often stolen Hubbard's routine.")
+        #expect(library.authorNotes["/HVSC/MUSICIANS/G/Galway_Martin"] == "", "none is remembered too")
+
+        player.hvscRoot = "/Other"
+        await library.loadAuthorNote(authorPath: hubbard)
+        #expect(fake.noteLoads == 3)
     }
 
     @Test func searchPassesItsScope() async throws {
@@ -363,6 +420,21 @@ struct LibraryStoreTests {
     @Test func noFolderMeansNoLibrary() {
         let (library, _) = makeLibrary(root: nil)
         #expect(!library.hasRoot)
+    }
+}
+
+struct InspectorHeaderTests {
+    @Test func releasedFieldReadsAsASentence() {
+        #expect(NowPlayingInspector.released("1985 Gremlin Graphics") == "Released 1985 by Gremlin Graphics")
+        #expect(NowPlayingInspector.released("1987-88 Ocean") == "Released 1987-88 by Ocean")
+        #expect(NowPlayingInspector.released("198? Zzap") == "Released 198? by Zzap")
+        #expect(NowPlayingInspector.released("2009") == "Released 2009")
+        #expect(NowPlayingInspector.released("Oxyron") == "Released by Oxyron")
+        // HVSC's unknowns say nothing.
+        #expect(NowPlayingInspector.released("19?? Taboo") == "Released by Taboo")
+        #expect(NowPlayingInspector.released("1986 <?>") == "Released 1986")
+        #expect(NowPlayingInspector.released("<?>") == nil)
+        #expect(NowPlayingInspector.released("") == nil)
     }
 }
 

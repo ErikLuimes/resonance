@@ -18,7 +18,7 @@ use std::time::{Duration, Instant};
 
 use crossbeam_channel::{select, unbounded, Receiver, Sender};
 
-use crate::databases::{self, Databases, SharedDatabases};
+use crate::databases::{self, Databases, SharedDatabases, StilNotes};
 use crate::library::{Library, LibraryError};
 use crate::player::{self, PlayState, PlayerCmd, PlayerStatus};
 use crate::playlist::{self, LoadingProgress, PlaylistEntry, RepeatMode};
@@ -76,8 +76,8 @@ pub(crate) struct Published {
     pub playlist: Arc<Vec<PlaylistEntry>>,
     pub loading: Option<String>,
     pub error: Option<String>,
-    /// STIL text for the playing tune's current subtune.
-    pub stil: Option<String>,
+    /// STIL on the playing tune's current subtune.
+    pub stil: Option<StilNotes>,
 }
 
 /// The parts of `Session` the FFI layer turns into records.
@@ -357,8 +357,8 @@ struct State {
     error: Option<String>,
     published_playlist: (u64, Arc<Vec<PlaylistEntry>>),
     databases: SharedDatabases,
-    /// STIL text keyed by the (path, subtune) it was looked up for.
-    published_stil: Option<((PathBuf, u16), Option<String>)>,
+    /// STIL keyed by the (path, subtune) it was looked up for.
+    published_stil: Option<((PathBuf, u16), Option<StilNotes>)>,
 }
 
 fn run(start: StartConfig, commands: Receiver<Command>, out: Arc<Mutex<Arc<Published>>>) {
@@ -589,20 +589,20 @@ impl State {
         let _ = self.player.commands.try_send(PlayerCmd::Quit);
     }
 
-    /// STIL text for what's playing, looked up again only when the tune or
+    /// STIL on what's playing, looked up again only when the tune or
     /// subtune changes.
-    fn current_stil(&mut self) -> Option<String> {
+    fn current_stil(&mut self) -> Option<StilNotes> {
         let info = self.session.status.track_info.as_ref()?;
         let key = (info.path.clone(), info.current_song);
-        if let Some((cached_key, text)) = &self.published_stil {
+        if let Some((cached_key, notes)) = &self.published_stil {
             if *cached_key == key {
-                return text.clone();
+                return notes.clone();
             }
         }
         let db = databases::current(&self.databases);
-        let text = db.stil_text(&key.0, self.session.hvsc_root(), key.1);
-        self.published_stil = Some((key, text.clone()));
-        text
+        let notes = db.stil_notes(&key.0, self.session.hvsc_root(), key.1);
+        self.published_stil = Some((key, notes.clone()));
+        notes
     }
 
     fn publish(&mut self, out: &Mutex<Arc<Published>>) {

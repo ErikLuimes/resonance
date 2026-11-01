@@ -158,8 +158,33 @@ pub struct Snapshot {
     pub error: Option<String>,
     /// HVSC categories whose search index is being built.
     pub hvsc_indexing: Vec<HvscCategory>,
-    /// STIL commentary for the playing tune's current subtune.
-    pub stil: Option<String>,
+    /// STIL on the playing tune's current subtune.
+    pub stil: Option<TuneStil>,
+}
+
+/// What STIL says about one subtune, its text unwrapped.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct TuneStil {
+    /// About the whole file.
+    pub comment: Option<String>,
+    /// The whole tune's blocks, then the current subtune's.
+    pub blocks: Vec<StilBlock>,
+}
+
+/// One STIL block: the piece a (sub)tune covers, and notes on it.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct StilBlock {
+    /// 0 for the whole tune.
+    pub subtune: u16,
+    /// The subtune's own name, e.g. its part in a game.
+    pub name: Option<String>,
+    /// The piece it covers.
+    pub title: Option<String>,
+    /// Who performed that piece.
+    pub artist: Option<String>,
+    /// Who wrote that piece.
+    pub author: Option<String>,
+    pub comment: Option<String>,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -413,7 +438,7 @@ impl PlayerCore {
                 .into_iter()
                 .map(Into::into)
                 .collect(),
-            stil: p.stil.clone(),
+            stil: p.stil.as_ref().map(TuneStil::from),
         }
     }
 
@@ -467,6 +492,12 @@ impl PlayerCore {
             .iter()
             .map(|t| HvscTuneItem::from_tune(t, root.as_deref()))
             .collect())
+    }
+
+    /// STIL's note on an author folder, if it has one, with STIL's hard line
+    /// wrapping undone.
+    pub async fn hvsc_author_note(&self, author_path: String) -> Result<Option<String>, HvscError> {
+        Ok(self.library.author_note(PathBuf::from(author_path)).await?)
     }
 
     /// Fuzzy search by title, author, file name and release; `scope` limits
@@ -607,6 +638,26 @@ impl From<&HvscAuthor> for HvscAuthorItem {
             display_name: a.display_name.clone(),
             letter: a.letter.to_string(),
             path: a.path.to_string_lossy().into_owned(),
+        }
+    }
+}
+
+impl From<&databases::StilNotes> for TuneStil {
+    fn from(n: &databases::StilNotes) -> Self {
+        TuneStil {
+            comment: n.comment.clone(),
+            blocks: n
+                .blocks
+                .iter()
+                .map(|b| StilBlock {
+                    subtune: b.subtune,
+                    name: b.name.clone(),
+                    title: b.title.clone(),
+                    artist: b.artist.clone(),
+                    author: b.author.clone(),
+                    comment: b.comment.clone(),
+                })
+                .collect(),
         }
     }
 }

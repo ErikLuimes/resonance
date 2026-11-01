@@ -637,35 +637,61 @@ html.playing .orb-3 { opacity: 0.14; }
 .insp-empty .i { font-size: 34px; color: rgba(255, 255, 255, 0.4); margin-bottom: 6px; }
 .insp-empty strong { font-size: 17px; }
 .insp-empty p { margin: 0; color: rgba(255, 255, 255, 0.5); font-size: 12.5px; }
-.form { padding-bottom: 14px; }
-.form-h { padding: 12px 24px 6px; color: rgba(255, 255, 255, 0.55); font-size: 11.5px; font-weight: 650; }
-.form-group { margin: 0 12px; padding: 0 12px; border-radius: 10px; background: rgba(255, 255, 255, 0.045); }
-.form .row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 7px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  font-size: 12.5px;
-}
-.form .row:last-child { border-bottom: 0; }
-.form .row > span:first-child { flex: none; }
-.form .row > span:last-child { color: rgba(255, 255, 255, 0.55); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.form .row > span.tint { display: inline-flex; align-items: center; gap: 4px; color: var(--tint); }
-.form .row .mono { font-size: 11.5px; font-variant-numeric: tabular-nums; }
-.row-btn { justify-content: flex-start !important; }
+.form { padding-bottom: 14px; font-size: 12.5px; }
+.form .dim { color: rgba(255, 255, 255, 0.55); }
+.form-h { padding: 14px 16px 6px; color: rgba(255, 255, 255, 0.55); font-size: 11.5px; font-weight: 650; }
+.form-group { margin: 0 12px; border-radius: 10px; background: rgba(255, 255, 255, 0.06); }
 .mini-btn {
   display: inline-flex !important;
   align-items: center;
-  gap: 6px;
-  height: 24px;
-  padding: 0 10px !important;
-  border-radius: 7px;
+  gap: 5px;
+  height: 22px;
+  padding: 0 9px !important;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.1) !important;
-  font-size: 12.5px;
+  font-size: 12px;
+  white-space: nowrap;
 }
-.mini-btn:disabled { opacity: 0.5; cursor: default !important; }
+.mini-btn[hidden] { display: none !important; }
+.mini-btn .i { font-size: 12px; }
+.accent-link { color: var(--tint); font: inherit; }
+
+/* The inspector's header: where it plays from, the title, released, facts. */
+.np-hero { padding: 2px 16px 16px; }
+.np-top { display: flex; align-items: center; gap: 8px; min-height: 22px; margin-bottom: 4px; }
+.np-source,
+.np-kept { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: rgba(255, 255, 255, 0.55); white-space: nowrap; }
+.np-source { flex: 1; }
+.np-source.is-surprise { color: var(--tint); }
+.np-source .i,
+.np-kept .i { font-size: 12px; }
+.np-title { font-size: 21px; font-weight: 650; line-height: 1.2; }
+.np-released { margin-top: 2px; font-size: 13px; color: rgba(255, 255, 255, 0.55); }
+.np-facts { display: flex; gap: 14px; margin-top: 8px; font-size: 12px; color: rgba(255, 255, 255, 0.55); }
+.np-facts > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.np-facts .i { font-size: 13px; }
+
+/* The composer card, tinted apart from the plain sections. */
+.composer-card { margin: 0 12px; padding: 12px; border-radius: 10px; background: color-mix(in srgb, var(--tint) 14%, transparent); }
+.cc-head { display: flex; align-items: center; gap: 10px; }
+.cc-mono { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: rgba(0, 0, 0, 0.35); color: var(--tint); }
+.cc-mono .i { font-size: 18px; }
+.cc-name { font-size: 13.5px; font-weight: 650; }
+.cc-sub { color: rgba(255, 255, 255, 0.55); }
+.cc-note { margin: 10px 0 0; color: rgba(255, 255, 255, 0.55); line-height: 1.45; }
+
+.about { padding: 10px 12px; line-height: 1.45; }
+.about p { margin: 0; }
+.about .about-note { margin-top: 6px; }
+
+/* Details: four facts side by side, then the file. */
+.spec-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.spec { padding: 8px 0; text-align: center; }
+.spec + .spec { border-left: 1px solid rgba(255, 255, 255, 0.08); }
+.spec small { display: block; font-size: 11px; color: rgba(255, 255, 255, 0.55); }
+.spec span { font-size: 13px; white-space: nowrap; }
+.spec .mono { font-size: 12px; font-variant-numeric: tabular-nums; }
+.specs-foot { padding: 10px 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
 
 /* Narrow: no sidebar or table, like the app in a small window. */
 .mac.compact { grid-template-columns: minmax(0, 1fr); }

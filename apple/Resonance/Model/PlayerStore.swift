@@ -33,8 +33,8 @@ final class PlayerStore {
     private(set) var trackRevision: UInt64 = 0
     /// HVSC categories whose search index is being built.
     private(set) var hvscIndexing: [HvscCategory] = []
-    /// STIL commentary for what's playing.
-    private(set) var stil: String?
+    /// What STIL says about the playing subtune.
+    private(set) var stil: TuneStil?
 
     // MARK: Settings (persisted, pushed to the core)
 

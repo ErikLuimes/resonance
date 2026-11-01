@@ -213,24 +213,45 @@
                     <p>Hit play or Surprise Me to hear a tune composed on the spot. Its details appear here.</p>
                   </div>
                   <div class="form" data-insp-details hidden>
-                    <div class="form-h">Now Playing</div>
-                    <div class="form-group">
-                      <div class="row"><span>Playing From</span><span class="tint" data-np-source><svg class="i"><use href="#i-dice-fill"/></svg>Surprise Me</span></div>
-                      <div class="row"><span>Title</span><span data-np-title2></span></div>
-                      <div class="row"><span>Author</span><span data-np-author2></span></div>
-                      <div class="row"><span>Released</span><span data-np-released></span></div>
-                      <div class="row"><span>Song</span><span data-np-song2></span></div>
-                      <div class="row"><span>Length</span><span data-np-length></span></div>
-                      <div class="row row-btn"><button type="button" class="mini-btn" data-act="keep"><svg class="i"><use href="#i-add-list"/></svg><span>Add to Playlist</span></button></div>
+                    <div class="np-hero">
+                      <div class="np-top">
+                        <span class="np-source" data-np-source><svg class="i"><use href="#i-dice-fill"/></svg>Surprise Me</span>
+                        <button type="button" class="mini-btn" data-act="keep" title="Add this tune to your playlist"><svg class="i"><use href="#i-plus"/></svg><span>Add to Playlist</span></button>
+                        <span class="np-kept" data-np-kept title="This tune is already in your playlist" hidden><svg class="i"><use href="#i-check"/></svg>In Playlist</span>
+                      </div>
+                      <div class="np-title" data-np-title2></div>
+                      <div class="np-released" data-np-released></div>
+                      <div class="np-facts">
+                        <span><svg class="i"><use href="#i-timer"/></svg><span data-np-length></span></span>
+                        <span><svg class="i"><use href="#i-rows"/></svg><span data-np-song2></span></span>
+                      </div>
                     </div>
-                    <div class="form-h">Tune</div>
-                    <div class="form-group">
-                      <div class="row"><span>Format</span><span>Generated</span></div>
-                      <div class="row"><span>Key</span><span data-np-key></span></div>
-                      <div class="row"><span>Tempo</span><span data-np-bpm></span></div>
-                      <div class="row"><span>Filter</span><span class="mono" data-np-filter></span></div>
-                      <div class="row"><span>Driver</span><span>50 Hz (PAL)</span></div>
-                      <div class="row"><span>Engine</span><span>Web Audio demo</span></div>
+                    <div class="composer-card">
+                      <div class="cc-head">
+                        <span class="cc-mono" aria-hidden="true"><svg class="i"><use href="#i-dice-fill"/></svg></span>
+                        <div>
+                          <div class="cc-name" data-np-author2></div>
+                          <div class="cc-sub">Composed in your browser</div>
+                          <button type="button" class="accent-link" data-act="all-tunes" title="Show all tunes by this composer">Show All Tunes</button>
+                        </div>
+                      </div>
+                      <p class="cc-note">In Resonance: the tune's composer, with STIL's notes on them.</p>
+                    </div>
+                    <div class="form-h">About This Tune</div>
+                    <div class="form-group about">
+                      <p><span class="dim">Composed in</span> <span data-np-key></span></p>
+                      <p class="dim">at <span data-np-bpm></span></p>
+                      <p class="about-note">Made up on the spot. In Resonance, STIL's notes and covers go here.</p>
+                    </div>
+                    <div class="form-h">Details</div>
+                    <div class="form-group specs">
+                      <div class="spec-strip">
+                        <div class="spec"><small>Format</small><span>Web</span></div>
+                        <div class="spec"><small>Filter</small><span class="mono" data-np-filter></span></div>
+                        <div class="spec"><small>Clock</small><span>PAL</span></div>
+                        <div class="spec"><small>Voices</small><span>3</span></div>
+                      </div>
+                      <div class="specs-foot"><button type="button" class="mini-btn" data-act="finder">Show in Finder</button></div>
                     </div>
                   </div>
                 </aside>
@@ -352,8 +373,8 @@
 
           <article class="tile" data-reveal>
             <div class="tile-icon" style="--c: var(--v3)"><svg class="i"><use href="#i-quote"/></svg></div>
-            <h3>STIL in the inspector</h3>
-            <p>Composer comments and cover credits beside title, release, SID model, clock and MD5. Click the author to see all their tunes.</p>
+            <h3>Who made it, and why</h3>
+            <p>A card for the composer, with STIL's notes on them and all their tunes a click away. Covers read “Cover of … by …”, and the original is one click from there.</p>
           </article>
 
           <article class="tile" data-reveal>
@@ -409,7 +430,7 @@
           <ul class="checks">
             <li><svg class="i"><use href="#i-check"/></svg>Exact matches always rank above fuzzy ones</li>
             <li><svg class="i"><use href="#i-check"/></svg>Accent-insensitive: “hulsbeck” finds Hülsbeck</li>
-            <li><svg class="i"><use href="#i-check"/></svg>The inspector's author link jumps to all their tunes</li>
+            <li><svg class="i"><use href="#i-check"/></svg>The composer card jumps to all their tunes</li>
             <li><svg class="i"><use href="#i-check"/></svg>Library plays never touch your playlist</li>
           </ul>
         </div>

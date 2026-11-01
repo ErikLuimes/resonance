@@ -198,6 +198,20 @@ impl Library {
         .await
     }
 
+    /// STIL's note on an author folder ("People have often stolen Hubbard's
+    /// routine…"), if it has one. About 230 MUSICIANS folders do.
+    pub async fn author_note(&self, author_path: PathBuf) -> Result<Option<String>, LibraryError> {
+        let root = self.root().ok_or(LibraryError::NoRoot)?;
+        let rel = author_path.strip_prefix(&root).map_err(|_| {
+            LibraryError::NotFound(format!(
+                "{} isn't in the HVSC folder",
+                author_path.display()
+            ))
+        })?;
+        let db = databases::loaded(&self.databases).await;
+        Ok(db.folder_note(rel))
+    }
+
     /// Fuzzy search over the given category, or all of them. Builds (or
     /// loads from cache) any index that isn't ready yet first.
     ///

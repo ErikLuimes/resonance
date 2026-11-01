@@ -53,7 +53,13 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
             shuffle: false, repeat: .off, engine: .sidLite,
             playlistRevision: 1, trackRevision: 1, loading: nil, error: nil,
             hvscIndexing: [],
-            stil: current == nil ? nil : "COMMENT: Rob Hubbard's arrangement for Elite's arcade conversion."
+            stil: current == nil ? nil : TuneStil(
+                comment: "Rob Hubbard's arrangement for Elite's arcade conversion.",
+                blocks: [StilBlock(
+                    subtune: 1, name: nil, title: "Commando (arcade)", artist: "Tamayo Kawamoto", author: nil,
+                    comment: "Based on /MUSICIANS/H/Hubbard_Rob/Commando.sid"
+                )]
+            )
         )
     }
 
@@ -69,13 +75,22 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
     }
 
     func hvscAuthors(category: HvscCategory) async throws -> [HvscAuthorItem] {
-        [("G", "Galway, Martin"), ("H", "Hubbard, Rob"), ("T", "Tel, Jeroen")].map { letter, name in
-            HvscAuthorItem(name: name, displayName: name, letter: letter, path: "/HVSC/MUSICIANS/\(letter)/\(name)")
+        [("G", "Galway_Martin"), ("H", "Hubbard_Rob"), ("T", "Tel_Jeroen")].map { letter, name in
+            HvscAuthorItem(
+                name: name, displayName: name.replacing("_", with: ", "), letter: letter,
+                path: "/HVSC/MUSICIANS/\(letter)/\(name)"
+            )
         }
     }
 
     func hvscTunes(authorPath: String) async throws -> [HvscTuneItem] {
         items.map(Self.tune)
+    }
+
+    func hvscAuthorNote(authorPath: String) async throws -> String? {
+        guard authorPath.hasSuffix("/Hubbard_Rob") else { return nil }
+        return "People have often stolen Hubbard's routine causing some tunes to be falsely credited to him.\n"
+            + "Hubbard's own comments are denoted (RH)."
     }
 
     func hvscSearch(query: String, scope: HvscCategory?) async throws -> HvscSearchResult {

@@ -1,15 +1,15 @@
 import SwiftUI
 import PhosphorCore
 
-/// Visualizer and details of the playing tune.
+/// Visualizer and details of the playing tune: its title, the composer's
+/// card, what STIL says about it, and its specs.
 struct NowPlayingInspector: View {
     @Environment(PlayerStore.self) private var store
     @Environment(LibraryStore.self) private var library
 
     var body: some View {
-        // The visualizer redraws every frame, so it sits above the Form
-        // rather than in a Form row (rows are table cells that get
-        // re-measured whenever their content changes).
+        // The visualizer redraws every frame, so it stays above the
+        // scrolling details rather than being laid out with them.
         VStack(spacing: 0) {
             VisualizerView()
                 .frame(height: 180)
@@ -21,50 +21,29 @@ struct NowPlayingInspector: View {
     @ViewBuilder
     private var details: some View {
         if let track = store.nowPlaying {
-            Form {
-                Section("Now Playing") {
-                    LabeledContent("Playing From") { source }
-                    LabeledContent("Title", value: track.title)
-                    LabeledContent("Author") { author(of: track) }
-                    LabeledContent("Released", value: track.released)
-                    if track.songs > 1 {
-                        LabeledContent("Song", value: "\(track.currentSong) of \(track.songs)")
+            let composer = library.composer(of: track)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    header(track, showsAuthor: composer == nil)
+                    if let composer {
+                        ComposerCard(composer: composer, tunePath: track.path)
                     }
-                    if let duration = store.duration {
-                        LabeledContent("Length", value: Duration.seconds(duration).formatted(.time(pattern: .minuteSecond)))
-                    }
-                    addToPlaylist(track)
-                }
-                if let stil = store.stil {
-                    Section("STIL") {
-                        Text(stil)
-                            .font(.callout)
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-                Section("Tune") {
-                    LabeledContent("Format", value: track.sidType)
-                    LabeledContent("SID Model", value: sidModelName(track.sidModel))
-                    LabeledContent("Chips", value: "\(track.numSids)")
-                    LabeledContent("Clock", value: track.isPal ? "PAL" : "NTSC")
-                    LabeledContent("Engine", value: store.engine.displayName)
-                }
-                Section("File") {
-                    LabeledContent("Name", value: URL(filePath: track.path).lastPathComponent)
-                    if !track.md5.isEmpty {
-                        LabeledContent("MD5") {
-                            Text(track.md5).font(.caption.monospaced()).textSelection(.enabled)
+                    if let stil = store.stil {
+                        InspectorSection("About This Tune") {
+                            StilNotesView(stil: stil, songs: track.songs)
                         }
                     }
-                    Button("Show in Finder") {
-                        NSWorkspace.shared.activateFileViewerSelecting([URL(filePath: track.path)])
+                    InspectorSection("Details") {
+                        specs(of: track)
                     }
                 }
+                .padding([.horizontal, .bottom], 12)
             }
-            .formStyle(.grouped)
-            .labeledContentStyle(WrappingValueStyle())
-            // The author link matches composers against the MUSICIANS list.
+            .scrollBounceBehavior(.basedOnSize)
+            // Pinned like the playlist column: content must not decide the
+            // inspector column's width.
+            .frame(minWidth: 0, maxWidth: .infinity)
+            // The composer card matches composers against the MUSICIANS list.
             .task(id: store.hvscRoot) { await library.loadAuthors(.musicians) }
         } else {
             ContentUnavailableView {
@@ -72,9 +51,72 @@ struct NowPlayingInspector: View {
             } description: {
                 Text("Double-click a tune to play it. Its details and STIL commentary appear here.")
             }
-            // Pinned like the playlist column: the empty state's ideal
-            // width must not become the inspector column's.
             .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    /// Where it's playing from (with a way to keep it), the title, who
+    /// released it when, then how long it runs and which of several songs
+    /// is on. The author too, when no composer card names them.
+    private func header(_ track: TrackDetails, showsAuthor: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 8) {
+                source
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                playlistStatus(track)
+            }
+            .padding(.bottom, 2)
+            Text(track.title)
+                .font(.title2.weight(.semibold))
+            if showsAuthor {
+                Text(track.author)
+            }
+            if let released = Self.released(track.released) {
+                Text(released)
+                    .foregroundStyle(.secondary)
+            }
+            let duration = store.duration.map { Duration.seconds($0).formatted(.time(pattern: .minuteSecond)) }
+            if duration != nil || track.songs > 1 {
+                // Each fact keeps to one line; there's room for both.
+                HStack(spacing: 14) {
+                    if let duration {
+                        Label(duration, systemImage: "clock")
+                            .fixedSize()
+                            .help("Length")
+                    }
+                    if track.songs > 1 {
+                        Label("Song \(track.currentSong) of \(track.songs)", systemImage: "list.number")
+                            .fixedSize()
+                    }
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .padding(.top, 5)
+            }
+        }
+        .textSelection(.enabled)
+        .padding(.horizontal, 4)
+    }
+
+    /// The header's released field in words: "1985 Gremlin Graphics" →
+    /// "Released 1985 by Gremlin Graphics". It holds a year, then the
+    /// publisher, group or party that put the tune out; either may be
+    /// missing, and "<?>" means nothing is known.
+    nonisolated static func released(_ field: String) -> String? {
+        let parts = field.split(separator: " ", maxSplits: 1).map(String.init)
+        guard let first = parts.first else { return nil }
+        // "1985", "198?", "1987-88"; "19??" and "????" say nothing.
+        let isYear = first.allSatisfy { $0.isNumber || "?-/".contains($0) }
+        let year = isYear && first.filter(\.isNumber).count >= 3 ? first : nil
+        let by = (isYear ? parts.dropFirst().first : field.trimmingCharacters(in: .whitespaces))
+            .flatMap { $0.isEmpty || $0 == "<?>" ? nil : $0 }
+        switch (year, by) {
+        case let (year?, by?): return "Released \(year) by \(by)"
+        case let (year?, nil): return "Released \(year)"
+        case let (nil, by?): return "Released by \(by)"
+        case (nil, nil): return nil
         }
     }
 
@@ -86,74 +128,313 @@ struct NowPlayingInspector: View {
                 .foregroundStyle(.tint)
                 .help("Next plays another random tune from HVSC. Play anything else to stop.")
         } else if store.queueActive {
-            Label("HVSC", systemImage: "books.vertical")
+            Label("From HVSC", systemImage: "books.vertical")
         } else {
-            Label("Playlist", systemImage: "music.note.list")
+            Label("From Playlist", systemImage: "music.note.list")
         }
     }
 
-    /// The author as a link to all their tunes in the HVSC browser, when
-    /// the library can show them. Styled like the other values, with an
-    /// accent arrow inside the text so a long name wraps with it.
+    /// Keep what's playing — a surprise, or any tune played from the
+    /// library. Once it's kept, a label says so (a disabled button would
+    /// show no tooltip); nothing at all when it's playing from the playlist.
     @ViewBuilder
-    private func author(of track: TrackDetails) -> some View {
-        if let reveal = library.revealAuthor(of: track) {
-            let arrow = Text(Image(systemName: "arrow.forward.circle.fill")).foregroundStyle(.tint)
-            Button {
-                library.reveal = reveal
-            } label: {
-                // A no-break space: the arrow wraps with the last word
-                // rather than ending up alone on a line.
-                Text("\(track.author)\u{00A0}\(arrow)")
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.trailing)
+    private func playlistStatus(_ track: TrackDetails) -> some View {
+        if !store.rows.contains(where: { $0.id == track.path }) {
+            Button("Add to Playlist", systemImage: "plus") {
+                store.add([URL(filePath: track.path)])
             }
-            .buttonStyle(.plain)
-            .pointerStyle(.link)
-            .help("Show all tunes by \(track.author)")
-            .accessibilityHint("Shows all tunes by \(track.author)")
-        } else {
-            Text(track.author)
+            .controlSize(.small)
+            .help("Add this tune to your playlist")
+        } else if store.queueActive || store.surpriseActive {
+            Label("In Playlist", systemImage: "checkmark")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize()
+                .help("This tune is already in your playlist")
         }
     }
 
-    /// Keep what's playing — a surprise, or any tune played from the library.
-    private func addToPlaylist(_ track: TrackDetails) -> some View {
-        let inPlaylist = store.rows.contains { $0.id == track.path }
-        return Button(
-            inPlaylist ? "In Playlist" : "Add to Playlist",
-            systemImage: inPlaylist ? "checkmark" : "text.badge.plus"
-        ) {
-            store.add([URL(filePath: track.path)])
+    /// The tune's format, SID model, clock and chip count side by side,
+    /// then its file.
+    private func specs(of track: TrackDetails) -> some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                spec("Format", track.isRsid ? "RSID" : "PSID")
+                Divider()
+                spec("SID", sidModel(track.sidModel).short)
+                    .help(sidModel(track.sidModel).full)
+                Divider()
+                spec("Clock", track.isPal ? "PAL" : "NTSC")
+                Divider()
+                spec("Chips", "\(track.numSids)")
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            Divider()
+            Button("Show in Finder") {
+                NSWorkspace.shared.activateFileViewerSelecting([URL(filePath: track.path)])
+            }
+            .controlSize(.small)
+            .help("Show \(URL(filePath: track.path).lastPathComponent) in Finder")
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .disabled(inPlaylist)
     }
 
-    private func sidModelName(_ model: UInt8) -> String {
+    private func spec(_ label: String, _ value: String) -> some View {
+        VStack(spacing: 2) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func sidModel(_ model: UInt8) -> (short: String, full: String) {
         switch model {
-        case 1: "MOS 6581"
-        case 2: "MOS 8580"
-        case 3: "6581 or 8580"
-        default: "Unspecified"
+        case 1: ("6581", "MOS 6581")
+        case 2: ("8580", "MOS 8580")
+        case 3: ("Either", "Plays on the 6581 or the 8580")
+        default: ("—", "Not specified in the file")
         }
     }
 }
 
-/// Label and value side by side, a long value wrapping in place on the
-/// right. The form's own style moves a value that doesn't fit onto a line
-/// of its own below the label, which read badly in the narrow inspector.
-private struct WrappingValueStyle: LabeledContentStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            // Never squeezed: a value with no spaces to break at (an MD5)
-            // would otherwise take the label's width too.
-            configuration.label
-                .fixedSize()
-            Spacer(minLength: 0)
-            configuration.content
+/// A titled group of details on a rounded fill, like a grouped form's
+/// section.
+private struct InspectorSection<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
+
+    init(_ title: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
-                .multilineTextAlignment(.trailing)
+                .padding(.horizontal, 4)
+            content
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.fill.quaternary, in: .rect(cornerRadius: 10))
         }
+    }
+}
+
+/// The inspector's links, all alike: text in the accent colour (`.link`
+/// would be system blue).
+private struct AccentLink: View {
+    let title: String
+    let action: () -> Void
+
+    init(_ title: String, action: @escaping () -> Void) {
+        self.title = title
+        self.action = action
+    }
+
+    var body: some View {
+        Button(title, action: action)
+            .buttonStyle(.plain)
+            .foregroundStyle(.tint)
+            .pointerStyle(.link)
+    }
+}
+
+/// What STIL says about the playing subtune: the file's comment, then each
+/// block, a cover as "Cover of … by …". Tunes the text names in MUSICIANS
+/// lead to that tune in the browser.
+private struct StilNotesView: View {
+    let stil: TuneStil
+    /// How many songs the tune has: a block's "Song N" only says something
+    /// when there are several.
+    let songs: UInt16
+
+    @Environment(PlayerStore.self) private var store
+    @Environment(LibraryStore.self) private var library
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let comment = stil.comment {
+                paragraph(comment)
+            }
+            ForEach(Array(stil.blocks.enumerated()), id: \.offset) { _, block in
+                blockView(block)
+            }
+        }
+        .font(.callout)
+        .padding(10)
+    }
+
+    private func blockView(_ block: StilBlock) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            if block.subtune > 0, songs > 1 {
+                Text("Song \(block.subtune)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if let title = block.title {
+                Text("\(Text("Cover of").foregroundStyle(.secondary)) \(title)")
+                if let by = block.artist ?? block.author {
+                    Text("by \(by)").foregroundStyle(.secondary)
+                }
+                if block.artist != nil, let author = block.author {
+                    Text("written by \(author)").foregroundStyle(.secondary)
+                }
+            } else if let author = block.author {
+                Text("\(Text("Original by").foregroundStyle(.secondary)) \(author)")
+            }
+            if let name = block.name {
+                Text("Also known as \(name)").foregroundStyle(.secondary)
+            }
+            if let comment = block.comment {
+                paragraph(comment)
+                    .padding(.top, block.title == nil && block.name == nil ? 0 : 6)
+            }
+        }
+    }
+
+    /// A tune path in STIL text: "/MUSICIANS/H/Hubbard_Rob/Lightforce.sid".
+    private struct TuneReference {
+        let range: Range<String.Index>
+        let path: String
+
+        var name: String { URL(filePath: path).lastPathComponent }
+        /// The browser only shows composers' folders, not GAMES or DEMOS.
+        var inLibrary: Bool { path.hasPrefix("/MUSICIANS/") }
+    }
+
+    private static func tuneReferences(in text: String) -> [TuneReference] {
+        text.matches(of: #/\/(?:MUSICIANS|GAMES|DEMOS)\/[^\s"(),;]+?\.sid/#).map {
+            TuneReference(range: $0.range, path: String($0.output))
+        }
+    }
+
+    /// STIL text with the tunes it names shortened to their file names.
+    /// One tune in the library (nearly always) is accent-coloured in place,
+    /// and the whole paragraph is its button. Several get an AccentLink
+    /// each below the text: SwiftUI colours text links its own blue,
+    /// whatever the tint.
+    @ViewBuilder
+    private func paragraph(_ text: String) -> some View {
+        let references = Self.tuneReferences(in: text)
+        let targets = references.filter(\.inLibrary)
+        if targets.count == 1 {
+            Button {
+                reveal(path: targets[0].path)
+            } label: {
+                Self.render(text, references, highlighted: true)
+                    .multilineTextAlignment(.leading)
+            }
+            .buttonStyle(.plain)
+            .pointerStyle(.link)
+            .help("Show \(targets[0].name) in the library")
+        } else {
+            VStack(alignment: .leading, spacing: 4) {
+                Self.render(text, references, highlighted: false)
+                ForEach(targets, id: \.path) { target in
+                    AccentLink(target.name) { reveal(path: target.path) }
+                }
+            }
+        }
+    }
+
+    private static func render(_ text: String, _ references: [TuneReference], highlighted: Bool) -> Text {
+        var result = Text(verbatim: "")
+        var start = text.startIndex
+        for reference in references {
+            let before = Text(verbatim: String(text[start..<reference.range.lowerBound]))
+            result = Text("\(result)\(before)\(name(of: reference, highlighted: highlighted))")
+            start = reference.range.upperBound
+        }
+        return Text("\(result)\(Text(verbatim: String(text[start...])))")
+    }
+
+    private static func name(of reference: TuneReference, highlighted: Bool) -> Text {
+        guard highlighted, reference.inLibrary else { return Text(verbatim: reference.name) }
+        return Text(verbatim: reference.name).foregroundStyle(.tint)
+    }
+
+    private func reveal(path: String) {
+        guard let root = store.hvscRoot else { return }
+        let tune = URL(filePath: root).appending(path: path.trimmingPrefix("/"))
+        library.reveal = LibraryReveal(
+            authorPath: tune.deletingLastPathComponent().path,
+            tunePath: tune.path
+        )
+    }
+}
+
+/// Who wrote what's playing: their name, a way to all their tunes, and
+/// STIL's note on them when it has one. Tinted so it stands apart from the
+/// plain sections around it; the monogram is where a photo would go.
+private struct ComposerCard: View {
+    let composer: Composer
+    let tunePath: String
+
+    @Environment(LibraryStore.self) private var library
+    @State private var expanded = false
+
+    /// Notes longer than this start folded to `foldedLines`. Half are a
+    /// single line; a few run to a dozen.
+    private static let foldLength = 240
+    private static let foldedLines = 4
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                monogram
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(composer.name)
+                        .font(.headline)
+                    if let subtitle = composer.subtitle {
+                        Text(subtitle)
+                            .foregroundStyle(.secondary)
+                    }
+                    AccentLink("Show All Tunes") {
+                        library.reveal = LibraryReveal(authorPath: composer.authorPath, tunePath: tunePath)
+                    }
+                    .help("Show all tunes by \(composer.name)")
+                }
+            }
+            if let note = library.authorNotes[composer.authorPath], !note.isEmpty {
+                let folds = note.count > Self.foldLength
+                Text(note)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(folds && !expanded ? Self.foldedLines : nil)
+                    .textSelection(.enabled)
+                if folds {
+                    AccentLink(expanded ? "Less" : "More") { expanded.toggle() }
+                }
+            }
+        }
+        .font(.callout)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(.tint.opacity(0.12), in: .rect(cornerRadius: 10))
+        .task(id: composer.authorPath) {
+            expanded = false
+            await library.loadAuthorNote(authorPath: composer.authorPath)
+        }
+    }
+
+    private var monogram: some View {
+        ZStack {
+            Circle().fill(.background)
+            if composer.initials.isEmpty {
+                Image(systemName: "person.fill")
+            } else {
+                Text(composer.initials)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+            }
+        }
+        .foregroundStyle(.tint)
+        .frame(width: 44, height: 44)
+        .accessibilityHidden(true)
     }
 }
 
