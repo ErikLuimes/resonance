@@ -11,7 +11,7 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crossbeam_channel::bounded;
 
@@ -23,6 +23,7 @@ use crate::player::pseudo_stereo::DetuneStrength;
 use crate::player::{PlayState, TrackInfo};
 use crate::playlist::{PlaylistEntry, RepeatMode};
 use crate::session;
+use crate::viz;
 
 // ── Records and enums ────────────────────────────────────────────────────────
 
@@ -187,15 +188,78 @@ pub struct StilBlock {
     pub comment: Option<String>,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
-pub struct VizFrame {
-    /// Increases with every player status; equal values mean no new frame.
-    pub seq: u64,
-    /// Three envelope estimates (0.0–1.0) per SID chip.
-    pub voice_levels: Vec<f32>,
-    /// SID register shadow: 32 bytes per chip, up to four chips.
-    pub sid_regs: Vec<u8>,
-    pub num_sids: u32,
+/// One SID voice at the end of a player frame.
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct VizVoice {
+    /// The 16-bit frequency register.
+    pub freq_reg: u16,
+    pub hz: f64,
+    /// Fractional MIDI note number (69 is A4); 0 while the frequency is 0.
+    pub midi: f64,
+    /// The nearest note, e.g. "C#4"; None while the frequency is 0. Set
+    /// whether or not the gate is: a released note still sounds.
+    pub note: Option<String>,
+    pub gate: bool,
+    /// The control register's high nibble: 1 triangle, 2 saw, 4 pulse, 8 noise.
+    pub waveform: u8,
+    pub test: bool,
+    pub ring: bool,
+    pub sync: bool,
+    /// 12-bit.
+    pub pulse_width: u16,
+    pub attack: u8,
+    pub decay: u8,
+    pub sustain: u8,
+    pub release: u8,
+    /// The envelope, 0.0–1.0, from the visualizers' own reSID.
+    pub env_level: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct VizChip {
+    /// Always three.
+    pub voices: Vec<VizVoice>,
+    /// $00–$1C. OSC3 and ENV3 ($1B, $1C) come from the visualizers' reSID.
+    pub registers: Vec<u8>,
+    /// 11-bit.
+    pub cutoff: u16,
+    pub resonance: u8,
+    /// Which inputs go through the filter. Bits 0–3: voices 1–3, external.
+    pub filter_routing: u8,
+    /// Bits 0–3: low-pass, band-pass, high-pass, voice 3 off.
+    pub filter_mode: u8,
+    pub volume: u8,
+}
+
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct VizSidFrame {
+    /// Frames since the subtune started.
+    pub index: u64,
+    pub is_pal: bool,
+    /// One per SID chip, up to four.
+    pub chips: Vec<VizChip>,
+}
+
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct VizScope {
+    pub sample_rate: f32,
+    /// Three voices, each −1…1 (waveform × envelope), oldest sample first.
+    pub voices: Vec<Vec<f32>>,
+}
+
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct VizStats {
+    /// Frames the visualizers' reSID has emulated this subtune.
+    pub frames: u64,
+    /// Moving average of its time per frame.
+    pub shadow_micros: f32,
+    /// How far the engine's audio buffer has the sound trailing the
+    /// emulation right now: about 100 ms after a track starts, near 0 after
+    /// a pause.
+    pub buffer_ms: f32,
+    /// The output device's latency, as last set.
+    pub output_latency_ms: u32,
+    pub offset_ms: i32,
 }
 
 /// The top-level HVSC folders.
@@ -450,15 +514,59 @@ impl PlayerCore {
             .collect()
     }
 
-    pub fn viz_frame(&self) -> VizFrame {
-        let p = self.published();
-        let status = &p.session.status;
-        VizFrame {
-            seq: p.session.status_seq,
-            voice_levels: status.voice_levels.clone(),
-            sid_regs: status.sid_regs.clone(),
-            num_sids: status.track_info.as_ref().map_or(1, |t| t.num_sids as u32),
+    // ── Visualizer feed ──
+    //
+    // Reads return what's being heard, which trails the emulation by the
+    // engine's audio buffer and the output device (see viz.rs).
+
+    /// The frame being heard now; None before the first one and while
+    /// stopped.
+    pub fn viz_latest(&self) -> Option<VizSidFrame> {
+        let frame = viz::lock(&self.driver.viz).latest(Instant::now());
+        frame.as_ref().map(VizSidFrame::from)
+    }
+
+    /// Up to `count` frames (at most about 10 s), oldest first, ending
+    /// with the one being heard now.
+    pub fn viz_history(&self, count: u32) -> Vec<VizSidFrame> {
+        let frames = viz::lock(&self.driver.viz).history(Instant::now(), count as usize);
+        frames.iter().map(VizSidFrame::from).collect()
+    }
+
+    /// The last `count` samples (at most 2048) of each of `chip`'s voices,
+    /// up to what's being heard now. Fewer at the start of a subtune; empty
+    /// while stopped or for a chip the tune doesn't have.
+    pub fn viz_scope(&self, chip: u32, count: u32) -> VizScope {
+        let feed = viz::lock(&self.driver.viz);
+        let voices = feed.scope(Instant::now(), chip as usize, count as usize);
+        VizScope {
+            sample_rate: feed.sample_rate(),
+            voices: voices.into(),
         }
+    }
+
+    pub fn viz_stats(&self) -> VizStats {
+        let feed = viz::lock(&self.driver.viz);
+        let stats = feed.stats();
+        VizStats {
+            frames: stats.frames,
+            shadow_micros: stats.shadow_micros,
+            buffer_ms: feed.buffered(Instant::now()).as_secs_f32() * 1000.0,
+            output_latency_ms: feed.output_latency().as_millis() as u32,
+            offset_ms: feed.offset_ms(),
+        }
+    }
+
+    /// The output device's latency, which Rust can't see: the app reads it
+    /// from Core Audio and sets it whenever the default output changes.
+    pub fn set_viz_output_latency_ms(&self, ms: u32) {
+        viz::lock(&self.driver.viz).set_output_latency(Duration::from_millis(ms.into()));
+    }
+
+    /// Fine-tuning on top of the modelled latency; positive shows frames
+    /// later.
+    pub fn set_viz_offset_ms(&self, ms: i32) {
+        viz::lock(&self.driver.viz).set_offset_ms(ms);
     }
 
     /// Save the playlist and stop the engine. Blocks for at most about a
@@ -523,7 +631,10 @@ impl PlayerCore {
     /// Tunes in all of HVSC whose header's author contains one of `names`
     /// (ignoring case and accents), with that author; the caller narrows
     /// them to exact credits. The first call reads every tune's header.
-    pub async fn hvsc_tunes_crediting(&self, names: Vec<String>) -> Result<Vec<HvscTuneItem>, HvscError> {
+    pub async fn hvsc_tunes_crediting(
+        &self,
+        names: Vec<String>,
+    ) -> Result<Vec<HvscTuneItem>, HvscError> {
         let hits = self.library.crediting(names).await?;
         Ok(hits
             .into_iter()
@@ -831,6 +942,75 @@ impl From<&TrackInfo> for TrackDetails {
             sid_type: t.sid_type.clone(),
             sid_model: t.sid_model,
             md5: t.md5.clone(),
+        }
+    }
+}
+
+impl From<&viz::Frame> for VizSidFrame {
+    fn from(f: &viz::Frame) -> Self {
+        let clock = viz::clock_hz(f.is_pal);
+        VizSidFrame {
+            index: f.index,
+            is_pal: f.is_pal,
+            chips: f.chips[..f.num_chips]
+                .iter()
+                .map(|chip| VizChip::decode(chip, clock))
+                .collect(),
+        }
+    }
+}
+
+impl VizChip {
+    fn decode(chip: &viz::ChipState, clock: f64) -> Self {
+        let r = &chip.regs;
+        VizChip {
+            voices: (0..3)
+                .map(|v| VizVoice::decode(&r[v * 7..v * 7 + 7], chip.env[v], clock))
+                .collect(),
+            registers: r.to_vec(),
+            cutoff: (r[0x16] as u16) << 3 | (r[0x15] & 0x07) as u16,
+            resonance: r[0x17] >> 4,
+            filter_routing: r[0x17] & 0x0F,
+            filter_mode: r[0x18] >> 4,
+            volume: r[0x18] & 0x0F,
+        }
+    }
+}
+
+const NOTE_NAMES: [&str; 12] = [
+    "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+];
+
+impl VizVoice {
+    /// `r`: the voice's seven registers.
+    fn decode(r: &[u8], env: u8, clock: f64) -> Self {
+        let freq_reg = r[0] as u16 | (r[1] as u16) << 8;
+        let hz = freq_reg as f64 * clock / 16_777_216.0;
+        let midi = if hz > 0.0 {
+            69.0 + 12.0 * (hz / 440.0).log2()
+        } else {
+            0.0
+        };
+        let nearest = midi.round() as i32;
+        let note = (hz > 0.0 && (0..=127).contains(&nearest))
+            .then(|| format!("{}{}", NOTE_NAMES[nearest as usize % 12], nearest / 12 - 1));
+        let control = r[4];
+        VizVoice {
+            freq_reg,
+            hz,
+            midi,
+            note,
+            gate: control & 0x01 != 0,
+            waveform: control >> 4,
+            test: control & 0x08 != 0,
+            ring: control & 0x04 != 0,
+            sync: control & 0x02 != 0,
+            pulse_width: r[2] as u16 | ((r[3] & 0x0F) as u16) << 8,
+            attack: r[5] >> 4,
+            decay: r[5] & 0x0F,
+            sustain: r[6] >> 4,
+            release: r[6] & 0x0F,
+            env_level: env as f32 / 255.0,
         }
     }
 }

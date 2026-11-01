@@ -72,6 +72,7 @@ mod driver;
 mod ffi;
 mod library;
 pub(crate) mod session;
+mod viz;
 
 pub use ffi::*;
 

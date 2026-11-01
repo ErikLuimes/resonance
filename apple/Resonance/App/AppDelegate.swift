@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let library: LibraryStore
     private var nowPlaying: NowPlayingController?
     private var activity: PlaybackActivity?
+    private var outputLatency: OutputLatencyMonitor?
 
     override init() {
         // Under unit tests the app is only a host: no audio, no saved session.
@@ -22,6 +23,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !Self.isRunningTests else { return }
         nowPlaying = NowPlayingController(store: store)
         activity = PlaybackActivity(store: store)
+        outputLatency = OutputLatencyMonitor { [store] latency in
+            store.visualizer.setOutputLatency(latency)
+        }
     }
 
     /// Finder "Open With", double-clicked .sid files, Dock drops.

@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SID particle sphere</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#a27cf6}a:hover{color:#c4adff}
+</style>
+</helmet>
+<div style="width: 1040px; height: 640px; box-sizing: border-box; position: relative; background: #040405; border-radius: 20px; overflow: hidden; font-family: 'JetBrains Mono', ui-monospace, monospace; color: #e8e8ec">
+<canvas ref="{{cvRef}}" width="1040" height="640" style="position: absolute; inset: 0; width: 100%; height: 100%; display: block" aria-hidden="true"></canvas>
+<div style="position: absolute; top: 20px; left: 24px; right: 24px; display: flex; justify-content: space-between; align-items: center">
+<span style="font-size: 12px; letter-spacing: 0.14em; color: #9a9aa3">PARTICLES</span>
+<button onClick="{{toggle}}" style="font-family: inherit; font-size: 12px; color: #d8d8de; background: rgba(26,26,30,0.7); border: 1px solid #2a2a30; border-radius: 8px; padding: 0 14px; height: 32px; cursor: pointer">{{runLabel}}</button>
+</div>
+<div style="position: absolute; left: 0; right: 0; bottom: 24px; display: flex; justify-content: center; gap: 12px">
+<sc-for list="{{voices}}" as="v" hint-placeholder-count="3">
+<div style="display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 999px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08)">
+<span style="width: 8px; height: 8px; border-radius: 50%; background: {{v.dot}}"></span>
+<span style="font-size: 16px; font-weight: 700; color: {{v.noteColor}}; width: 40px">{{v.note}}</span>
+<span style="font-size: 10px; letter-spacing: 0.1em; color: #8a8a93">{{v.short}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1040,"height":640}}'>
+class Component extends DCLogic {
+  constructor(...a) {
+    super(...a);
+    this.state = { step: 0, run: true };
+    this.time = 0; this.last = 0; this.sm = [0, 0, 0]; this.hit = [-9, -9, -9]; this.seenStep = -1;
+    this.cvRef = (el) => { this.cv = el; };
+  }
+  data() {
+    return [
+      { short: 'PUL', wave: 'PULSE', rgb: [79, 209, 197], pole: [0, 1, 0], seq: [36,36,48,36,43,43,55,43,46,46,58,46,41,41,53,41], env: [1,0.85,0.75,0.7] },
+      { short: 'SAW', wave: 'SAWTOOTH', rgb: [162, 124, 246], pole: [0.87, -0.5, 0], seq: [63,63,65,67,70,70,67,65,63,62,63,65,67,null,63,62], env: [0.6,1,0.92,0.86] },
+      { short: 'NOI', wave: 'NOISE', rgb: [242, 161, 84], pole: [-0.87, -0.5, 0], seq: [86,null,74,null,86,86,74,null,86,null,74,null,86,null,74,74], env: [1,0.45,0.18,0.05] }
+    ];
+  }
+  nn(m) { const N = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']; return m == null ? '—' : N[m % 12] + (Math.floor(m / 12) - 1); }
+  rnd(i) { const x = Math.sin(i * 12.9898) * 43758.5453; return x - Math.floor(x); }
+  componentDidMount() {
+    this.V = this.data();
+    const N = 2700, P = [], ga = Math.PI * (3 - Math.sqrt(5));
+    for (let i = 0; i < N; i++) {
+      const y = 1 - (i / (N - 1)) * 2, r = Math.sqrt(1 - y * y), th = ga * i;
+      const x = Math.cos(th) * r, z = Math.sin(th) * r, vi = i % 3, pl = this.V[vi].pole;
+      P.push({ x, y, z, vi, lat: Math.asin(y), ang: Math.acos(Math.max(-1, Math.min(1, x * pl[0] + y * pl[1] + z * pl[2]))), seed: this.rnd(i + 1) });
+    }
+    this.P = P;
+    const loop = (now) => {
+      this.raf = requestAnimationFrame(loop);
+      const dt = this.last ? Math.min(50, now - this.last) : 16; this.last = now;
+      if (this.state.run) this.time += dt;
+      this.draw();
+    };
+    this.raf = requestAnimationFrame(loop);
+  }
+  componentWillUnmount() { cancelAnimationFrame(this.raf); }
+  draw() {
+    const cv = this.cv; if (!cv || !this.P) return;
+    const dpr = window.devicePixelRatio || 1;
+    if (cv.width !== 1040 * dpr) { cv.width = 1040 * dpr; cv.height = 640 * dpr; }
+    const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const tf = this.time / 50, t = this.time / 1000, step = Math.floor(tf / 4);
+    if (step !== this.seenStep) {
+      this.seenStep = step;
+      this.V.forEach((v, i) => { if (v.seq[step % 16] != null) this.hit[i] = t; });
+      if (step !== this.state.step) this.setState({ step });
+    }
+    const lv = this.V.map((v, i) => {
+      const m = v.seq[step % 16], a = tf - step * 4, k = Math.min(3, Math.floor(a));
+      const target = m == null ? 0.02 : v.env[k] + (v.env[Math.min(3, k + 1)] - v.env[k]) * (a - k);
+      this.sm[i] += (target - this.sm[i]) * 0.2;
+      return { lvl: this.sm[i], freq: m == null ? 3 : 2 + (m - 30) / 9 };
+    });
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#040405'; ctx.fillRect(0, 0, 1040, 640);
+    const glow = ctx.createRadialGradient(520, 300, 0, 520, 300, 360);
+    glow.addColorStop(0, 'rgba(120,110,200,0.10)'); glow.addColorStop(1, 'rgba(4,4,5,0)');
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, 1040, 640);
+    ctx.globalCompositeOperation = 'lighter';
+    const ry = t * 0.22, rx = 0.38 + Math.sin(t * 0.3) * 0.08;
+    const cyR = Math.cos(ry), syR = Math.sin(ry), cxR = Math.cos(rx), sxR = Math.sin(rx);
+    const R = 205, cam = 700, cx = 520, cy = 300, nf = Math.floor(tf);
+    for (const p of this.P) {
+      const v = this.V[p.vi], L = lv[p.vi], since = t - this.hit[p.vi];
+      let d = L.lvl * 0.12 * Math.sin(L.freq * p.lat * 3 + t * (1.5 + p.vi * 0.7));
+      if (v.wave === 'NOISE') d += L.lvl * (this.rnd(nf * 7 + p.seed * 1000) - 0.5) * 0.25;
+      const w = p.ang - since * 2.4;
+      d += Math.exp(-(w * w) / 0.035) * 0.32 * Math.exp(-since * 1.4);
+      const s = R * (1 + d);
+      let x = p.x * s, y = p.y * s, z = p.z * s;
+      const x1 = x * cyR + z * syR, z1 = -x * syR + z * cyR;
+      const y2 = y * cxR - z1 * sxR, z2 = y * sxR + z1 * cxR;
+      const sc = cam / (cam + z2), px = cx + x1 * sc, py = cy + y2 * sc;
+      const depth = (1 - z2 / R) * 0.5;
+      const a = Math.max(0.06, Math.min(1, 0.12 + depth * 0.55 + L.lvl * 0.45 * depth));
+      const sz = 0.7 + depth * 1.6 + L.lvl * 0.8;
+      const [r, g, b] = v.rgb;
+      ctx.fillStyle = `rgba(${r},${g},${b},${a.toFixed(3)})`;
+      ctx.fillRect(px - sz / 2, py - sz / 2, sz, sz);
+    }
+  }
+  renderVals() {
+    const step = this.state.step;
+    const voices = this.data().map((v) => {
+      const m = v.seq[step % 16], c = `rgb(${v.rgb.join(',')})`;
+      return { note: this.nn(m), short: v.short, dot: m == null ? '#3a3a40' : c, noteColor: m == null ? '#4a4a51' : c };
+    });
+    return { cvRef: this.cvRef, voices, toggle: () => this.setState({ run: !this.state.run }), runLabel: this.state.run ? 'Pause' : 'Play' };
+  }
+}
+</script>
+</body>
+</html>

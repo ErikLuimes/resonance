@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SID sweeps</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#a27cf6}a:hover{color:#c4adff}
+</style>
+</helmet>
+<div style="width: 1040px; height: 640px; box-sizing: border-box; padding: 24px; background: #1c1c20; font-family: 'JetBrains Mono', ui-monospace, monospace; color: #e8e8ec">
+<div style="height: 100%; box-sizing: border-box; background: #0b0b0c; border-radius: 20px; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<div style="display: flex; align-items: center; gap: 12px">
+<span style="font-size: 12px; letter-spacing: 0.14em; color: #9a9aa3">SWEEPS</span>
+<span style="font-size: 11px; color: #6f6f78">pulse width · filter · gates · last 8 s</span>
+</div>
+<button onClick="{{toggle}}" style="font-family: inherit; font-size: 12px; color: #d8d8de; background: #1a1a1e; border: 1px solid #2a2a30; border-radius: 8px; padding: 0 14px; height: 32px; cursor: pointer">{{runLabel}}</button>
+</div>
+
+<div style="flex: 1.1; display: flex; gap: 14px; background: #111113; border-radius: 12px; padding: 12px 14px">
+<div style="width: 150px; display: flex; flex-direction: column; justify-content: space-between">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 11px; letter-spacing: 0.1em; color: #a3a3ac">PULSE WIDTH</span>
+<span style="font-size: 10px; color: #6f6f78">$D402 · 12-bit</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 26px; font-weight: 700; color: #4fd1c5">{{pwHex}}</span>
+<span style="font-size: 11px; color: #8a8a93">V1 · {{pwPct}}% duty</span>
+<span style="font-size: 10px; color: #6a6a73">V2 saw · V3 noise: unused</span>
+</div>
+</div>
+<div style="flex: 1; position: relative; background: #070708; border-radius: 8px; overflow: hidden">
+<svg viewBox="0 0 860 140" preserveAspectRatio="none" style="position: absolute; inset: 0; width: 100%; height: 100%" aria-hidden="true">
+<line x1="0" y1="70" x2="860" y2="70" stroke="#ffffff" stroke-opacity="0.08" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"></line>
+<path d="{{pwArea}}" fill="#4fd1c5" fill-opacity="0.12"></path>
+<path d="{{pwLine}}" fill="none" stroke="#4fd1c5" stroke-width="2" vector-effect="non-scaling-stroke"></path>
+<line x1="858" y1="0" x2="858" y2="140" stroke="#ffffff" stroke-opacity="0.3" vector-effect="non-scaling-stroke"></line>
+</svg>
+<span style="position: absolute; left: 8px; top: 6px; font-size: 9px; color: #5f5f68">FFF</span>
+<span style="position: absolute; left: 8px; bottom: 6px; font-size: 9px; color: #5f5f68">000</span>
+</div>
+</div>
+
+<div style="flex: 1.1; display: flex; gap: 14px; background: #111113; border-radius: 12px; padding: 12px 14px">
+<div style="width: 150px; display: flex; flex-direction: column; justify-content: space-between">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 11px; letter-spacing: 0.1em; color: #a3a3ac">FILTER CUTOFF</span>
+<span style="font-size: 10px; color: #6f6f78">$D415 · 11-bit · LP</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 26px; font-weight: 700; color: #c4adff">{{cutHex}}</span>
+<span style="font-size: 11px; color: #8a8a93">res {{resHex}} · V1 V2 routed</span>
+</div>
+</div>
+<div style="flex: 1; position: relative; background: #070708; border-radius: 8px; overflow: hidden">
+<svg viewBox="0 0 860 140" preserveAspectRatio="none" style="position: absolute; inset: 0; width: 100%; height: 100%" aria-hidden="true">
+<defs>
+<linearGradient id="cutGrad" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#a27cf6" stop-opacity="0.45"></stop>
+<stop offset="1" stop-color="#4fd1c5" stop-opacity="0.05"></stop>
+</linearGradient>
+</defs>
+<path d="{{cutArea}}" fill="url(#cutGrad)"></path>
+<path d="{{cutLine}}" fill="none" stroke="#c4adff" stroke-width="2" vector-effect="non-scaling-stroke"></path>
+<path d="{{resLine}}" fill="none" stroke="#e8e8ec" stroke-opacity="0.55" stroke-width="1" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"></path>
+<line x1="858" y1="0" x2="858" y2="140" stroke="#ffffff" stroke-opacity="0.3" vector-effect="non-scaling-stroke"></line>
+</svg>
+<span style="position: absolute; right: 10px; top: 6px; font-size: 9px; color: #7a7a83">- - resonance</span>
+</div>
+</div>
+
+<div style="flex: 0.8; display: flex; gap: 14px; background: #111113; border-radius: 12px; padding: 12px 14px">
+<div style="width: 150px; display: flex; flex-direction: column; justify-content: space-between">
+<span style="font-size: 11px; letter-spacing: 0.1em; color: #a3a3ac">GATES</span>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<sc-for list="{{voices}}" as="v" hint-placeholder-count="3">
+<div style="display: flex; align-items: center; gap: 8px">
+<span style="width: 7px; height: 7px; border-radius: 50%; background: {{v.dot}}"></span>
+<span style="font-size: 11px; color: #9a9aa3">{{v.id}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="flex: 1; position: relative; background: #070708; border-radius: 8px; overflow: hidden">
+<svg viewBox="0 0 860 90" preserveAspectRatio="none" style="position: absolute; inset: 0; width: 100%; height: 100%" aria-hidden="true">
+<sc-for list="{{voices}}" as="v" hint-placeholder-count="3">
+<path d="{{v.gates}}" fill="{{v.color}}" fill-opacity="0.85"></path>
+</sc-for>
+<line x1="858" y1="0" x2="858" y2="90" stroke="#ffffff" stroke-opacity="0.3" vector-effect="non-scaling-stroke"></line>
+</svg>
+</div>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1040,"height":640}}'>
+class Component extends DCLogic {
+  constructor(...a) { super(...a); this.state = { t: 200, run: true }; }
+  componentDidMount() { this.iv = setInterval(() => { if (this.state.run) this.setState({ t: this.state.t + 1 }); }, 50); }
+  componentWillUnmount() { clearInterval(this.iv); }
+  data() {
+    return [
+      { id: 'V1', color: '#4fd1c5', seq: [36,36,48,36,43,43,55,43,46,46,58,46,41,41,53,41] },
+      { id: 'V2', color: '#a27cf6', seq: [63,63,65,67,70,70,67,65,63,62,63,65,67,null,63,62] },
+      { id: 'V3', color: '#f2a154', seq: [86,null,74,null,86,86,74,null,86,null,74,null,86,null,74,74] }
+    ];
+  }
+  hex(n, w) { return n.toString(16).toUpperCase().padStart(w, '0'); }
+  pw1(t) { return 0.1 + 0.4 * (0.5 + 0.5 * Math.sin(t * 0.03)); }
+  cutoff(t) { const age = t % 4; return Math.round(0x200 + (0.5 + 0.5 * Math.sin(t * 0.0125)) * 0x500 + 0x100 * Math.exp(-age)); }
+  res(t) { return Math.floor(t / 128) % 2 ? 0xC : 0xA; }
+  gate(i, s, age, m) { return i === 0 ? age !== 3 : i === 1 ? m != null : m != null && age < 2; }
+  renderVals() {
+    const t = this.state.t, H = 160, W = 858, dx = W / (H - 1), V = this.data();
+    let pwL = '', cutL = '', resL = '';
+    const gates = ['', '', ''];
+    for (let k = 0; k < H; k++) {
+      const tk = Math.max(0, t - H + 1 + k), x = (k * dx).toFixed(1);
+      const pwY = (135 - this.pw1(tk) * 130).toFixed(1);
+      const cY = (135 - (this.cutoff(tk) / 2047) * 130).toFixed(1);
+      const rY = (135 - (this.res(tk) / 15) * 130).toFixed(1);
+      pwL += (k ? 'L' : 'M') + x + ' ' + pwY + ' ';
+      cutL += (k ? 'L' : 'M') + x + ' ' + cY + ' ';
+      resL += (k ? 'L' : 'M') + x + ' ' + rY + ' ';
+      const s = Math.floor(tk / 4) % 16, age = tk % 4;
+      V.forEach((v, i) => {
+        if (this.gate(i, s, age, v.seq[s])) {
+          const y = 8 + i * 27;
+          gates[i] += 'M' + x + ' ' + y + 'h' + (dx + 0.4).toFixed(2) + 'v18h-' + (dx + 0.4).toFixed(2) + 'Z';
+        }
+      });
+    }
+    const s = Math.floor(t / 4) % 16, age = t % 4, pw = Math.round(this.pw1(t) * 4095), cut = this.cutoff(t);
+    const voices = V.map((v, i) => ({ id: v.id, color: v.color, gates: gates[i] || 'M0 0', dot: this.gate(i, s, age, v.seq[s]) ? v.color : '#33333a' }));
+    return {
+      voices, pwLine: pwL, pwArea: pwL + 'L' + W + ' 140 L0 140 Z', cutLine: cutL, cutArea: cutL + 'L' + W + ' 140 L0 140 Z', resLine: resL,
+      pwHex: '$' + this.hex(pw, 3), pwPct: Math.round((pw / 4095) * 100), cutHex: '$' + this.hex(cut, 3), resHex: this.hex(this.res(t), 1),
+      toggle: () => this.setState({ run: !this.state.run }), runLabel: this.state.run ? 'Pause' : 'Play'
+    };
+  }
+}
+</script>
+</body>
+</html>

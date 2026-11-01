@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SID pitch trail</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#a27cf6}a:hover{color:#c4adff}
+</style>
+</helmet>
+<div style="width: 1040px; height: 460px; box-sizing: border-box; padding: 24px; background: #1c1c20; font-family: 'JetBrains Mono', ui-monospace, monospace; color: #e8e8ec">
+<div style="height: 100%; box-sizing: border-box; background: #0b0b0c; border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<div style="display: flex; align-items: center; gap: 12px">
+<span style="font-size: 12px; letter-spacing: 0.14em; color: #9a9aa3">PITCH TRAIL</span>
+<span style="font-size: 11px; color: #6f6f78">last 64 frames · scrolling</span>
+</div>
+<button onClick="{{toggle}}" style="font-family: inherit; font-size: 12px; color: #d8d8de; background: #1a1a1e; border: 1px solid #2a2a30; border-radius: 8px; padding: 0 14px; height: 32px; cursor: pointer">{{runLabel}}</button>
+</div>
+<div style="display: flex; gap: 10px; height: 270px">
+<div style="width: 34px; position: relative">
+<sc-for list="{{octs}}" as="o" hint-placeholder-count="5">
+<span style="position: absolute; right: 0; top: {{o.top}}%; transform: translateY(-50%); font-size: 10px; color: #77777f">{{o.label}}</span>
+</sc-for>
+</div>
+<div style="flex: 1; position: relative; background: #060607; border-radius: 12px; overflow: hidden">
+<svg viewBox="0 0 900 270" preserveAspectRatio="none" style="position: absolute; inset: 0; width: 100%; height: 100%" aria-hidden="true">
+<sc-for list="{{octs}}" as="o" hint-placeholder-count="5">
+<line x1="0" y1="{{o.y}}" x2="900" y2="{{o.y}}" stroke="#ffffff" stroke-opacity="0.07" vector-effect="non-scaling-stroke"></line>
+</sc-for>
+<sc-for list="{{voices}}" as="v" hint-placeholder-count="3">
+<path d="{{v.d}}" fill="none" stroke="{{v.color}}" stroke-opacity="0.22" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
+<path d="{{v.d}}" fill="none" stroke="{{v.color}}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
+</sc-for>
+</svg>
+<sc-for list="{{voices}}" as="v" hint-placeholder-count="3">
+<sc-if value="{{v.gate}}" hint-placeholder-val="{{true}}">
+<span style="position: absolute; right: 6px; top: {{v.headTop}}%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: {{v.color}}; box-shadow: 0 0 12px {{v.color}}"></span>
+</sc-if>
+</sc-for>
+<div style="position: absolute; left: 0; top: 0; bottom: 0; width: 160px; background: linear-gradient(90deg, #060607, rgba(6,6,7,0))"></div>
+<div style="position: absolute; right: 12px; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.18)"></div>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+<sc-for list="{{voices}}" as="v" hint-placeholder-count="3">
+<div style="display: flex; align-items: center; gap: 12px; background: #121214; border-radius: 10px; padding: 10px 14px">
+<span style="width: 4px; height: 32px; border-radius: 2px; background: {{v.color}}"></span>
+<div style="display: flex; flex-direction: column; gap: 2px; flex: 1">
+<span style="font-size: 10px; letter-spacing: 0.12em; color: #8f8f98">{{v.name}}</span>
+<span style="font-size: 11px; color: #a3a3ac">{{v.short}}</span>
+</div>
+<span style="font-size: 24px; font-weight: 700; color: {{v.color}}">{{v.note}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1040,"height":460}}'>
+class Component extends DCLogic {
+  constructor(...a) { super(...a); this.state = { t: 80, run: true }; }
+  componentDidMount() { this.iv = setInterval(() => { if (this.state.run) this.setState({ t: this.state.t + 1 }); }, 50); }
+  componentWillUnmount() { clearInterval(this.iv); }
+  data() {
+    return [
+      { name: 'VOICE 1', short: 'PULSE', color: '#4fd1c5', seq: [36,36,48,36,43,43,55,43,46,46,58,46,41,41,53,41] },
+      { name: 'VOICE 2', short: 'SAW', color: '#a27cf6', seq: [63,63,65,67,70,70,67,65,63,62,63,65,67,null,63,62] },
+      { name: 'VOICE 3', short: 'NOISE', color: '#f2a154', seq: [86,null,74,null,86,86,74,null,86,null,74,null,86,null,74,74] }
+    ];
+  }
+  nn(m) { const N = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']; return m == null ? '—' : N[m % 12] + (Math.floor(m / 12) - 1); }
+  y(m) { return 270 - ((m - 30) / 64) * 270; }
+  renderVals() {
+    const t = this.state.t, K = 64, W = 900;
+    const octs = [84, 72, 60, 48, 36].map((m) => ({ label: 'C' + (m / 12 - 1), y: this.y(m).toFixed(1), top: ((this.y(m) / 270) * 100).toFixed(2) }));
+    const voices = this.data().map((v) => {
+      let d = '', prev = null, last = null;
+      for (let k = 0; k < K; k++) {
+        const tk = t - K + 1 + k;
+        const m = v.seq[Math.floor(tk / 4) % 16];
+        const x = ((k / (K - 1)) * (W - 18)).toFixed(1);
+        if (m != null) {
+          const yy = this.y(m).toFixed(1);
+          if (prev == null) d += 'M' + x + ' ' + yy + ' ';
+          else if (prev !== m) d += 'L' + x + ' ' + this.y(prev).toFixed(1) + ' L' + x + ' ' + yy + ' ';
+          else d += 'L' + x + ' ' + yy + ' ';
+        }
+        prev = m; last = m;
+      }
+      return {
+        name: v.name, short: v.short, color: v.color, d: d || 'M0 0',
+        gate: last != null, note: this.nn(last),
+        headTop: last != null ? ((this.y(last) / 270) * 100).toFixed(2) : 0
+      };
+    });
+    return { octs, voices, toggle: () => this.setState({ run: !this.state.run }), runLabel: this.state.run ? 'Pause' : 'Play' };
+  }
+}
+</script>
+</body>
+</html>

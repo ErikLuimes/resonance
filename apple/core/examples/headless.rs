@@ -74,16 +74,21 @@ fn main() {
         }
         if s.state == PlaybackState::Playing {
             started = true;
-            let v = core.viz_frame();
-            let bars: String = v
-                .voice_levels
+            let bars: String = core
+                .viz_latest()
                 .iter()
-                .map(|l| {
+                .flat_map(|f| &f.chips)
+                .flat_map(|c| &c.voices)
+                .map(|v| {
                     [' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█']
-                        [(l.clamp(0.0, 1.0) * 8.0) as usize]
+                        [(v.env_level.clamp(0.0, 1.0) * 8.0) as usize]
                 })
                 .collect();
-            print!("\r  {:>5.1}s |{bars}|   ", s.elapsed_ms as f64 / 1000.0);
+            let shadow = core.viz_stats().shadow_micros;
+            print!(
+                "\r  {:>5.1}s |{bars}|  shadow {shadow:>4.0} µs/frame   ",
+                s.elapsed_ms as f64 / 1000.0
+            );
             use std::io::Write;
             let _ = std::io::stdout().flush();
         } else if started && s.state == PlaybackState::Stopped {

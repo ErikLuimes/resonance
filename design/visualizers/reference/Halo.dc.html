@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SID halo</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#a27cf6}a:hover{color:#c4adff}
+</style>
+</helmet>
+<div style="width: 1040px; height: 640px; box-sizing: border-box; position: relative; background: #050506; border-radius: 20px; overflow: hidden; font-family: 'JetBrains Mono', ui-monospace, monospace; color: #e8e8ec">
+<canvas ref="{{cvRef}}" width="1040" height="640" style="position: absolute; inset: 0; width: 100%; height: 100%; display: block" aria-hidden="true"></canvas>
+<div style="position: absolute; top: 20px; left: 24px; right: 24px; display: flex; justify-content: space-between; align-items: center">
+<span style="font-size: 12px; letter-spacing: 0.14em; color: #9a9aa3">HALO</span>
+<button onClick="{{toggle}}" style="font-family: inherit; font-size: 12px; color: #d8d8de; background: rgba(26,26,30,0.7); border: 1px solid #2a2a30; border-radius: 8px; padding: 0 14px; height: 32px; cursor: pointer">{{runLabel}}</button>
+</div>
+<div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 6px">
+<sc-for list="{{voices}}" as="v" hint-placeholder-count="3">
+<div style="display: flex; align-items: baseline; gap: 10px">
+<span style="font-size: 22px; font-weight: 700; color: {{v.noteColor}}; width: 52px; text-align: right">{{v.note}}</span>
+<span style="font-size: 10px; letter-spacing: 0.1em; color: #8a8a93; width: 30px">{{v.short}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1040,"height":640}}'>
+class Component extends DCLogic {
+  constructor(...a) {
+    super(...a);
+    this.state = { step: 0, run: true };
+    this.time = 0; this.last = 0; this.sm = [0, 0, 0];
+    this.cvRef = (el) => { this.cv = el; };
+  }
+  data() {
+    return [
+      { short: 'PUL', wave: 'PULSE', rgb: [79, 209, 197], pw: 0.42, seq: [36,36,48,36,43,43,55,43,46,46,58,46,41,41,53,41], env: [1,0.85,0.75,0.7] },
+      { short: 'SAW', wave: 'SAWTOOTH', rgb: [162, 124, 246], pw: 0.5, seq: [63,63,65,67,70,70,67,65,63,62,63,65,67,null,63,62], env: [0.6,1,0.92,0.86] },
+      { short: 'NOI', wave: 'NOISE', rgb: [242, 161, 84], pw: 0.5, seq: [86,null,74,null,86,86,74,null,86,null,74,null,86,null,74,74], env: [1,0.45,0.18,0.05] }
+    ];
+  }
+  nn(m) { const N = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']; return m == null ? '—' : N[m % 12] + (Math.floor(m / 12) - 1); }
+  rnd(i) { const x = Math.sin(i * 12.9898) * 43758.5453; return x - Math.floor(x); }
+  componentDidMount() {
+    this.V = this.data();
+    const loop = (now) => {
+      this.raf = requestAnimationFrame(loop);
+      const dt = this.last ? Math.min(50, now - this.last) : 16; this.last = now;
+      if (this.state.run) this.time += dt;
+      this.draw();
+    };
+    this.raf = requestAnimationFrame(loop);
+  }
+  componentWillUnmount() { cancelAnimationFrame(this.raf); }
+  // spectrum-shaped radius offset for a voice at angle th
+  shape(v, i, th, t, tf) {
+    let s = 0;
+    if (v.wave === 'SAWTOOTH') { for (let k = 2; k <= 10; k++) s += Math.sin(k * th + t * (0.6 + k * 0.08)) / k; }
+    else if (v.wave === 'PULSE') { for (let k = 3; k <= 13; k += 2) s += Math.sin(k * th - t * (0.4 + k * 0.05)) * Math.abs(Math.sin(Math.PI * k * v.pw)) / k * 1.6; }
+    else { const f = Math.floor(tf); for (let k = 9; k <= 21; k += 3) s += Math.sin(k * th + this.rnd(f * 31 + k) * 6.28) / 3.2; }
+    return s;
+  }
+  draw() {
+    const cv = this.cv; if (!cv) return;
+    const dpr = window.devicePixelRatio || 1;
+    if (cv.width !== 1040 * dpr) { cv.width = 1040 * dpr; cv.height = 640 * dpr; }
+    const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const tf = this.time / 50, t = this.time / 1000, step = Math.floor(tf / 4);
+    if (step !== this.state.step) this.setState({ step });
+    const cx = 520, cy = 330;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'rgba(5,5,6,0.32)'; ctx.fillRect(0, 0, 1040, 640);
+    ctx.globalCompositeOperation = 'lighter';
+    this.V.forEach((v, i) => {
+      const m = v.seq[step % 16], a = tf - step * 4, k = Math.min(3, Math.floor(a));
+      const target = m == null ? 0.03 : v.env[k] + (v.env[Math.min(3, k + 1)] - v.env[k]) * (a - k);
+      this.sm[i] += (target - this.sm[i]) * 0.2;
+      const lvl = this.sm[i], [r, g, b] = v.rgb, R = 150 + i * 16, amp = 26 + lvl * 70;
+      const rot = t * (0.12 + (m || 40) / 900) * (i % 2 ? -1 : 1);
+      // soft glowing blob
+      ctx.beginPath();
+      for (let j = 0; j <= 200; j++) {
+        const th = (j / 200) * Math.PI * 2;
+        const rr = R + lvl * amp * this.shape(v, i, th + rot, t, tf) + lvl * 18;
+        const x = cx + Math.cos(th) * rr, y = cy + Math.sin(th) * rr;
+        j ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.closePath();
+      const gr = ctx.createRadialGradient(cx, cy, R * 0.55, cx, cy, R + 90);
+      gr.addColorStop(0, `rgba(${r},${g},${b},0)`);
+      gr.addColorStop(0.7, `rgba(${r},${g},${b},${0.08 + lvl * 0.16})`);
+      gr.addColorStop(1, `rgba(${r},${g},${b},0)`);
+      ctx.fillStyle = gr; ctx.fill();
+      ctx.shadowBlur = 24; ctx.shadowColor = `rgba(${r},${g},${b},0.9)`;
+      ctx.strokeStyle = `rgba(${r},${g},${b},${0.35 + lvl * 0.6})`; ctx.lineWidth = 1.6; ctx.stroke();
+      ctx.shadowBlur = 0;
+    });
+    // dark core so the notes read
+    ctx.globalCompositeOperation = 'source-over';
+    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, 120);
+    core.addColorStop(0, 'rgba(5,5,6,0.95)'); core.addColorStop(0.75, 'rgba(5,5,6,0.85)'); core.addColorStop(1, 'rgba(5,5,6,0)');
+    ctx.fillStyle = core; ctx.beginPath(); ctx.arc(cx, cy, 120, 0, Math.PI * 2); ctx.fill();
+  }
+  renderVals() {
+    const step = this.state.step;
+    const voices = this.data().map((v) => {
+      const m = v.seq[step % 16];
+      return { note: this.nn(m), short: v.short, noteColor: m == null ? '#4a4a51' : `rgb(${v.rgb.join(',')})` };
+    });
+    return { cvRef: this.cvRef, voices, toggle: () => this.setState({ run: !this.state.run }), runLabel: this.state.run ? 'Pause' : 'Play' };
+  }
+}
+</script>
+</body>
+</html>

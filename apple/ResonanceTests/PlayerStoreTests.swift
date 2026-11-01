@@ -102,7 +102,12 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
             return _items
         }
     }
-    func vizFrame() -> VizFrame { VizFrame(seq: 0, voiceLevels: [], sidRegs: Data(), numSids: 1) }
+    func vizLatest() -> VizSidFrame? { nil }
+    func vizHistory(count: UInt32) -> [VizSidFrame] { [] }
+    func vizScope(chip: UInt32, count: UInt32) -> VizScope { VizScope(sampleRate: 44_784, voices: [[], [], []]) }
+    func vizStats() -> VizStats { VizStats(frames: 0, shadowMicros: 0, bufferMs: 100, outputLatencyMs: 12, offsetMs: 0) }
+    func setVizOutputLatencyMs(ms: UInt32) {}
+    func setVizOffsetMs(ms: Int32) {}
 
     func addPaths(paths: [String], playFirst: Bool) { record("add \(paths) \(playFirst)") }
     func clear() { record("clear") }
@@ -555,22 +560,35 @@ struct StilCoverTests {
     }
 }
 
-struct SIDVoiceTests {
-    @Test func decodesConcertA() {
-        // 440 Hz on a PAL machine: 440 × 16777216 / 985248 ≈ 7493.
-        #expect(SIDVoice.noteName(frequencyRegister: 7493, clock: 985_248) == "A4")
-        #expect(SIDVoice.noteName(frequencyRegister: 0, clock: 985_248) == nil)
+struct VisualizerFeedTests {
+    // Frequencies, notes and the rest of the register decoding are tested
+    // in the core (core/src/viz/tests.rs).
+
+    private func voice(waveform: UInt8) -> VizVoice {
+        VizVoice(
+            freqReg: 7493, hz: 440, midi: 69, note: "A4", gate: true, waveform: waveform,
+            test: false, ring: false, sync: false, pulseWidth: 0x800,
+            attack: 0, decay: 0, sustain: 15, release: 0, envLevel: 1
+        )
     }
 
-    @Test func decodesWaveformsAndGate() {
-        var regs = [UInt8](repeating: 0, count: 32)
-        regs[0] = 0x45; regs[1] = 0x1D; regs[4] = 0x41   // voice 1: A4, pulse, gate on
-        regs[7 + 4] = 0x20                                 // voice 2: saw, gate off
-        let voices = SIDVoice.decode(regs: regs, chips: 1, pal: true)
+    @Test func namesWaveforms() {
+        #expect(voice(waveform: 0x4).waveformName == "PUL")
+        #expect(voice(waveform: 0x6).waveformName == "SAW+PUL")
+        #expect(voice(waveform: 0x9).waveformName == "TRI+NOI")
+        #expect(voice(waveform: 0).waveformName == "")
+    }
 
-        #expect(voices.count == 3)
-        #expect(voices[0] == SIDVoice(note: "A4", waveform: "PUL", gate: true))
-        #expect(voices[1] == SIDVoice(note: nil, waveform: "SAW", gate: false))
-        #expect(voices[2].waveform == "")
+    @Test func meterHoldsASustainAndSoftensADrop() {
+        let meter = VoiceMeter()
+        let start = Date()
+        meter.update(levels: [0.5], at: start)
+        meter.update(levels: [0.5], at: start + 0.5)
+        #expect(meter.levels == [0.5])
+
+        // One 30 fps reference frame after the envelope drops to zero.
+        meter.update(levels: [0], at: start + 0.5 + 1.0 / 30)
+        #expect(abs(meter.levels[0] - 0.5 * 0.92) < 1e-6)
+        #expect(meter.peaks[0] > meter.levels[0] && meter.peaks[0] < 0.5)
     }
 }

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SID envelopes</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#a27cf6}a:hover{color:#c4adff}
+</style>
+</helmet>
+<div style="width: 1040px; height: 460px; box-sizing: border-box; padding: 24px; background: #1c1c20; font-family: 'JetBrains Mono', ui-monospace, monospace; color: #e8e8ec">
+<div style="height: 100%; box-sizing: border-box; background: #0b0b0c; border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<div style="display: flex; align-items: center; gap: 12px">
+<span style="font-size: 12px; letter-spacing: 0.14em; color: #9a9aa3">ENVELOPE</span>
+<span style="font-size: 11px; color: #6f6f78">ADSR shape · live position</span>
+</div>
+<button onClick="{{toggle}}" style="font-family: inherit; font-size: 12px; color: #d8d8de; background: #1a1a1e; border: 1px solid #2a2a30; border-radius: 8px; padding: 0 14px; height: 32px; cursor: pointer">{{runLabel}}</button>
+</div>
+<div style="flex: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+<sc-for list="{{voices}}" as="v" hint-placeholder-count="3">
+<div style="background: #111113; border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; justify-content: space-between; align-items: baseline">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 11px; letter-spacing: 0.12em; color: #a3a3ac">{{v.name}}</span>
+<span style="font-size: 11px; color: {{v.color}}">{{v.wave}}</span>
+</div>
+<span style="font-size: 30px; font-weight: 700; color: {{v.color}}; line-height: 1">{{v.note}}</span>
+</div>
+<div style="height: 168px; border-radius: 10px; background: #060607; position: relative; overflow: hidden">
+<svg viewBox="0 0 300 140" preserveAspectRatio="none" style="position: absolute; inset: 0; width: 100%; height: 100%" aria-hidden="true">
+<line x1="0" y1="130" x2="300" y2="130" stroke="#ffffff" stroke-opacity="0.1" vector-effect="non-scaling-stroke"></line>
+<line x1="0" y1="10" x2="300" y2="10" stroke="#ffffff" stroke-opacity="0.05" vector-effect="non-scaling-stroke"></line>
+<polygon points="{{v.fill}}" fill="{{v.color}}" fill-opacity="0.14"></polygon>
+<polyline points="{{v.shape}}" fill="none" stroke="{{v.color}}" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"></polyline>
+<line x1="{{v.dx}}" y1="0" x2="{{v.dx}}" y2="140" stroke="#ffffff" stroke-opacity="0.35" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"></line>
+</svg>
+<span style="position: absolute; left: {{v.dotLeft}}%; top: {{v.dotTop}}%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: #ffffff; box-shadow: 0 0 0 3px {{v.color}}, 0 0 14px {{v.color}}"></span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px">
+<sc-for list="{{v.tiles}}" as="p" hint-placeholder-count="4">
+<div style="background: {{p.bg}}; border-radius: 8px; padding: 6px 0; display: flex; flex-direction: column; align-items: center; gap: 2px">
+<span style="font-size: 10px; color: {{p.fg}}; opacity: 0.8">{{p.k}}</span>
+<span style="font-size: 15px; font-weight: 700; color: {{p.fg}}">{{p.val}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1040,"height":460}}'>
+class Component extends DCLogic {
+  constructor(...a) { super(...a); this.state = { t: 0, run: true }; }
+  componentDidMount() { this.iv = setInterval(() => { if (this.state.run) this.setState({ t: this.state.t + 1 }); }, 50); }
+  componentWillUnmount() { clearInterval(this.iv); }
+  data() {
+    return [
+      { name: 'VOICE 1', wave: 'PULSE', color: '#4fd1c5', adsr: [0, 9, 10, 0], seq: [36,36,48,36,43,43,55,43,46,46,58,46,41,41,53,41] },
+      { name: 'VOICE 2', wave: 'SAWTOOTH', color: '#a27cf6', adsr: [4, 6, 13, 5], seq: [63,63,65,67,70,70,67,65,63,62,63,65,67,null,63,62] },
+      { name: 'VOICE 3', wave: 'NOISE', color: '#f2a154', adsr: [0, 5, 0, 2], seq: [86,null,74,null,86,86,74,null,86,null,74,null,86,null,74,74] }
+    ];
+  }
+  nn(m) { const N = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']; return m == null ? '—' : N[m % 12] + (Math.floor(m / 12) - 1); }
+  interp(pts, x) {
+    for (let i = 1; i < pts.length; i++) {
+      if (x <= pts[i][0]) { const a = pts[i - 1], b = pts[i]; const f = b[0] === a[0] ? 1 : (x - a[0]) / (b[0] - a[0]); return a[1] + (b[1] - a[1]) * f; }
+    }
+    return pts[pts.length - 1][1];
+  }
+  renderVals() {
+    const t = this.state.t;
+    const voices = this.data().map((v) => {
+      const [A, D, S, R] = v.adsr;
+      const aX = 6 + A * 8, dX = aX + 16 + D * 6, sEnd = 228, sY = 130 - (S / 15) * 120;
+      const rEnd = Math.min(296, sEnd + 14 + R * 10);
+      const pts = [[0, 130], [aX, 10], [dX, sY], [sEnd, sY], [rEnd, 130], [300, 130]];
+      const m = v.seq[Math.floor(t / 4) % 16], age = t % 4, gate = m != null;
+      const xs = [aX * 0.7, (aX + dX) / 2, dX, (dX + sEnd) / 2];
+      const x = gate ? xs[age] : sEnd + (rEnd - sEnd) * (0.3 + age * 0.2);
+      const y = this.interp(pts, x);
+      const phase = !gate ? 3 : age === 0 ? 0 : age < 3 ? 1 : 2;
+      const tiles = ['A', 'D', 'S', 'R'].map((k, i) => ({ k, val: v.adsr[i].toString(16).toUpperCase(), bg: i === phase ? v.color : '#18181b', fg: i === phase ? '#0b0b0c' : '#b4b4bc' }));
+      return {
+        name: v.name, wave: v.wave + (gate ? ' · GATE' : ' · RELEASE'), color: v.color, note: this.nn(m),
+        shape: pts.map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' '),
+        fill: pts.map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ') + ' 300,130 0,130',
+        dx: x.toFixed(1), dotLeft: ((x / 300) * 100).toFixed(2), dotTop: ((y / 140) * 100).toFixed(2), tiles
+      };
+    });
+    return { voices, toggle: () => this.setState({ run: !this.state.run }), runLabel: this.state.run ? 'Pause' : 'Play' };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Resonance – tune fingerprints</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4c9bff}a:hover{color:#7ab4ff}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; background: #1c1d20; color: #ececf0; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, system-ui, sans-serif; overflow: hidden">
+
+<div style="width: 250px; background: #232428; display: flex; flex-direction: column; padding: 0 12px; box-sizing: border-box; border-right: 1px solid #2c2d31">
+<div style="height: 60px; display: flex; align-items: center; padding: 0 6px; gap: 8px">
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57"></span>
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #febc2e"></span>
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #28c840"></span>
+</div>
+<span style="font-size: 12px; font-weight: 600; color: #7d7e86; padding: 14px 8px 6px">Library</span>
+<a href="#" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 8px; background: #2f7cf6; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600"><span style="flex: 1">Playlist</span><span style="font-size: 12px">65</span></a>
+<span style="font-size: 12px; font-weight: 600; color: #7d7e86; padding: 18px 8px 6px">HVSC</span>
+<a href="#" style="display: flex; align-items: center; height: 36px; padding: 0 10px; color: #e4e4e9; text-decoration: none; font-size: 14px">Musicians</a>
+<a href="#" style="display: flex; align-items: center; height: 36px; padding: 0 10px; color: #e4e4e9; text-decoration: none; font-size: 14px">Games</a>
+<a href="#" style="display: flex; align-items: center; height: 36px; padding: 0 10px; color: #e4e4e9; text-decoration: none; font-size: 14px">Demos</a>
+<span style="font-size: 12px; font-weight: 600; color: #7d7e86; padding: 18px 8px 6px">Discover</span>
+<a href="#" style="display: flex; align-items: center; height: 36px; padding: 0 10px; color: #e4e4e9; text-decoration: none; font-size: 14px">Browse by Sound</a>
+</div>
+
+<div style="flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative">
+<div style="height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px 0 22px">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 15px; font-weight: 700">Resonance</span>
+<span style="font-size: 12px; color: #8d8e96">powered by Phosphor</span>
+</div>
+<label style="display: flex; align-items: center; gap: 8px; width: 300px; height: 44px; padding: 0 14px; box-sizing: border-box; background: #2a2b2f; border-radius: 22px; color: #8d8e96">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+<input type="search" placeholder="Search" aria-label="Search" style="flex: 1; background: transparent; border: none; outline: none; color: #ececf0; font-size: 15px; font-family: inherit">
+</label>
+</div>
+
+<div style="flex: 1; display: flex; min-height: 0">
+<div style="flex: 1; min-width: 0; padding: 0 12px 0 14px; position: relative; overflow: hidden">
+<div style="display: flex; gap: 6px; align-items: center; padding: 0 8px 10px; flex-wrap: wrap">
+<span style="font-size: 12px; color: #8d8e96; margin-right: 4px">Sound</span>
+<sc-for list="{{filters}}" as="f" hint-placeholder-count="5">
+<button aria-pressed="{{f.pressed}}" style="height: 28px; padding: 0 12px; border-radius: 14px; font-size: 12px; font-weight: 600; border: 1px solid {{f.border}}; background: {{f.bg}}; color: {{f.fg}}">{{f.label}}</button>
+</sc-for>
+</div>
+<div style="display: grid; grid-template-columns: 40px 1.4fr 1.3fr 1.3fr 138px 60px 52px; height: 36px; align-items: center; font-size: 13px; font-weight: 600; color: #c9c9d1; border-bottom: 1px solid #2c2d31; padding: 0 8px">
+<span>#</span><span>Title</span><span>Author</span><span>Released</span>
+<span style="display: flex; align-items: center; gap: 4px; color: #ffffff">Sound<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
+<span>Length</span><span>Type</span>
+</div>
+<sc-for list="{{tunes}}" as="r" hint-placeholder-count="20">
+<div style="display: grid; grid-template-columns: 40px 1.4fr 1.3fr 1.3fr 138px 60px 52px; height: 34px; align-items: center; font-size: 14px; padding: 0 8px; border-radius: 6px; background: {{r.bg}}; font-weight: {{r.weight}}; box-shadow: {{r.ring}}">
+<span style="color: #8d8e96">{{r.num}}</span>
+<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px">{{r.title}}</span>
+<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; color: #d2d2d8">{{r.author}}</span>
+<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; color: #d2d2d8">{{r.rel}}</span>
+<svg viewBox="0 0 120 22" style="width: 120px; height: 22px" aria-label="Sound fingerprint" role="img">
+<sc-for list="{{r.fp}}" as="s" hint-placeholder-count="3"><path d="{{s.d}}" fill="{{s.color}}"></path></sc-for>
+</svg>
+<span style="color: #d2d2d8">{{r.len}}</span>
+<span style="color: #d2d2d8">PSID</span>
+</div>
+</sc-for>
+
+<div style="position: absolute; left: 330px; top: 388px; width: 420px; background: #2b2c31; border: 1px solid #3c3d43; border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); padding: 18px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; justify-content: space-between; align-items: flex-start">
+<div style="display: flex; flex-direction: column; gap: 3px">
+<span style="font-size: 17px; font-weight: 700">Don&#39;t Step on My Wire</span>
+<span style="font-size: 13px; color: #a3a3ab">Rob Hubbard &amp; Jason Page · 2018</span>
+</div>
+<span style="font-size: 12px; color: #a3a3ab">5:22</span>
+</div>
+<svg viewBox="0 0 384 46" style="width: 100%; height: 46px; background: #1c1d21; border-radius: 8px" aria-label="Song overview by voice" role="img">
+<sc-for list="{{big}}" as="s" hint-placeholder-count="3"><path d="{{s.d}}" fill="{{s.color}}"></path></sc-for>
+</svg>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: #8d8e96">WAVEFORM MIX</span>
+<div style="display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px">
+<sc-for list="{{mix}}" as="m" hint-placeholder-count="4"><span style="width: {{m.pct}}%; background: {{m.color}}"></span></sc-for>
+</div>
+<div style="display: flex; gap: 14px">
+<sc-for list="{{mix}}" as="m" hint-placeholder-count="4">
+<span style="display: flex; align-items: center; gap: 5px; font-size: 12px; color: #c9c9d1"><span style="width: 8px; height: 8px; border-radius: 2px; background: {{m.color}}"></span>{{m.label}} {{m.pct}}%</span>
+</sc-for>
+</div>
+</div>
+<div style="display: flex; gap: 6px; flex-wrap: wrap">
+<sc-for list="{{tags}}" as="g" hint-placeholder-count="4"><span style="font-size: 12px; padding: 4px 10px; border-radius: 12px; background: #3a3b41; color: #e4e4e9">{{g.t}}</span></sc-for>
+</div>
+<div style="display: flex; gap: 8px">
+<button style="flex: 1; height: 36px; border-radius: 10px; border: none; background: #2f7cf6; color: #ffffff; font-size: 14px; font-weight: 600">Play</button>
+<button style="flex: 1; height: 36px; border-radius: 10px; border: 1px solid #45464d; background: transparent; color: #ececf0; font-size: 14px; font-weight: 600">Find similar</button>
+</div>
+</div>
+</div>
+
+<div style="width: 380px; padding: 6px 16px 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px; overflow: hidden">
+<div style="background: #25272b; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 3px">
+<span style="font-size: 13px; color: #8d8e96">Sounds like</span>
+<span style="font-size: 22px; font-weight: 700">Lightforce</span>
+</div>
+<svg viewBox="0 0 320 34" style="width: 100%; height: 34px" aria-label="Lightforce fingerprint" role="img">
+<sc-for list="{{seedFp}}" as="s" hint-placeholder-count="3"><path d="{{s.d}}" fill="{{s.color}}"></path></sc-for>
+</svg>
+<div style="display: flex; gap: 6px; flex-wrap: wrap">
+<span style="font-size: 12px; padding: 4px 10px; border-radius: 12px; background: #34363b; color: #e4e4e9">Pulse bass</span>
+<span style="font-size: 12px; padding: 4px 10px; border-radius: 12px; background: #34363b; color: #e4e4e9">Arpeggios</span>
+<span style="font-size: 12px; padding: 4px 10px; border-radius: 12px; background: #34363b; color: #e4e4e9">Filter sweeps</span>
+</div>
+</div>
+<span style="font-size: 13px; font-weight: 600; color: #8d8e96; padding: 0 4px">Similar tunes</span>
+<sc-for list="{{similar}}" as="x" hint-placeholder-count="6">
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 12px; background: #222327">
+<div style="display: flex; justify-content: space-between; align-items: baseline">
+<div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+<span style="font-size: 14px; font-weight: 600">{{x.title}}</span>
+<span style="font-size: 12px; color: #a3a3ab">{{x.author}}</span>
+</div>
+<span style="font-size: 12px; font-weight: 700; color: #7ab4ff">{{x.match}}</span>
+</div>
+<svg viewBox="0 0 320 20" style="width: 100%; height: 20px" aria-hidden="true">
+<sc-for list="{{x.fp}}" as="s" hint-placeholder-count="3"><path d="{{s.d}}" fill="{{s.color}}"></path></sc-for>
+</svg>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  rnd(i) { const x = Math.sin(i * 12.9898) * 43758.5453; return x - Math.floor(x); }
+  // a deterministic per-tune "fingerprint": three voice-activity lanes across the song
+  fp(seed, W, H, N) {
+    const colors = ['#5ac8e8', '#a27cf6', '#f2a154'], lane = H / 3, bw = W / N;
+    const in2 = 0.05 + this.rnd(seed * 3) * 0.25, in3 = 0.1 + this.rnd(seed * 5) * 0.35;
+    const b0 = 0.4 + this.rnd(seed * 7) * 0.35, b1 = b0 + 0.05 + this.rnd(seed * 9) * 0.08;
+    const dens = [0.6 + this.rnd(seed * 11) * 0.4, 0.4 + this.rnd(seed * 13) * 0.6, this.rnd(seed * 17)];
+    return colors.map((color, i) => {
+      let d = '';
+      for (let k = 0; k < N; k++) {
+        const u = k / N, brk = u > b0 && u < b1;
+        let a = dens[i] * (0.5 + 0.5 * this.rnd(seed * 100 + k * (i + 3)));
+        if (i === 1 && u < in2) a = 0;
+        if (i === 2 && (u < in3 || brk)) a = 0;
+        if (i === 0 && brk) a *= 0.35;
+        if (u > 0.95) a *= (1 - u) / 0.05;
+        if (a < 0.05) continue;
+        const h = 1.5 + a * (lane - 2.5), y = i * lane + (lane - h) / 2;
+        d += 'M' + (k * bw).toFixed(1) + ' ' + y.toFixed(1) + 'h' + Math.max(0.6, bw - 0.6).toFixed(2) + 'v' + h.toFixed(1) + 'h-' + Math.max(0.6, bw - 0.6).toFixed(2) + 'Z';
+      }
+      return { color, d: d || 'M0 0' };
+    });
+  }
+  renderVals() {
+    const all = [
+      ['Commando','Rob Hubbard','1985 Elite','3:56'],['Monty on the Run','Rob Hubbard','1985 Gremlin Graphics','5:51'],
+      ['Auf Wiedersehen Monty','Rob Hubbard & Ben Daglish','1987 Gremlin Graphics','6:09'],['Action Biker','Rob Hubbard','1985 Mastertronic','3:10'],
+      ['A Dyme and a Table','Dyme','2025 Slackers','3:43'],['A Stroll in the Woods','Samuli Vuorinen (Naavis)','2017 Suomalainen Laatu','0:41'],
+      ['A Neverending Dream','Krzysztof Niedzwiecki','2023 Radius75','2:20'],['Acid 2','Exos','1989 The Ice Crew','2:58'],
+      ["Don't Step on My Wire",'Rob Hubbard & Jason Page','2018 Project Hubbard','5:22'],['Big Eddie','Tomas Danko','1992 Censor Design','1:20'],
+      ['Tapeloader','Tomas Danko','1993 Censor Design','2:58'],['The Ends Justify the Means','David Bain','198? Zeon Acoustics','3:44'],
+      ['Coma Light II (part 1)','David Voigt (Dave)','1992 Oxyron','1:10'],['Coma Light II (part 2+7)','David Voigt (Dave)','1992 Oxyron','1:05'],
+      ['Coma Light II (part 5)','David Voigt (Dave)','1992 Oxyron','1:34'],['Coma Light II (part 6)','David Voigt (Dave)','1992 Oxyron','2:03'],
+      ['Delight (tune 5)','David Voigt (Dave)','1992 Cronic','2:16'],['Experimental','David Voigt (Dave)','1992 Oxyron','1:34'],
+      ['Marooned','David Voigt (Dave)','1992 Oxyron','0:47'],['Obscure Dreams (tune 1)','David Voigt (Dave)','1991 Gloom','0:47']
+    ];
+    const tunes = all.map((r, i) => ({
+      num: String(i + 1), title: r[0], author: r[1], rel: r[2], len: r[3], fp: this.fp(i + 1, 120, 22, 60),
+      bg: i === 8 ? '#34363c' : i % 2 ? '#222327' : 'transparent', weight: i === 8 ? 600 : 400, ring: i === 8 ? 'inset 0 0 0 1px #4a4c54' : 'none'
+    }));
+    const filters = [['Arpeggios', true], ['Filter sweeps', false], ['Noise drums', true], ['Ring mod', false], ['Sync leads', false], ['Digi samples', false]]
+      .map(([label, on]) => ({ label, pressed: on ? 'true' : 'false', bg: on ? '#2f7cf6' : 'transparent', fg: on ? '#ffffff' : '#c9c9d1', border: on ? '#2f7cf6' : '#3a3b41' }));
+    const sim = [['Monty on the Run','Rob Hubbard','94%',2],['Commando','Rob Hubbard','91%',1],['Action Biker','Rob Hubbard','87%',4],['Auf Wiedersehen Monty','Rob Hubbard & Ben Daglish','85%',3],['Acid 2','Exos','78%',8]];
+    return {
+      tunes, filters,
+      big: this.fp(9, 384, 46, 128),
+      mix: [{ label: 'PUL', pct: 44, color: '#5ac8e8' }, { label: 'SAW', pct: 28, color: '#a27cf6' }, { label: 'TRI', pct: 10, color: '#7fdba3' }, { label: 'NOI', pct: 18, color: '#f2a154' }],
+      tags: [{ t: 'Arpeggios' }, { t: 'Noise drums' }, { t: 'Pulse bass' }, { t: 'Vibrato leads' }],
+      seedFp: this.fp(22, 320, 34, 110),
+      similar: sim.map(([title, author, match, seed]) => ({ title, author, match, fp: this.fp(seed, 320, 20, 110) }))
+    };
+  }
+}
+</script>
+</body>
+</html>

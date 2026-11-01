@@ -65,14 +65,54 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
 
     func playlist() -> [PlaylistItem] { items }
 
-    func vizFrame() -> VizFrame {
+    /// Triangle, pulse and saw on A4, E5 and C3, their envelopes breathing.
+    private static let previewVoices: [(hz: Double, midi: Double, note: String, waveform: UInt8)] = [
+        (440.0, 69, "A4", 0x1), (659.26, 76, "E5", 0x4), (130.81, 48, "C3", 0x2),
+    ]
+    private static let previewRate: Float = 44_784
+
+    func vizLatest() -> VizSidFrame? {
         let t = Date().timeIntervalSinceReferenceDate
-        let levels = (0..<3).map { Float(0.5 + 0.45 * sin(t * (2 + Double($0)))) }
-        // Gate on, triangle/pulse/saw, A4/E5/C3-ish frequencies.
-        let regs: [UInt8] = [0x40, 0x1D, 0, 0, 0x11, 0, 0, 0xAE, 0x2B, 0, 0, 0x41, 0, 0, 0x8F, 0x08, 0, 0, 0x21]
-            + Array(repeating: 0, count: 128 - 19)
-        return VizFrame(seq: UInt64(t * 50), voiceLevels: levels, sidRegs: Data(regs), numSids: 1)
+        let voices = Self.previewVoices.enumerated().map { i, v in
+            VizVoice(
+                freqReg: UInt16(v.hz * 16_777_216 / 985_248), hz: v.hz, midi: v.midi, note: v.note,
+                gate: true, waveform: v.waveform, test: false, ring: false, sync: false,
+                pulseWidth: 0x800, attack: 0, decay: 9, sustain: 10, release: 6,
+                envLevel: Float(0.5 + 0.45 * sin(t * (2 + Double(i))))
+            )
+        }
+        let chip = VizChip(
+            voices: voices, registers: Data(count: 29), cutoff: 0x400, resonance: 8,
+            filterRouting: 0x1, filterMode: 0x1, volume: 15
+        )
+        return VizSidFrame(index: UInt64(t * 50), isPal: true, chips: [chip])
     }
+
+    func vizHistory(count: UInt32) -> [VizSidFrame] {
+        vizLatest().map { [$0] } ?? []
+    }
+
+    func vizScope(chip: UInt32, count: UInt32) -> VizScope {
+        guard chip == 0 else { return VizScope(sampleRate: Self.previewRate, voices: [[], [], []]) }
+        let voices = Self.previewVoices.map { v in
+            (0..<Int(min(count, 2048))).map { n -> Float in
+                let phase = Float((Double(n) * v.hz / Double(Self.previewRate)).truncatingRemainder(dividingBy: 1))
+                switch v.waveform {
+                case 0x1: return abs(phase * 4 - 2) - 1
+                case 0x4: return phase < 0.5 ? 0.8 : -0.8
+                default: return phase * 2 - 1
+                }
+            }
+        }
+        return VizScope(sampleRate: Self.previewRate, voices: voices)
+    }
+
+    func vizStats() -> VizStats {
+        VizStats(frames: 0, shadowMicros: 0, bufferMs: 100, outputLatencyMs: 12, offsetMs: 0)
+    }
+
+    func setVizOutputLatencyMs(ms: UInt32) {}
+    func setVizOffsetMs(ms: Int32) {}
 
     func hvscAuthors(category: HvscCategory) async throws -> [HvscAuthorItem] {
         [("G", "Galway_Martin"), ("H", "Hubbard_Rob"), ("T", "Tel_Jeroen")].map { letter, name in

@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SID spectrogram</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#a27cf6}a:hover{color:#c4adff}
+</style>
+</helmet>
+<div style="width: 1040px; height: 640px; box-sizing: border-box; position: relative; background: #050506; border-radius: 20px; overflow: hidden; font-family: 'JetBrains Mono', ui-monospace, monospace; color: #e8e8ec">
+<canvas ref="{{cvRef}}" width="1040" height="640" style="position: absolute; inset: 0; width: 100%; height: 100%; display: block" aria-hidden="true"></canvas>
+<div style="position: absolute; top: 18px; left: 24px; right: 24px; display: flex; justify-content: space-between; align-items: center">
+<div style="display: flex; align-items: center; gap: 12px">
+<span style="font-size: 12px; letter-spacing: 0.14em; color: #9a9aa3">SPECTROGRAM</span>
+<span style="font-size: 11px; color: #6f6f78">log frequency · per-voice color</span>
+</div>
+<div style="display: flex; align-items: center; gap: 8px">
+<sc-for list="{{voices}}" as="v" hint-placeholder-count="3">
+<div style="display: flex; align-items: center; gap: 7px; padding: 5px 10px; border-radius: 999px; background: rgba(255,255,255,0.05)">
+<span style="width: 7px; height: 7px; border-radius: 50%; background: {{v.dot}}"></span>
+<span style="font-size: 12px; font-weight: 700; color: {{v.noteColor}}; width: 30px">{{v.note}}</span>
+</div>
+</sc-for>
+<button onClick="{{toggle}}" style="margin-left: 8px; font-family: inherit; font-size: 12px; color: #d8d8de; background: rgba(26,26,30,0.7); border: 1px solid #2a2a30; border-radius: 8px; padding: 0 14px; height: 32px; cursor: pointer">{{runLabel}}</button>
+</div>
+</div>
+<sc-for list="{{labels}}" as="l" hint-placeholder-count="8">
+<span style="position: absolute; left: 20px; top: {{l.top}}px; transform: translateY(-50%); font-size: 10px; color: #6f6f78; width: 40px; text-align: right">{{l.text}}</span>
+</sc-for>
+<span style="position: absolute; left: 70px; bottom: 22px; font-size: 10px; color: #6f6f78">−8 s</span>
+<span style="position: absolute; right: 24px; bottom: 22px; font-size: 10px; color: #9a9aa3">now</span>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1040,"height":640}}'>
+class Component extends DCLogic {
+  constructor(...a) {
+    super(...a);
+    this.state = { step: 0, run: true };
+    this.time = 0; this.last = 0; this.sm = [0, 0, 0];
+    this.PX = 70; this.PY = 64; this.PW = 946; this.PH = 530;   // plot rect in CSS px
+    this.OW = 473; this.OH = 265;                                 // offscreen (half res, smoothed up)
+    this.FMIN = 40; this.FMAX = 12000;
+    this.cvRef = (el) => { this.cv = el; };
+  }
+  data() {
+    return [
+      { wave: 'PULSE', rgb: [79, 209, 197], seq: [36,36,48,36,43,43,55,43,46,46,58,46,41,41,53,41], env: [1,0.85,0.75,0.7] },
+      { wave: 'SAWTOOTH', rgb: [162, 124, 246], seq: [63,63,65,67,70,70,67,65,63,62,63,65,67,null,63,62], env: [0.6,1,0.92,0.86] },
+      { wave: 'NOISE', rgb: [242, 161, 84], seq: [86,null,74,null,86,86,74,null,86,null,74,null,86,null,74,74], env: [1,0.45,0.18,0.05] }
+    ];
+  }
+  nn(m) { const N = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']; return m == null ? '—' : N[m % 12] + (Math.floor(m / 12) - 1); }
+  rnd(i) { const x = Math.sin(i * 12.9898) * 43758.5453; return x - Math.floor(x); }
+  hz(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+  yn(f) { return Math.log(f / this.FMIN) / Math.log(this.FMAX / this.FMIN); }
+  componentDidMount() {
+    this.V = this.data();
+    this.off = document.createElement('canvas'); this.off.width = this.OW; this.off.height = this.OH;
+    this.octx = this.off.getContext('2d'); this.octx.fillStyle = '#050508'; this.octx.fillRect(0, 0, this.OW, this.OH);
+    this.col = this.octx.createImageData(1, this.OH);
+    this.acc = new Float32Array(this.OH * 3);
+    const loop = (now) => {
+      this.raf = requestAnimationFrame(loop);
+      const dt = this.last ? Math.min(50, now - this.last) : 16; this.last = now;
+      if (this.state.run) { this.time += dt; this.column(); }
+      this.draw();
+    };
+    this.raf = requestAnimationFrame(loop);
+  }
+  componentWillUnmount() { cancelAnimationFrame(this.raf); }
+  // compute one new spectrum column and scroll it in from the right
+  column() {
+    const tf = this.time / 50, step = Math.floor(tf / 4), H = this.OH, A = this.acc;
+    if (step !== this.state.step) this.setState({ step });
+    A.fill(0);
+    const pw = 0.1 + 0.4 * (0.5 + 0.5 * Math.sin(tf * 0.03));
+    this.V.forEach((v, i) => {
+      const m = v.seq[step % 16], a = tf - step * 4, k = Math.min(3, Math.floor(a));
+      const target = m == null ? 0 : v.env[k] + (v.env[Math.min(3, k + 1)] - v.env[k]) * (a - k);
+      this.sm[i] += (target - this.sm[i]) * (target > this.sm[i] ? 0.5 : 0.15);
+      const lvl = this.sm[i]; if (lvl < 0.01) return;
+      const [r, g, b] = v.rgb;
+      const add = (row, w) => { if (row < 0 || row >= H) return; A[row * 3] += r / 255 * w; A[row * 3 + 1] += g / 255 * w; A[row * 3 + 2] += b / 255 * w; };
+      if (v.wave === 'NOISE') {
+        const last = m ?? 86, nf = Math.floor(tf * 3);
+        for (let row = 0; row < H; row++) {
+          const y = 1 - row / (H - 1);
+          const tilt = last === 86 ? Math.pow(y, 1.6) : Math.exp(-((y - 0.55) ** 2) / 0.04) + 0.25;
+          add(row, lvl * tilt * (0.25 + 0.75 * this.rnd(nf * 977 + row)) * 0.9);
+        }
+      } else {
+        const f0 = this.hz(m ?? 48);
+        for (let h = 1; h <= 60; h++) {
+          const f = f0 * h; if (f > this.FMAX) break;
+          let amp = 1 / h;
+          if (v.wave === 'PULSE') amp = Math.abs(Math.sin(Math.PI * h * pw)) / h * 1.5;
+          const row = (1 - this.yn(f)) * (H - 1), w = lvl * amp * 1.6;
+          for (let d = -3; d <= 3; d++) add(Math.round(row) + d, w * Math.exp(-(d * d) / 1.6));
+        }
+      }
+    });
+    const D = this.col.data;
+    for (let row = 0; row < H; row++) {
+      const c = (x) => Math.round(255 * (1 - Math.exp(-x * 2.4)));
+      D[row * 4] = 5 + c(A[row * 3]); D[row * 4 + 1] = 5 + c(A[row * 3 + 1]); D[row * 4 + 2] = 8 + c(A[row * 3 + 2]); D[row * 4 + 3] = 255;
+    }
+    this.octx.drawImage(this.off, -1, 0);
+    this.octx.putImageData(this.col, this.OW - 1, 0);
+  }
+  draw() {
+    const cv = this.cv; if (!cv || !this.off) return;
+    const dpr = window.devicePixelRatio || 1;
+    if (cv.width !== 1040 * dpr) { cv.width = 1040 * dpr; cv.height = 640 * dpr; }
+    const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = '#050506'; ctx.fillRect(0, 0, 1040, 640);
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(this.PX, this.PY, this.PW, this.PH, 10); ctx.clip();
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(this.off, this.PX, this.PY, this.PW, this.PH);
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1;
+    this.freqs().forEach((f) => {
+      const y = this.PY + (1 - this.yn(f)) * this.PH;
+      ctx.beginPath(); ctx.moveTo(this.PX, y); ctx.lineTo(this.PX + this.PW, y); ctx.stroke();
+    });
+    const fade = ctx.createLinearGradient(this.PX, 0, this.PX + 120, 0);
+    fade.addColorStop(0, 'rgba(5,5,6,0.85)'); fade.addColorStop(1, 'rgba(5,5,6,0)');
+    ctx.fillStyle = fade; ctx.fillRect(this.PX, this.PY, 120, this.PH);
+    ctx.restore();
+  }
+  freqs() { return [50, 100, 200, 500, 1000, 2000, 5000, 10000]; }
+  renderVals() {
+    const step = this.state.step;
+    const voices = this.data().map((v) => {
+      const m = v.seq[step % 16], c = `rgb(${v.rgb.join(',')})`;
+      return { note: this.nn(m), dot: m == null ? '#3a3a40' : c, noteColor: m == null ? '#4a4a51' : c };
+    });
+    const labels = this.freqs().map((f) => ({ text: f >= 1000 ? f / 1000 + 'k' : String(f), top: (this.PY + (1 - this.yn(f)) * this.PH).toFixed(1) }));
+    return { cvRef: this.cvRef, voices, labels, toggle: () => this.setState({ run: !this.state.run }), runLabel: this.state.run ? 'Pause' : 'Play' };
+  }
+}
+</script>
+</body>
+</html>

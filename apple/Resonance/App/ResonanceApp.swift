@@ -32,5 +32,15 @@ struct ResonanceApp: App {
             SettingsView()
                 .environment(appDelegate.store)
         }
+
+        #if DEBUG
+        // Listed in the Window menu.
+        Window("SID Monitor (Debug)", id: SIDMonitorDebugView.windowID) {
+            SIDMonitorDebugView()
+                .environment(appDelegate.store)
+        }
+        .defaultSize(width: 760, height: 400)
+        .restorationBehavior(.disabled)
+        #endif
     }
 }

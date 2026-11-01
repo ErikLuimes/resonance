@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Resonance – under the hood</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#4c9bff}a:hover{color:#7ab4ff}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; background: #1c1d20; color: #ececf0; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, system-ui, sans-serif; overflow: hidden">
+
+<div style="width: 250px; background: #232428; display: flex; flex-direction: column; padding: 0 12px; box-sizing: border-box; border-right: 1px solid #2c2d31">
+<div style="height: 60px; display: flex; align-items: center; padding: 0 6px; gap: 8px">
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57"></span>
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #febc2e"></span>
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #28c840"></span>
+</div>
+<span style="font-size: 12px; font-weight: 600; color: #7d7e86; padding: 14px 8px 6px">Library</span>
+<a href="#" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 8px; background: #2f7cf6; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600"><span style="flex: 1">Playlist</span><span style="font-size: 12px">65</span></a>
+<span style="font-size: 12px; font-weight: 600; color: #7d7e86; padding: 18px 8px 6px">HVSC</span>
+<a href="#" style="display: flex; align-items: center; height: 36px; padding: 0 10px; color: #e4e4e9; text-decoration: none; font-size: 14px">Musicians</a>
+<a href="#" style="display: flex; align-items: center; height: 36px; padding: 0 10px; color: #e4e4e9; text-decoration: none; font-size: 14px">Games</a>
+<a href="#" style="display: flex; align-items: center; height: 36px; padding: 0 10px; color: #e4e4e9; text-decoration: none; font-size: 14px">Demos</a>
+</div>
+
+<div style="flex: 1; display: flex; flex-direction: column; min-width: 0">
+<div style="height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px 0 22px; flex-shrink: 0">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 15px; font-weight: 700">Resonance</span>
+<span style="font-size: 12px; color: #8d8e96">powered by Phosphor</span>
+</div>
+<label style="display: flex; align-items: center; gap: 8px; width: 300px; height: 44px; padding: 0 14px; box-sizing: border-box; background: #2a2b2f; border-radius: 22px; color: #8d8e96">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+<input type="search" placeholder="Search" aria-label="Search" style="flex: 1; background: transparent; border: none; outline: none; color: #ececf0; font-size: 15px; font-family: inherit">
+</label>
+</div>
+
+<div style="flex: 1; min-height: 0; padding: 0 14px; overflow: hidden">
+<div style="display: grid; grid-template-columns: 44px 1.5fr 1.5fr 1.6fr 64px 60px 52px; height: 36px; align-items: center; font-size: 13px; font-weight: 600; color: #c9c9d1; border-bottom: 1px solid #2c2d31; padding: 0 8px">
+<span>#</span><span>Title</span><span>Author</span><span>Released</span><span>Length</span><span>Songs</span><span>Type</span>
+</div>
+<sc-for list="{{tunes}}" as="r" hint-placeholder-count="6">
+<div style="display: grid; grid-template-columns: 44px 1.5fr 1.5fr 1.6fr 64px 60px 52px; height: 34px; align-items: center; font-size: 14px; padding: 0 8px; border-radius: 6px; background: {{r.bg}}; font-weight: {{r.weight}}">
+<span style="color: #8d8e96">{{r.num}}</span><span>{{r.title}}</span><span style="color: #d2d2d8">{{r.author}}</span><span style="color: #d2d2d8">{{r.rel}}</span><span style="color: #d2d2d8">{{r.len}}</span><span style="color: #d2d2d8">1</span><span style="color: #d2d2d8">PSID</span>
+</div>
+</sc-for>
+</div>
+
+<div style="height: 440px; flex-shrink: 0; background: #131315; border-top: 1px solid #2c2d31; border-radius: 16px 16px 0 0; box-shadow: 0 -16px 40px rgba(0,0,0,0.35); display: flex; flex-direction: column; font-family: 'JetBrains Mono', ui-monospace, monospace">
+<div style="height: 10px; display: flex; justify-content: center; align-items: flex-end"><span style="width: 44px; height: 4px; border-radius: 2px; background: #3a3b40"></span></div>
+<div style="height: 46px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px">
+<div role="tablist" aria-label="Under the hood" style="display: flex; gap: 2px; background: #1c1c1f; border-radius: 9px; padding: 3px; font-family: -apple-system, BlinkMacSystemFont, Inter, system-ui, sans-serif">
+<sc-for list="{{tabs}}" as="b" hint-placeholder-count="4">
+<button role="tab" onClick="{{b.pick}}" style="height: 30px; padding: 0 14px; border-radius: 7px; border: none; font-size: 13px; font-weight: 600; background: {{b.bg}}; color: {{b.fg}}">{{b.label}}</button>
+</sc-for>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; font-family: -apple-system, BlinkMacSystemFont, Inter, system-ui, sans-serif">
+<span style="font-size: 12px; color: #7d7e86">POS {{pos}} · ROW {{rowHex}} · frame {{frame}}</span>
+<button aria-label="Open in separate window" style="height: 30px; padding: 0 12px; border-radius: 8px; border: 1px solid #2c2d31; background: #1c1c1f; color: #c9c9d1; font-size: 12px; display: flex; align-items: center; gap: 6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>Open in window</button>
+<button aria-label="Close drawer" style="width: 30px; height: 30px; border-radius: 8px; border: none; background: #1c1c1f; color: #a3a3ab; display: flex; align-items: center; justify-content: center"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+</div>
+</div>
+
+<div style="flex: 1; min-height: 0; padding: 0 16px 14px">
+<sc-if value="{{isTracker}}" hint-placeholder-val="{{true}}">
+<div style="height: 100%; display: flex; gap: 12px">
+<div style="flex: 1; background: #08080a; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; font-size: 13px">
+<div style="display: flex; height: 40px; background: #0f0f11; border-bottom: 1px solid #1a1a1e">
+<div style="width: 44px"></div>
+<sc-for list="{{voices}}" as="v" hint-placeholder-count="3">
+<div style="flex: 1; border-left: 1px solid #1a1a1e; display: flex; align-items: center; gap: 10px; padding: 0 12px">
+<span style="font-size: 11px; font-weight: 700; color: {{v.color}}">{{v.id}}</span>
+<span style="font-size: 10px; color: #7f7f88; width: 40px">{{v.wave}}</span>
+<svg viewBox="0 0 200 24" preserveAspectRatio="none" style="flex: 1; height: 24px" aria-hidden="true"><polyline points="{{v.pts}}" fill="none" stroke="{{v.color}}" stroke-width="1.3" vector-effect="non-scaling-stroke"></polyline></svg>
+</div>
+</sc-for>
+</div>
+<div style="flex: 1; display: flex; flex-direction: column; padding-top: 4px">
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="17">
+<div style="display: flex; height: 18px; align-items: center; background: {{r.bg}}; box-shadow: {{r.shadow}}">
+<span style="width: 44px; text-align: center; font-size: 11px; color: {{r.numColor}}">{{r.num}}</span>
+<sc-for list="{{r.cells}}" as="c" hint-placeholder-count="3">
+<div style="flex: 1; display: flex; gap: 14px; padding-left: 14px; border-left: 1px solid #16161a">
+<span style="width: 30px; color: {{c.noteColor}}">{{c.note}}</span>
+<span style="width: 18px; color: {{c.instColor}}">{{c.inst}}</span>
+<span style="width: 28px; color: {{c.cmdColor}}">{{c.cmd}}</span>
+</div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="width: 200px; background: #0f0f11; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; font-size: 12px">
+<span style="font-size: 10px; letter-spacing: 0.12em; color: #8d8e96; padding-bottom: 4px">ORDERLIST</span>
+<sc-for list="{{order}}" as="o" hint-placeholder-count="8">
+<div style="display: grid; grid-template-columns: 30px repeat(3, minmax(0, 1fr)); height: 22px; align-items: center; padding: 0 6px; border-radius: 5px; background: {{o.bg}}; color: {{o.fg}}">
+<span style="color: #5f5f68">{{o.pos}}</span><span>{{o.a}}</span><span>{{o.b}}</span><span>{{o.c}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{isRegs}}" hint-placeholder-val="{{false}}">
+<div style="height: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px">
+<sc-for list="{{regCols}}" as="col" hint-placeholder-count="4">
+<div style="background: #0f0f11; border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: {{col.color}}; padding: 0 6px 6px">{{col.title}}</span>
+<sc-for list="{{col.regs}}" as="r" hint-placeholder-count="7">
+<div style="display: grid; grid-template-columns: 48px minmax(0, 1fr) 28px; height: 30px; align-items: center; padding: 0 6px; border-radius: 6px; background: {{r.bg}}">
+<span style="font-size: 11px; color: #62626b">{{r.addr}}</span>
+<span style="font-size: 11px; color: #9a9aa3">{{r.name}}</span>
+<span style="font-size: 14px; font-weight: 700; color: {{r.fg}}">{{r.hex}}</span>
+</div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{isSweeps}}" hint-placeholder-val="{{false}}">
+<div style="height: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr) 90px; gap: 12px">
+<div style="background: #0f0f11; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between"><span style="font-size: 11px; letter-spacing: 0.1em; color: #a3a3ab">PULSE WIDTH · V1</span><span style="font-size: 13px; font-weight: 700; color: #5ac8e8">{{pwHex}}</span></div>
+<svg viewBox="0 0 500 140" preserveAspectRatio="none" style="flex: 1; width: 100%; background: #08080a; border-radius: 6px" aria-hidden="true">
+<path d="{{pwArea}}" fill="#5ac8e8" fill-opacity="0.12"></path>
+<path d="{{pwLine}}" fill="none" stroke="#5ac8e8" stroke-width="2" vector-effect="non-scaling-stroke"></path>
+</svg>
+</div>
+<div style="background: #0f0f11; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between"><span style="font-size: 11px; letter-spacing: 0.1em; color: #a3a3ab">FILTER CUTOFF · LP</span><span style="font-size: 13px; font-weight: 700; color: #c4adff">{{cutHex}}</span></div>
+<svg viewBox="0 0 500 140" preserveAspectRatio="none" style="flex: 1; width: 100%; background: #08080a; border-radius: 6px" aria-hidden="true">
+<path d="{{cutArea}}" fill="#a27cf6" fill-opacity="0.18"></path>
+<path d="{{cutLine}}" fill="none" stroke="#c4adff" stroke-width="2" vector-effect="non-scaling-stroke"></path>
+</svg>
+</div>
+<div style="grid-column: 1 / span 2; background: #0f0f11; border-radius: 10px; padding: 10px 12px; display: flex; gap: 12px; align-items: center">
+<span style="font-size: 11px; letter-spacing: 0.1em; color: #a3a3ab; width: 60px">GATES</span>
+<svg viewBox="0 0 1000 66" preserveAspectRatio="none" style="flex: 1; height: 66px" aria-hidden="true">
+<sc-for list="{{voices}}" as="v" hint-placeholder-count="3">
+<path d="{{v.gates}}" fill="{{v.color}}" fill-opacity="0.85"></path>
+</sc-for>
+</svg>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{isPitch}}" hint-placeholder-val="{{false}}">
+<div style="height: 100%; background: #08080a; border-radius: 10px; position: relative; overflow: hidden">
+<svg viewBox="0 0 1000 300" preserveAspectRatio="none" style="position: absolute; inset: 0; width: 100%; height: 100%" aria-hidden="true">
+<sc-for list="{{octs}}" as="o" hint-placeholder-count="5"><line x1="0" y1="{{o.y}}" x2="1000" y2="{{o.y}}" stroke="#ffffff" stroke-opacity="0.07" vector-effect="non-scaling-stroke"></line></sc-for>
+<sc-for list="{{voices}}" as="v" hint-placeholder-count="3">
+<path d="{{v.trail}}" fill="none" stroke="{{v.color}}" stroke-opacity="0.25" stroke-width="8" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
+<path d="{{v.trail}}" fill="none" stroke="{{v.color}}" stroke-width="2.4" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
+</sc-for>
+</svg>
+<sc-for list="{{octs}}" as="o" hint-placeholder-count="5"><span style="position: absolute; left: 10px; top: {{o.top}}%; transform: translateY(-50%); font-size: 10px; color: #6f6f78">{{o.label}}</span></sc-for>
+</div>
+</sc-if>
+</div>
+</div>
+
+<div style="height: 76px; flex-shrink: 0; background: #232428; border-top: 1px solid #2c2d31; display: flex; align-items: center; gap: 18px; padding: 0 20px">
+<div style="display: flex; align-items: center; gap: 4px">
+<button aria-label="Previous" style="width: 36px; height: 36px; border: none; background: transparent; color: #ececf0; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11 18V6l-8.5 6 8.5 6Zm.5-6 8.5 6V6l-8.5 6Z"></path></svg></button>
+<button onClick="{{toggle}}" aria-label="{{runLabel}}" style="width: 40px; height: 40px; border: none; background: transparent; color: #ffffff; display: flex; align-items: center; justify-content: center">
+<sc-if value="{{run}}" hint-placeholder-val="{{true}}"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"></rect><rect x="14" y="4" width="4" height="16" rx="1"></rect></svg></sc-if>
+<sc-if value="{{paused}}" hint-placeholder-val="{{false}}"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4v16l13-8L7 4Z"></path></svg></sc-if>
+</button>
+<button aria-label="Next" style="width: 36px; height: 36px; border: none; background: transparent; color: #ececf0; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 18l8.5-6L4 6v12Zm9-12v12l8.5-6L13 6Z"></path></svg></button>
+</div>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0">
+<div style="display: flex; gap: 10px; align-items: baseline"><span style="font-size: 15px; font-weight: 700">Lightforce</span><span style="font-size: 14px; color: #a3a3ab">Rob Hubbard</span></div>
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="font-size: 12px; color: #a3a3ab; width: 34px">{{elapsed}}</span>
+<svg viewBox="0 0 600 30" preserveAspectRatio="none" style="flex: 1; height: 26px" aria-label="Song overview" role="img">
+<sc-for list="{{strip}}" as="s" hint-placeholder-count="3"><path d="{{s.rest}}" fill="{{s.color}}" fill-opacity="0.28"></path><path d="{{s.played}}" fill="{{s.color}}"></path></sc-for>
+<line x1="{{playX}}" y1="0" x2="{{playX}}" y2="30" stroke="#ffffff" stroke-width="2" vector-effect="non-scaling-stroke"></line>
+</svg>
+<span style="font-size: 12px; color: #a3a3ab; width: 34px">7:14</span>
+</div>
+</div>
+<button aria-label="Under the hood" aria-pressed="true" style="height: 36px; padding: 0 12px; border-radius: 10px; border: none; background: #2f7cf6; color: #ffffff; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"></rect><path d="M9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4"></path></svg>
+Under the hood
+</button>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(...a) { super(...a); this.state = { t: 40, run: true, tab: 'tracker' }; this.prev = {}; this.chg = {}; }
+  componentDidMount() { this.iv = setInterval(() => { if (this.state.run) this.setState({ t: this.state.t + 1 }); }, 50); }
+  componentWillUnmount() { clearInterval(this.iv); }
+  V() {
+    return [
+      { id: 'V1', wave: 'PULSE', color: '#5ac8e8', rgb: '90,200,232', wbit: 0x40, pw: 0.42, seq: [36,36,48,36,43,43,55,43,46,46,58,46,41,41,53,41], env: [1,0.85,0.75,0.7] },
+      { id: 'V2', wave: 'SAW', color: '#a27cf6', rgb: '162,124,246', wbit: 0x20, pw: 0.5, seq: [63,63,65,67,70,70,67,65,63,62,63,65,67,null,63,62], env: [0.6,1,0.92,0.86] },
+      { id: 'V3', wave: 'NOISE', color: '#f2a154', rgb: '242,161,84', wbit: 0x80, pw: 0.5, seq: [86,null,74,null,86,86,74,null,86,null,74,null,86,null,74,74], env: [1,0.45,0.18,0.05] }
+    ];
+  }
+  hex(n, w) { return n.toString(16).toUpperCase().padStart(w, '0'); }
+  rnd(i) { const x = Math.sin(i * 12.9898) * 43758.5453; return x - Math.floor(x); }
+  hz(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+  note(m) { const N = ['C-','C#','D-','D#','E-','F-','F#','G-','G#','A-','A#','B-']; return N[m % 12] + (Math.floor(m / 12) - 1); }
+  w(type, x, pw, i) { x = x - Math.floor(x); if (type === 'PULSE') return x < pw ? 1 : -1; if (type === 'SAW') return 2 * x - 1; return this.rnd(i) * 2 - 1; }
+  pw1(t) { return 0.1 + 0.4 * (0.5 + 0.5 * Math.sin(t * 0.03)); }
+  cutoff(t) { return Math.round(0x200 + (0.5 + 0.5 * Math.sin(t * 0.0125)) * 0x500 + 0x100 * Math.exp(-(t % 4))); }
+  gate(i, s, age, m) { return i === 0 ? age !== 3 : i === 1 ? m != null : m != null && age < 2; }
+  pats(pos) { return [pos % 2 ? 1 : 0, pos % 4 >= 2 ? 3 : 2, 4]; }
+  cell(V, vi, r) {
+    const pos = Math.floor(r / 32) % 8, row = r % 32, s = r % 16, v = V[vi];
+    if (vi === 0) { const m = v.seq[s] + (pos % 2 ? 5 : 0); return { note: this.note(m), inst: '01', cmd: row === 0 ? 'C40' : row === 16 ? '901' : '...' }; }
+    if (vi === 1) {
+      const tr = pos % 4 >= 2 ? 7 : 0, m = v.seq[s], prev = v.seq[(s + 15) % 16];
+      if (m == null) return { note: '---', inst: '..', cmd: '...' };
+      if (m === prev && s !== 0) return { note: '...', inst: '..', cmd: '423' };
+      return { note: this.note(m + tr), inst: '02', cmd: s === 0 ? '310' : '...' };
+    }
+    const m = v.seq[s];
+    if (m == null) return { note: '...', inst: '..', cmd: '...' };
+    return { note: this.note(m), inst: m === 86 ? '03' : '04', cmd: '...' };
+  }
+  track(addr, val, t, rgb) {
+    if (this.prev[addr] !== val) { this.prev[addr] = val; this.chg[addr] = t; }
+    const heat = Math.max(0, 1 - (t - (this.chg[addr] ?? -99)) / 6);
+    return { bg: heat > 0 ? `rgba(${rgb},${(heat * 0.22).toFixed(3)})` : 'transparent', fg: heat > 0.5 ? '#ffffff' : '#c9c9d1' };
+  }
+  act(i, u, k) {
+    const brk = u > 0.62 && u < 0.69, out = u > 0.95 ? (1 - u) / 0.05 : 1;
+    let a;
+    if (i === 0) a = brk ? 0.3 : 0.75 + 0.25 * this.rnd(k * 3 + 1);
+    else if (i === 1) a = u < 0.12 ? 0 : brk ? 0.95 : 0.45 + 0.5 * this.rnd(k * 7 + 2);
+    else a = u < 0.28 || brk ? 0 : 0.35 + 0.65 * this.rnd(k * 11 + 3);
+    return a * out;
+  }
+  renderVals() {
+    const st = this.state, t = st.t, V = this.V();
+    const r = Math.floor(t / 4) % 256, s = r % 16, age = t % 4, pos = Math.floor(r / 32) % 8;
+    const tab = st.tab;
+    const voices = V.map((v, i) => {
+      const m = v.seq[s], g = this.gate(i, s, age, m), lvl = m == null && i !== 0 ? 0.03 : v.env[age];
+      const pts = [];
+      for (let k = 0; k < 80; k++) { const x = k / 79; pts.push((x * 200).toFixed(1) + ',' + (12 - this.w(v.wave, x * 4 + t * 0.11, v.pw, t * 997 + k * 3) * lvl * 10).toFixed(1)); }
+      let gates = '', trail = '';
+      if (tab === 'sweeps') {
+        for (let k = 0; k < 160; k++) {
+          const tk = Math.max(0, t - 159 + k), ss = Math.floor(tk / 4) % 16;
+          if (this.gate(i, ss, tk % 4, v.seq[ss])) gates += 'M' + (k * 6.25).toFixed(1) + ' ' + (4 + i * 21) + 'h6.6v16h-6.6Z';
+        }
+      }
+      if (tab === 'pitch') {
+        let prev = null;
+        for (let k = 0; k < 96; k++) {
+          const tk = t - 95 + k, mm = tk < 0 ? null : v.seq[Math.floor(tk / 4) % 16], x = (k / 95 * 990).toFixed(1);
+          if (mm != null) { const y = (300 - ((mm - 30) / 64) * 300).toFixed(1); trail += prev == null ? 'M' + x + ' ' + y : prev !== mm ? 'L' + x + ' ' + (300 - ((prev - 30) / 64) * 300).toFixed(1) + 'L' + x + ' ' + y : 'L' + x + ' ' + y; }
+          prev = mm;
+        }
+      }
+      return { id: v.id, wave: v.wave, color: v.color, pts: pts.join(' '), gates: gates || 'M0 0', trail: trail || 'M0 0', on: g };
+    });
+    let rows = [];
+    if (tab === 'tracker') {
+      for (let k = -8; k <= 8; k++) {
+        const rr = r + k, rowIn = ((rr % 32) + 32) % 32, cur = k === 0;
+        if (rr < 0) { rows.push({ num: '', bg: 'transparent', shadow: 'none', numColor: '#000', cells: [] }); continue; }
+        rows.push({
+          num: this.hex(rowIn, 2), bg: cur ? 'rgba(255,255,255,0.09)' : rowIn % 4 === 0 ? '#0e0e11' : 'transparent', shadow: cur ? 'inset 3px 0 0 #e8e8ec' : 'none',
+          numColor: cur ? '#ffffff' : rowIn % 4 === 0 ? '#a3a3ac' : '#55555d',
+          cells: V.map((v, i) => { const c = this.cell(V, i, rr % 256); const e = c.note === '...' || c.note === '---'; return { ...c, noteColor: c.note === '---' ? '#d06a6a' : e ? '#2f2f35' : v.color, instColor: c.inst === '..' ? '#2f2f35' : '#9a9aa3', cmdColor: c.cmd === '...' ? '#2f2f35' : '#d8d8de' }; })
+        });
+      }
+    }
+    let regCols = [];
+    if (tab === 'regs') {
+      regCols = V.map((v, i) => {
+        const base = 0xD400 + i * 7, m = v.seq[s], held = m ?? (i === 1 ? 63 : 86);
+        const freq = Math.round(this.hz(held) * 16777216 / 985248) & 0xffff;
+        const pw = i === 0 ? Math.round(this.pw1(t) * 4095) : i === 1 ? 0x800 : 0;
+        const ctrl = v.wbit | (this.gate(i, s, age, m) ? 1 : 0);
+        const vals = [[0, 'FREQ LO', freq & 0xff], [1, 'FREQ HI', freq >> 8], [2, 'PW LO', pw & 0xff], [3, 'PW HI', pw >> 8], [4, 'CTRL', ctrl], [5, 'AD', [0x09, 0x46, 0x00][i]], [6, 'SR', [0xA0, 0xD5, 0x50][i]]];
+        return { title: 'VOICE ' + (i + 1), color: v.color, regs: vals.map(([o, name, val]) => { const f = this.track(base + o, val, t, v.rgb); return { addr: '$' + this.hex(base + o, 4), name, hex: this.hex(val, 2), bg: f.bg, fg: f.fg }; }) };
+      });
+      const cut = this.cutoff(t), ev = V[2].seq[s] == null ? 0 : Math.round(V[2].env[age] * 255);
+      const fv = [[0xD415, 'FC LO', cut & 7], [0xD416, 'FC HI', cut >> 3], [0xD417, 'RES/FILT', 0xA3], [0xD418, 'MODE/VOL', 0x1F], [0xD41B, 'OSC3', Math.floor(this.rnd(t + 1) * 256)], [0xD41C, 'ENV3', ev]];
+      regCols.push({ title: 'FILTER · READ', color: '#e0e0e5', regs: fv.map(([a, name, val]) => { const f = this.track(a, val, t, '232,232,236'); return { addr: '$' + this.hex(a, 4), name, hex: this.hex(val, 2), bg: f.bg, fg: f.fg }; }) });
+    }
+    let pwL = '', cutL = '';
+    if (tab === 'sweeps') {
+      for (let k = 0; k < 160; k++) {
+        const tk = Math.max(0, t - 159 + k), x = (k * 500 / 159).toFixed(1);
+        pwL += (k ? 'L' : 'M') + x + ' ' + (135 - this.pw1(tk) * 130).toFixed(1);
+        cutL += (k ? 'L' : 'M') + x + ' ' + (135 - this.cutoff(tk) / 2047 * 130).toFixed(1);
+      }
+    }
+    const TL = [['tracker', 'Tracker'], ['regs', 'Registers'], ['sweeps', 'Sweeps'], ['pitch', 'Pitch trail']];
+    const tabs = TL.map(([id, label]) => ({ label, pick: () => this.setState({ tab: id }), bg: tab === id ? '#3a3b41' : 'transparent', fg: tab === id ? '#ffffff' : '#8d8e96' }));
+    const order = Array.from({ length: 8 }, (_, p) => { const q = this.pats(p).map((n) => this.hex(n, 2)); return { pos: this.hex(p, 2), a: q[0], b: q[1], c: q[2], bg: p === pos ? 'rgba(255,255,255,0.09)' : 'transparent', fg: p === pos ? '#ffffff' : '#9a9aa3' }; });
+    const all = [['Delight (tune 5)','David Voigt (Dave)','1992 Cronic','2:16'],['Experimental','David Voigt (Dave)','1992 Oxyron','1:34'],['Marooned','David Voigt (Dave)','1992 Oxyron','0:47'],['Obscure Dreams (tune 1)','David Voigt (Dave)','1991 Gloom','0:47'],['3DEH','Alexander Rotzsch (Fanta)','2009 Oxyron','4:30'],['Lightforce','Rob Hubbard','1986 Faster Than Light (FTL)','7:14']];
+    const tunes = all.map((x, i) => ({ num: String(17 + i), title: x[0], author: x[1], rel: x[2], len: x[3], bg: i === 5 ? '#3a3b40' : i % 2 ? '#222327' : 'transparent', weight: i === 5 ? 600 : 400 }));
+    const secs = (12 + t * 0.05) % 434, frac = secs / 434;
+    const strip = V.map((v, i) => { let p = '', q = ''; for (let k = 0; k < 150; k++) { const a = this.act(i, k / 150, k); if (a <= 0.02) continue; const h = 2 + a * 7, y = 1 + i * 10 + (9 - h) / 2, seg = 'M' + (k * 4).toFixed(1) + ' ' + y.toFixed(1) + 'h3v' + h.toFixed(1) + 'h-3Z'; if (k / 150 < frac) p += seg; else q += seg; } return { color: v.color, played: p || 'M0 0', rest: q || 'M0 0' }; });
+    const octs = [84, 72, 60, 48, 36].map((m) => { const y = 300 - ((m - 30) / 64) * 300; return { label: 'C' + (m / 12 - 1), y: y.toFixed(1), top: (y / 3).toFixed(2) }; });
+    return {
+      tunes, tabs, voices, rows, order, regCols, octs,
+      isTracker: tab === 'tracker', isRegs: tab === 'regs', isSweeps: tab === 'sweeps', isPitch: tab === 'pitch',
+      pwLine: pwL || 'M0 0', pwArea: (pwL || 'M0 0') + 'L500 140L0 140Z', cutLine: cutL || 'M0 0', cutArea: (cutL || 'M0 0') + 'L500 140L0 140Z',
+      pwHex: '$' + this.hex(Math.round(this.pw1(t) * 4095), 3), cutHex: '$' + this.hex(this.cutoff(t), 3),
+      pos: this.hex(pos, 2), rowHex: this.hex(r % 32, 2), frame: String(t).padStart(5, '0'),
+      strip, playX: (frac * 600).toFixed(1), elapsed: Math.floor(secs / 60) + ':' + String(Math.floor(secs % 60)).padStart(2, '0'),
+      run: st.run, paused: !st.run, runLabel: st.run ? 'Pause' : 'Play', toggle: () => this.setState({ run: !st.run })
+    };
+  }
+}
+</script>
+</body>
+</html>

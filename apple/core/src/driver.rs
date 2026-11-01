@@ -23,6 +23,7 @@ use crate::library::{Library, LibraryError};
 use crate::player::{self, PlayState, PlayerCmd, PlayerStatus};
 use crate::playlist::{self, LoadingProgress, PlaylistEntry, RepeatMode};
 use crate::session::{persist, Engine, Options, Session};
+use crate::viz::{SharedFeed, VizCapture, VizFeed};
 use crate::{audio_volume, config};
 
 /// How often the advance check runs while playing (statuses also wake the
@@ -96,8 +97,6 @@ pub(crate) struct SessionView {
     pub engine: Engine,
     pub playlist_revision: u64,
     pub track_revision: u64,
-    /// Bumped per player status, so the visualizer can tell new frames apart.
-    pub status_seq: u64,
 }
 
 pub(crate) struct StartConfig {
@@ -117,6 +116,9 @@ pub(crate) struct StartConfig {
 pub(crate) struct Driver {
     pub commands: Sender<Command>,
     pub published: Arc<Mutex<Arc<Published>>>,
+    /// The visualizers' frames, kept apart from `published` so the per-step
+    /// publish never copies them.
+    pub viz: SharedFeed,
 }
 
 impl Driver {
@@ -134,21 +136,23 @@ impl Driver {
                 engine: start.engine,
                 playlist_revision: 0,
                 track_revision: 0,
-                status_seq: 0,
             },
             playlist: Arc::new(Vec::new()),
             loading: None,
             error: None,
             stil: None,
         })));
+        let viz = Arc::new(Mutex::new(VizFeed::new()));
         let out = published.clone();
+        let capture = VizCapture::new(viz.clone());
         thread::Builder::new()
             .name("resonance-session".into())
-            .spawn(move || run(start, cmd_rx, out))
+            .spawn(move || run(start, cmd_rx, out, capture))
             .expect("failed to spawn the session thread");
         Self {
             commands: cmd_tx,
             published,
+            viz,
         }
     }
 }
@@ -353,15 +357,20 @@ struct State {
     session_loaded: bool,
     saved_revision: u64,
     dirty_since: Option<Instant>,
-    status_seq: u64,
     error: Option<String>,
     published_playlist: (u64, Arc<Vec<PlaylistEntry>>),
     databases: SharedDatabases,
     /// STIL keyed by the (path, subtune) it was looked up for.
     published_stil: Option<((PathBuf, u16), Option<StilNotes>)>,
+    viz: VizCapture,
 }
 
-fn run(start: StartConfig, commands: Receiver<Command>, out: Arc<Mutex<Arc<Published>>>) {
+fn run(
+    start: StartConfig,
+    commands: Receiver<Command>,
+    out: Arc<Mutex<Arc<Published>>>,
+    viz: VizCapture,
+) {
     let now = Instant::now();
     audio_volume::set(start.volume);
 
@@ -392,11 +401,11 @@ fn run(start: StartConfig, commands: Receiver<Command>, out: Arc<Mutex<Arc<Publi
         session_loaded: false,
         saved_revision: 0,
         dirty_since: None,
-        status_seq: 0,
         error: None,
         published_playlist: (u64::MAX, Arc::new(Vec::new())),
         databases: start.databases,
         published_stil: None,
+        viz,
     };
 
     loop {
@@ -502,9 +511,13 @@ impl State {
 
     fn ingest(&mut self, first: PlayerStatus) {
         let rest: Vec<_> = self.player.statuses.try_iter().collect();
-        self.status_seq += 1 + rest.len() as u64;
+        let now = Instant::now();
+        // Every status, not just the latest: each carries one frame.
+        for status in std::iter::once(&first).chain(&rest) {
+            self.viz.ingest(status, now);
+        }
         self.session
-            .ingest_statuses(std::iter::once(first).chain(rest), Instant::now());
+            .ingest_statuses(std::iter::once(first).chain(rest), now);
     }
 
     fn apply_loaded(&mut self, result: Loaded) {
@@ -630,7 +643,6 @@ impl State {
                 engine: s.engine,
                 playlist_revision: s.playlist_revision,
                 track_revision: s.track_revision,
-                status_seq: self.status_seq,
             },
             playlist: self.published_playlist.1.clone(),
             loading,

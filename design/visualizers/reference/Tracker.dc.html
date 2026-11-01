@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SID tracker</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#a27cf6}a:hover{color:#c4adff}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1280px; height: 800px; box-sizing: border-box; padding: 20px; background: #1c1c20; font-family: 'JetBrains Mono', ui-monospace, monospace; color: #e8e8ec">
+<div style="height: 100%; box-sizing: border-box; background: #0b0b0c; border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 14px">
+
+<div style="height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 16px">
+<div style="display: flex; align-items: center; gap: 12px; width: 340px">
+<div style="width: 34px; height: 34px; border-radius: 9px; background: #151518; display: flex; align-items: flex-end; justify-content: center; gap: 3px; padding-bottom: 8px; box-sizing: border-box">
+<sc-for list="{{voices}}" as="v" hint-placeholder-count="3">
+<span style="width: 4px; height: {{v.miniH}}px; border-radius: 2px; background: {{v.color}}"></span>
+</sc-for>
+</div>
+<div style="display: flex; flex-direction: column; gap: 3px">
+<span style="font-size: 14px; font-weight: 700; color: #f0f0f3">Demo tune</span>
+<span style="font-size: 11px; color: #85858e">[AUTHOR] · 6581 · PAL 50 Hz</span>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 8px">
+<button aria-label="Previous subtune" style="width: 36px; height: 36px; border-radius: 10px; background: #151518; border: 1px solid #25252a; color: #c9c9d1; display: flex; align-items: center; justify-content: center">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 20 9 12l10-8v16Z"></path><path d="M5 19V5"></path></svg>
+</button>
+<button onClick="{{toggle}}" aria-label="{{runLabel}}" style="width: 44px; height: 44px; border-radius: 12px; background: #e8e8ec; border: none; color: #0b0b0c; display: flex; align-items: center; justify-content: center">
+<sc-if value="{{run}}" hint-placeholder-val="{{true}}">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"></rect><rect x="14" y="4" width="4" height="16" rx="1"></rect></svg>
+</sc-if>
+<sc-if value="{{paused}}" hint-placeholder-val="{{false}}">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4v16l13-8L7 4Z"></path></svg>
+</sc-if>
+</button>
+<button aria-label="Next subtune" style="width: 36px; height: 36px; border-radius: 10px; background: #151518; border: 1px solid #25252a; color: #c9c9d1; display: flex; align-items: center; justify-content: center">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 4 10 8-10 8V4Z"></path><path d="M19 5v14"></path></svg>
+</button>
+</div>
+<div style="width: 340px; display: flex; justify-content: flex-end; gap: 6px">
+<sc-for list="{{stats}}" as="s" hint-placeholder-count="5">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px 9px; background: #121214; border-radius: 8px; min-width: 40px">
+<span style="font-size: 9px; letter-spacing: 0.1em; color: #7a7a83">{{s.k}}</span>
+<span style="font-size: 13px; font-weight: 500; color: #e4e4e9">{{s.v}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="flex: 1; display: flex; gap: 14px; min-height: 0">
+
+<div style="flex: 1; background: #070708; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; font-size: 13px">
+<div style="display: flex; height: 70px; border-bottom: 1px solid #1a1a1e; background: #0e0e10">
+<div style="width: 44px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px; box-sizing: border-box">
+<span style="font-size: 9px; color: #6a6a73">ROW</span>
+</div>
+<sc-for list="{{voices}}" as="v" hint-placeholder-count="3">
+<div style="flex: 1; border-left: 1px solid #1a1a1e; padding: 9px 12px; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px; opacity: {{v.op}}">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<div style="display: flex; align-items: center; gap: 8px">
+<span style="width: 7px; height: 7px; border-radius: 50%; background: {{v.gateColor}}"></span>
+<span style="font-size: 11px; font-weight: 700; color: {{v.color}}">{{v.id}}</span>
+<span style="font-size: 10px; color: #7f7f88">{{v.wave}}</span>
+<span style="font-size: 10px; color: #5f5f68">PAT {{v.pat}}</span>
+</div>
+<div style="display: flex; gap: 4px">
+<button onClick="{{v.mute}}" aria-label="Mute {{v.id}}" style="width: 24px; height: 22px; border-radius: 6px; border: none; font-size: 10px; font-weight: 700; background: {{v.muteBg}}; color: {{v.muteFg}}">M</button>
+<button onClick="{{v.solo}}" aria-label="Solo {{v.id}}" style="width: 24px; height: 22px; border-radius: 6px; border: none; font-size: 10px; font-weight: 700; background: {{v.soloBg}}; color: {{v.soloFg}}">S</button>
+</div>
+</div>
+<svg viewBox="0 0 200 30" preserveAspectRatio="none" style="width: 100%; height: 30px; display: block" aria-hidden="true">
+<line x1="0" y1="15" x2="200" y2="15" stroke="#ffffff" stroke-opacity="0.07" vector-effect="non-scaling-stroke"></line>
+<polyline points="{{v.pts}}" fill="none" stroke="{{v.color}}" stroke-width="1.4" vector-effect="non-scaling-stroke"></polyline>
+</svg>
+</div>
+</sc-for>
+</div>
+<div style="flex: 1; display: flex; flex-direction: column; padding: 6px 0; position: relative">
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="29">
+<div style="display: flex; height: 20px; align-items: center; background: {{r.bg}}; box-shadow: {{r.shadow}}">
+<span style="width: 44px; text-align: center; font-size: 12px; color: {{r.numColor}}">{{r.num}}</span>
+<sc-for list="{{r.cells}}" as="c" hint-placeholder-count="3">
+<div style="flex: 1; height: 100%; display: flex; align-items: center; gap: 12px; padding-left: 14px; border-left: 1px solid #16161a; opacity: {{c.op}}">
+<span style="width: 30px; color: {{c.noteColor}}; font-weight: {{c.weight}}">{{c.note}}</span>
+<span style="width: 18px; color: {{c.instColor}}">{{c.inst}}</span>
+<span style="width: 28px; color: {{c.cmdColor}}">{{c.cmd}}</span>
+</div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="width: 300px; display: flex; flex-direction: column; gap: 14px">
+
+<div style="background: #111113; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<span style="font-size: 11px; letter-spacing: 0.12em; color: #9a9aa3">ORDERLIST</span>
+<span style="font-size: 10px; color: #6a6a73">loop → 00</span>
+</div>
+<div style="display: grid; grid-template-columns: 36px repeat(3, minmax(0, 1fr)); font-size: 10px; color: #6a6a73; padding: 0 6px">
+<span>POS</span>
+<sc-for list="{{voices}}" as="v" hint-placeholder-count="3">
+<span style="color: {{v.color}}">{{v.id}}</span>
+</sc-for>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<sc-for list="{{order}}" as="o" hint-placeholder-count="8">
+<div style="display: grid; grid-template-columns: 36px repeat(3, minmax(0, 1fr)); font-size: 12px; height: 20px; align-items: center; padding: 0 6px; border-radius: 5px; background: {{o.bg}}; color: {{o.fg}}">
+<span style="color: {{o.posColor}}">{{o.pos}}</span>
+<sc-for list="{{o.pats}}" as="p" hint-placeholder-count="3">
+<span>{{p.v}}</span>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="background: #111113; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 11px; letter-spacing: 0.12em; color: #9a9aa3">INSTRUMENTS</span>
+<sc-for list="{{insts}}" as="i" hint-placeholder-count="4">
+<div style="display: flex; align-items: center; gap: 10px; height: 26px; padding: 0 6px; border-radius: 6px; background: {{i.bg}}">
+<span style="width: 7px; height: 7px; border-radius: 50%; background: {{i.dot}}"></span>
+<span style="font-size: 12px; color: #7f7f88">{{i.num}}</span>
+<span style="flex: 1; font-size: 12px; color: #e0e0e5">{{i.name}}</span>
+<span style="font-size: 11px; color: #8f8f98">{{i.adsr}}</span>
+</div>
+</sc-for>
+</div>
+
+<div style="background: #111113; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; flex: 1">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<span style="font-size: 11px; letter-spacing: 0.12em; color: #9a9aa3">FILTER</span>
+<span style="font-size: 11px; color: #c9c9d1">CUT {{cutHex}} · RES A</span>
+</div>
+<div style="height: 6px; border-radius: 3px; background: #1d1d21; overflow: hidden">
+<div style="height: 100%; width: {{cutPct}}%; background: linear-gradient(90deg, #4fd1c5, #a27cf6)"></div>
+</div>
+<div style="display: flex; justify-content: space-between">
+<div style="display: flex; gap: 4px">
+<span style="font-size: 11px; padding: 4px 8px; border-radius: 6px; background: #e8e8ec; color: #0b0b0c; font-weight: 700">LP</span>
+<span style="font-size: 11px; padding: 4px 8px; border-radius: 6px; background: #1a1a1e; color: #8a8a93">BP</span>
+<span style="font-size: 11px; padding: 4px 8px; border-radius: 6px; background: #1a1a1e; color: #8a8a93">HP</span>
+</div>
+<div style="display: flex; gap: 4px">
+<sc-for list="{{voices}}" as="v" hint-placeholder-count="3">
+<span style="font-size: 11px; padding: 4px 8px; border-radius: 6px; background: {{v.routeBg}}; color: {{v.routeFg}}; font-weight: 700">{{v.id}}</span>
+</sc-for>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(...a) { super(...a); this.state = { t: 0, run: true, muted: [false, false, false], solo: [false, false, false] }; }
+  componentDidMount() { this.iv = setInterval(() => { if (this.state.run) this.setState({ t: this.state.t + 1 }); }, 50); }
+  componentWillUnmount() { clearInterval(this.iv); }
+  data() {
+    return [
+      { id: 'V1', wave: 'PULSE', color: '#4fd1c5', pw: 0.42, route: true, seq: [36,36,48,36,43,43,55,43,46,46,58,46,41,41,53,41], env: [1,0.85,0.75,0.7] },
+      { id: 'V2', wave: 'SAW', color: '#a27cf6', pw: 0.5, route: true, seq: [63,63,65,67,70,70,67,65,63,62,63,65,67,null,63,62], env: [0.6,1,0.92,0.86] },
+      { id: 'V3', wave: 'NOISE', color: '#f2a154', pw: 0.5, route: false, seq: [86,null,74,null,86,86,74,null,86,null,74,null,86,null,74,74], env: [1,0.45,0.18,0.05] }
+    ];
+  }
+  hex(n, w) { return n.toString(16).toUpperCase().padStart(w, '0'); }
+  note(m) { const N = ['C-','C#','D-','D#','E-','F-','F#','G-','G#','A-','A#','B-']; return N[m % 12] + (Math.floor(m / 12) - 1); }
+  rnd(i) { const x = Math.sin(i * 12.9898) * 43758.5453; return x - Math.floor(x); }
+  w(type, x, pw, i) { x = x - Math.floor(x); if (type === 'PULSE') return x < pw ? 1 : -1; if (type === 'SAW') return 2 * x - 1; return this.rnd(i) * 2 - 1; }
+  pats(pos) { return [pos % 2 ? 1 : 0, pos % 4 >= 2 ? 3 : 2, 4]; }
+  // one tracker cell: what's written in the pattern for voice vi at absolute song row r
+  cell(V, vi, r) {
+    const pos = Math.floor(r / 32) % 8, row = r % 32, s = r % 16, v = V[vi];
+    if (vi === 0) {
+      const m = v.seq[s] + (pos % 2 ? 5 : 0);
+      return { m, gate: true, note: this.note(m), inst: '01', cmd: row === 0 ? 'C40' : row === 16 ? '901' : '...' };
+    }
+    if (vi === 1) {
+      const tr = pos % 4 >= 2 ? 7 : 0, m = v.seq[s], prev = v.seq[(s + 15) % 16];
+      if (m == null) return { m: null, gate: false, note: '---', inst: '..', cmd: '...' };
+      if (m === prev && s !== 0) return { m: m + tr, gate: true, hold: true, note: '...', inst: '..', cmd: '423' };
+      return { m: m + tr, gate: true, note: this.note(m + tr), inst: '02', cmd: s === 0 ? '310' : '...' };
+    }
+    const m = v.seq[s];
+    if (m == null) return { m: null, gate: false, note: '...', inst: '..', cmd: '...' };
+    return { m, gate: true, note: this.note(m), inst: m === 86 ? '03' : '04', cmd: '...' };
+  }
+  renderVals() {
+    const st = this.state, t = st.t, V = this.data();
+    const r = Math.floor(t / 4) % 256, age = t % 4, pos = Math.floor(r / 32) % 8, row = r % 32;
+    const anySolo = st.solo.some(Boolean);
+    const audible = V.map((_, i) => !st.muted[i] && (!anySolo || st.solo[i]));
+    const toggleArr = (key, i) => () => { const a = st[key].slice(); a[i] = !a[i]; this.setState({ [key]: a }); };
+    const cur = V.map((_, i) => this.cell(V, i, r));
+    const voices = V.map((v, i) => {
+      const c = cur[i], lvl = audible[i] ? (c.gate ? v.env[c.hold ? 3 : age] : 0.03) : 0;
+      const cyc = v.wave === 'NOISE' ? 1 : Math.min(6, 2 + (c.m ? (c.m - 30) / 12 : 0));
+      const pts = [];
+      for (let k = 0; k < 120; k++) { const x = k / 119; pts.push((x * 200).toFixed(1) + ',' + (15 - this.w(v.wave, x * cyc + t * 0.11, v.pw, t * 997 + k * 3) * lvl * 12).toFixed(1)); }
+      return {
+        id: v.id, wave: v.wave, color: v.color, pat: this.hex(this.pats(pos)[i], 2), pts: pts.join(' '),
+        op: audible[i] ? 1 : 0.4, gateColor: c.gate && audible[i] ? v.color : '#33333a',
+        miniH: Math.round(6 + lvl * 12),
+        mute: toggleArr('muted', i), solo: toggleArr('solo', i),
+        muteBg: st.muted[i] ? '#4a2224' : '#1a1a1e', muteFg: st.muted[i] ? '#ff9a9a' : '#8a8a93',
+        soloBg: st.solo[i] ? '#4a3e1c' : '#1a1a1e', soloFg: st.solo[i] ? '#ffd37a' : '#8a8a93',
+        routeBg: v.route ? v.color : '#1a1a1e', routeFg: v.route ? '#0b0b0c' : '#6a6a73'
+      };
+    });
+    const rows = [];
+    for (let k = -14; k <= 14; k++) {
+      const rr = r + k, rowIn = ((rr % 32) + 32) % 32, isCur = k === 0, beat = rowIn % 4 === 0;
+      if (rr < 0) { rows.push({ num: '', bg: 'transparent', shadow: 'none', numColor: '#000', cells: [] }); continue; }
+      const cells = V.map((v, i) => {
+        const c = this.cell(V, i, rr % 256);
+        const empty = c.note === '...' || c.note === '---';
+        return {
+          note: c.note, inst: c.inst, cmd: c.cmd,
+          noteColor: c.note === '---' ? '#d06a6a' : empty ? '#2f2f35' : v.color,
+          weight: isCur && !empty ? 700 : 400,
+          instColor: c.inst === '..' ? '#2f2f35' : '#9a9aa3',
+          cmdColor: c.cmd === '...' ? '#2f2f35' : '#d8d8de',
+          op: audible[i] ? (Math.abs(k) > 10 ? 0.55 : 1) : 0.3
+        };
+      });
+      rows.push({
+        num: this.hex(rowIn, 2), cells,
+        bg: isCur ? 'rgba(255,255,255,0.09)' : beat ? '#0e0e11' : 'transparent',
+        shadow: isCur ? 'inset 3px 0 0 #e8e8ec' : 'none',
+        numColor: isCur ? '#ffffff' : beat ? '#a3a3ac' : '#55555d'
+      });
+    }
+    const order = Array.from({ length: 8 }, (_, p) => ({
+      pos: this.hex(p, 2), pats: this.pats(p).map((n) => ({ v: this.hex(n, 2) })),
+      bg: p === pos ? 'rgba(255,255,255,0.09)' : 'transparent', fg: p === pos ? '#ffffff' : '#9a9aa3', posColor: p === pos ? '#ffffff' : '#5f5f68'
+    }));
+    const active = {};
+    cur.forEach((c, i) => { if (c.inst !== '..' && audible[i]) active[c.inst] = V[i].color; });
+    const insts = [['01', 'Pulse bass', 'AD 09 SR A0'], ['02', 'Saw lead', 'AD 46 SR D5'], ['03', 'Hihat', 'AD 00 SR 50'], ['04', 'Snare', 'AD 05 SR 02']]
+      .map(([num, name, adsr]) => ({ num, name, adsr, dot: active[num] || '#2a2a30', bg: active[num] ? '#18181c' : 'transparent' }));
+    const cut = Math.round(0x400 + (Math.sin(t / 40) * 0.5 + 0.5) * 0x500);
+    const secs = Math.floor(t * 0.05);
+    const stats = [
+      { k: 'SUB', v: '1/3' }, { k: 'POS', v: this.hex(pos, 2) }, { k: 'ROW', v: this.hex(row, 2) },
+      { k: 'SPD', v: '04' }, { k: 'TIME', v: Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0') }
+    ];
+    return {
+      voices, rows, order, insts, stats, cutHex: this.hex(cut, 3), cutPct: Math.round((cut / 0x7ff) * 100),
+      run: st.run, paused: !st.run, runLabel: st.run ? 'Pause' : 'Play',
+      toggle: () => this.setState({ run: !st.run })
+    };
+  }
+}
+</script>
+</body>
+</html>
