@@ -17,6 +17,7 @@ struct NowPlayingBar: View {
         GlassEffectContainer(spacing: 12) {
             HStack(spacing: 16) {
                 transport
+                nowPlaying
                 trackInfo
                     .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                 if store.hasSubtunes {
@@ -62,6 +63,15 @@ struct NowPlayingBar: View {
         .buttonStyle(.borderless)
     }
 
+    /// Never drops out as the bar narrows: it's one of the ways into Now
+    /// Playing, along with the track title and View › Now Playing.
+    private var nowPlaying: some View {
+        Button("Now Playing", systemImage: "chevron.up") { store.toggleNowPlaying() }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .help("Show Now Playing")
+    }
+
     private var shuffle: some View {
         Button("Shuffle", systemImage: "shuffle") { store.shuffle.toggle() }
             .foregroundStyle(modeStyle(on: store.shuffle))
@@ -90,8 +100,17 @@ struct NowPlayingBar: View {
                     if store.surpriseActive {
                         SurpriseBadge(compact: width < 560)
                     }
-                    Text(track.title).font(.headline)
-                    Text(track.author).foregroundStyle(.secondary)
+                    // Like clicking the artwork in Music.
+                    Button {
+                        store.toggleNowPlaying()
+                    } label: {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(track.title).font(.headline)
+                            Text(track.author).foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .help("Show Now Playing")
                 }
                 .lineLimit(1)
             } else {

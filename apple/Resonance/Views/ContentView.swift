@@ -13,6 +13,10 @@ struct ContentView: View {
     @Environment(LibraryStore.self) private var library
     @State private var sidebarSelection: SidebarItem? = .playlist
     @State private var showInspector = true
+    /// Now Playing's slide and the hidden title bar, sequenced from
+    /// `store.isShowingNowPlaying` (see the overlay below).
+    @State private var nowPlayingUp = false
+    @State private var titlebarHidden = false
     @State private var isDropTargeted = false
     @State private var choosingHvscFolder = false
     /// Each sidebar section keeps its own search text.
@@ -80,6 +84,44 @@ struct ContentView: View {
             store.add(urls)
             return true
         } isTargeted: { isDropTargeted = $0 }
+        // Now Playing slides up over the whole window. The title bar hides
+        // as a whole, window buttons included: in that mode the window is
+        // only closed back to the library, with Now Playing's own button.
+        // (Hiding the toolbar whole is safe; changing its items per state is
+        // what crashed the window, see searchable above.)
+        //
+        // Always there and slid out of sight by its own height, rather than
+        // added and removed: SwiftUI didn't always finish removing it after
+        // the slide, and a window grown to full screen then showed it peeking
+        // in below. Closed, it's paused and ignores clicks.
+        //
+        // The title bar hides before the slide up and returns after the slide
+        // down: AppKit applies it late, and mid-slide it made Now Playing snap.
+        .overlay {
+            NowPlayingView(isShowing: store.isShowingNowPlaying)
+                .ignoresSafeArea()
+                .visualEffect { [up = nowPlayingUp] content, proxy in
+                    content.offset(y: up ? 0 : proxy.size.height)
+                }
+                .allowsHitTesting(store.isShowingNowPlaying)
+                .accessibilityHidden(!store.isShowingNowPlaying)
+        }
+        .toolbarVisibility(titlebarHidden ? .hidden : .visible, for: .windowToolbar)
+        .onChange(of: store.isShowingNowPlaying) { _, showing in
+            if showing {
+                titlebarHidden = true
+                DispatchQueue.main.async {
+                    withAnimation(.smooth) { nowPlayingUp = true }
+                }
+            } else {
+                withAnimation(.smooth) {
+                    nowPlayingUp = false
+                } completion: {
+                    // Unless it was reopened meanwhile.
+                    if !store.isShowingNowPlaying { titlebarHidden = false }
+                }
+            }
+        }
         .overlay {
             if isDropTargeted {
                 RoundedRectangle(cornerRadius: 12)

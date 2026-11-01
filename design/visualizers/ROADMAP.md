@@ -117,9 +117,9 @@ building it (see the tracker note in ROADMAP.md).
 
 ## Phase 4 — Now Playing (full window / full screen)
 
-- [ ] Full-window view opened from the inspector card's expand button — `reference/AppNowPlaying.dc.html`
+- [x] Now Playing — `reference/AppNowPlaying.dc.html`, Halo only. The main window's second mode: it slides up over the library like Music's player (full screen when the window is). Opened from the player bar's button, its track title, or View › Show Now Playing (⇧⌘F); Esc or its top-right button slides it away. A thin progress bar stands in for the overview strip until Phase 2.
 - [ ] Per-voice FFT (vDSP) on the sample taps
-- [ ] Halo (Metal fragment shader) — `reference/Halo.dc.html`
+- [x] Halo (Metal fragment shader) — `reference/Halo.dc.html`. `HaloShape` builds each ring's radii on the CPU from the waveform's harmonics and the envelope; `Shaders/Halo.metal` draws them through SwiftUI's shader API. Building needs Xcode's Metal Toolchain component.
 - [ ] Radial spectrum — `reference/RadialBars.dc.html`
 - [ ] Particle sphere (Metal compute + instanced points, 50k+) — `reference/Particles.dc.html`
 - [ ] Spectrogram waterfall (texture scroll) — `reference/Spectrogram.dc.html`

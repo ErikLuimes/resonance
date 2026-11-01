@@ -101,6 +101,15 @@ final class PlayerStore {
     /// Set by menu commands; the main window presents the file importer.
     var isImporting = false
 
+    /// The main window's Now Playing mode: the Halo and the playing tune
+    /// over the whole window, instead of the library.
+    var isShowingNowPlaying = false
+
+    /// Into or out of Now Playing; the window animates the change.
+    func toggleNowPlaying() {
+        isShowingNowPlaying.toggle()
+    }
+
     let core: any PlayerCoreProtocol
 
     @ObservationIgnored private let defaults: UserDefaults

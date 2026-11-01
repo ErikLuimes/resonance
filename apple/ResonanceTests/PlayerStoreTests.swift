@@ -602,6 +602,59 @@ struct VisualizerFeedTests {
         #expect(shape.dot(for: envelope(.release, level: 0), releasedFrom: 0.4) == nil)
     }
 
+    @Test func haloRingsRestAsCirclesAndWobbleWhenSounding() {
+        let halo = HaloShape()
+        let start = Date()
+        halo.update(voices: [], frame: nil, at: start)
+        #expect(halo.radii.count == 3 * HaloShape.samples)
+        for v in 0..<3 {
+            let ring = halo.radii[v * HaloShape.samples..<(v + 1) * HaloShape.samples]
+            #expect(ring.allSatisfy { $0 == HaloShape.baseRadii[v] })
+        }
+
+        var saw = envelope(.sustain, level: 1)
+        saw.waveform = 0x2
+        // Half a second at 60 fps.
+        for n in 1...30 {
+            halo.update(voices: [saw], frame: UInt64(n), at: start + Double(n) / 60)
+        }
+        let ring = halo.radii.prefix(HaloShape.samples)
+        #expect(ring.max()! - ring.min()! > 0.1)
+        #expect(halo.levels[0] > 0.99 && halo.levels[1] == 0)
+    }
+
+    /// How much of harmonic `k` a wave's ring has, by a plain DFT.
+    private func harmonic(_ k: Int, of wave: HaloShape.Wave) -> Double {
+        var re = 0.0, im = 0.0
+        for j in 0..<256 {
+            let theta = 2 * Double.pi * Double(j) / 256
+            let s = Double(wave.shape(at: theta, time: 0))
+            re += s * cos(Double(k) * theta)
+            im += s * sin(Double(k) * theta)
+        }
+        return hypot(re, im) / 128
+    }
+
+    @Test func haloShapeFollowsTheWaveform() {
+        let saw = HaloShape.Wave(waveform: 0x2, pulseWidth: 0.5, noiseSeed: 0)
+        let pulse = HaloShape.Wave(waveform: 0x4, pulseWidth: 0.5, noiseSeed: 0)
+        // Saw has every harmonic at 1/k; pulse only odd ones.
+        #expect(abs(harmonic(2, of: saw) - 0.5) < 0.01)
+        #expect(harmonic(2, of: pulse) < 1e-6)
+        #expect(harmonic(3, of: pulse) > 0.5)
+        // The pulse width shapes it: at a third, the 3rd harmonic vanishes.
+        let third = HaloShape.Wave(waveform: 0x4, pulseWidth: 1.0 / 3, noiseSeed: 0)
+        #expect(harmonic(3, of: third) < 1e-6)
+    }
+
+    @Test func haloNoiseChangesOnlyWithTheFrame() {
+        let a = HaloShape.Wave(waveform: 0x8, pulseWidth: 0.5, noiseSeed: 7)
+        let b = HaloShape.Wave(waveform: 0x8, pulseWidth: 0.5, noiseSeed: 7)
+        let c = HaloShape.Wave(waveform: 0x8, pulseWidth: 0.5, noiseSeed: 8)
+        #expect(a.shape(at: 1, time: 0) == b.shape(at: 1, time: 0))
+        #expect(a.shape(at: 1, time: 0) != c.shape(at: 1, time: 0))
+    }
+
     @Test func meterHoldsASustainAndSoftensADrop() {
         let meter = VoiceMeter()
         let start = Date()

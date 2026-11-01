@@ -105,19 +105,25 @@ struct NowPlayingInspector: View {
     /// publisher, group or party that put the tune out; either may be
     /// missing, and "<?>" means nothing is known.
     nonisolated static func released(_ field: String) -> String? {
-        let parts = field.split(separator: " ", maxSplits: 1).map(String.init)
-        guard let first = parts.first else { return nil }
-        // "1985", "198?", "1987-88"; "19??" and "????" say nothing.
-        let isYear = first.allSatisfy { $0.isNumber || "?-/".contains($0) }
-        let year = isYear && first.filter(\.isNumber).count >= 3 ? first : nil
-        let by = (isYear ? parts.dropFirst().first : field.trimmingCharacters(in: .whitespaces))
-            .flatMap { $0.isEmpty || $0 == "<?>" ? nil : $0 }
-        switch (year, by) {
+        switch releasedParts(field) {
         case let (year?, by?): return "Released \(year) by \(by)"
         case let (year?, nil): return "Released \(year)"
         case let (nil, by?): return "Released by \(by)"
         case (nil, nil): return nil
         }
+    }
+
+    /// The released field's year and who put the tune out, either nil when
+    /// unknown.
+    nonisolated static func releasedParts(_ field: String) -> (year: String?, by: String?) {
+        let parts = field.split(separator: " ", maxSplits: 1).map(String.init)
+        guard let first = parts.first else { return (nil, nil) }
+        // "1985", "198?", "1987-88"; "19??" and "????" say nothing.
+        let isYear = first.allSatisfy { $0.isNumber || "?-/".contains($0) }
+        let year = isYear && first.filter(\.isNumber).count >= 3 ? first : nil
+        let by = (isYear ? parts.dropFirst().first : field.trimmingCharacters(in: .whitespaces))
+            .flatMap { $0.isEmpty || $0 == "<?>" ? nil : $0 }
+        return (year, by)
     }
 
     /// Which list Next and Previous walk.
@@ -161,8 +167,8 @@ struct NowPlayingInspector: View {
             HStack(spacing: 0) {
                 spec("Format", track.isRsid ? "RSID" : "PSID")
                 Divider()
-                spec("SID", sidModel(track.sidModel).short)
-                    .help(sidModel(track.sidModel).full)
+                spec("SID", track.chipModel.short)
+                    .help(track.chipModel.full)
                 Divider()
                 spec("Clock", track.isPal ? "PAL" : "NTSC")
                 Divider()
@@ -191,9 +197,13 @@ struct NowPlayingInspector: View {
         .padding(.vertical, 8)
         .accessibilityElement(children: .combine)
     }
+}
 
-    private func sidModel(_ model: UInt8) -> (short: String, full: String) {
-        switch model {
+nonisolated extension TrackDetails {
+    /// The SID chip the tune's header asks for: short for labels, in full
+    /// for help text.
+    var chipModel: (short: String, full: String) {
+        switch sidModel {
         case 1: ("6581", "MOS 6581")
         case 2: ("8580", "MOS 8580")
         case 3: ("Either", "Plays on the 6581 or the 8580")

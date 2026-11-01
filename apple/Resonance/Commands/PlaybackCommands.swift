@@ -6,6 +6,14 @@ struct PlaybackCommands: Commands {
     let library: LibraryStore
 
     var body: some Commands {
+        // ⇧⌘F: ⌃⌘F is the system's Enter Full Screen.
+        CommandGroup(before: .sidebar) {
+            Button(store.isShowingNowPlaying ? "Hide Now Playing" : "Show Now Playing") {
+                store.toggleNowPlaying()
+            }
+            .keyboardShortcut("f", modifiers: [.command, .shift])
+        }
+
         CommandGroup(replacing: .newItem) {
             Button("Add Files or Folders…") { store.isImporting = true }
                 .keyboardShortcut("o")
