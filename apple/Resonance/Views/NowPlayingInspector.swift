@@ -12,7 +12,7 @@ struct NowPlayingInspector: View {
         // scrolling details rather than being laid out with them.
         VStack(spacing: 0) {
             VisualizerView()
-                .frame(height: 180)
+                .frame(height: 204)
                 .padding(12)
             details
         }

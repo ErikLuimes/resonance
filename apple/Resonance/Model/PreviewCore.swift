@@ -77,8 +77,8 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
             VizVoice(
                 freqReg: UInt16(v.hz * 16_777_216 / 985_248), hz: v.hz, midi: v.midi, note: v.note,
                 gate: true, waveform: v.waveform, test: false, ring: false, sync: false,
-                pulseWidth: 0x800, attack: 0, decay: 9, sustain: 10, release: 6,
-                envLevel: Float(0.5 + 0.45 * sin(t * (2 + Double(i))))
+                pulseWidth: 0x800, attack: UInt8(2 * i), decay: 9, sustain: 10, release: 6,
+                envLevel: Float(0.5 + 0.45 * sin(t * (2 + Double(i)))), envPhase: [.attack, .decay, .sustain][i]
             )
         }
         let chip = VizChip(

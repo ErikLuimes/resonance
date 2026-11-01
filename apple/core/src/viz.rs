@@ -75,6 +75,17 @@ pub(crate) struct ChipState {
     pub regs: [u8; FRAME_REGS],
     /// The shadow's envelope counters, 0–255.
     pub env: [u8; 3],
+    /// Where each voice's envelope generator is.
+    pub env_state: [EnvState; 3],
+}
+
+/// resid's envelope generator states; decay and sustain share one.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum EnvState {
+    Attack,
+    DecaySustain,
+    #[default]
+    Release,
 }
 
 /// One player frame.
@@ -517,6 +528,11 @@ impl Shadow {
     fn state(&self, regs: &[u8]) -> ChipState {
         let mut state = ChipState {
             env: std::array::from_fn(|v| self.synth.voices[v].envelope.envelope_counter),
+            env_state: std::array::from_fn(|v| match self.synth.voices[v].envelope.state {
+                resid::envelope::State::Attack => EnvState::Attack,
+                resid::envelope::State::DecaySustain => EnvState::DecaySustain,
+                resid::envelope::State::Release => EnvState::Release,
+            }),
             ..ChipState::default()
         };
         state.regs.copy_from_slice(&regs[..FRAME_REGS]);

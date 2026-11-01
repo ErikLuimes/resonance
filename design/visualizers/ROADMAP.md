@@ -47,11 +47,16 @@ can be read from our emulator. After I approve, implement it plus a small debug 
 
 ## Phase 1 — Inspector card visualizers
 
-- [ ] Oscilloscope (replace the current bars) — `reference/Main.dc.html`
-- [ ] Mode switcher on the card (segmented control), remembers last choice — `reference/AppInspector.dc.html`
-- [ ] Compact lanes — `reference/Lanes.dc.html`
-- [ ] Envelope (ADSR with live playhead) — `reference/Envelope.dc.html`
+- [x] Oscilloscope, alongside the bars (not replacing them) — `reference/Main.dc.html`
+- [x] Switching on the card: swipeable pages with dots inside the card's bottom edge (name by the dots on hover), remembers last choice. Chosen over the reference's segmented control.
+- [x] Envelope (ADSR with live playhead) — `reference/Envelope.dc.html`. The core reports each voice's phase (attack, decay, sustain, release) from the visuals' reSID.
+
+**Nice to have (parked 2026-11-01; pick up only when asked):**
+- [ ] Compact lanes, as another page — `reference/Lanes.dc.html`
+- [ ] Chip picker for 2SID/3SID tunes (SID 1 / 2 / 3); Scope and Envelope show SID 1 only for now
 - [ ] Pop-out button → floating always-on-top mini window
+
+Visualizers are additive: every one stays available as a page of the card. Each one is its own view (`ScopeVisualizer`, `BarsVisualizer`, `EnvelopeVisualizer`) behind `VisualizerView`, with note labels drawn by the shared `VoiceLabels`.
 
 **Acceptance:** smooth at display refresh rate, under ~3% CPU on Apple Silicon, correct colours per voice, and gate-off and rests look calm rather than jittery.
 

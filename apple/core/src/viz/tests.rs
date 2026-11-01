@@ -131,6 +131,25 @@ fn slow_attack_is_partway_after_one_frame() {
 }
 
 #[test]
+fn frames_report_each_envelope_phase() {
+    use crate::ffi::EnvelopePhase::*;
+    let phase = |rig: &Rig| VizSidFrame::from(&rig.latest()).chips[0].voices[0].env_phase;
+    let mut rig = Rig::new();
+    // Attack 8 takes 100 ms: still climbing after one frame.
+    rig.play(1, voice1(0x21, 0x8A, 0x80));
+    assert_eq!(phase(&rig), Attack);
+    // Decay A (1.5 s) from the top toward sustain 8: still falling.
+    rig.play(7, voice1(0x21, 0x8A, 0x80));
+    assert_eq!(phase(&rig), Decay);
+    // A short decay reaches the sustain level and holds there.
+    let mut rig = Rig::new();
+    rig.play(5, voice1(0x21, 0x00, 0x80));
+    assert_eq!(phase(&rig), Sustain);
+    rig.play(1, voice1(0x20, 0x00, 0x80));
+    assert_eq!(phase(&rig), Release);
+}
+
+#[test]
 fn repeated_statuses_do_not_clock() {
     let mut rig = Rig::new();
     rig.play(2, voice1(0x21, 0x00, 0xF0));

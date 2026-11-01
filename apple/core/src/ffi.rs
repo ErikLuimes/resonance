@@ -213,6 +213,18 @@ pub struct VizVoice {
     pub release: u8,
     /// The envelope, 0.0–1.0, from the visualizers' own reSID.
     pub env_level: f32,
+    pub env_phase: EnvelopePhase,
+}
+
+/// Which part of its ADSR envelope a voice is in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum EnvelopePhase {
+    Attack,
+    Decay,
+    /// Holding at the sustain level until the gate closes.
+    Sustain,
+    /// Fading after the gate closed; also a voice that has gone silent.
+    Release,
 }
 
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
@@ -965,7 +977,9 @@ impl VizChip {
         let r = &chip.regs;
         VizChip {
             voices: (0..3)
-                .map(|v| VizVoice::decode(&r[v * 7..v * 7 + 7], chip.env[v], clock))
+                .map(|v| {
+                    VizVoice::decode(&r[v * 7..v * 7 + 7], chip.env[v], chip.env_state[v], clock)
+                })
                 .collect(),
             registers: r.to_vec(),
             cutoff: (r[0x16] as u16) << 3 | (r[0x15] & 0x07) as u16,
@@ -983,7 +997,7 @@ const NOTE_NAMES: [&str; 12] = [
 
 impl VizVoice {
     /// `r`: the voice's seven registers.
-    fn decode(r: &[u8], env: u8, clock: f64) -> Self {
+    fn decode(r: &[u8], env: u8, state: viz::EnvState, clock: f64) -> Self {
         let freq_reg = r[0] as u16 | (r[1] as u16) << 8;
         let hz = freq_reg as f64 * clock / 16_777_216.0;
         let midi = if hz > 0.0 {
@@ -1011,6 +1025,13 @@ impl VizVoice {
             sustain: r[6] >> 4,
             release: r[6] & 0x0F,
             env_level: env as f32 / 255.0,
+            env_phase: match state {
+                viz::EnvState::Attack => EnvelopePhase::Attack,
+                // The counter stops at the sustain level: $0–$F as $00–$FF.
+                viz::EnvState::DecaySustain if env == (r[6] >> 4) * 0x11 => EnvelopePhase::Sustain,
+                viz::EnvState::DecaySustain => EnvelopePhase::Decay,
+                viz::EnvState::Release => EnvelopePhase::Release,
+            },
         }
     }
 }

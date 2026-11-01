@@ -568,7 +568,7 @@ struct VisualizerFeedTests {
         VizVoice(
             freqReg: 7493, hz: 440, midi: 69, note: "A4", gate: true, waveform: waveform,
             test: false, ring: false, sync: false, pulseWidth: 0x800,
-            attack: 0, decay: 0, sustain: 15, release: 0, envLevel: 1
+            attack: 0, decay: 0, sustain: 15, release: 0, envLevel: 1, envPhase: .sustain
         )
     }
 
@@ -577,6 +577,29 @@ struct VisualizerFeedTests {
         #expect(voice(waveform: 0x6).waveformName == "SAW+PUL")
         #expect(voice(waveform: 0x9).waveformName == "TRI+NOI")
         #expect(voice(waveform: 0).waveformName == "")
+    }
+
+    private func envelope(_ phase: EnvelopePhase, level: Float, sustain: UInt8 = 6) -> VizVoice {
+        VizVoice(
+            freqReg: 7493, hz: 440, midi: 69, note: "A4", gate: phase != .release, waveform: 0x4,
+            test: false, ring: false, sync: false, pulseWidth: 0x800,
+            attack: 2, decay: 4, sustain: sustain, release: 3, envLevel: level, envPhase: phase
+        )
+    }
+
+    @Test func envelopeDotRidesTheShape() {
+        let rect = CGRect(x: 0, y: 0, width: 100, height: 100)
+        let shape = EnvelopeShape(envelope(.attack, level: 0), in: rect)
+        let p = shape.points
+        // Halfway up the attack, at the plateau, partway down the decay.
+        #expect(shape.dot(for: envelope(.attack, level: 0.5), releasedFrom: 1) == CGPoint(x: p[1].x / 2, y: 50))
+        #expect(shape.dot(for: envelope(.sustain, level: 0.4), releasedFrom: 1)?.y == p[2].y)
+        let decaying = shape.dot(for: envelope(.decay, level: 0.7), releasedFrom: 1)!
+        #expect(decaying.x > p[1].x && decaying.x < p[2].x)
+        // A release that began at 0.4 is halfway down at 0.2, gone at 0.
+        let releasing = shape.dot(for: envelope(.release, level: 0.2), releasedFrom: 0.4)!
+        #expect(abs(releasing.x - (p[3].x + p[4].x) / 2) < 0.001)
+        #expect(shape.dot(for: envelope(.release, level: 0), releasedFrom: 0.4) == nil)
     }
 
     @Test func meterHoldsASustainAndSoftensADrop() {
@@ -590,5 +613,36 @@ struct VisualizerFeedTests {
         meter.update(levels: [0], at: start + 0.5 + 1.0 / 30)
         #expect(abs(meter.levels[0] - 0.5 * 0.92) < 1e-6)
         #expect(meter.peaks[0] > meter.levels[0] && meter.peaks[0] < 0.5)
+    }
+
+    /// A saw at `hz`, `count` samples long, starting `offset` samples in.
+    private func saw(hz: Double, offset: Int, count: Int = 2048) -> [Float] {
+        (0..<count).map { n in
+            let phase = Double(n + offset) * hz / 44_784
+            return Float(2 * (phase - phase.rounded(.down)) - 1)
+        }
+    }
+
+    @Test func triggerHoldsAWaveformStillAcrossFrames() {
+        // Two display frames whose sample windows end at different points
+        // of the wave: both should start at the same point of it.
+        let a = ScopeTrigger.window(saw(hz: 440, offset: 0), hz: 440, sampleRate: 44_784, pitched: true)
+        let b = ScopeTrigger.window(saw(hz: 440, offset: 37), hz: 440, sampleRate: 44_784, pitched: true)
+        #expect(a.count == b.count)
+        #expect(abs(Double(a.count) - 2.5 * 44_784 / 440) < 2)
+        for (x, y) in zip(a.prefix(200), b.prefix(200)) {
+            #expect(abs(x - y) < 0.05)
+        }
+        #expect(abs(a.first!) < 0.05)
+    }
+
+    @Test func triggerFallsBackForNoiseAndLowNotes() {
+        let samples = saw(hz: 440, offset: 0)
+        #expect(ScopeTrigger.window(samples, hz: 440, sampleRate: 44_784, pitched: false).count == 512)
+        // 30 Hz: a period is ~1500 samples, so fewer cycles fit, but a
+        // crossing still has room to be found.
+        let low = ScopeTrigger.window(saw(hz: 30, offset: 0), hz: 30, sampleRate: 44_784, pitched: true)
+        #expect(low.count >= ScopeTrigger.minLength && low.count + 44_784 / 30 < 2048)
+        #expect(ScopeTrigger.window([], hz: 440, sampleRate: 44_784, pitched: true).isEmpty)
     }
 }
