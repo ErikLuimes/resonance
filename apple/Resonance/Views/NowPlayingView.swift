@@ -14,6 +14,7 @@ struct NowPlayingView: View {
     var isShowing = true
 
     @Environment(PlayerStore.self) private var store
+    @Environment(LibraryStore.self) private var library
     @State private var escape = EscapeKey()
 
     var body: some View {
@@ -21,7 +22,10 @@ struct NowPlayingView: View {
             HaloView(isActive: isShowing)
                 .ignoresSafeArea()
             VStack(alignment: .leading, spacing: 0) {
-                closeButton
+                HStack(spacing: 10) {
+                    closeButton
+                    surpriseMe
+                }
                 Spacer(minLength: 24)
                 HStack(alignment: .bottom, spacing: 24) {
                     trackInfo
@@ -153,6 +157,22 @@ struct NowPlayingView: View {
             .accessibilityValue("\(Int((store.progress ?? 0) * 100)) percent")
     }
 
+    /// Like the library's toolbar button: the dice wiggle on every pick.
+    private var surpriseMe: some View {
+        Button {
+            Task { await library.surpriseMe() }
+        } label: {
+            Label("Surprise Me", systemImage: "dice")
+                .symbolEffect(.wiggle, value: library.surprises)
+                .padding(.horizontal, 16)
+                .frame(height: 40)
+                .background(.white.opacity(0.1), in: .capsule)
+        }
+        .buttonStyle(.plain)
+        .help("Play random tunes from all of HVSC")
+        .disabled(!library.hasRoot)
+    }
+
     private var closeButton: some View {
         Button { store.isShowingNowPlaying = false } label: {
             Image(systemName: "xmark")
@@ -209,8 +229,9 @@ private struct VoiceChips: View {
 }
 
 /// Esc closes Now Playing. A local monitor, because the overlay has no
-/// keyboard focus of its own. Now Playing stays mounted while closed, so
-/// the monitor only acts while it shows, and otherwise lets Esc through.
+/// keyboard focus of its own. It only acts while Now Playing shows, and
+/// otherwise lets Esc through: during the slide-out the view (and its
+/// monitor) is still around.
 final class EscapeKey {
     private var monitor: Any?
 
@@ -236,5 +257,6 @@ final class EscapeKey {
 #Preview {
     NowPlayingView()
         .environment(PlayerStore.preview)
+        .environment(LibraryStore(player: PlayerStore.preview))
         .frame(width: 1100, height: 700)
 }
