@@ -16,6 +16,9 @@ struct HVSCBrowserView: View {
     @Environment(LibraryStore.self) private var library
     @Environment(PlayerStore.self) private var player
     @State private var selectedAuthor: String?
+    /// A composer without a folder whose credited tunes show instead of an
+    /// author's (the inspector's link).
+    @State private var creditedName: String?
     /// Scrolls the author list to an author the inspector's link revealed.
     @State private var authorScroll: AuthorScroll?
     @State private var scope = SearchScope.category
@@ -48,6 +51,20 @@ struct HVSCBrowserView: View {
         }
         .task(id: SearchRequest(query: query, scope: scope)) { await runSearch() }
         .onChange(of: library.reveal, initial: true) { applyReveal() }
+        .onChange(of: library.credits, initial: true) { applyCredits() }
+        .onChange(of: query) { applyCredits() }
+        .onChange(of: selectedAuthor) { _, author in
+            if author != nil { creditedName = nil }
+        }
+    }
+
+    /// Follow the composer card's link for a composer without a folder:
+    /// once the window has cleared the search, list their tunes.
+    private func applyCredits() {
+        guard let request = library.credits, request.category == category, query.isEmpty else { return }
+        selectedAuthor = nil
+        creditedName = request.name
+        library.credits = nil
     }
 
     /// Follow the inspector's author link: select the composer, and leave
@@ -64,7 +81,10 @@ struct HVSCBrowserView: View {
 
     @ViewBuilder
     private var authorTunes: some View {
-        if let path = selectedAuthor {
+        if let name = creditedName {
+            CreditedTunes(name: name)
+                .id(name)
+        } else if let path = selectedAuthor {
             AuthorTunes(authorPath: path, authorName: authorName(path))
                 .id(path)
         } else {
@@ -314,6 +334,64 @@ private struct AuthorTunes: View {
             Spacer(minLength: 8)
             Button("Add All", systemImage: "text.badge.plus") { library.addAll(authorPath: authorPath) }
                 .help("Add every tune here to the playlist")
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.bar)
+    }
+}
+
+// MARK: - Credited tunes
+
+/// The tunes credited to a composer without a MUSICIANS folder, standing in
+/// for one: every tune in HVSC whose header names them.
+private struct CreditedTunes: View {
+    let name: String
+
+    @Environment(LibraryStore.self) private var library
+
+    var body: some View {
+        Group {
+            if let rows = library.credited[name] {
+                if rows.isEmpty {
+                    ContentUnavailableView(
+                        "No Tunes Found",
+                        systemImage: "music.mic",
+                        description: Text("No tune in HVSC credits \(name).")
+                    )
+                } else {
+                    LibraryTable(rows: rows)
+                        .safeAreaInset(edge: .top, spacing: 0) { header(rows) }
+                }
+            } else {
+                // The first lookup reads every tune's header.
+                VStack(spacing: 10) {
+                    ProgressView()
+                    Text("Finding tunes credited to \(name)…")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .task { await library.loadCredited(name: name) }
+    }
+
+    private func header(_ rows: [LibraryRow]) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(name)
+                    .font(.title3.weight(.semibold))
+                    .lineLimit(1)
+                Text(rows.count == 1 ? "1 tune" : "\(rows.count) tunes")
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 8)
+                Button("Add All", systemImage: "text.badge.plus") { library.addToPlaylist(rows) }
+                    .help("Add every tune here to the playlist")
+            }
+            Text("\(name) has no folder in MUSICIANS. These are the tunes whose header credits them.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

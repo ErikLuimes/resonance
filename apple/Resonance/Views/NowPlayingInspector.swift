@@ -248,19 +248,16 @@ private struct AccentLink: View {
 /// What STIL says about the playing subtune: the file's comment, then each
 /// block, a cover as "Cover of … by …". Tunes the text names in MUSICIANS
 /// lead to that tune in the browser.
-private struct StilNotesView: View {
+struct StilNotesView: View {
     let stil: TuneStil
     /// How many songs the tune has: a block's "Song N" only says something
     /// when there are several.
     let songs: UInt16
 
-    @Environment(PlayerStore.self) private var store
-    @Environment(LibraryStore.self) private var library
-
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if let comment = stil.comment {
-                paragraph(comment)
+                StilParagraph(comment)
             }
             ForEach(Array(stil.blocks.enumerated()), id: \.offset) { _, block in
                 blockView(block)
@@ -278,9 +275,13 @@ private struct StilNotesView: View {
                     .foregroundStyle(.secondary)
             }
             if let title = block.title {
-                Text("\(Text("Cover of").foregroundStyle(.secondary)) \(title)")
-                if let by = block.artist ?? block.author {
-                    Text("by \(by)").foregroundStyle(.secondary)
+                let covers = Self.covers(title: title, by: block.artist ?? block.author)
+                ForEach(Array(covers.enumerated()), id: \.offset) { index, cover in
+                    Text("\(Text("Cover of").foregroundStyle(.secondary)) \(cover.title)")
+                        .padding(.top, index > 0 ? 4 : 0)
+                    if let by = cover.by {
+                        Text("by \(by)").foregroundStyle(.secondary)
+                    }
                 }
                 if block.artist != nil, let author = block.author {
                     Text("written by \(author)").foregroundStyle(.secondary)
@@ -292,10 +293,84 @@ private struct StilNotesView: View {
                 Text("Also known as \(name)").foregroundStyle(.secondary)
             }
             if let comment = block.comment {
-                paragraph(comment)
+                StilParagraph(comment)
                     .padding(.top, block.title == nil && block.name == nil ? 0 : 6)
             }
         }
+    }
+
+    /// A piece a block covers, and who performed (or wrote) it.
+    nonisolated struct Cover: Equatable {
+        /// One title, or several on lines of their own.
+        let title: String
+        let by: String?
+    }
+
+    /// The pieces a block's TITLE names, each with its ARTIST (or AUTHOR).
+    /// A block covering several pieces repeats those fields, which arrive
+    /// joined by newlines: one performer of all the titles is named once,
+    /// under them all, and as many performers as titles pair up line by
+    /// line. Anything else stays as STIL has it.
+    nonisolated static func covers(title: String, by: String?) -> [Cover] {
+        let titles = lines(title)
+        let performers = by.map(lines) ?? []
+        if Set(performers).count == 1 {
+            return [Cover(title: title, by: performers[0])]
+        }
+        if titles.count > 1, performers.count == titles.count {
+            return zip(titles, performers).map { Cover(title: $0, by: $1) }
+        }
+        return [Cover(title: title, by: by)]
+    }
+
+    private nonisolated static func lines(_ text: String) -> [String] {
+        text.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+    }
+}
+
+/// STIL text with the tunes it names shortened to their file names.
+/// One tune in the library (nearly always) is accent-coloured in place,
+/// and the whole paragraph is its button. Several get an AccentLink each
+/// below the text: SwiftUI colours text links its own blue, whatever the
+/// tint.
+private struct StilParagraph: View {
+    let text: String
+
+    @Environment(PlayerStore.self) private var store
+    @Environment(LibraryStore.self) private var library
+
+    init(_ text: String) {
+        self.text = text
+    }
+
+    var body: some View {
+        let references = Self.tuneReferences(in: text)
+        let targets = references.filter(\.inLibrary)
+        if targets.count == 1 {
+            Button {
+                reveal(path: targets[0].path)
+            } label: {
+                Self.render(text, references, highlighted: true)
+                    .multilineTextAlignment(.leading)
+            }
+            .buttonStyle(.plain)
+            .pointerStyle(.link)
+            .help("Show \(targets[0].name) in the library")
+            // A click goes to the tune, not into the text.
+            .textSelection(.disabled)
+        } else {
+            VStack(alignment: .leading, spacing: 4) {
+                Self.render(text, references, highlighted: false)
+                ForEach(targets, id: \.path) { target in
+                    AccentLink(target.name) { reveal(path: target.path) }
+                }
+            }
+        }
+    }
+
+    /// How many characters `text` shows, its tunes shortened.
+    static func length(of text: String) -> Int {
+        tuneReferences(in: text).reduce(text.count) { $0 - $1.path.count + $1.name.count }
     }
 
     /// A tune path in STIL text: "/MUSICIANS/H/Hubbard_Rob/Lightforce.sid".
@@ -311,35 +386,6 @@ private struct StilNotesView: View {
     private static func tuneReferences(in text: String) -> [TuneReference] {
         text.matches(of: #/\/(?:MUSICIANS|GAMES|DEMOS)\/[^\s"(),;]+?\.sid/#).map {
             TuneReference(range: $0.range, path: String($0.output))
-        }
-    }
-
-    /// STIL text with the tunes it names shortened to their file names.
-    /// One tune in the library (nearly always) is accent-coloured in place,
-    /// and the whole paragraph is its button. Several get an AccentLink
-    /// each below the text: SwiftUI colours text links its own blue,
-    /// whatever the tint.
-    @ViewBuilder
-    private func paragraph(_ text: String) -> some View {
-        let references = Self.tuneReferences(in: text)
-        let targets = references.filter(\.inLibrary)
-        if targets.count == 1 {
-            Button {
-                reveal(path: targets[0].path)
-            } label: {
-                Self.render(text, references, highlighted: true)
-                    .multilineTextAlignment(.leading)
-            }
-            .buttonStyle(.plain)
-            .pointerStyle(.link)
-            .help("Show \(targets[0].name) in the library")
-        } else {
-            VStack(alignment: .leading, spacing: 4) {
-                Self.render(text, references, highlighted: false)
-                ForEach(targets, id: \.path) { target in
-                    AccentLink(target.name) { reveal(path: target.path) }
-                }
-            }
         }
     }
 
@@ -370,8 +416,9 @@ private struct StilNotesView: View {
 }
 
 /// Who wrote what's playing: their name, a way to all their tunes, and
-/// STIL's note on them when it has one. Tinted so it stands apart from the
-/// plain sections around it; the monogram is where a photo would go.
+/// STIL's note on them when it has one, the tunes it names leading to the
+/// browser. Tinted so it stands apart from the plain sections around it;
+/// the monogram is where a photo would go.
 private struct ComposerCard: View {
     let composer: Composer
     let tunePath: String
@@ -395,15 +442,26 @@ private struct ComposerCard: View {
                         Text(subtitle)
                             .foregroundStyle(.secondary)
                     }
-                    AccentLink("Show All Tunes") {
-                        library.reveal = LibraryReveal(authorPath: composer.authorPath, tunePath: tunePath)
+                    if let path = composer.authorPath {
+                        AccentLink("Show All Tunes") {
+                            library.reveal = LibraryReveal(authorPath: path, tunePath: tunePath)
+                        }
+                        .help("Show all tunes by \(composer.name)")
+                    } else if library.hasRoot {
+                        // No folder: the tunes whose header credits them.
+                        AccentLink("Show All Tunes") {
+                            library.credits = LibraryCredits(
+                                name: composer.name,
+                                category: library.category(of: tunePath) ?? .musicians
+                            )
+                        }
+                        .help("Show all tunes credited to \(composer.name)")
                     }
-                    .help("Show all tunes by \(composer.name)")
                 }
             }
-            if let note = library.authorNotes[composer.authorPath], !note.isEmpty {
-                let folds = note.count > Self.foldLength
-                Text(note)
+            if let path = composer.authorPath, let note = library.authorNotes[path], !note.isEmpty {
+                let folds = StilParagraph.length(of: note) > Self.foldLength
+                StilParagraph(note)
                     .foregroundStyle(.secondary)
                     .lineLimit(folds && !expanded ? Self.foldedLines : nil)
                     .textSelection(.enabled)
@@ -418,7 +476,9 @@ private struct ComposerCard: View {
         .background(.tint.opacity(0.12), in: .rect(cornerRadius: 10))
         .task(id: composer.authorPath) {
             expanded = false
-            await library.loadAuthorNote(authorPath: composer.authorPath)
+            if let path = composer.authorPath {
+                await library.loadAuthorNote(authorPath: path)
+            }
         }
     }
 

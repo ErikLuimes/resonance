@@ -15,7 +15,8 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use nucleo_matcher::{Config, Matcher};
+use nucleo_matcher::pattern::{AtomKind, CaseMatching, Normalization, Pattern};
+use nucleo_matcher::{Config, Matcher, Utf32Str};
 use rand::Rng;
 use tokio::sync::watch;
 
@@ -66,6 +67,17 @@ pub(crate) struct Library {
     /// file per category whatever the root, so indexing a test tree would
     /// replace the real one.
     use_index_cache: bool,
+    /// Every indexed tune's header author, for `crediting`.
+    credits: Arc<Mutex<Option<Credits>>>,
+}
+
+/// The SID header's author of every tune in the indexes, which keep only
+/// the folder name. Read on first use; stale once an index changes.
+struct Credits {
+    /// The `index_changed` count it was read at.
+    generation: u64,
+    /// Per category (`slot`), in index order.
+    authors: Vec<Vec<String>>,
 }
 
 struct Inner {
@@ -108,6 +120,7 @@ impl Library {
             index_changed: Arc::new(watch::channel(0).0),
             building: Arc::new(AtomicU8::new(0)),
             use_index_cache: true,
+            credits: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -279,6 +292,87 @@ impl Library {
                 total_matches,
                 indexed,
             }
+        })
+        .await
+    }
+
+    /// Tunes in all of HVSC whose header's author contains one of `names`,
+    /// ignoring case and accents. The caller narrows them to exact credits
+    /// ("Exos" in "Exos & Jeff", not in "Exoskeleton").
+    ///
+    /// The indexes have no header author, so the first call reads every
+    /// tune's header (about a second for 60,000 when the disk cache is
+    /// warm), and later ones reuse them until an index changes.
+    pub async fn crediting(
+        &self,
+        names: Vec<String>,
+    ) -> Result<Vec<(HvscCategory, HvscIndexEntry, String)>, LibraryError> {
+        for &category in &CATEGORIES {
+            self.ensure_index(category).await?;
+        }
+        let generation = *self.index_changed.borrow();
+        let stale = lock_credits(&self.credits)
+            .as_ref()
+            .is_none_or(|c| c.generation != generation);
+        if stale {
+            // Read without holding the lock: searches go on meanwhile.
+            let paths: Vec<Vec<PathBuf>> = {
+                let inner = self.lock();
+                CATEGORIES
+                    .iter()
+                    .map(|&c| inner.index(c).iter().map(|e| e.path.clone()).collect())
+                    .collect()
+            };
+            let authors = blocking(move || {
+                paths
+                    .iter()
+                    .map(|paths| paths.iter().map(|p| header_author(p)).collect())
+                    .collect()
+            })
+            .await?;
+            *lock_credits(&self.credits) = Some(Credits {
+                generation,
+                authors,
+            });
+        }
+
+        let inner = self.inner.clone();
+        let credits = self.credits.clone();
+        blocking(move || {
+            let inner = lock(&inner);
+            let credits = lock_credits(&credits);
+            let Some(credits) = credits.as_ref() else {
+                return Vec::new();
+            };
+            let patterns: Vec<Pattern> = names
+                .iter()
+                .filter(|n| !n.trim().is_empty())
+                .map(|n| {
+                    Pattern::new(
+                        n,
+                        CaseMatching::Ignore,
+                        Normalization::Smart,
+                        AtomKind::Substring,
+                    )
+                })
+                .collect();
+            let mut matcher = Matcher::new(Config::DEFAULT);
+            let mut buf = Vec::new();
+            let mut hits = Vec::new();
+            for (slot, &category) in CATEGORIES.iter().enumerate() {
+                // An index rebuilt since the read just misses its new tunes
+                // until the next call.
+                for (entry, author) in inner.index(category).iter().zip(&credits.authors[slot]) {
+                    let haystack = Utf32Str::new(author, &mut buf);
+                    if patterns
+                        .iter()
+                        .any(|p| p.score(haystack, &mut matcher).is_some())
+                    {
+                        hits.push((category, entry.clone(), author.clone()));
+                    }
+                }
+            }
+            hits
         })
         .await
     }
@@ -463,6 +557,26 @@ fn category_of(root: &Path, path: &Path) -> Option<HvscCategory> {
     let first = path.strip_prefix(root).ok()?.components().next()?;
     let name = first.as_os_str().to_str()?;
     CATEGORIES.into_iter().find(|c| c.dir_name() == name)
+}
+
+/// The author field of the SID header at `path`; empty when it can't be
+/// read.
+fn header_author(path: &Path) -> String {
+    use std::io::Read;
+    let mut header = Vec::with_capacity(0x7C);
+    let read = std::fs::File::open(path).and_then(|f| f.take(0x7C).read_to_end(&mut header));
+    match read {
+        Ok(_) => crate::player::sid_file::parse_header(&header)
+            .map(|h| h.author)
+            .unwrap_or_default(),
+        Err(_) => String::new(),
+    }
+}
+
+fn lock_credits(credits: &Mutex<Option<Credits>>) -> MutexGuard<'_, Option<Credits>> {
+    credits
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 fn lock(inner: &Mutex<Inner>) -> MutexGuard<'_, Inner> {

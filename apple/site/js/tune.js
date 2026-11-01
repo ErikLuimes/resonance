@@ -1,7 +1,8 @@
-// Composes the website demo's tunes: a seeded random chiptune in the
-// classic three-voice C64 layout. Voice 1 plays the lead, voice 2 fakes
-// chords with a 50 Hz arpeggio through a sweeping filter, and voice 3
-// shares its time between the bass and the drums.
+// Composes the website demo's stand-ins for real SID tunes, which a web
+// page can't play: a seeded random chiptune in the classic three-voice C64
+// layout. Voice 1 plays the lead, voice 2 fakes chords with a 50 Hz
+// arpeggio through a sweeping filter, and voice 3 shares its time between
+// the bass and the drums.
 
 export const TRI = 0x10, SAW = 0x20, PUL = 0x40, NOI = 0x80;
 
@@ -84,23 +85,20 @@ const ARP_RHYTHMS = ['x.......x.......', 'x..x..x.x..x..x.', 'x.x.x.x.x.x.x.x.',
 // Voice 3, one bar: K kick, S snare, b bass, o bass an octave up.
 const GROOVES = ['K.o.S.boK.o.S.bo', 'K.b.S.o.K.b.S.ob', 'K.oKS.o.K.obS.o.', 'KbobSbobKbobSbob', 'K.b.S.b.K.bbS.bo'];
 
-const ADJECTIVES = ['Neon', 'Chrome', 'Midnight', 'Turbo', 'Crystal', 'Vector', 'Cosmic', 'Pixel', 'Lunar', 'Hyper', 'Glass', 'Velvet', 'Electric', 'Static', 'Solar', 'Arctic', 'Phantom', 'Golden', 'Silent', 'Rapid', 'Infinite', 'Distant', 'Hidden', 'Liquid'];
-const NOUNS = ['Run', 'Dreams', 'Horizon', 'Cascade', 'Circuit', 'Odyssey', 'Overdrive', 'Skyline', 'Reactor', 'Mirage', 'Drift', 'Pulse', 'Voyage', 'Orbit', 'Tides', 'Signal', 'Frontier', 'Echoes', 'Nights', 'Engine', 'Garden', 'Highway', 'Lagoon', 'Spiral'];
-
-export const SUBTUNES = 3;
 const BAR = 16;
 const BARS = 16;
 const LEAD_LO = 6, LEAD_HI = 15; // lead range, in scale steps above the key's root
 
-/** The title every subtune of `seed` shares. */
-export function tuneTitle(seed) {
-  const r = mulberry32(seed * 7919 + 17);
-  return `${pick(r, ADJECTIVES)} ${pick(r, NOUNS)}`;
+/** A seed for a tune's stand-in, so it always sounds the same. */
+export function seedFor(path) {
+  let h = 2166136261;
+  for (const c of path) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  return (h >>> 0) % 99991 + 1;
 }
 
 /**
- * A tune for the demo player. Subtunes of one seed share a title and a
- * key but get their own tempo, chords and melody.
+ * A stand-in for the demo player. Subtunes of one seed share a key but
+ * get their own tempo, chords and melody.
  */
 export function composeTune(seed, subtune = 1) {
   const keyRng = mulberry32(seed);
@@ -211,14 +209,8 @@ export function composeTune(seed, subtune = 1) {
 
   const frames = rows * speed;
   return {
-    seed,
-    subtune,
-    title: tuneTitle(seed),
-    author: 'Surprise Me',
-    released: `2026 Web Demo #${seed}`,
     key: `${NOTE_NAMES[root % 12]} ${modeName}`,
     bpm: Math.round((50 * 60) / (speed * 4)),
-    lengthSecs: frames / 50,
     song: {
       speed,
       rows,

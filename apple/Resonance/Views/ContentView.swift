@@ -95,6 +95,13 @@ struct ContentView: View {
             searches[.hvsc(.musicians)] = ""
             sidebarSelection = .hvsc(.musicians)
         }
+        // For a composer without a folder: the tune's section, with no
+        // search, so the browser can list their tunes.
+        .onChange(of: library.credits) { _, credits in
+            guard let credits else { return }
+            searches[.hvsc(credits.category)] = ""
+            sidebarSelection = .hvsc(credits.category)
+        }
     }
 
     private var sidebar: some View {

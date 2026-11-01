@@ -210,7 +210,7 @@
                   <div class="insp-empty" data-insp-empty>
                     <svg class="i"><use href="#i-waveform"/></svg>
                     <strong>Not Playing</strong>
-                    <p>Hit play or Surprise Me to hear a tune composed on the spot. Its details appear here.</p>
+                    <p>Double-click a tune to play it, or try Surprise Me. Its details and STIL commentary appear here.</p>
                   </div>
                   <div class="form" data-insp-details hidden>
                     <div class="np-hero">
@@ -228,28 +228,27 @@
                     </div>
                     <div class="composer-card">
                       <div class="cc-head">
-                        <span class="cc-mono" aria-hidden="true"><svg class="i"><use href="#i-dice-fill"/></svg></span>
+                        <span class="cc-mono" aria-hidden="true" data-cc-initials></span>
                         <div>
-                          <div class="cc-name" data-np-author2></div>
-                          <div class="cc-sub">Composed in your browser</div>
-                          <button type="button" class="accent-link" data-act="all-tunes" title="Show all tunes by this composer">Show All Tunes</button>
+                          <div class="cc-name" data-cc-name></div>
+                          <div class="cc-sub" data-cc-sub hidden></div>
+                          <button type="button" class="accent-link" data-act="all-tunes">Show All Tunes</button>
                         </div>
                       </div>
-                      <p class="cc-note">In Resonance: the tune's composer, with STIL's notes on them.</p>
+                      <p class="cc-note" data-cc-note hidden></p>
+                      <button type="button" class="accent-link cc-more" data-act="more" hidden>More</button>
                     </div>
-                    <div class="form-h">About This Tune</div>
-                    <div class="form-group about">
-                      <p><span class="dim">Composed in</span> <span data-np-key></span></p>
-                      <p class="dim">at <span data-np-bpm></span></p>
-                      <p class="about-note">Made up on the spot. In Resonance, STIL's notes and covers go here.</p>
+                    <div data-about hidden>
+                      <div class="form-h">About This Tune</div>
+                      <div class="form-group about" data-about-body></div>
                     </div>
                     <div class="form-h">Details</div>
                     <div class="form-group specs">
                       <div class="spec-strip">
-                        <div class="spec"><small>Format</small><span>Web</span></div>
-                        <div class="spec"><small>Filter</small><span class="mono" data-np-filter></span></div>
-                        <div class="spec"><small>Clock</small><span>PAL</span></div>
-                        <div class="spec"><small>Voices</small><span>3</span></div>
+                        <div class="spec"><small>Format</small><span data-spec-format></span></div>
+                        <div class="spec"><small>SID</small><span data-spec-sid></span></div>
+                        <div class="spec"><small>Clock</small><span data-spec-clock></span></div>
+                        <div class="spec"><small>Chips</small><span data-spec-chips></span></div>
                       </div>
                       <div class="specs-foot"><button type="button" class="mini-btn" data-act="finder">Show in Finder</button></div>
                     </div>
@@ -260,12 +259,13 @@
           </div>
           <button class="stage-play" type="button" data-demo-start>
             <span class="stage-play-icon"><svg class="i"><use href="#i-play"/></svg></span>
-            <span><strong>Play the demo</strong><small>Sound on — a tune is composed live in your browser</small></span>
+            <span><strong>Play the demo</strong><small>Sound on — real tunes from HVSC, with stand-in music</small></span>
           </button>
         </div>
         <p class="stage-caption">
-          That's a live demo, not a video. Each Surprise Me composes a new tune in your browser with a tiny
-          three-voice, 50&nbsp;Hz SID-style driver. The real app plays real SID files.
+          That's a live demo, not a video. The tunes and everything the inspector says about them are real,
+          from HVSC and STIL. A web page can't play SID files, though, so what you hear is a stand-in, made up
+          in your browser by a tiny three-voice, 50&nbsp;Hz SID-style driver. The real app plays the real thing.
         </p>
       </div>
     </section>
@@ -632,7 +632,7 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
           </details>
           <details>
             <summary>Is the music on this page a real SID tune?</summary>
-            <p>No. It's composed and synthesised live by a few hundred lines of JavaScript that follow the SID's rules — three voices, four waveforms, ADSR envelopes, the noise generator's shift register and a resonant filter — driven 50 times a second like a C64 play routine. Resonance itself plays real SID files through reSID and SIDLite.</p>
+            <p>No. The tunes in the demo are real, and so are their details: header fields, song lengths and STIL's notes, straight from HVSC. The music isn't. Each tune gets a stand-in, composed and synthesised live by a few hundred lines of JavaScript that follow the SID's rules — three voices, four waveforms, ADSR envelopes, the noise generator's shift register and a resonant filter — driven 50 times a second like a C64 play routine. Resonance itself plays the real SID files through reSID and SIDLite.</p>
           </details>
         </div>
       </div>

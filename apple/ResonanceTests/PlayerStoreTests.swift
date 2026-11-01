@@ -39,6 +39,7 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     // Library: canned answers, settable per test.
     private var _authors: [HvscAuthorItem] = []
     private var _notes: [String: String] = [:]
+    private var _credited: [HvscTuneItem] = []
     private var _surprise: String?
     private var _authorLoads = 0
     private var _noteLoads = 0
@@ -52,6 +53,11 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
             _notes = notes
             _surprise = surprise
         }
+    }
+
+    /// What `hvscTunesCrediting` finds, whatever it's asked.
+    func set(credited: [HvscTuneItem]) {
+        lock.withLock { _credited = credited }
     }
 
     func hvscAuthors(category: HvscCategory) async throws -> [HvscAuthorItem] {
@@ -73,6 +79,11 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     func hvscSearch(query: String, scope: HvscCategory?) async throws -> HvscSearchResult {
         record("search \(query) \(scope.map { "\($0)" } ?? "all")")
         return HvscSearchResult(items: [], totalMatches: 0, indexed: 0)
+    }
+
+    func hvscTunesCrediting(names: [String]) async throws -> [HvscTuneItem] {
+        record("crediting \(names.joined(separator: "|"))")
+        return lock.withLock { _credited }
     }
 
     func hvscSurprise(scope: HvscCategory?) async throws -> String? {
@@ -333,8 +344,9 @@ struct LibraryStoreTests {
     @Test func composerIsTheFolderTheTuneIsIn() async {
         let (library, _) = makeLibrary(root: "/HVSC/")
         let commando = "/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid"
-        #expect(library.composer(of: track(commando, author: "Rob Hubbard")) == nil,
-                "not before MUSICIANS is loaded")
+        let early = library.composer(of: track(commando, author: "Rob Hubbard"))
+        #expect(early?.name == "Rob Hubbard")
+        #expect(early?.authorPath == nil, "no folder before MUSICIANS is loaded")
 
         fake.set(authors: [author("Hubbard_Rob", displayName: "Hubbard, Rob")])
         await library.loadAuthors(.musicians)
@@ -356,9 +368,52 @@ struct LibraryStoreTests {
         #expect(composer("Thomas E. Petersen (Laxity)")?.authorPath == "/HVSC/MUSICIANS/H/Laxity")
         #expect(composer("Charles Deenen & Jeroen Tel")?.authorPath == "/HVSC/MUSICIANS/H/Tel_Jeroen")
         #expect(composer("Charles Deenen & Jeroen Tel")?.name == "Jeroen Tel")
-        // No composer folder, and nothing else to search: no card.
-        #expect(composer("Krzysztof Niedzwiecki (Radius75)") == nil)
+        // No composer folder: a card with the header's name and no folder.
+        let unfiled = composer("Krzysztof Niedzwiecki (Radius75)")
+        #expect(unfiled?.authorPath == nil)
+        #expect(unfiled?.name == "Krzysztof Niedzwiecki")
+        #expect(unfiled?.subtitle == "Radius75")
+        // Nobody named: no card.
         #expect(composer("<?>") == nil)
+    }
+
+    @Test func unfiledComposersAreTheHeadersFirstPerson() {
+        #expect(LibraryStore.unfiledComposer("Exos") == Composer(authorPath: nil, name: "Exos"))
+        #expect(LibraryStore.unfiledComposer("Jeroen Tel & Charles Deenen")
+                == Composer(authorPath: nil, name: "Jeroen Tel", subtitle: "with Charles Deenen"))
+        #expect(LibraryStore.unfiledComposer("(Fanta)")?.name == "Fanta")
+        #expect(LibraryStore.unfiledComposer("<?>") == nil)
+        #expect(LibraryStore.unfiledComposer("") == nil)
+    }
+
+    @Test func creditedTunesNameTheSamePerson() async {
+        let (library, _) = makeLibrary()
+        let tune = { (title: String, author: String) in
+            HvscTuneItem(
+                path: "/HVSC/DEMOS/A-F/\(title).sid", title: title, author: author, released: "1989",
+                songs: 1, startSong: 1, durationSecs: nil, hasStil: false, isRsid: nil, category: .demos
+            )
+        }
+        // What the core finds: headers that mention the name anywhere.
+        fake.set(credited: [
+            tune("Acid 2", "Exos"),
+            tune("Creepin Death", "EXOS & Jeff"),
+            tune("Bones", "Someone (Exos)"),
+            tune("Shell", "Exoskeleton Crew"),
+        ])
+
+        await library.loadCredited(name: "Exos")
+        #expect(library.credited["Exos"]?.map(\.title) == ["Acid 2", "Creepin Death", "Bones"])
+        await library.loadCredited(name: "Exos")
+        #expect(fake.calls.filter { $0.hasPrefix("crediting") }.count == 1, "loaded once")
+    }
+
+    @Test func tunesKnowWhichPartOfHvscTheyAreIn() {
+        let (library, _) = makeLibrary()
+        #expect(library.category(of: "/HVSC/DEMOS/A-F/Acid_2.sid") == .demos)
+        #expect(library.category(of: "/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid") == .musicians)
+        #expect(library.category(of: "/HVSC/DOCUMENTS/STIL.txt") == nil)
+        #expect(library.category(of: "/Users/me/Music/Tune.sid") == nil)
     }
 
     @Test func headerAuthorsSplitIntoNamesAndHandles() {
@@ -366,6 +421,32 @@ struct LibraryStoreTests {
         #expect(LibraryStore.names(in: "A & B and C") == ["A & B and C", "A", "B", "C"])
         #expect(LibraryStore.words("Hubbard_Rob") == LibraryStore.words("Rob  Hubbard"))
         #expect(LibraryStore.words("Lukáš") == ["lukas"])
+    }
+
+    @Test func namesMatchWithUmlautsSpelledOut() {
+        #expect(LibraryStore.sameName("Chris Hülsbeck", "Huelsbeck_Chris"))
+        #expect(LibraryStore.sameName("Huelsbeck_Chris", "Chris Hülsbeck"))
+        #expect(LibraryStore.sameName("Chris Hülsbeck", "Hulsbeck_Chris"))
+        #expect(LibraryStore.sameName("Chris Hu\u{308}lsbeck", "Huelsbeck_Chris"), "decomposed")
+        #expect(LibraryStore.sameName("JÖRG STRAUß", "Strauss_Joerg"))
+        #expect(LibraryStore.sameName("Mäx", "Maex"))
+        #expect(!LibraryStore.sameName("Chris Hülsbeck", "Huelsbeck_Chris_Jr"))
+    }
+
+    @Test func composerFolderMatchesAHeaderWithUmlauts() async {
+        let (library, _) = makeLibrary()
+        fake.set(authors: [author("Huelsbeck_Chris", displayName: "Huelsbeck, Chris")])
+        await library.loadAuthors(.musicians)
+
+        // The header's spelling, and who else it credits.
+        let rType = library.composer(of: track("/HVSC/MUSICIANS/H/Huelsbeck_Chris/R-Type.sid",
+                                               author: "Chris Hülsbeck & Ramiro Vaca"))
+        #expect(rType?.name == "Chris Hülsbeck")
+        #expect(rType?.subtitle == "with Ramiro Vaca")
+        // Filed under GAMES, the header alone finds the folder.
+        let game = library.composer(of: track("/HVSC/GAMES/S-Z/X.sid", author: "Chris Hülsbeck"))
+        #expect(game?.authorPath == "/HVSC/MUSICIANS/H/Huelsbeck_Chris")
+        #expect(game?.name == "Chris Hülsbeck")
     }
 
     @Test func composerSubtitlesAddTheOtherNamesInTheCredit() {
@@ -435,6 +516,42 @@ struct InspectorHeaderTests {
         #expect(NowPlayingInspector.released("1986 <?>") == "Released 1986")
         #expect(NowPlayingInspector.released("<?>") == nil)
         #expect(NowPlayingInspector.released("") == nil)
+    }
+}
+
+struct StilCoverTests {
+    typealias Cover = StilNotesView.Cover
+
+    @Test func oneArtistOfSeveralTitlesIsNamedOnce() {
+        // Commando, song 1: each piece is Tamayo Kawamoto's.
+        let titles = """
+            BGM1 [from the arcade game Commando] (0:00)
+            Base [from the arcade game Commando] (0:53)
+            Level Complete [from the arcade game Commando] (1:16-1:32)
+            """
+        let artists = "Tamayo Kawamoto\nTamayo Kawamoto\nTamayo Kawamoto"
+        #expect(StilNotesView.covers(title: titles, by: artists) == [Cover(title: titles, by: "Tamayo Kawamoto")])
+    }
+
+    @Test func differentArtistsPairUpWithTheirTitles() {
+        // Delta, song 1.
+        let titles = """
+            On the Run [from the Dark Side of the Moon] (0:00)
+            Pruit Igoe [from the movie Koyaanisqatsi] (4:00)
+            Resource [from the movie Koyaanisqatsi] (5:26-9:07)
+            """
+        #expect(StilNotesView.covers(title: titles, by: "Pink Floyd\nPhilip Glass\nPhilip Glass") == [
+            Cover(title: "On the Run [from the Dark Side of the Moon] (0:00)", by: "Pink Floyd"),
+            Cover(title: "Pruit Igoe [from the movie Koyaanisqatsi] (4:00)", by: "Philip Glass"),
+            Cover(title: "Resource [from the movie Koyaanisqatsi] (5:26-9:07)", by: "Philip Glass"),
+        ])
+    }
+
+    @Test func anythingElseStaysAsStilHasIt() {
+        #expect(StilNotesView.covers(title: "Shades", by: "Chris Hülsbeck") == [Cover(title: "Shades", by: "Chris Hülsbeck")])
+        #expect(StilNotesView.covers(title: "Shades", by: nil) == [Cover(title: "Shades", by: nil)])
+        #expect(StilNotesView.covers(title: "A\nB\nC", by: "X\nY") == [Cover(title: "A\nB\nC", by: "X\nY")])
+        #expect(StilNotesView.covers(title: "A\nB", by: nil) == [Cover(title: "A\nB", by: nil)])
     }
 }
 

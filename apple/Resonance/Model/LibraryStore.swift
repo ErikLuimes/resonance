@@ -16,11 +16,17 @@ final class LibraryStore {
     /// STIL's note per author folder path, "" when it has none; absent
     /// until loaded.
     private(set) var authorNotes: [String: String] = [:]
+    /// Tunes whose header credits a name, per name; absent until loaded.
+    private(set) var credited: [String: [LibraryRow]] = [:]
     private(set) var errors: [HvscCategory: String] = [:]
     /// An author the browser should show (the composer card's link). The
     /// window switches to Musicians and the browser selects the author,
     /// then hands the tune on to `revealedTune`.
     var reveal: LibraryReveal?
+    /// A composer without a MUSICIANS folder the browser should show the
+    /// tunes of (the composer card's link). The window switches to
+    /// `category`, and the browser lists the tunes credited to them.
+    var credits: LibraryCredits?
     /// A tune to select once a list shows it; the tune table clears it.
     var revealedTune: String?
     /// How often Surprise Me was started; the toolbar's dice wiggles on each.
@@ -28,8 +34,9 @@ final class LibraryStore {
 
     let player: PlayerStore
     @ObservationIgnored private var cachedRoot: String?
-    /// MUSICIANS folders by the words of their name, for matching a SID
-    /// header's author ("Rob Hubbard") to a folder ("Hubbard_Rob").
+    /// MUSICIANS folders by the words of their name in each of its
+    /// `spellings`, for matching a SID header's author ("Rob Hubbard") to a
+    /// folder ("Hubbard_Rob").
     @ObservationIgnored private var composersByWords: [Set<String>: HvscAuthorItem] = [:]
 
     init(player: PlayerStore) {
@@ -51,7 +58,7 @@ final class LibraryStore {
             dropCachesIfRootChanged()
             if category == .musicians {
                 composersByWords = Dictionary(
-                    list.map { (Self.words($0.name), $0) },
+                    list.flatMap { folder in Self.spellings(folder.name).map { ($0, folder) } },
                     uniquingKeysWith: { first, _ in first }
                 )
             }
@@ -82,6 +89,20 @@ final class LibraryStore {
         authorNotes[authorPath] = note ?? ""
     }
 
+    /// Every tune in HVSC whose header credits `name`: "Exos" or "EXOS &
+    /// Jeff", not "Exoskeleton". The core finds the headers that mention
+    /// the name; this keeps those that name the same person. Empty when the
+    /// lookup fails.
+    func loadCredited(name: String) async {
+        dropCachesIfRootChanged()
+        guard credited[name] == nil else { return }
+        let found = (try? await core.hvscTunesCrediting(names: Array(Set([name, Self.spelledOut(name)])))) ?? []
+        dropCachesIfRootChanged()
+        credited[name] = found
+            .filter { item in Self.names(in: item.author).contains { Self.sameName($0, name) } }
+            .map(LibraryRow.init)
+    }
+
     /// Fuzzy search; `nil` scope searches all of HVSC. Throws on failure or
     /// cancellation.
     func search(_ query: String, scope: HvscCategory?) async throws -> HvscSearchResult {
@@ -94,6 +115,7 @@ final class LibraryStore {
         authors = [:]
         tunes = [:]
         authorNotes = [:]
+        credited = [:]
         errors = [:]
         composersByWords = [:]
     }
@@ -124,13 +146,19 @@ final class LibraryStore {
     }
 
     /// Who the inspector's composer card is about: `track`'s composer folder
-    /// in MUSICIANS. Nil when there isn't one, or MUSICIANS isn't loaded yet.
+    /// in MUSICIANS, else just the header's author (see `unfiledComposer`).
+    /// Nil when the header names no one.
+    func composer(of track: TrackDetails) -> Composer? {
+        composerFolder(of: track) ?? Self.unfiledComposer(track.author)
+    }
+
+    /// `track`'s composer folder in MUSICIANS. Nil when there isn't one, or
+    /// MUSICIANS isn't loaded yet.
     ///
     /// A tune filed under its composer names the folder in its path. GAMES
     /// and DEMOS file tunes by title, so for those the header's author has
-    /// to match a folder's name. When nothing matches there's no card: the
-    /// search index (upstream's) has no author field to fall back on.
-    func composer(of track: TrackDetails) -> Composer? {
+    /// to match a folder's name.
+    private func composerFolder(of track: TrackDetails) -> Composer? {
         guard let root = player.hvscRoot, let composers = authors[.musicians] else { return nil }
         let names = Self.names(in: track.author)
         let rootParts = URL(filePath: root).standardizedFileURL.pathComponents
@@ -142,8 +170,7 @@ final class LibraryStore {
                let folder = composers.first(where: { $0.name == inside[2] }) {
                 // The header's spelling ("Thomas E. Petersen") when it names
                 // this folder; the folder's otherwise.
-                let folderWords = Self.words(folder.name)
-                if let name = names.first(where: { Self.words($0) == folderWords }) {
+                if let name = names.first(where: { Self.sameName($0, folder.name) }) {
                     let subtitle = Self.subtitle(for: name, in: track.author)
                     return Composer(authorPath: folder.path, name: name, subtitle: subtitle)
                 }
@@ -151,12 +178,36 @@ final class LibraryStore {
             }
         }
         for name in names {
-            if let folder = composersByWords[Self.words(name)] {
+            if let folder = Self.spellings(name).compactMap({ composersByWords[$0] }).first {
                 let subtitle = Self.subtitle(for: name, in: track.author)
                 return Composer(authorPath: folder.path, name: name, subtitle: subtitle)
             }
         }
         return nil
+    }
+
+    /// A card for an author MUSICIANS has no folder for, like most demo
+    /// groups' musicians: the header's first person ("Exos"), with the rest
+    /// of the credit as the subtitle. Nil when it names no one ("<?>").
+    nonisolated static func unfiledComposer(_ author: String) -> Composer? {
+        let credit = Self.credit(in: author)
+        let candidates = Self.people(in: credit.base) + credit.handles.map { $0.trimmingCharacters(in: .whitespaces) }
+        guard let name = candidates.first(where: { !words($0).isEmpty }) else { return nil }
+        return Composer(authorPath: nil, name: name, subtitle: subtitle(for: name, in: author))
+    }
+
+    /// Which part of HVSC `path` is in, if any.
+    func category(of path: String) -> HvscCategory? {
+        guard let root = player.hvscRoot else { return nil }
+        let rootParts = URL(filePath: root).standardizedFileURL.pathComponents
+        let parts = URL(filePath: path).standardizedFileURL.pathComponents
+        guard parts.starts(with: rootParts), parts.count > rootParts.count else { return nil }
+        switch parts[rootParts.count] {
+        case "MUSICIANS": return .musicians
+        case "GAMES": return .games
+        case "DEMOS": return .demos
+        default: return nil
+        }
     }
 
     /// The card's line under `name`, one of the names in a header's
@@ -240,6 +291,29 @@ final class LibraryStore {
         return Set(folded.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init))
     }
 
+    /// Whether two names are one: "Chris Hülsbeck" is "Huelsbeck_Chris".
+    nonisolated static func sameName(_ a: String, _ b: String) -> Bool {
+        let other = spellings(b)
+        return spellings(a).contains(where: other.contains)
+    }
+
+    /// The `words` of `name` with accents dropped ("hulsbeck"), then with
+    /// German umlauts and ß spelled out as HVSC's folder names do
+    /// ("huelsbeck").
+    private nonisolated static func spellings(_ name: String) -> [Set<String>] {
+        [words(name), words(spelledOut(name))]
+    }
+
+    /// `name` lowercased, with German umlauts and ß spelled out: "jörg
+    /// strauss".
+    private nonisolated static func spelledOut(_ name: String) -> String {
+        name.lowercased()
+            .replacing("ä", with: "ae")
+            .replacing("ö", with: "oe")
+            .replacing("ü", with: "ue")
+            .replacing("ß", with: "ss")
+    }
+
     static func message(for error: Error) -> String {
         switch error {
         case HvscError.NoRoot: "Choose your HVSC folder in Settings."
@@ -251,8 +325,9 @@ final class LibraryStore {
 
 /// A tune's composer, as the inspector's composer card shows them.
 nonisolated struct Composer: Equatable, Sendable {
-    /// Their MUSICIANS folder.
-    let authorPath: String
+    /// Their MUSICIANS folder; nil when they have none, and the card's link
+    /// lists the tunes credited to them instead.
+    let authorPath: String?
     /// "Rob Hubbard".
     let name: String
     /// A real name, handle or co-authors; see `LibraryStore.subtitle`.
@@ -273,6 +348,16 @@ nonisolated struct LibraryReveal: Equatable, Sendable {
     let authorPath: String
     /// Selected if it's in that folder (a GAMES or DEMOS tune isn't).
     let tunePath: String
+}
+
+/// A composer without a MUSICIANS folder whose tunes the browser should
+/// list, from the composer card's link.
+nonisolated struct LibraryCredits: Equatable, Sendable {
+    let id = UUID()
+    /// As the card names them: "Exos".
+    let name: String
+    /// The sidebar section to show them in: where the playing tune is.
+    let category: HvscCategory
 }
 
 /// A tune in the library lists, with the sort keys `Table` needs.

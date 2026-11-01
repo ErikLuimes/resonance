@@ -269,6 +269,46 @@ async fn search_matches_authors_folders_and_typos() {
 }
 
 #[tokio::test]
+async fn crediting_finds_tunes_by_their_headers_author() {
+    let tree = Tree::sample();
+    tree.sid("DEMOS/A-F/Acid_2.sid", "Acid 2", "Exos", "1989 The Ice Crew", 1);
+    tree.sid(
+        "DEMOS/A-F/Creepin_Death.sid",
+        "Creepin Death",
+        "EXOS & Jeff",
+        "1989 The Ice Crew",
+        1,
+    );
+    // Named in the title and file name only: not a credit.
+    tree.sid("GAMES/A-F/Exos.sid", "Exos", "Someone Else", "1990", 1);
+    let lib = library(Some(tree.root()));
+
+    let hits = lib.crediting(vec!["exos".into()]).await.unwrap();
+    let mut found: Vec<_> = hits
+        .iter()
+        .map(|(category, e, author)| (*category, e.title.as_str(), author.as_str()))
+        .collect();
+    found.sort_by_key(|&(_, title, _)| title);
+    assert_eq!(
+        found,
+        [
+            (HvscCategory::Demos, "Acid 2", "Exos"),
+            (HvscCategory::Demos, "Creepin Death", "EXOS & Jeff"),
+        ]
+    );
+
+    // Any of several spellings; the headers are read once and reused.
+    let hubbard = lib
+        .crediting(vec!["Rob Hubbard".into(), "Robert Hubbard".into()])
+        .await
+        .unwrap();
+    let mut titles: Vec<_> = hubbard.iter().map(|(_, e, _)| e.title.as_str()).collect();
+    titles.sort();
+    assert_eq!(titles, ["Commando", "Monty on the Run"]);
+    assert!(lib.crediting(vec!["Nobody".into()]).await.unwrap().is_empty());
+}
+
+#[tokio::test]
 async fn exact_titles_rank_first_among_equal_scores() {
     let tree = Tree::sample();
     tree.sid(

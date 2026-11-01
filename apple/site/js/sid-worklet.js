@@ -185,24 +185,26 @@ class SidDemoProcessor extends AudioWorkletProcessor {
 
     this.report(cutoff);
 
+    // The song repeats until the tune's length is up, as a SID tune loops
+    // until Songlengths says it's over.
     this.totalFrames++;
+    if (this.totalFrames >= song.frames) {
+      this.port.postMessage({ t: 'end' });
+      this.song = null;
+      for (const v of this.voices) v.setGate(false);
+      return;
+    }
     this.rowFrame++;
     if (this.rowFrame >= song.speed) {
       this.rowFrame = 0;
-      this.row++;
-      if (this.row >= song.rows) {
-        this.port.postMessage({ t: 'end' });
-        this.song = null;
-        for (const v of this.voices) v.setGate(false);
-        return;
-      }
+      this.row = (this.row + 1) % song.rows;
     }
 
     // Hard restart: gate off a couple of frames before the next note, so
     // repeated notes are articulated instead of smeared together.
     if (this.rowFrame === song.speed - 2) {
       for (let t = 0; t < 3; t++) {
-        const next = song.tracks[t][this.row + 1];
+        const next = song.tracks[t][(this.row + 1) % song.rows];
         if (next && next.n >= 0 && song.instruments[next.i].hr) this.voices[t].setGate(false);
       }
     }
@@ -238,7 +240,7 @@ class SidDemoProcessor extends AudioWorkletProcessor {
       v.muted ? 0 : v.env,
       v.pw,
     ]);
-    this.port.postMessage({ t: 'frame', voices, row: this.row, rows: this.song.rows, cutoff });
+    this.port.postMessage({ t: 'frame', voices, frame: this.totalFrames, cutoff });
   }
 
   process(_inputs, outputs) {

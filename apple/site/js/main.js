@@ -6,6 +6,7 @@ import { DemoPlayer } from './player.js';
 import { VoiceMeter, drawVisualizer, drawScope, VOICE_COLORS } from './visualizer.js';
 import { noteName, waveName } from './tune.js';
 import { TuneSearch, highlight, formatLength } from './search.js';
+import { TUNES, PLAYLIST_SIZE, COMPOSER_NOTES } from './hvsc-tunes.js';
 
 const REPO = 'ErikLuimes/resonance';
 
@@ -15,7 +16,7 @@ const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '
 const icon = (id, cls = 'i') => `<svg class="${cls}"><use href="#${id}"/></svg>`;
 const setIcon = (svg, id) => svg.querySelector('use').setAttribute('href', `#${id}`);
 
-const player = new DemoPlayer();
+const player = new DemoPlayer(TUNES);
 const meter = new VoiceMeter();
 
 // ---------------------------------------------------------------------------
@@ -40,76 +41,64 @@ function fitStage() {
 }
 new ResizeObserver(fitStage).observe(stage);
 
-// Real tunes from HVSC, with their header fields and Songlengths entries.
-const playlist = [
-  ['Commando', 'Rob Hubbard', '1985 Elite', 236, 19],
-  ['Monty on the Run', 'Rob Hubbard', '1985 Gremlin Graphics', 350, 19],
-  ['Sanxion', 'Rob Hubbard', '1986 Thalamus', 334, 2],
-  ['Parallax', 'Martin Galway', '1986 Ocean', 683, 5],
-  ['International Karate', 'Rob Hubbard', '1986 System 3', 645, 1],
-  ['Shades', 'Chris Hülsbeck', "1986 64'er/Markt & Technik", 298, 1],
-  ['Spellbound', 'Rob Hubbard', '1986 MAD/Mastertronic', 341, 13],
-  ['Cybernoid II', 'Jeroen Tel', '1988 Hewson', 346, 2],
-  ['Last Ninja 2', 'Matt Gray', '1988 System 3', 267, 13],
-  ['Supremacy', 'Jeroen Tel', '1991 Virgin', 231, 3],
-].map(([title, author, released, length, songs]) => ({ title, author, released, length, songs, song: 1, sids: 1, type: 'PSID' }));
+// Real tunes from HVSC (see hvsc-tunes.js); kept surprises join them.
+const playlist = TUNES.slice(0, PLAYLIST_SIZE);
+player.playlist = playlist;
 
 const tbody = $('[data-playlist]');
 let selectedRow = null;
-let playlistSeed = null; // the generated tune last played from the playlist
 
+// Rows are only rebuilt when one is added: replacing them between the two
+// clicks of a double-click would lose it.
 function renderPlaylist(newIndex = -1) {
-  const current = player.tune?.seed;
   tbody.innerHTML = playlist
-    .map((row, i) => {
-      const isCurrent = row.seed && row.seed === current && playlistSeed === current;
-      const cls = [i === selectedRow && 'is-selected', isCurrent && 'is-current', i === newIndex && 'is-new'].filter(Boolean).join(' ');
-      const num = isCurrent ? icon(player.isPlaying ? 'i-speaker-wave' : 'i-speaker') : i + 1;
-      const songs = row.songs > 1 ? `${row.song}/${row.songs}` : '1';
-      return `<tr data-row="${i}" class="${cls}">
-        <td class="num-cell muted-cell">${num}</td>
-        <td class="t-title">${escapeHtml(row.title)}</td>
-        <td>${escapeHtml(row.author)}</td>
-        <td>${escapeHtml(row.released)}</td>
-        <td class="tabular">${formatLength(row.length)}</td>
-        <td class="tabular">${songs}</td>
-        <td>${row.sids}</td>
-        <td>${row.type}</td>
-      </tr>`;
-    })
+    .map((tune, i) => `<tr data-row="${i}" class="${i === newIndex ? 'is-new' : ''}">
+        <td class="num-cell muted-cell"></td>
+        <td class="t-title">${escapeHtml(tune.title)}</td>
+        <td>${escapeHtml(tune.author)}</td>
+        <td>${escapeHtml(tune.released)}</td>
+        <td class="tabular">${formatLength(tune.lengths[tune.start - 1])}</td>
+        <td class="tabular">${tune.songs > 1 ? `${tune.start}/${tune.songs}` : '1'}</td>
+        <td>${tune.chips}</td>
+        <td>${tune.format}</td>
+      </tr>`)
     .join('');
   $('[data-playlist-count]').textContent = playlist.length;
+  updateRows();
+}
+
+function updateRows() {
+  const current = player.tune && player.source === 'playlist' ? player.row : -1;
+  for (const tr of tbody.rows) {
+    const i = Number(tr.dataset.row);
+    tr.classList.toggle('is-selected', i === selectedRow);
+    tr.classList.toggle('is-current', i === current);
+    tr.cells[0].innerHTML = i === current ? icon(player.isPlaying ? 'i-speaker-wave' : 'i-speaker') : i + 1;
+  }
 }
 
 tbody.addEventListener('click', (e) => {
   const tr = e.target.closest('tr');
   if (!tr) return;
   selectedRow = Number(tr.dataset.row);
-  renderPlaylist();
+  updateRows();
 });
 
 tbody.addEventListener('dblclick', (e) => {
   const tr = e.target.closest('tr');
-  if (!tr) return;
-  const row = playlist[Number(tr.dataset.row)];
-  if (row.seed) {
-    playlistSeed = row.seed;
-    player.load(row.seed);
-  } else {
-    banner(`Resonance plays ${row.title} from your HVSC folder. This page can only make up its own tunes — try Surprise Me.`);
-  }
+  if (tr) player.playRow(Number(tr.dataset.row));
 });
 
 // Loading and error capsules float over the top of the playlist, as in the app.
-function banner(text) {
+function banner(text, secs = 3.6) {
   const slot = $('.banner-slot');
   slot.replaceChildren();
   const el = document.createElement('div');
   el.className = 'banner glass';
   el.textContent = text;
   slot.append(el);
-  setTimeout(() => el.classList.add('out'), 3600);
-  setTimeout(() => el.remove(), 4000);
+  setTimeout(() => el.classList.add('out'), secs * 1000);
+  setTimeout(() => el.remove(), secs * 1000 + 400);
 }
 
 const repeatModes = [
@@ -119,13 +108,14 @@ const repeatModes = [
 ];
 let repeat = 0;
 
+const fileName = (path) => path.slice(path.lastIndexOf('/') + 1);
+
 const actions = {
   surprise: () => {
     const dice = $('[data-dice]');
     dice.classList.remove('wiggle');
     void dice.getBoundingClientRect();
     dice.classList.add('wiggle');
-    playlistSeed = null;
     player.surprise();
   },
   add: () => banner('In Resonance, this adds SID files, folders or M3U playlists. You can drop them on the window, too.'),
@@ -135,36 +125,39 @@ const actions = {
     button.title = hidden ? 'Show the inspector' : 'Hide the inspector';
   },
   shuffle: (button) => {
-    const on = button.getAttribute('aria-pressed') !== 'true';
-    button.setAttribute('aria-pressed', on);
-    button.title = `Shuffle: ${on ? 'On' : 'Off'}`;
+    player.shuffle = !player.shuffle;
+    button.setAttribute('aria-pressed', player.shuffle);
+    button.title = `Shuffle: ${player.shuffle ? 'On' : 'Off'}`;
   },
   repeat: (button) => {
     repeat = (repeat + 1) % repeatModes.length;
     const mode = repeatModes[repeat];
+    player.repeat = mode.name.toLowerCase();
     setIcon($('[data-repeat-icon]'), mode.icon);
     button.setAttribute('aria-pressed', repeat !== 0);
     button.title = `Repeat: ${mode.name}`;
     button.setAttribute('aria-label', button.title);
   },
-  play: () => player.toggle(),
-  next: () => { playlistSeed = null; player.next(); },
+  play: () => (!player.tune && selectedRow !== null ? player.playRow(selectedRow) : player.toggle()),
+  next: () => player.next(),
   prev: () => player.previous(),
   'next-sub': () => player.stepSubtune(1),
   'prev-sub': () => player.stepSubtune(-1),
   keep: () => {
-    const tune = player.tune;
-    if (!tune || playlist.some((r) => r.seed === tune.seed)) return;
-    playlist.push({
-      title: tune.title, author: tune.author, released: tune.released,
-      length: tune.lengthSecs, songs: 3, song: tune.subtune, sids: 1, type: 'WEB', seed: tune.seed,
-    });
+    const entry = player.entry;
+    if (!entry || playlist.some((t) => t.path === entry.path)) return;
+    playlist.push(entry);
     renderPlaylist(playlist.length - 1);
     $('.mac-table-wrap').scrollTop = 1e6;
     updateUI();
   },
-  'all-tunes': () => banner("In Resonance, Show All Tunes opens the composer's folder in the HVSC browser."),
-  finder: () => banner('In Resonance, this shows the SID file in Finder. This tune only exists in your browser.'),
+  'all-tunes': () => banner(`In Resonance, Show All Tunes opens ${player.tune.composer}'s folder in the HVSC browser.`),
+  more: (button) => {
+    const folded = $('[data-cc-note]').classList.toggle('is-folded');
+    button.textContent = folded ? 'More' : 'Less';
+  },
+  reveal: (button) => banner(`In Resonance, this shows ${button.textContent} in the HVSC browser.`),
+  finder: () => banner(`In Resonance, this shows ${fileName(player.tune.path)} in Finder.`),
 };
 
 mac.addEventListener('click', (e) => {
@@ -216,6 +209,93 @@ function releasedLine(field) {
 }
 const textOf = (sel, text) => { for (const el of $$(sel)) if (el.textContent !== text) el.textContent = text; };
 
+// STIL text, with the tunes it names ("/MUSICIANS/V/Vaca_Ramiro/Turrican.sid")
+// shortened to their file names; composers' tunes link to the browser.
+function stilText(text) {
+  return escapeHtml(text).replace(/\/(?:MUSICIANS|GAMES|DEMOS)\/[^\s"(),;]+?\.sid/g, (path) =>
+    path.startsWith('/MUSICIANS/')
+      ? `<button type="button" class="accent-link" data-act="reveal" title="Show ${fileName(path)} in the library">${fileName(path)}</button>`
+      : fileName(path));
+}
+
+// A STIL block as the app's inspector words it: "Cover of … by …",
+// "Original by …", "Also known as …", then its comment. A block can cover
+// several pieces, a line each; one performer for them all is named once.
+function stilBlock(block, songs) {
+  const parts = [];
+  if (block.subtune > 0 && songs > 1) parts.push(`<small class="dim">Song ${block.subtune}</small>`);
+  if (block.title) {
+    const titles = block.title.split('\n');
+    const bys = (block.artist ?? block.author ?? '').split('\n');
+    const pairs = bys.length === titles.length && new Set(bys).size > 1;
+    const cover = (title, by) => `<p><span class="dim">Cover of</span> ${stilText(title)}</p>${by ? `<p class="dim">by ${escapeHtml(by)}</p>` : ''}`;
+    if (pairs) {
+      titles.forEach((title, i) => parts.push(cover(title, bys[i])));
+    } else {
+      const by = new Set(bys).size === 1 ? bys[0] : bys.join('\n');
+      parts.push(cover(titles.join('\n'), by));
+    }
+    if (block.artist && block.author) parts.push(`<p class="dim">written by ${escapeHtml(block.author)}</p>`);
+  } else if (block.author) {
+    parts.push(`<p><span class="dim">Original by</span> ${escapeHtml(block.author)}</p>`);
+  }
+  if (block.name) parts.push(`<p class="dim">Also known as ${escapeHtml(block.name)}</p>`);
+  if (block.comment) parts.push(`<p class="${block.title || block.name ? 'stil-gap' : ''}">${stilText(block.comment)}</p>`);
+  return `<div class="stil-block">${parts.join('')}</div>`;
+}
+
+const SID_MODELS = { 1: ['6581', 'MOS 6581'], 2: ['8580', 'MOS 8580'], 3: ['Either', 'Plays on the 6581 or the 8580'] };
+// Notes longer than this start folded to four lines, like the app's card.
+const FOLD_LENGTH = 240;
+
+// The composer card, STIL's notes and the specs change with the tune or
+// subtune, not every update: rebuilding them would fold the card again.
+let shownTune = null;
+
+function showTune(tune) {
+  const key = `${tune.path}#${tune.subtune}`;
+  if (key === shownTune) return;
+  const sameFile = shownTune?.startsWith(`${tune.path}#`);
+  shownTune = key;
+
+  if (!sameFile) {
+    const initials = tune.composer.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+    textOf('[data-cc-initials]', (initials.length > 1 ? [initials[0], initials.at(-1)] : initials).map((w) => w[0]).join('').toUpperCase());
+    textOf('[data-cc-name]', tune.composer);
+    textOf('[data-cc-sub]', tune.composerSub ?? '');
+    $('[data-cc-sub]').hidden = !tune.composerSub;
+    $('[data-act="all-tunes"]').title = `Show all tunes by ${tune.composer}`;
+    const note = COMPOSER_NOTES[tune.path.slice(0, tune.path.lastIndexOf('/') + 1)] ?? '';
+    const noteEl = $('[data-cc-note]');
+    noteEl.innerHTML = stilText(note);
+    noteEl.hidden = !note;
+    noteEl.classList.toggle('is-folded', note.length > FOLD_LENGTH);
+    const more = $('[data-act="more"]');
+    more.hidden = note.length <= FOLD_LENGTH;
+    more.textContent = 'More';
+
+    const [sid, sidHelp] = SID_MODELS[tune.sid] ?? ['—', 'Not specified in the file'];
+    textOf('[data-spec-format]', tune.format);
+    textOf('[data-spec-sid]', sid);
+    $('[data-spec-sid]').parentElement.title = sidHelp;
+    textOf('[data-spec-clock]', tune.pal ? 'PAL' : 'NTSC');
+    textOf('[data-spec-chips]', String(tune.chips));
+    $('[data-act="finder"]').title = `Show ${fileName(tune.path)} in Finder`;
+  }
+
+  // What STIL says about this subtune: the file's comment, then the
+  // whole tune's blocks before the subtune's own.
+  const blocks = (tune.stil?.blocks ?? [])
+    .filter((b) => b.subtune === 0 || b.subtune === tune.subtune)
+    .sort((a, b) => a.subtune - b.subtune);
+  const comment = tune.stil?.comment;
+  $('[data-about]').hidden = !comment && !blocks.length;
+  $('[data-about-body]').innerHTML =
+    (comment ? `<p>${stilText(comment)}</p>` : '') + blocks.map((b) => stilBlock(b, tune.songs)).join('');
+}
+
+let toldStandIn = false;
+
 function updateUI() {
   const tune = player.tune;
   const playing = player.isPlaying;
@@ -227,18 +307,23 @@ function updateUI() {
   textOf('[data-demo-label]', playing ? 'Pause the demo' : tune ? 'Resume the demo' : 'Hear the demo');
   $('[data-demo-start]').classList.toggle('is-hidden', !!tune);
 
-  const fromPlaylist = tune && playlistSeed === tune.seed;
+  const fromPlaylist = player.source === 'playlist';
   $('[data-np-badge]').hidden = !tune || fromPlaylist;
   textOf('[data-np-title]', tune ? tune.title : 'Not Playing');
   textOf('[data-np-author]', tune ? tune.author : '');
   textOf('[data-np-duration]', tune ? formatTime(tune.lengthSecs) : '--:--');
+  if (!tune) {
+    $('[data-np-progress]').style.width = '0';
+    textOf('[data-np-elapsed]', formatTime(0));
+  }
 
-  $('[data-subtunes]').hidden = !tune;
-  $('[data-scrub-subtunes]').hidden = !tune;
-  if (tune) {
-    textOf('[data-np-song]', `Song ${tune.subtune}/${player.subtunes}`);
+  const hasSubtunes = !!tune && tune.songs > 1;
+  $('[data-subtunes]').hidden = !hasSubtunes;
+  $('[data-scrub-subtunes]').hidden = !hasSubtunes;
+  if (hasSubtunes) {
+    textOf('[data-np-song]', `Song ${tune.subtune}/${tune.songs}`);
     $('[data-act="prev-sub"]').disabled = tune.subtune <= 1;
-    $('[data-act="next-sub"]').disabled = tune.subtune >= player.subtunes;
+    $('[data-act="next-sub"]').disabled = tune.subtune >= tune.songs;
   }
 
   $('[data-insp-empty]').hidden = !!tune;
@@ -250,20 +335,24 @@ function updateUI() {
       ? `${icon('i-list')}From Playlist`
       : `${icon('i-dice-fill')}Surprise Me`;
     textOf('[data-np-title2]', tune.title);
-    textOf('[data-np-author2]', tune.author);
     textOf('[data-np-released]', releasedLine(tune.released));
-    textOf('[data-np-song2]', `Song ${tune.subtune} of ${player.subtunes}`);
     textOf('[data-np-length]', formatTime(tune.lengthSecs));
-    textOf('[data-np-key]', tune.key);
-    textOf('[data-np-bpm]', `${tune.bpm} BPM`);
+    $('[data-np-song2]').parentElement.hidden = !hasSubtunes;
+    textOf('[data-np-song2]', `Song ${tune.subtune} of ${tune.songs}`);
     // Add to Playlist until it's kept, then a label saying so; neither
     // while it plays from the playlist anyway.
-    const kept = playlist.some((r) => r.seed === tune.seed);
+    const kept = playlist.some((t) => t.path === tune.path);
     $('[data-act="keep"]').hidden = kept;
     $('[data-np-kept]').hidden = !kept || fromPlaylist;
+    showTune(tune);
+
+    if (!toldStandIn) {
+      toldStandIn = true;
+      banner("This page can't play SID files, so you're hearing a stand-in. The details are the real tune's.", 6);
+    }
   }
 
-  renderPlaylist();
+  updateRows();
 }
 
 player.addEventListener('change', updateUI);
@@ -311,7 +400,6 @@ function frame(now) {
   if (now - lastText > 120) {
     lastText = now;
     textOf('[data-np-elapsed]', formatTime(player.elapsed));
-    textOf('[data-np-filter]', `${Math.round(player.cutoff).toLocaleString('en')} Hz`);
     player.voices.forEach((v, i) => {
       textOf(`[data-note="${i}"]`, (v[2] && v[0] >= 0 && noteName(v[0])) || '·');
       textOf(`[data-wave="${i}"]`, waveName(v[1]) || '—');
@@ -555,4 +643,5 @@ for (const button of $$('.copy')) {
 textOf('[data-year]', String(new Date().getFullYear()));
 
 fitStage();
+renderPlaylist();
 updateUI();

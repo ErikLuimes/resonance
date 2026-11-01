@@ -674,15 +674,19 @@ html.playing .orb-3 { opacity: 0.14; }
 /* The composer card, tinted apart from the plain sections. */
 .composer-card { margin: 0 12px; padding: 12px; border-radius: 10px; background: color-mix(in srgb, var(--tint) 14%, transparent); }
 .cc-head { display: flex; align-items: center; gap: 10px; }
-.cc-mono { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: rgba(0, 0, 0, 0.35); color: var(--tint); }
-.cc-mono .i { font-size: 18px; }
+.cc-mono { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: rgba(0, 0, 0, 0.35); color: var(--tint); font-size: 16px; font-weight: 650; }
 .cc-name { font-size: 13.5px; font-weight: 650; }
 .cc-sub { color: rgba(255, 255, 255, 0.55); }
-.cc-note { margin: 10px 0 0; color: rgba(255, 255, 255, 0.55); line-height: 1.45; }
+.cc-note { margin: 10px 0 0; color: rgba(255, 255, 255, 0.55); line-height: 1.45; white-space: pre-line; }
+.cc-note.is-folded { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+.cc-more { display: block; margin-top: 2px; }
 
+/* What STIL says about the tune: its comment, then each block. */
 .about { padding: 10px 12px; line-height: 1.45; }
-.about p { margin: 0; }
-.about .about-note { margin-top: 6px; }
+.about p { margin: 0; white-space: pre-line; }
+.about small { display: block; font-size: 11px; }
+.about > * + * { margin-top: 10px; }
+.about .stil-gap { margin-top: 6px; }
 
 /* Details: four facts side by side, then the file. */
 .spec-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -690,7 +694,6 @@ html.playing .orb-3 { opacity: 0.14; }
 .spec + .spec { border-left: 1px solid rgba(255, 255, 255, 0.08); }
 .spec small { display: block; font-size: 11px; color: rgba(255, 255, 255, 0.55); }
 .spec span { font-size: 13px; white-space: nowrap; }
-.spec .mono { font-size: 12px; font-variant-numeric: tabular-nums; }
 .specs-foot { padding: 10px 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
 
 /* Narrow: no sidebar or table, like the app in a small window. */

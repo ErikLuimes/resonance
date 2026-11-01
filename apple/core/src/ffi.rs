@@ -520,6 +520,20 @@ impl PlayerCore {
         })
     }
 
+    /// Tunes in all of HVSC whose header's author contains one of `names`
+    /// (ignoring case and accents), with that author; the caller narrows
+    /// them to exact credits. The first call reads every tune's header.
+    pub async fn hvsc_tunes_crediting(&self, names: Vec<String>) -> Result<Vec<HvscTuneItem>, HvscError> {
+        let hits = self.library.crediting(names).await?;
+        Ok(hits
+            .into_iter()
+            .map(|(category, entry, author)| HvscTuneItem {
+                author,
+                ..HvscTuneItem::from_index(&entry, category.into())
+            })
+            .collect())
+    }
+
     /// Surprise Me: an endless stream of random tunes from all of HVSC, one
     /// subtune each, never one played since launch. Next picks a new tune,
     /// Previous goes back; playing anything else ends it. Returns once the

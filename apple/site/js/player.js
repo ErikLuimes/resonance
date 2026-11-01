@@ -1,35 +1,52 @@
-// The demo player behind the page's Resonance window: Surprise Me as a
-// radio of generated tunes, with history for Previous, subtunes, volume
-// and per-voice mute. Audio starts on the first click (browsers require a
-// gesture), and pausing suspends the AudioContext.
+// The demo player behind the page's Resonance window. It plays real HVSC
+// tunes the way the app does — Surprise Me as a radio of random tunes, the
+// playlist row by row with shuffle and repeat, subtunes, volume and
+// per-voice mute — but what it plays is each tune's stand-in, composed in
+// the browser and timed to the tune's Songlengths entry. Audio starts on
+// the first click (browsers require a gesture), and pausing suspends the
+// AudioContext.
 
-import { composeTune, SUBTUNES } from './tune.js';
+import { composeTune, seedFor } from './tune.js';
+
+const FRAME_HZ = 50;
+// Resonance's default length for tunes Songlengths doesn't know.
+const DEFAULT_LENGTH = 180;
 
 export class DemoPlayer extends EventTarget {
-  constructor() {
+  /** `tunes`: what Surprise Me picks from. */
+  constructor(tunes) {
     super();
+    this.tunes = tunes;
     this.ctx = null;
     this.node = null;
     this.gain = null;
     this.ready = null;
     this.state = 'stopped'; // 'playing' | 'paused' | 'stopped'
+    // Which list Next and Previous walk: 'surprise' or 'playlist'.
+    this.source = null;
+    this.playlist = [];
+    this.row = -1;
+    this.shuffle = false;
+    this.repeat = 'off'; // 'off' | 'all' | 'one'
+    this.entry = null;
+    // The playing tune: its HVSC entry, plus the subtune, its length and
+    // the stand-in's key and tempo.
     this.tune = null;
     this.history = [];
     this.historyIndex = -1;
+    this.heard = new Set();
     this.volume = 0.8;
     this.muted = [false, false, false];
     // Latest frame from the driver: per voice [note, wave, gate, env, pw].
     this.voices = [];
     this.seq = 0;
-    this.row = 0;
-    this.rows = 1;
+    this.frame = 0;
     this.cutoff = 0;
-    this.surprises = 0;
   }
 
   get isPlaying() { return this.state === 'playing'; }
-  get elapsed() { return this.tune ? (this.row / this.rows) * this.tune.lengthSecs : 0; }
-  get progress() { return this.tune ? this.row / this.rows : 0; }
+  get elapsed() { return this.frame / FRAME_HZ; }
+  get progress() { return this.tune ? Math.min(this.elapsed / this.tune.lengthSecs, 1) : 0; }
 
   // Must start inside a click handler: the AudioContext is created and
   // resumed synchronously, and the worklet module loads after.
@@ -54,35 +71,50 @@ export class DemoPlayer extends EventTarget {
   receive(msg) {
     if (msg.t === 'frame') {
       this.voices = msg.voices;
-      this.row = msg.row;
-      this.rows = msg.rows;
+      this.frame = msg.frame;
       this.cutoff = msg.cutoff;
       this.seq++;
     } else if (msg.t === 'end') {
-      // Like the app's Surprise Me radio: when a tune ends, the next one plays.
-      this.next();
+      this.advance();
     }
   }
 
-  async load(seed, subtune = 1) {
+  async load(entry, subtune = entry.start) {
     this.ensureAudio();
     await this.ready;
-    this.tune = composeTune(seed, subtune);
-    this.row = 0;
-    this.rows = this.tune.song.rows;
-    this.node.port.postMessage({ t: 'song', song: this.tune.song });
+    const { key, bpm, song } = composeTune(seedFor(entry.path), subtune);
+    const lengthSecs = entry.lengths[subtune - 1] || DEFAULT_LENGTH;
+    song.frames = Math.round(lengthSecs * FRAME_HZ);
+    this.entry = entry;
+    this.tune = { ...entry, subtune, lengthSecs, key, bpm };
+    this.heard.add(entry.path);
+    this.frame = 0;
+    this.node.port.postMessage({ t: 'song', song });
     await this.ctx.resume();
     this.state = 'playing';
     this.emit();
   }
 
+  /** A random tune not heard since the page loaded, one subtune each. */
   surprise() {
-    const seed = 1 + Math.floor(Math.random() * 99999);
+    this.source = 'surprise';
+    this.row = -1;
+    let pool = this.tunes.filter((t) => !this.heard.has(t.path));
+    if (!pool.length) {
+      this.heard.clear();
+      pool = this.tunes.filter((t) => t.path !== this.entry?.path);
+    }
+    const entry = pool[Math.floor(Math.random() * pool.length)];
     this.history = this.history.slice(0, this.historyIndex + 1);
-    this.history.push(seed);
+    this.history.push(entry);
     this.historyIndex = this.history.length - 1;
-    this.surprises++;
-    return this.load(seed);
+    return this.load(entry);
+  }
+
+  playRow(row) {
+    this.source = 'playlist';
+    this.row = row;
+    return this.load(this.playlist[row]);
   }
 
   async toggle() {
@@ -98,7 +130,25 @@ export class DemoPlayer extends EventTarget {
     }
   }
 
+  stop() {
+    this.state = 'stopped';
+    this.source = null;
+    this.row = -1;
+    this.entry = null;
+    this.tune = null;
+    this.frame = 0;
+    this.emit();
+  }
+
   next() {
+    if (this.source === 'playlist') {
+      const rows = this.playlist.length;
+      if (this.shuffle && rows > 1) {
+        const other = Math.floor(Math.random() * (rows - 1));
+        return this.playRow(other >= this.row ? other + 1 : other);
+      }
+      return this.playRow((this.row + 1) % rows);
+    }
     if (this.historyIndex < this.history.length - 1) {
       this.historyIndex++;
       return this.load(this.history[this.historyIndex]);
@@ -109,19 +159,28 @@ export class DemoPlayer extends EventTarget {
   // Restarts the tune a few seconds in, like Music; otherwise goes back.
   previous() {
     if (!this.tune) return this.surprise();
-    if (this.elapsed < 3 && this.historyIndex > 0) this.historyIndex--;
+    if (this.elapsed >= 3) return this.load(this.entry, this.tune.subtune);
+    if (this.source === 'playlist') return this.playRow(Math.max(this.row - 1, 0));
+    if (this.historyIndex > 0) this.historyIndex--;
     return this.load(this.history[this.historyIndex]);
   }
 
-  get hasSubtunes() { return !!this.tune; }
-  get subtune() { return this.tune?.subtune ?? 1; }
-  get subtunes() { return SUBTUNES; }
+  // When a tune ends: Surprise Me picks another; the playlist moves on and
+  // stops after its last row, unless it repeats.
+  advance() {
+    if (this.repeat === 'one') return this.load(this.entry, this.tune.subtune);
+    const last = this.row === this.playlist.length - 1;
+    if (this.source === 'playlist' && last && !this.shuffle && this.repeat === 'off') return this.stop();
+    return this.next();
+  }
+
+  get subtunes() { return this.tune?.songs ?? 1; }
 
   stepSubtune(delta) {
     if (!this.tune) return;
     const next = this.tune.subtune + delta;
-    if (next < 1 || next > SUBTUNES) return;
-    return this.load(this.tune.seed, next);
+    if (next < 1 || next > this.tune.songs) return;
+    return this.load(this.entry, next);
   }
 
   setVolume(v) {
