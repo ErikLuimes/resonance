@@ -1,0 +1,441 @@
+<!doctype html>
+<!--
+  Resonance · HVSC download — Mock A: "The setup moment"
+  =======================================================
+  The missing collection is treated the way Apple treats first run (Music,
+  Podcasts, Freeform): the detail pane takes over with a proper empty state,
+  and the download becomes a guided sequence — choose → download → extract →
+  ready. The sidebar's HVSC section stays dimmed until the tree exists.
+
+  The download is an *event*, presented once, in the main pane.
+  (Mock B takes the opposite direction: ambient, in the sidebar.)
+
+  Throwaway mock. Tokens match the app (apple/site/styles.css window replica
+  and design/visualizers/IMPLEMENTATION_NOTES.md). Use the pill in the
+  bottom-right corner to step through the states.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mock A — The setup moment</title>
+<style>
+:root {
+  --bg: #07080d;
+  --text: #f3f4f8;
+  --muted: #a4a9bc;
+  --dim: rgba(255, 255, 255, 0.42);
+  --accent: #0a84ff;
+  --accent-hi: #3f9fff;
+  --green: #30d158;
+  --v1: #3fd0e8;
+  --v2: #9b6bff;
+  --v3: #ff9a3c;
+  --glass: rgba(255, 255, 255, 0.075);
+  --glass-line: rgba(255, 255, 255, 0.10);
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(1100px 640px at 50% -12%, rgba(155, 107, 255, 0.14), transparent 70%),
+    radial-gradient(900px 520px at 85% 110%, rgba(63, 208, 232, 0.10), transparent 70%),
+    var(--bg);
+  color: var(--text);
+  font: 400 13px/1.45 var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+/* ── Window ─────────────────────────────────────────────────────────── */
+.mac {
+  --tint: var(--accent);
+  width: 1180px;
+  height: 720px;
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  border-radius: 26px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #212229, #1a1b21);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.10) inset,
+    0 0 0 1px rgba(0, 0, 0, 0.7),
+    0 60px 140px -30px rgba(0, 0, 0, 0.9),
+    0 30px 60px -20px rgba(0, 0, 0, 0.6);
+  user-select: none;
+  position: relative;
+}
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 24px rgba(0, 0, 0, 0.28);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  backdrop-filter: blur(22px) saturate(180%);
+}
+.i {
+  width: 1em; height: 1em; flex: none;
+  fill: none; stroke: currentColor;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+/* ── Sidebar ────────────────────────────────────────────────────────── */
+.mac-sidebar {
+  margin: 10px 0 10px 10px;
+  padding: 12px 10px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.traffic { display: flex; gap: 8px; padding: 4px 6px 0 2px; margin-bottom: 20px; }
+.traffic i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; box-shadow: inset 0 0 0 0.5px rgba(0,0,0,.25); }
+.traffic i:nth-child(2) { background: #febc2e; }
+.traffic i:nth-child(3) { background: #28c840; }
+.sb-heading { padding: 10px 10px 5px; color: var(--dim); font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+.sb-item {
+  display: flex; align-items: center; gap: 8px;
+  height: 30px; padding: 0 10px;
+  border-radius: 9px; font-size: 13px;
+  color: #ececf1;
+}
+.sb-item .i { font-size: 15px; color: var(--tint); }
+.sb-item.is-dim { opacity: 0.35; }
+.sb-item.is-dim .i { color: rgba(255,255,255,0.5); }
+.sb-item.is-selected { background: rgba(255, 255, 255, 0.11); }
+.sb-badge { margin-left: auto; color: rgba(255,255,255,0.5); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+/* ── Main column ────────────────────────────────────────────────────── */
+.mac-main { display: grid; grid-template-rows: 58px minmax(0, 1fr); min-width: 0; min-height: 0; }
+.mac-toolbar { display: flex; align-items: center; gap: 10px; padding: 0 14px 0 18px; }
+.mac-title { display: flex; flex-direction: column; margin-right: auto; line-height: 1.25; }
+.mac-title strong { font-size: 15px; font-weight: 650; letter-spacing: -0.01em; }
+.mac-title span { color: rgba(255,255,255,0.5); font-size: 11px; }
+.tb-group { display: flex; border-radius: 999px; padding: 2px; }
+.tb-group button { display: grid; place-items: center; width: 38px; height: 32px; border-radius: 999px; color: #ececf1; background: none; border: 0; cursor: pointer; }
+.tb-group button:hover { background: rgba(255,255,255,0.08); }
+.tb-group button.is-disabled { color: rgba(255,255,255,0.28); }
+.tb-group .i { font-size: 17px; }
+.tb-search {
+  display: flex; align-items: center; gap: 6px;
+  width: 210px; height: 36px; padding: 0 12px;
+  border-radius: 999px; color: rgba(255,255,255,0.45);
+}
+.tb-search .i { font-size: 14px; }
+/* ── Detail / setup moment ──────────────────────────────────────────── */
+.mac-detail { position: relative; min-width: 0; min-height: 0; display: grid; place-items: center; overflow: hidden; }
+.setup {
+  display: flex; flex-direction: column; align-items: center; gap: 18px;
+  text-align: center; padding: 32px;
+  max-width: 560px;
+  animation: rise 0.45s var(--ease);
+}
+@keyframes rise { from { opacity: 0; transform: translateY(14px) scale(0.985); } }
+.setup[hidden] { display: none; }
+.tile {
+  width: 122px; height: 122px;
+  display: grid; place-items: center;
+  border-radius: 30px;
+  color: var(--v1);
+}
+.tile .i { font-size: 58px; }
+.tile.is-ready { color: var(--green); }
+h1.setup-title { margin: 0; font-size: 21px; font-weight: 680; letter-spacing: -0.015em; }
+.setup-body { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.55; max-width: 44ch; }
+.setup-actions { display: flex; align-items: center; gap: 14px; margin-top: 4px; }
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 34px; padding: 0 18px;
+  border-radius: 9px; border: 1px solid rgba(0, 0, 0, 0.25);
+  background: linear-gradient(180deg, var(--accent-hi), var(--accent));
+  box-shadow: 0 6px 18px -6px rgba(10, 132, 255, 0.55), inset 0 1px 0 rgba(255,255,255,0.28);
+  color: #fff; font: 600 13.5px var(--font);
+  cursor: pointer;
+}
+.btn-primary:hover { filter: brightness(1.07); }
+.btn-plain {
+  height: 34px; padding: 0 6px;
+  border: 0; background: none; cursor: pointer;
+  color: var(--accent-hi); font: 500 13px var(--font);
+}
+.btn-plain:hover { color: var(--accent); }
+.footnote { margin-top: -4px; color: var(--dim); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+/* Progress state */
+.ring-wrap { position: relative; width: 122px; height: 122px; }
+.ring-wrap .tile { width: 122px; height: 122px; border-radius: 30px; }
+.ring { position: absolute; inset: 0; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 5; }
+.ring .track { stroke: rgba(255, 255, 255, 0.10); }
+.ring .fill {
+  stroke: var(--accent-hi);
+  stroke-linecap: round;
+  stroke-dasharray: 267;
+  stroke-dashoffset: 267;
+  transition: stroke-dashoffset 0.25s linear;
+  filter: drop-shadow(0 0 6px rgba(10, 132, 255, 0.6));
+}
+.ring-pct {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-size: 27px; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+}
+.ring .i { position: absolute; opacity: 0; }
+.bar-row { width: 340px; display: flex; align-items: center; gap: 12px; }
+.bar { flex: 1; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.10); overflow: hidden; }
+.bar > i {
+  display: block; height: 100%; width: 0%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hi));
+  box-shadow: 0 0 10px rgba(10, 132, 255, 0.5);
+  transition: width 0.25s linear;
+}
+.bar-label { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.file-line {
+  display: flex; align-items: center; gap: 8px;
+  color: rgba(255, 255, 255, 0.55);
+  font: 400 11.5px var(--mono);
+}
+.file-line .i { font-size: 13px; color: var(--v2); }
+/* Done */
+.setup.is-done .tile { color: var(--green); }
+/* ── Transport bar (idle) ───────────────────────────────────────────── */
+.mac-bar {
+  position: absolute; left: 12px; right: 12px; bottom: 12px;
+  height: 52px;
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 16px;
+  border-radius: 16px;
+  opacity: 0.75;
+}
+.bar-side { display: flex; align-items: center; gap: 8px; min-width: 170px; color: rgba(255,255,255,0.4); font-size: 12.5px; }
+.bar-side .i { font-size: 15px; }
+.bar-transport { display: flex; align-items: center; gap: 6px; margin: 0 auto; }
+.bar-transport button {
+  display: grid; place-items: center; width: 34px; height: 30px;
+  border: 0; background: none; border-radius: 999px;
+  color: rgba(255, 255, 255, 0.35); cursor: pointer;
+}
+.bar-transport .i { font-size: 17px; }
+.bar-volume { display: flex; align-items: center; gap: 8px; min-width: 130px; justify-content: flex-end; color: rgba(255,255,255,0.4); }
+.vol-track { width: 90px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.14); overflow: hidden; }
+.vol-track i { display: block; height: 100%; width: 80%; background: rgba(255,255,255,0.55); border-radius: 2px; }
+/* ── Mock state switcher ────────────────────────────────────────────── */
+.mock-dock {
+  position: fixed; right: 22px; bottom: 22px; z-index: 10;
+  display: flex; align-items: center; gap: 2px;
+  padding: 3px; border-radius: 999px;
+  font-size: 12px;
+}
+.mock-dock .tag { padding: 0 10px 0 12px; color: var(--dim); font-weight: 600; letter-spacing: 0.06em; font-size: 10.5px; }
+.mock-dock button {
+  height: 28px; padding: 0 13px; border: 0; border-radius: 999px;
+  background: none; color: var(--muted); font: 500 12px var(--font); cursor: pointer;
+}
+.mock-dock button.on { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.statecap {
+  position: fixed; right: 22px; bottom: 64px; z-index: 10;
+  padding: 6px 12px; border-radius: 8px;
+  color: var(--muted); font-size: 11.5px;
+}
+</style>
+</head>
+<body>
+
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-waveform" viewBox="0 0 24 24"><path d="M3 10v4M7 7v10M11 4v16M15 8v8M19 10v4"/></symbol>
+  <symbol id="i-archive" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M10 13h4"/></symbol>
+  <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 4v12m0 0 5-5m-5 5-5-5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-folder-plus" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M12 11v5M9.5 13.5h5"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4M9 21h6"/></symbol>
+  <symbol id="i-game" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="10" rx="3.5"/><path d="M8 11.5v3M6.5 13h3"/><circle cx="15.5" cy="12.2" r="0.4"/><circle cx="17.8" cy="14" r="0.4"/></symbol>
+  <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M12 4l1.7 4.3L18 10l-4.3 1.7L12 16l-1.7-4.3L6 10l4.3-1.7L12 4Z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2Z"/></symbol>
+  <symbol id="i-dice" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><circle cx="9" cy="9" r="0.6"/><circle cx="15" cy="9" r="0.6"/><circle cx="12" cy="12" r="0.6"/><circle cx="9" cy="15" r="0.6"/><circle cx="15" cy="15" r="0.6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-side-right" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M15 5v14"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.6-4.6"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5L8 5.5Z"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M18 6v12L9 12l9-6ZM8 6v12"/></symbol>
+  <symbol id="i-fwd" viewBox="0 0 24 24"><path d="M6 6v12l9-6-9-6ZM16 6v12"/></symbol>
+  <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M4 10v4h3l4 4V6l-4 4H4Z"/><path d="M15.5 9.5a4 4 0 0 1 0 5"/></symbol>
+</svg>
+
+<div class="mac">
+  <aside class="mac-sidebar">
+    <div class="traffic" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="sb-heading">Library</div>
+    <div class="sb-item is-selected"><svg class="i" viewBox="0 0 24 24"><use href="#i-waveform"/></svg><span>Playlist</span><span class="sb-badge">3</span></div>
+    <div class="sb-heading" style="margin-top:8px">HVSC</div>
+    <div id="sb-musicians" class="sb-item is-dim"><svg class="i" viewBox="0 0 24 24"><use href="#i-mic"/></svg><span>Musicians</span></div>
+    <div id="sb-games" class="sb-item is-dim"><svg class="i" viewBox="0 0 24 24"><use href="#i-game"/></svg><span>Games</span></div>
+    <div id="sb-demos" class="sb-item is-dim"><svg class="i" viewBox="0 0 24 24"><use href="#i-sparkles"/></svg><span>Demos</span></div>
+  </aside>
+
+  <div class="mac-main">
+    <div class="mac-toolbar">
+      <div class="mac-title">
+        <strong>Resonance</strong>
+        <span>powered by Phosphor</span>
+      </div>
+      <div class="tb-group glass">
+        <button class="is-disabled" title="Surprise Me" aria-disabled="true"><svg class="i" viewBox="0 0 24 24"><use href="#i-dice"/></svg></button>
+        <button title="Add Files"><svg class="i" viewBox="0 0 24 24"><use href="#i-plus"/></svg></button>
+        <button title="Inspector"><svg class="i" viewBox="0 0 24 24"><use href="#i-side-right"/></svg></button>
+      </div>
+      <div class="tb-search glass"><svg class="i" viewBox="0 0 24 24"><use href="#i-search"/></svg><span>Search</span></div>
+    </div>
+
+    <div class="mac-detail">
+      <!-- Idle -->
+      <div class="setup" id="st-idle">
+        <div class="tile glass"><svg class="i" viewBox="0 0 24 24"><use href="#i-waveform"/></svg></div>
+        <h1 class="setup-title">No collection on this Mac yet</h1>
+        <p class="setup-body">
+          Resonance reads the High Voltage SID Collection straight from disk —
+          61,000 tunes from the C64 era. Download it to get started, or point
+          at a copy you already have.
+        </p>
+        <div class="setup-actions">
+          <button class="btn-primary"><svg class="i" viewBox="0 0 24 24" style="font-size:14px"><use href="#i-arrow-down"/></svg>Download the Collection</button>
+          <button class="btn-plain"><svg class="i" viewBox="0 0 24 24" style="font-size:14px;vertical-align:-2px"><use href="#i-folder-plus"/></svg>&nbsp;Choose a Folder…</button>
+        </div>
+        <div class="footnote">≈ 81 MB download · extracted to Phosphor’s collection folder</div>
+      </div>
+
+      <!-- Downloading -->
+      <div class="setup" id="st-downloading" hidden>
+        <div class="ring-wrap">
+          <div class="tile glass"><svg class="i" viewBox="0 0 24 24"><use href="#i-archive"/></svg></div>
+          <svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
+            <circle class="track" cx="50" cy="50" r="42.5"/>
+            <circle class="fill" id="ring-fill" cx="50" cy="50" r="42.5"/>
+          </svg>
+          <div class="ring-pct" id="ring-pct">52%</div>
+        </div>
+        <h1 class="setup-title">Downloading the Collection</h1>
+        <div class="bar-row">
+          <div class="bar"><i id="bar-fill"></i></div>
+          <span class="bar-label" id="bar-label">42.6 MB of 81.2 MB</span>
+        </div>
+        <div class="file-line"><svg class="i" viewBox="0 0 24 24"><use href="#i-archive"/></svg><span id="phase-line">Downloading HVSC_85-all-of-them.7z from hvsc.brona.dk</span></div>
+        <button class="btn-plain">Cancel</button>
+      </div>
+
+      <!-- Extracting -->
+      <div class="setup" id="st-extracting" hidden>
+        <div class="ring-wrap">
+          <div class="tile glass"><svg class="i" viewBox="0 0 24 24"><use href="#i-archive"/></svg></div>
+          <svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
+            <circle class="track" cx="50" cy="50" r="42.5"/>
+            <circle class="fill" id="ring-fill2" cx="50" cy="50" r="42.5"/>
+          </svg>
+          <div class="ring-pct" id="ring-pct2">20%</div>
+        </div>
+        <h1 class="setup-title">Extracting the Collection</h1>
+        <div class="bar-row">
+          <div class="bar"><i id="bar-fill2"></i></div>
+          <span class="bar-label" id="bar-label2">12,431 of 61,157 files</span>
+        </div>
+        <div class="file-line"><svg class="i" viewBox="0 0 24 24" style="color:var(--v2)"><use href="#i-waveform"/></svg><span id="phase-line2">MUSICIANS/H/Hubbard_Rob/Commando.sid</span></div>
+        <button class="btn-plain">Cancel</button>
+      </div>
+
+      <!-- Done -->
+      <div class="setup is-done" id="st-done" hidden>
+        <div class="tile glass"><svg class="i" viewBox="0 0 24 24"><use href="#i-check"/></svg></div>
+        <h1 class="setup-title">Collection ready</h1>
+        <p class="setup-body">
+          61,157 tunes from HVSC v85, in the folder Phosphor uses.
+          Browse by composer, or just start typing.
+        </p>
+        <div class="setup-actions">
+          <button class="btn-primary">Browse Musicians</button>
+        </div>
+      </div>
+
+      <div class="mac-bar glass">
+        <div class="bar-side"><svg class="i" viewBox="0 0 24 24"><use href="#i-waveform"/></svg>Nothing playing</div>
+        <div class="bar-transport">
+          <button aria-disabled="true"><svg class="i" viewBox="0 0 24 24"><use href="#i-back"/></svg></button>
+          <button aria-disabled="true"><svg class="i" viewBox="0 0 24 24"><use href="#i-play"/></svg></button>
+          <button aria-disabled="true"><svg class="i" viewBox="0 0 24 24"><use href="#i-fwd"/></svg></button>
+        </div>
+        <div class="bar-volume"><svg class="i" viewBox="0 0 24 24"><use href="#i-speaker"/></svg><div class="vol-track"><i></i></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="statecap glass" id="statecap">idle — first run, no collection</div>
+<div class="mock-dock glass">
+  <span class="tag">MOCK</span>
+  <button data-st="idle" class="on">Idle</button>
+  <button data-st="downloading">Downloading</button>
+  <button data-st="extracting">Extracting</button>
+  <button data-st="done">Done</button>
+</div>
+
+<script>
+(function () {
+  var states = ["idle", "downloading", "extracting", "done"];
+  var caps = {
+    idle: "idle — first run, no collection",
+    downloading: "downloading — archive from the mirror (~81 MB)",
+    extracting: "extracting — files into Phosphor's folder",
+    done: "done — category rows reappear in the sidebar"
+  };
+  var p1 = 0.52, p2 = 0.20, iv = null;
+
+  function fmtPct(p) { return Math.round(p * 100) + "%"; }
+  function draw() {
+    var C = 267;
+    var f = document.getElementById("ring-fill");
+    f.style.strokeDashoffset = C * (1 - p1);
+    document.getElementById("ring-pct").textContent = fmtPct(p1);
+    document.getElementById("bar-fill").style.width = (p1 * 100) + "%";
+    document.getElementById("bar-label").textContent =
+      (p1 * 81.2).toFixed(1) + " MB of 81.2 MB";
+
+    var f2 = document.getElementById("ring-fill2");
+    f2.style.strokeDashoffset = C * (1 - p2);
+    document.getElementById("ring-pct2").textContent = fmtPct(p2);
+    document.getElementById("bar-fill2").style.width = (p2 * 100) + "%";
+    document.getElementById("bar-label2").textContent =
+      Math.round(p2 * 61157).toLocaleString("en-US") + " of 61,157 files";
+  }
+
+  function setState(name) {
+    states.forEach(function (s) {
+      document.getElementById("st-" + s).hidden = s !== name;
+    });
+    document.getElementById("statecap").textContent = caps[name];
+    var dim = name !== "done";
+    ["sb-musicians", "sb-games", "sb-demos"].forEach(function (id) {
+      document.getElementById(id).classList.toggle("is-dim", dim);
+      document.getElementById(id).classList.remove("is-selected");
+    });
+    if (name === "done") document.getElementById("sb-musicians").classList.add("is-selected");
+    if (iv) { clearInterval(iv); iv = null; }
+    if (name === "downloading") {
+      p1 = 0.03; draw();
+      iv = setInterval(function () { p1 = Math.min(0.99, p1 + 0.004 + Math.random() * 0.004); draw(); }, 200);
+    } else if (name === "extracting") {
+      p2 = 0.03; draw();
+      iv = setInterval(function () { p2 = Math.min(0.99, p2 + 0.003 + Math.random() * 0.005); draw(); }, 200);
+    } else {
+      draw();
+    }
+  }
+
+  document.querySelectorAll(".mock-dock button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll(".mock-dock button").forEach(function (x) { x.classList.remove("on"); });
+      b.classList.add("on");
+      setState(b.dataset.st);
+    });
+  });
+  setState("idle");
+})();
+</script>
+</body>
+</html>

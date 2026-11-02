@@ -52,7 +52,7 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
             durationMs: current.flatMap { items[$0].durationSecs }.map { UInt64($0) * 1000 },
             shuffle: false, repeat: .off, engine: .sidLite,
             playlistRevision: 1, trackRevision: 1, loading: nil, error: nil,
-            hvscIndexing: []
+            hvscIndexing: [], hvscTreeRevision: 0
         )
     }
 
@@ -168,6 +168,10 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
     }
 
     func setHvscRoot(root: String?) {}
+    func hvscSyncStatus() -> HvscSyncStatus? { nil }
+    func startHvscSync() throws {}
+    func cancelHvscSync() {}
+    func hvscInfo() async -> HvscInfo? { nil }
     func addPaths(paths: [String], playFirst: Bool) {}
     func clear() {}
     func moveEntries(from: [UInt32], to: UInt32) {}

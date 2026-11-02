@@ -56,21 +56,9 @@ impl Databases {
     /// Phosphor's boot (main.rs:548-558). STIL comes from the remembered
     /// file, else `<config_dir>/STIL.txt` (main.rs:569-584).
     pub fn load(config: &Config) -> Self {
-        let songlengths = config::songlength_db_path()
-            .filter(|p| p.exists())
+        let songlengths = songlength_file()
             .and_then(|p| log_err("Songlengths", &p, SonglengthDb::load(&p)));
-        let stil_file = config
-            .last_stil_file
-            .as_ref()
-            .map(PathBuf::from)
-            .filter(|p| p.exists())
-            .or_else(|| stil::stil_db_path().filter(|p| p.exists()));
-        let stil = stil_file
-            .as_ref()
-            .and_then(|p| log_err("STIL", p, StilDb::load(p)));
-        let stil_text = stil_file
-            .as_ref()
-            .and_then(|p| log_err("STIL", p, StilText::load(p)));
+        let (stil, stil_text) = load_stil_pair(stil_file(config));
         let hvsc_version = stil.as_ref().and_then(|s| s.hvsc_version).or_else(|| {
             config
                 .hvsc_known_version
@@ -82,6 +70,44 @@ impl Databases {
             stil,
             stil_text,
             hvsc_version,
+        }
+    }
+
+    /// `load`, rerun after the collection has been downloaded.
+    ///
+    /// A fresh install remembers no STIL or Songlengths path yet, and the
+    /// tree the sync brings in keeps both in its DOCUMENTS folder (the
+    /// layout Phosphor's `apply_post_hvsc_sync` adopts), so look there when
+    /// the remembered paths have nothing.
+    pub fn load_after_sync(config: &Config, hvsc_root: Option<&Path>) -> Self {
+        let mut db = Self::load(config);
+        db.fill_from_documents(hvsc_root);
+        db
+    }
+
+    /// The part `load_after_sync` adds: the sync puts STIL.txt and
+    /// Songlengths.md5 in the tree's DOCUMENTS folder, where a fresh
+    /// install's remembered paths point at nothing, so adopt them — but
+    /// only what the normal lookup didn't already find.
+    pub(crate) fn fill_from_documents(&mut self, hvsc_root: Option<&Path>) {
+        let Some(documents) = hvsc_root.map(|root| root.join("DOCUMENTS")) else {
+            return
+        };
+        if self.stil.is_none() {
+            let (stil, stil_text) =
+                load_stil_pair(Some(documents.join("STIL.txt")).filter(|p| p.exists()));
+            self.stil = stil;
+            self.stil_text = stil_text;
+        }
+        if self.songlengths.is_none() {
+            let path = documents.join("Songlengths.md5");
+            self.songlengths = path
+                .exists()
+                .then(|| path.clone())
+                .and_then(|p| log_err("Songlengths", &p, SonglengthDb::load(&p)));
+        }
+        if self.hvsc_version.is_none() {
+            self.hvsc_version = self.stil.as_ref().and_then(|s| s.hvsc_version);
         }
     }
 
@@ -188,6 +214,30 @@ fn log_err<T>(what: &str, path: &Path, result: Result<T, String>) -> Option<T> {
         .ok()
 }
 
+/// `<config_dir>/Songlengths.md5`, like Phosphor's boot.
+fn songlength_file() -> Option<PathBuf> {
+    config::songlength_db_path().filter(|p| p.exists())
+}
+
+/// The remembered STIL file, else `<config_dir>/STIL.txt`.
+fn stil_file(config: &Config) -> Option<PathBuf> {
+    config
+        .last_stil_file
+        .as_ref()
+        .map(PathBuf::from)
+        .filter(|p| p.exists())
+        .or_else(|| stil::stil_db_path().filter(|p| p.exists()))
+}
+
+/// A STIL file's parsed database and its raw entries, when `path` has one.
+fn load_stil_pair(path: Option<PathBuf>) -> (Option<StilDb>, Option<StilText>) {
+    let Some(path) = path else { return (None, None) };
+    (
+        log_err("STIL", &path, StilDb::load(&path)),
+        log_err("STIL", &path, StilText::load(&path)),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::Path;
@@ -262,5 +312,36 @@ mod tests {
         );
         assert_eq!(hvsc_path(Path::new("/Music/Own.sid"), root), None);
         assert_eq!(hvsc_path(Path::new("/HVSC"), root), None);
+    }
+
+    #[test]
+    fn the_syncs_documents_folder_fills_missing_databases() {
+        let dir = std::env::temp_dir().join(format!("resonance-docs-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let documents = dir.join("DOCUMENTS");
+        std::fs::create_dir_all(&documents).unwrap();
+        std::fs::write(
+            documents.join("STIL.txt"),
+            "# STIL v85\n\n/MUSICIANS/H/Hubbard_Rob/Commando.sid\n COMMENT: A story.\n",
+        )
+        .unwrap();
+        std::fs::write(
+            documents.join("Songlengths.md5"),
+            "0123456789abcdef0123456789abcdef= 0:00 0:30\n",
+        )
+        .unwrap();
+
+        let mut db = super::Databases::default();
+        db.fill_from_documents(Some(&dir));
+        assert!(db.stil.is_some() && db.stil_text.is_some());
+        assert!(db.songlengths.is_some());
+        assert_eq!(db.hvsc_version, Some(85));
+
+        // What the normal lookup found keeps precedence.
+        let mut db = super::Databases::default();
+        db.hvsc_version = Some(77);
+        db.fill_from_documents(Some(&dir));
+        assert_eq!(db.hvsc_version, Some(77));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

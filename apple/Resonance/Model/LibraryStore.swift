@@ -39,6 +39,7 @@ final class LibraryStore {
 
     let player: PlayerStore
     @ObservationIgnored private var cachedRoot: String?
+    @ObservationIgnored private var cachedTreeRevision: UInt64 = 0
     /// MUSICIANS folders by the words of their name in each of its
     /// `spellings`, for matching a SID header's author ("Rob Hubbard") to a
     /// folder ("Hubbard_Rob").
@@ -47,6 +48,7 @@ final class LibraryStore {
     init(player: PlayerStore) {
         self.player = player
         cachedRoot = player.hvscRoot
+        cachedTreeRevision = player.hvscTreeRevision
     }
 
     private var core: any PlayerCoreProtocol { player.core }
@@ -56,11 +58,11 @@ final class LibraryStore {
     // MARK: Loading
 
     func loadAuthors(_ category: HvscCategory) async {
-        dropCachesIfRootChanged()
+        dropCachesIfStale()
         guard authors[category] == nil else { return }
         do {
             let list = try await core.hvscAuthors(category: category)
-            dropCachesIfRootChanged()
+            dropCachesIfStale()
             if category == .musicians {
                 composersByWords = Dictionary(
                     list.flatMap { folder in Self.spellings(folder.name).map { ($0, folder) } },
@@ -75,11 +77,11 @@ final class LibraryStore {
     }
 
     func loadTunes(authorPath: String) async {
-        dropCachesIfRootChanged()
+        dropCachesIfStale()
         guard tunes[authorPath] == nil else { return }
         do {
             let list = try await core.hvscTunes(authorPath: authorPath)
-            dropCachesIfRootChanged()
+            dropCachesIfStale()
             tunes[authorPath] = list.map(LibraryRow.init)
         } catch {
             tunes[authorPath] = []
@@ -90,19 +92,19 @@ final class LibraryStore {
     /// as STIL.txt has it; parsed here. `sidAuthor` is a tune header's
     /// author, which tells whose voice a quote is in.
     func loadStil(path: String, sidAuthor: String? = nil) async {
-        dropCachesIfRootChanged()
+        dropCachesIfStale()
         guard stil[path] == nil else { return }
         let excerpt = await core.hvscStil(path: path)
-        dropCachesIfRootChanged()
+        dropCachesIfStale()
         stil[path] = excerpt.flatMap { STILEntry.parsing($0, sidAuthor: sidAuthor) }
     }
 
     /// The title and author of a tune STIL links to (an HVSC path).
     func loadLinkedTune(_ hvscPath: String) async {
-        dropCachesIfRootChanged()
+        dropCachesIfStale()
         guard linkedTunes[hvscPath] == nil, let file = file(atHvscPath: hvscPath) else { return }
         let tune = await LinkedTune.read(file)
-        dropCachesIfRootChanged()
+        dropCachesIfStale()
         linkedTunes[hvscPath] = tune
     }
 
@@ -111,10 +113,10 @@ final class LibraryStore {
     /// the name; this keeps those that name the same person. Empty when the
     /// lookup fails.
     func loadCredited(name: String) async {
-        dropCachesIfRootChanged()
+        dropCachesIfStale()
         guard credited[name] == nil else { return }
         let found = (try? await core.hvscTunesCrediting(names: Array(Set([name, Self.spelledOut(name)])))) ?? []
-        dropCachesIfRootChanged()
+        dropCachesIfStale()
         credited[name] = found
             .filter { item in Self.names(in: item.author).contains { Self.sameName($0, name) } }
             .map(LibraryRow.init)
@@ -126,9 +128,13 @@ final class LibraryStore {
         try await core.hvscSearch(query: query, scope: scope)
     }
 
-    private func dropCachesIfRootChanged() {
-        guard player.hvscRoot != cachedRoot else { return }
+    /// Drop every list and cache if the root changed, or the same root's
+    /// tree did (the first sync filling the folder; the core bumps its
+    /// revision in both cases).
+    private func dropCachesIfStale() {
+        guard player.hvscRoot != cachedRoot || player.hvscTreeRevision != cachedTreeRevision else { return }
         cachedRoot = player.hvscRoot
+        cachedTreeRevision = player.hvscTreeRevision
         authors = [:]
         tunes = [:]
         stil = [:]

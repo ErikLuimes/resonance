@@ -12,7 +12,7 @@
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use nucleo_matcher::pattern::{AtomKind, CaseMatching, Normalization, Pattern};
@@ -63,6 +63,9 @@ pub(crate) struct Library {
     /// One bit per category (`slot`) while its index builds. Atomic so the
     /// 20 Hz snapshot never waits on the lock a search holds while scoring.
     building: Arc<AtomicU8>,
+    /// Bumped when the root changes or the tree is refreshed in place, so
+    /// the app drops its cached lists and re-checks the folder.
+    tree_revision: Arc<AtomicU64>,
     /// Read and write Phosphor's index cache. Off in tests: the cache is one
     /// file per category whatever the root, so indexing a test tree would
     /// replace the real one.
@@ -119,6 +122,7 @@ impl Library {
             databases,
             index_changed: Arc::new(watch::channel(0).0),
             building: Arc::new(AtomicU8::new(0)),
+            tree_revision: Arc::new(AtomicU64::new(0)),
             use_index_cache: true,
             credits: Arc::new(Mutex::new(None)),
         }
@@ -153,6 +157,31 @@ impl Library {
             inner.root = root;
         }
         self.index_changed.send_modify(|v| *v += 1);
+        self.tree_revision.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Re-read the tree in place: the root stays, but every browser resets
+    /// and the indexes drop. For when the tree appeared or changed on disk
+    /// without a root change — the first sync filling an empty folder.
+    /// `HvscBrowser::set_root` ignores an unchanged root, so it round-trips
+    /// through `None`.
+    pub fn refresh(&self) {
+        {
+            let mut inner = self.lock();
+            let root = inner.root.clone();
+            for b in &mut inner.browsers {
+                b.set_root(None);
+                b.set_root(root.clone());
+            }
+        }
+        self.index_changed.send_modify(|v| *v += 1);
+        self.tree_revision.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Changes whenever the root changes or `refresh()` runs; the app reads
+    /// it in the snapshot and invalidates its caches on a bump.
+    pub fn tree_revision(&self) -> u64 {
+        self.tree_revision.load(Ordering::Relaxed)
     }
 
     /// Categories whose search index is being built right now.

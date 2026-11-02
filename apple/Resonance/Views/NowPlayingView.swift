@@ -15,6 +15,7 @@ struct NowPlayingView: View {
     var isShowing = true
 
     @Environment(PlayerStore.self) private var store
+    @Environment(\.voiceTheme) private var theme
     @Environment(LibraryStore.self) private var library
     @State private var escape = EscapeKey()
     @AppStorage(Pref.nowPlayingVisualizer) private var visual = NowPlayingVisual.particles
@@ -60,7 +61,7 @@ struct NowPlayingView: View {
             // nothing moves when the title bar hides or returns.
             .ignoresSafeArea()
         }
-        .background { Color.black.ignoresSafeArea() }
+        .background { theme.background.color.ignoresSafeArea() }
         .foregroundStyle(.white)
         .environment(\.colorScheme, .dark)
         // The whole view tracks the mouse, the visualizer's area included.
@@ -238,7 +239,7 @@ struct NowPlayingView: View {
         .buttonBorderShape(.capsule)
         .controlSize(.large)
         .help("Play random tunes from all of HVSC")
-        .disabled(!library.hasRoot)
+        .disabled(!store.hasCollection)
     }
 
     /// Always there, but while idle only its cross shows: the circle behind
@@ -350,6 +351,7 @@ private struct VoiceChips: View {
     var isActive = true
 
     @Environment(PlayerStore.self) private var store
+    @Environment(\.voiceTheme) private var theme
 
     var body: some View {
         TimelineView(.animation(paused: !store.isPlaying || !isActive)) { _ in
@@ -372,7 +374,7 @@ private struct VoiceChips: View {
             Spacer(minLength: 8)
             Text((sounding ? voice?.note : nil) ?? "—")
                 .font(.system(size: 20, weight: .semibold, design: .monospaced))
-                .foregroundStyle(voice?.gate == true ? VisualizerFeed.voiceColors[i] : .white.opacity(0.35))
+                .foregroundStyle(voice?.gate == true ? theme.voice(i) : .white.opacity(0.35))
         }
         .lineLimit(1)
         .padding(.horizontal, 12)

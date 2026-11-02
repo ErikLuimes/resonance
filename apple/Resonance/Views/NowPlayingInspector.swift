@@ -280,7 +280,7 @@ private struct ComposerCard: View {
                             library.reveal = LibraryReveal(authorPath: path, tunePath: tunePath)
                         }
                         .help("Show all tunes by \(composer.name)")
-                    } else if library.hasRoot {
+                    } else if library.player.hasCollection {
                         // No folder: the tunes whose header credits them.
                         AccentLink("Show All Tunes") {
                             library.credits = LibraryCredits(

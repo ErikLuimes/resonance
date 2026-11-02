@@ -70,11 +70,13 @@ uniffi::setup_scaffolding!();
 mod databases;
 mod driver;
 mod ffi;
+mod hvsc_info;
 mod library;
 pub(crate) mod session;
 mod viz;
 
 pub use ffi::*;
+pub use hvsc_info::{HvscDisk, HvscInfo, HvscPlaylist, HvscUpdate};
 
 // ── Stand-ins for items the engine sources borrow from the Iced app ─────────
 

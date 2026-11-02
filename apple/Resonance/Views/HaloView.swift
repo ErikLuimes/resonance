@@ -12,6 +12,7 @@ struct HaloView: View {
     var isActive = true
 
     @Environment(PlayerStore.self) private var store
+    @Environment(\.voiceTheme) private var theme
     @State private var shape = HaloShape()
 
     var body: some View {
@@ -23,15 +24,16 @@ struct HaloView: View {
             // was never redrawn.
             let radii = shape.radii
             let levels = shape.levels
+            let colors = (0..<3).map(theme.voice)
             Rectangle()
                 .visualEffect { content, proxy in
                     content.colorEffect(ShaderLibrary.halo(
                         .float2(proxy.size),
                         .floatArray(radii),
                         .floatArray(levels),
-                        .color(VisualizerFeed.voiceColors[0]),
-                        .color(VisualizerFeed.voiceColors[1]),
-                        .color(VisualizerFeed.voiceColors[2])
+                        .color(colors[0]),
+                        .color(colors[1]),
+                        .color(colors[2])
                     ))
                 }
         }

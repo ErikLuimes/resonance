@@ -34,7 +34,7 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
         state: .stopped, currentIndex: nil, queueActive: false, surpriseActive: false, track: nil,
         elapsedMs: 0, durationMs: nil,
         shuffle: false, repeat: .off, engine: .sidLite, playlistRevision: 0, trackRevision: 0,
-        loading: nil, error: nil, hvscIndexing: []
+        loading: nil, error: nil, hvscIndexing: [], hvscTreeRevision: 0
     )
 
     // Library: canned answers, settable per test.
@@ -95,6 +95,28 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     func surpriseMe() async { record("surpriseMe") }
 
     func setHvscRoot(root: String?) { record("hvscRoot \(root ?? "nil")") }
+
+    // The collection download: a canned status, and a start that fails on
+    // demand.
+    private var _sync: HvscSyncStatus?
+    private var _syncStartError: HvscError?
+
+    func set(sync: HvscSyncStatus?) { lock.withLock { _sync = sync } }
+    func set(syncStartError: HvscError?) { lock.withLock { _syncStartError = syncStartError } }
+
+    private var _hvscInfo: HvscInfo?
+
+    func set(hvscInfo: HvscInfo?) { lock.withLock { _hvscInfo = hvscInfo } }
+
+    func hvscSyncStatus() -> HvscSyncStatus? { lock.withLock { _sync } }
+    func hvscInfo() async -> HvscInfo? { lock.withLock { _hvscInfo } }
+    func startHvscSync() throws {
+        record("syncStart")
+        if let error = lock.withLock({ _syncStartError }) {
+            throw error
+        }
+    }
+    func cancelHvscSync() { record("syncCancel") }
 
     func snapshot() -> Snapshot { lock.withLock { _snapshot } }
     func playlist() -> [PlaylistItem] {
@@ -303,6 +325,70 @@ struct HvscSettingsTests {
 }
 
 @MainActor
+struct HvscSyncTests {
+    let defaults: UserDefaults
+    let fake = FakeCore()
+
+    init() {
+        let suite = "ResonanceTests.\(UUID().uuidString)"
+        defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+    }
+
+    private func makeStore(phosphor: String?) -> PlayerStore {
+        PlayerStore(defaults: defaults, phosphorHvscRoot: { phosphor }) { _ in fake }
+    }
+
+    @Test func startForwardsAndReportsACoresError() {
+        let store = makeStore(phosphor: "/HVSC")
+        store.startHvscSync()
+        #expect(fake.calls == ["syncStart"])
+        #expect(store.hvscSyncError == nil)
+
+        fake.set(syncStartError: HvscError.NoRoot)
+        store.startHvscSync()
+        #expect(store.hvscSyncError == "Choose your HVSC folder in Settings.")
+    }
+
+    @Test func aFinishedDownloadIntoAnUnseenFolderAimsTheAppAtIt() {
+        let store = makeStore(phosphor: nil)
+        #expect(store.hvscRoot == nil)
+
+        fake.set(sync: HvscSyncStatus(
+            root: "/HVSC", running: false, error: nil, current: "Done. 61157 new files.",
+            filesDone: 61_157, filesTotal: 61_157, bytesDone: 0, bytesTotal: 0
+        ))
+        store.refresh()
+
+        #expect(store.hvscSync?.running == false)
+        #expect(store.hvscRoot == "/HVSC", "the app now browses what was downloaded")
+        #expect(fake.calls.last == "hvscRoot /HVSC")
+    }
+
+    @Test func aFinishedDownloadIntoTheSameFolderLeavesTheRootAlone() {
+        let store = makeStore(phosphor: "/HVSC")
+        fake.set(sync: HvscSyncStatus(
+            root: "/HVSC", running: false, error: nil, current: "Done. 5 new files, 61152 already present.",
+            filesDone: 61_157, filesTotal: 61_157, bytesDone: 0, bytesTotal: 0
+        ))
+        store.refresh()
+
+        #expect(store.hvscRoot == "/HVSC")
+        #expect(fake.calls.isEmpty, "no redundant setHvscRoot")
+    }
+
+    @Test func theTreeRevisionTravelsWithTheSnapshot() {
+        let store = makeStore(phosphor: "/HVSC")
+        var snapshot = FakeCore.stoppedSnapshot
+        snapshot.hvscTreeRevision = 2
+        fake.set(snapshot: snapshot)
+
+        store.refresh()
+        #expect(store.hvscTreeRevision == 2)
+    }
+}
+
+@MainActor
 struct LibraryStoreTests {
     let fake = FakeCore()
 
@@ -329,6 +415,23 @@ struct LibraryStoreTests {
 
         // A new HVSC folder invalidates the cache.
         player.hvscRoot = "/Other"
+        await library.loadAuthors(.musicians)
+        #expect(fake.authorLoads == 2)
+    }
+
+    /// The first-sync case: the folder stays, its tree appears, the core
+    /// bumps the revision in the snapshot, and the cached lists go.
+    @Test func aTreeRevisionBumpInvalidatesTheCaches() async {
+        let (library, player) = makeLibrary()
+        fake.set(authors: [author("Hubbard_Rob")])
+        await library.loadAuthors(.musicians)
+        #expect(fake.authorLoads == 1)
+
+        var snapshot = FakeCore.stoppedSnapshot
+        snapshot.hvscTreeRevision = 1
+        fake.set(snapshot: snapshot)
+        player.refresh()
+
         await library.loadAuthors(.musicians)
         #expect(fake.authorLoads == 2)
     }

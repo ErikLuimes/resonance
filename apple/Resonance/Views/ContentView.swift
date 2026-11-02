@@ -5,6 +5,8 @@ import PhosphorCore
 /// What the sidebar can show. Favorites and Recent slot in here later.
 enum SidebarItem: Hashable {
     case playlist
+    /// The HVSC Home: the collection's header row in the sidebar.
+    case hvscHome
     case hvsc(HvscCategory)
 }
 
@@ -14,7 +16,6 @@ struct ContentView: View {
     @State private var sidebarSelection: SidebarItem? = .playlist
     @State private var showInspector = true
     @State private var isDropTargeted = false
-    @State private var choosingHvscFolder = false
     /// Each sidebar section keeps its own search text.
     @State private var searches: [SidebarItem: String] = [:]
 
@@ -59,19 +60,6 @@ struct ContentView: View {
                 .navigationSplitViewColumnWidth(min: 160, ideal: 190, max: 260)
         } detail: {
             detail
-                // The column's minimum width must not follow its content
-                // (see NowPlayingBar): pin it, and let content adapt.
-                .frame(minWidth: 0, maxWidth: .infinity)
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    NowPlayingBar()
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 12)
-                }
-                .overlay(alignment: .top) { StatusBanner() }
-                .inspector(isPresented: $showInspector) {
-                    NowPlayingInspector()
-                        .inspectorColumnWidth(min: 260, ideal: 300, max: 400)
-                }
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -82,7 +70,7 @@ struct ContentView: View {
                 // toolbar itself stays the same (see searchable below).
                 .symbolEffect(.wiggle, value: library.surprises)
                 .help("Play random tunes from all of HVSC")
-                .disabled(!library.hasRoot)
+                .disabled(!store.hasCollection)
             }
             ToolbarItem(placement: .primaryAction) {
                 Button("Add Files", systemImage: "plus") { store.isImporting = true }
@@ -114,6 +102,15 @@ struct ContentView: View {
             store.add(urls)
             return true
         } isTargeted: { isDropTargeted = $0 }
+        // The HVSC Home's metadata (and the sidebar's release badge): one
+        // core walk of the tree per revision change.
+        .task(id: store.hvscTreeRevision) { await store.loadHvscInfo() }
+        // No collection yet: the Home (its empty state) is the welcome pane.
+        .task(id: store.hasCollection) {
+            if !store.hasCollection {
+                sidebarSelection = .hvscHome
+            }
+        }
         .overlay {
             if isDropTargeted {
                 RoundedRectangle(cornerRadius: 12)
@@ -146,22 +143,13 @@ struct ContentView: View {
                     .tag(SidebarItem.playlist)
             }
             Section("HVSC") {
-                if library.hasRoot {
+                HvscCollectionRow()
+                if store.hasCollection {
                     ForEach(HvscCategory.allCases, id: \.self) { category in
                         Label(category.displayName, systemImage: category.symbolName)
                             .tag(SidebarItem.hvsc(category))
                     }
-                } else {
-                    Button("Choose HVSC Folder…", systemImage: "folder.badge.plus") {
-                        choosingHvscFolder = true
-                    }
-                    .buttonStyle(.borderless)
                 }
-            }
-        }
-        .fileImporter(isPresented: $choosingHvscFolder, allowedContentTypes: [.folder]) { result in
-            if case .success(let url) = result {
-                store.hvscRoot = url.path
             }
         }
     }
@@ -175,11 +163,38 @@ struct ContentView: View {
         )
     }
 
+    /// The section's view, dressed for the window: the now-playing bar,
+    /// the status banner and the inspector around it.
     @ViewBuilder
     private var detail: some View {
+        detailContent
+            // The column's minimum width must not follow its content
+            // (see NowPlayingBar): pin it, and let content adapt.
+            .frame(minWidth: 0, maxWidth: .infinity)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                NowPlayingBar()
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 12)
+            }
+            .overlay(alignment: .top) {
+                // The Home view is the download's status surface; other
+                // panes get the pill instead.
+                StatusBanner(showsSync: section != .hvscHome)
+            }
+            .inspector(isPresented: $showInspector) {
+                NowPlayingInspector()
+                    .inspectorColumnWidth(min: 260, ideal: 300, max: 400)
+
+            }
+    }
+
+    @ViewBuilder
+    private var detailContent: some View {
         switch section {
         case .playlist:
             PlaylistView(search: searchText.wrappedValue)
+        case .hvscHome:
+            HVSCHomeView()
         case .hvsc(let category):
             // A fresh view (and selection) per category.
             HVSCBrowserView(category: category, search: searchText.wrappedValue)
@@ -188,13 +203,114 @@ struct ContentView: View {
     }
 }
 
-/// Loading progress and errors, floating over the top of the playlist.
+/// The sidebar's collection row: it offers the download before the folder
+/// holds a tree, shows its percentage and a slim bar while one runs, and
+/// becomes the collection's header (name, release badge) afterwards.
+/// Selecting it shows the HVSC Home.
+private struct HvscCollectionRow: View {
+    @Environment(PlayerStore.self) private var store
+
+    var body: some View {
+        let sync = store.hvscSync
+        let running = sync?.running == true
+        let version = store.hasCollection ? store.hvscInfo?.version : nil
+
+        HStack(spacing: 8) {
+            Image(systemName: "waveform")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.white)
+                .frame(width: 22, height: 22)
+                .background(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 155 / 255, green: 107 / 255, blue: 1.0),
+                            Color(red: 63 / 255, green: 208 / 255, blue: 232 / 255),
+                        ],
+                        startPoint: .topTrailing,
+                        endPoint: .bottomLeading
+                    ),
+                    in: .rect(cornerRadius: 6)
+                )
+
+            Text(store.hasCollection ? "High Voltage SID Collection" : "Collection")
+                .lineLimit(1)
+
+            if let version {
+                Text("v\(version)")
+                    .font(.caption2.weight(.semibold))
+                    .monospacedDigit()
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(.tint.opacity(0.18), in: .capsule)
+                    .foregroundStyle(.tint)
+            }
+
+            Spacer(minLength: 4)
+
+            if running, let fraction = sync?.fraction {
+                Text(fraction.formatted(.percent.precision(.fractionLength(0))))
+                    .font(.caption2)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            } else if !store.hasCollection && !running {
+                Button("Download") { store.startHvscSync() }
+                    .buttonStyle(.borderless)
+                    .font(.callout)
+            }
+        }
+        .tag(SidebarItem.hvscHome)
+        .overlay(alignment: .bottom) {
+            if running, let fraction = sync?.fraction {
+                ProgressView(value: fraction)
+                    .tint(.accentColor)
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 2)
+            }
+        }
+        .animation(.default, value: store.hasCollection)
+    }
+}
+
+/// Loading progress and errors, floating over the top of the pane below.
+/// The collection download joins the queue wherever but the Home view,
+/// which shows it in full.
 private struct StatusBanner: View {
     @Environment(PlayerStore.self) private var store
     @State private var dismissedError: String?
+    var showsSync: Bool = true
 
     var body: some View {
         VStack(spacing: 8) {
+            if let sync = store.hvscSync, sync.running, showsSync {
+                HStack(spacing: 10) {
+                    if let fraction = sync.fraction {
+                        ProgressView(value: fraction)
+                            .frame(width: 110)
+                    } else {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                    Text(sync.current)
+                        .lineLimit(1)
+                    Button("Cancel") { store.cancelHvscSync() }
+                        .buttonStyle(.borderless)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .glassEffect(.regular, in: .capsule)
+            } else if let sync = store.hvscSync, let error = sync.error, !sync.running, showsSync {
+                HStack(spacing: 10) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.yellow)
+                    Text(error)
+                        .lineLimit(1)
+                    Button("Retry") { store.startHvscSync() }
+                        .buttonStyle(.borderless)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .glassEffect(.regular, in: .capsule)
+            }
             if let loading = store.loading {
                 Label {
                     Text(loading)

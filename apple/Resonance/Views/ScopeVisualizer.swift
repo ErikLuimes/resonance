@@ -10,6 +10,7 @@ import PhosphorCore
 /// Canvas (see VisualizerView).
 struct ScopeVisualizer: View {
     @Environment(PlayerStore.self) private var store
+    @Environment(\.voiceTheme) private var theme
 
     var body: some View {
         TimelineView(.animation(paused: !store.isPlaying)) { _ in
@@ -31,7 +32,7 @@ struct ScopeVisualizer: View {
         let scopeHeight = size.height - VoiceLabels.height
 
         for i in 0..<3 {
-            let color = VisualizerFeed.voiceColors[i]
+            let color = theme.voice(i)
             let lane = CGRect(x: CGFloat(i) * (width + Self.gap), y: 0, width: width, height: scopeHeight)
             gc.fill(Path(roundedRect: lane, cornerRadius: 6), with: .color(color.opacity(0.08)))
             gc.stroke(Path { p in

@@ -13,6 +13,7 @@ struct RadialView: View {
     var isActive = true
 
     @Environment(PlayerStore.self) private var store
+    @Environment(\.voiceTheme) private var theme
     @State private var spectrum = VoiceSpectrum()
 
     var body: some View {
@@ -21,8 +22,9 @@ struct RadialView: View {
             let _ = spectrum.update(voices: scope.voices, sampleRate: scope.sampleRate, at: context.date)
             let levels = spectrum.levels
             let time = context.date.timeIntervalSinceReferenceDate
+            let colors = (0..<3).map(theme.voice)
             Canvas { gc, size in
-                Self.draw(levels: levels, time: time, in: &gc, size: size)
+                Self.draw(levels: levels, time: time, colors: colors, in: &gc, size: size)
             }
         }
         .accessibilityElement()
@@ -34,14 +36,14 @@ struct RadialView: View {
     private static let radii: [CGFloat] = [0.35, 0.51, 0.67]
     private static let barLength: CGFloat = 0.125
 
-    private static func draw(levels: [Float], time: Double, in gc: inout GraphicsContext, size: CGSize) {
+    private static func draw(levels: [Float], time: Double, colors: [Color], in gc: inout GraphicsContext, size: CGSize) {
         let center = CGPoint(x: size.width / 2, y: size.height / 2)
         let unit = min(size.width, size.height) / 2
         let n = VoiceSpectrum.bands
         gc.blendMode = .plusLighter
 
         for v in 0..<3 {
-            let color = VisualizerFeed.voiceColors[v]
+            let color = colors[v]
             let r0 = radii[v] * unit
             // Faint base ring.
             gc.stroke(Path(ellipseIn: CGRect(x: center.x - r0, y: center.y - r0, width: 2 * r0, height: 2 * r0)),

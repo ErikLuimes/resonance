@@ -17,12 +17,13 @@ struct ParticlesView: View {
     var isActive = true
 
     @Environment(PlayerStore.self) private var store
+    @Environment(\.voiceTheme) private var theme
 
     var body: some View {
-        ParticleMetalView(feed: store.visualizer, isActive: isActive)
+        ParticleMetalView(feed: store.visualizer, theme: theme, isActive: isActive)
             // A faint glow behind the sphere, as in the mockup.
             .background {
-                RadialGradient(colors: [Color(red: 0.47, green: 0.43, blue: 0.78).opacity(0.10), .clear],
+                RadialGradient(colors: [theme.voice(1).opacity(0.10), .clear],
                                center: .center, startRadius: 0, endRadius: 360)
             }
             .accessibilityElement()
@@ -32,6 +33,7 @@ struct ParticlesView: View {
 
 private struct ParticleMetalView: NSViewRepresentable {
     let feed: VisualizerFeed
+    let theme: VoiceTheme
     let isActive: Bool
 
     func makeCoordinator() -> ParticleRenderer {
@@ -55,6 +57,7 @@ private struct ParticleMetalView: NSViewRepresentable {
 
     private func update(_ view: MTKView, _ renderer: ParticleRenderer) {
         renderer.feed = feed
+        renderer.colors = theme.voices.map { SIMD4(Float($0.red), Float($0.green), Float($0.blue), 1) }
         view.isPaused = !isActive
     }
 }
@@ -71,6 +74,8 @@ final class ParticleRenderer: NSObject, MTKViewDelegate {
 
     let device = MTLCreateSystemDefaultDevice()
     var feed: VisualizerFeed?
+    /// Voices 1–3, from the theme.
+    var colors: [SIMD4<Float>] = Array(repeating: SIMD4(1, 1, 1, 1), count: 3)
 
     private let queue: MTLCommandQueue?
     private let pipeline: MTLRenderPipelineState?
@@ -162,7 +167,6 @@ final class ParticleRenderer: NSObject, MTKViewDelegate {
             SIMD4<Float>(sphere.levels[v], sphere.frequencies[v], Float(t - sphere.hits[v]),
                          sphere.waveforms[v] & 0x8 != 0 ? 1 : 0)
         }
-        let colors = Self.colors
         return Uniforms(
             size: SIMD2(Float(size.width), Float(size.height)),
             time: Float(t),
@@ -178,11 +182,6 @@ final class ParticleRenderer: NSObject, MTKViewDelegate {
             state1: states[1], color1: colors[1],
             state2: states[2], color2: colors[2]
         )
-    }
-
-    private static let colors: [SIMD4<Float>] = VisualizerFeed.voiceColors.map { color in
-        let c = NSColor(color).usingColorSpace(.sRGB) ?? .white
-        return SIMD4(Float(c.redComponent), Float(c.greenComponent), Float(c.blueComponent), 1)
     }
 
     /// A Fibonacci sphere: `count` evenly spread points, two SIMD4s each

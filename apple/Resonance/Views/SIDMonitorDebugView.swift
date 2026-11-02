@@ -14,6 +14,7 @@ struct SIDMonitorDebugView: View {
     static let windowID = "sid-monitor-debug"
 
     @Environment(PlayerStore.self) private var store
+    @Environment(\.voiceTheme) private var theme
     @State private var selectedChip = 0
     @State private var offsetMs = 0.0
 
@@ -48,7 +49,7 @@ struct SIDMonitorDebugView: View {
                     draw(history: history, chip: chip, scope: scope, stats: stats, in: gc, size: size)
                 }
             }
-            .background(Self.background, in: .rect(cornerRadius: 10))
+            .background(theme.background.color, in: .rect(cornerRadius: 10))
         }
         .padding(16)
         .frame(minWidth: 700, minHeight: 380)
@@ -56,7 +57,6 @@ struct SIDMonitorDebugView: View {
         .onChange(of: offsetMs) { _, ms in store.visualizer.setOffset(milliseconds: Int(ms)) }
     }
 
-    private static let background = Color(red: 0x0E / 255, green: 0x0E / 255, blue: 0x10 / 255)
     private static let dim = Color(red: 0x8D / 255, green: 0x8E / 255, blue: 0x96 / 255)
     private static let empty = Color(red: 0x33 / 255, green: 0x33 / 255, blue: 0x3A / 255)
     private static let font = Font.system(size: 12, design: .monospaced)
@@ -87,7 +87,7 @@ struct SIDMonitorDebugView: View {
         let state = frame.flatMap { $0.chips.indices.contains(chip) ? $0.chips[chip] : nil }
         for v in 0..<3 {
             let voice = state.map { $0.voices[v] }
-            let color = VisualizerFeed.voiceColors[v]
+            let color = theme.voice(v)
 
             // Note-start flash.
             let flash = Self.flash(voice: v, chip: chip, in: history)
@@ -139,7 +139,7 @@ struct SIDMonitorDebugView: View {
                     if n == 0 { p.move(to: point) } else { p.addLine(to: point) }
                 }
             }
-            gc.stroke(path, with: .color(VisualizerFeed.voiceColors[v]), lineWidth: 1.2)
+            gc.stroke(path, with: .color(theme.voice(v)), lineWidth: 1.2)
         }
     }
 

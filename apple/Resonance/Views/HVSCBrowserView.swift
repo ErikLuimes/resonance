@@ -226,7 +226,9 @@ private struct AuthorList: View {
 
     var body: some View {
         Group {
-            if let error = library.errors[category] {
+            if !player.hasCollection {
+                HvscDownloadView()
+            } else if let error = library.errors[category] {
                 ContentUnavailableView {
                     Label("Can't Read \(category.displayName)", systemImage: "folder.badge.questionmark")
                 } description: {
@@ -276,7 +278,9 @@ private struct AuthorList: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .task(id: player.hvscRoot) { await library.loadAuthors(category) }
+        // The tree revision, not the root: it also bumps when the first
+        // sync fills the current folder in place.
+        .task(id: player.hvscTreeRevision) { await library.loadAuthors(category) }
     }
 
     private struct LetterGroup {
@@ -300,6 +304,72 @@ private struct AuthorList: View {
             }
         }
         return groups
+    }
+}
+
+// MARK: - Download
+
+/// The collection download, for when the folder holds no tree yet: a
+/// button, then progress and cancel, then the outcome. Shared by the
+/// sidebar and the Settings window.
+struct HvscDownloadView: View {
+    @Environment(PlayerStore.self) private var store
+
+    var body: some View {
+        VStack(spacing: 10) {
+            if let sync = store.hvscSync {
+                if sync.running {
+                    if let fraction = sync.fraction {
+                        ProgressView(value: fraction)
+                    } else {
+                        ProgressView()
+                    }
+                    Text(sync.current)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.center)
+                    Button("Cancel") { store.cancelHvscSync() }
+                        .buttonStyle(.borderless)
+                } else if let error = sync.error {
+                    Label {
+                        Text(error)
+                            .multilineTextAlignment(.center)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.yellow)
+                    }
+                    Button("Try Again") { store.startHvscSync() }
+                        .buttonStyle(.borderless)
+                } else {
+                    // A beat, until the app points at the folder that was
+                    // just filled and the category rows appear.
+                    Label(sync.current, systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                        .font(.callout)
+                }
+            } else if let error = store.hvscSyncError {
+                Label {
+                    Text(error)
+                        .multilineTextAlignment(.center)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.yellow)
+                }
+            } else {
+                Button {
+                    store.startHvscSync()
+                } label: {
+                    Label("Download HVSC", systemImage: "arrow.down.circle")
+                }
+                Text("The whole collection as one archive, into the folder Phosphor uses.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

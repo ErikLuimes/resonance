@@ -10,6 +10,7 @@ struct ResonanceApp: App {
             ContentView()
                 .environment(appDelegate.store)
                 .environment(appDelegate.library)
+                .voiceThemed()
         }
         .defaultSize(width: 1100, height: 680)
         // At least as wide as ContentView's minimum, so the bottom bar never
@@ -34,6 +35,7 @@ struct ResonanceApp: App {
         Settings {
             SettingsView()
                 .environment(appDelegate.store)
+                .voiceThemed()
         }
 
         #if DEBUG
@@ -41,6 +43,7 @@ struct ResonanceApp: App {
         Window("SID Monitor (Debug)", id: SIDMonitorDebugView.windowID) {
             SIDMonitorDebugView()
                 .environment(appDelegate.store)
+                .voiceThemed()
         }
         .defaultSize(width: 760, height: 400)
         .restorationBehavior(.disabled)

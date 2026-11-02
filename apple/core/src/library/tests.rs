@@ -240,6 +240,31 @@ async fn changing_the_root_replaces_everything() {
     assert!(found.hits.is_empty(), "old root's index is gone");
 }
 
+/// The first sync case: the root stays, the tree appears in it, and the
+/// browsers see the new ground without a root change.
+#[tokio::test]
+async fn refresh_replaces_the_tree_in_place() {
+    let tree = Tree::new(); // An empty root, like a folder before the first sync.
+    let lib = library(Some(tree.root()));
+    let before = lib.tree_revision();
+
+    tree.sid(
+        "MUSICIANS/H/Hubbard_Rob/Commando.sid",
+        "Commando",
+        "Rob Hubbard",
+        "1985 Elite",
+        3,
+    );
+    lib.refresh();
+    assert_eq!(lib.tree_revision(), before + 1);
+
+    let authors = lib.authors(HvscCategory::Musicians).await.unwrap();
+    assert_eq!(authors.len(), 1);
+    assert_eq!(authors[0].display_name, "Hubbard, Rob");
+    let found = lib.search("commando".into(), None).await.unwrap();
+    assert_eq!(names(&found.hits), ["Commando"]);
+}
+
 // ── Search ───────────────────────────────────────────────────────────────────
 
 #[tokio::test]

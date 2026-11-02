@@ -9,6 +9,7 @@ import PhosphorCore
 /// step with the audio. Drawn into one Canvas (see VisualizerView).
 struct BarsVisualizer: View {
     @Environment(PlayerStore.self) private var store
+    @Environment(\.voiceTheme) private var theme
     @State private var meter = VoiceMeter()
 
     var body: some View {
@@ -40,7 +41,7 @@ struct BarsVisualizer: View {
 
         for i in 0..<count {
             let x = CGFloat(i) * (width + Self.gap)
-            let color = VisualizerFeed.voiceColors[i % 3]
+            let color = theme.voice(i)
 
             // Faint slot so silent voices stay visible.
             gc.fill(Path(roundedRect: CGRect(x: x, y: 0, width: width, height: barHeight), cornerRadius: 4),

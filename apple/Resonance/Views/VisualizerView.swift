@@ -10,10 +10,12 @@ import SwiftUI
 /// name changed the column's ideal width mid-layout and AppKit aborted the
 /// app after re-running layout too many times.
 struct VisualizerView: View {
+    @Environment(\.voiceTheme) private var theme
     @AppStorage(Pref.visualizerMode) private var mode = VisualizerMode.scope
     /// The page scrolled to; nil until the scroll view reports one.
     @State private var page: VisualizerMode?
     @State private var isHovering = false
+    @AppStorage(Pref.themeBadge) private var showsBadge = true
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -21,7 +23,8 @@ struct VisualizerView: View {
                 LazyHStack(spacing: 0) {
                     ForEach(VisualizerMode.allCases) { mode in
                         visualizer(mode)
-                            .padding([.top, .horizontal], 12)
+                            .padding(.horizontal, 12)
+                            .padding(.top, showsBadge ? 12 + Self.badgeHeight + 8 : 12)
                             // Room for the dots.
                             .padding(.bottom, 26)
                             .containerRelativeFrame(.horizontal)
@@ -36,7 +39,14 @@ struct VisualizerView: View {
             dots
                 .padding(.bottom, 6)
         }
-        .background(Self.background)
+        // Fixed height, so it never changes the inspector's layout.
+        .overlay(alignment: .top) {
+            ThemeBadgeView()
+                .frame(height: Self.badgeHeight)
+                .padding([.top, .horizontal], 12)
+                .allowsHitTesting(false)
+        }
+        .background(theme.background.color)
         .clipShape(.rect(cornerRadius: 10))
         .onHover { isHovering = $0 }
         .onAppear { page = mode }
@@ -88,8 +98,8 @@ struct VisualizerView: View {
         .frame(height: 16)
     }
 
-    private static let background = Color(red: 0x0E / 255, green: 0x0E / 255, blue: 0x10 / 255)
     private static let nameWidth: CGFloat = 56
+    private static let badgeHeight: CGFloat = 20
 }
 
 nonisolated enum VisualizerMode: String, CaseIterable, Identifiable {

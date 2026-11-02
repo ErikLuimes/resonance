@@ -9,8 +9,8 @@
 //! folders, read SID headers or build a search index, on tokio's blocking
 //! pool.
 
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crossbeam_channel::bounded;
@@ -18,6 +18,8 @@ use crossbeam_channel::bounded;
 use crate::databases;
 use crate::driver::{Command, Driver, Published, StartConfig};
 use crate::hvsc_browser::{self, HvscAuthor, HvscIndexEntry, HvscTune};
+use crate::hvsc_info::{self, HvscInfo};
+use crate::hvsc_sync::{self, HvscSyncEvent, HvscSyncHandle};
 use crate::library::{Library, LibraryError};
 use crate::player::pseudo_stereo::DetuneStrength;
 use crate::player::{PlayState, TrackInfo};
@@ -159,6 +161,33 @@ pub struct Snapshot {
     pub error: Option<String>,
     /// HVSC categories whose search index is being built.
     pub hvsc_indexing: Vec<HvscCategory>,
+    /// Changes when the collection folder changes on disk (a new root,
+    /// or the first sync filling the current one); the app drops its
+    /// cached lists on a change.
+    pub hvsc_tree_revision: u64,
+}
+
+/// The HVSC collection's download: one archive, then extraction. `current`
+/// is ready to show; the byte and file counters fill a progress bar (bytes
+/// while the archive streams, files while it extracts — zero before their
+/// phase).
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct HvscSyncStatus {
+    /// Where the collection is being downloaded.
+    pub root: String,
+    /// False once the download has ended, success or failure.
+    pub running: bool,
+    /// Set when the download failed or was cancelled.
+    pub error: Option<String>,
+    pub current: String,
+    /// Archive entries extracted, including those skipped as already
+    /// present; `0` while the archive still downloads.
+    pub files_done: u32,
+    pub files_total: u32,
+    /// Archive bytes received; `0` once extraction has started.
+    pub bytes_done: u64,
+    /// What the server announced; `0` when it didn't.
+    pub bytes_total: u64,
 }
 
 /// One SID voice at the end of a player frame.
@@ -322,12 +351,37 @@ impl std::error::Error for HvscError {}
 
 // ── PlayerCore ───────────────────────────────────────────────────────────────
 
+/// The collection download's state, updated from the worker's events as the
+/// app polls `hvsc_sync_status()`.
+struct SyncState {
+    /// Where the tree is landing.
+    root: PathBuf,
+    status: HvscSyncStatus,
+    /// The post-sync refresh (index cache, library, databases) has run.
+    settled: bool,
+}
+
 /// The player. Create one per app; it owns the engine, playlist and session
 /// file until `shutdown()` (or until it's released).
 #[derive(uniffi::Object)]
 pub struct PlayerCore {
     driver: Driver,
     library: Library,
+    databases: databases::SharedDatabases,
+    /// The in-progress collection download; `None` once it has ended.
+    sync: Mutex<Option<HvscSyncHandle>>,
+    /// The last download's state; `None` until one has been started.
+    sync_state: Mutex<Option<SyncState>>,
+    /// The HVSC Home's parsed metadata, keyed by the tree revision the sync
+    /// and root changes bump; one collection walk per revision.
+    hvsc_info_cache: Mutex<Option<HvscInfoCache>>,
+}
+
+/// The collection metadata behind the key, cloned into the cache.
+struct HvscInfoCache {
+    root: PathBuf,
+    tree_revision: u64,
+    info: HvscInfo,
 }
 
 #[uniffi::export]
@@ -345,10 +399,17 @@ impl PlayerCore {
             repeat: config.repeat.into(),
             session_path: PathBuf::from(config.session_path),
             hvsc_root,
-            databases,
+            databases: databases.clone(),
             library: library.clone(),
         });
-        Arc::new(Self { driver, library })
+        Arc::new(Self {
+            driver,
+            library,
+            databases,
+            sync: Mutex::new(None),
+            sync_state: Mutex::new(None),
+            hvsc_info_cache: Mutex::new(None),
+        })
     }
 
     // ── Playlist ──
@@ -487,6 +548,83 @@ impl PlayerCore {
                 .into_iter()
                 .map(Into::into)
                 .collect(),
+            hvsc_tree_revision: self.library.tree_revision(),
+        }
+    }
+
+    // ── HVSC collection download ──
+    //
+    // The worker is upstream's `HvscSyncHandle`: one archive from the
+    // mirror, extracted into the collection folder, re-runnable (files
+    // already present at the same size are skipped). Events stream over a
+    // channel the app drains at its snapshot rate.
+
+    /// Begin downloading the collection. It lands in the current HVSC
+    /// folder, or in Phosphor's default folder when none is set (creating
+    /// it); `hvsc_sync_status()` reports where. Returns immediately.
+    pub fn start_hvsc_sync(&self) -> Result<(), HvscError> {
+        let state = self.sync_state.lock().unwrap();
+        if state.as_ref().is_some_and(|s| s.status.running) {
+            return Err(HvscError::Io {
+                message: "A download is already running.".to_string(),
+            });
+        }
+        drop(state);
+        let root = self
+            .library
+            .root()
+            .or_else(hvsc_sync::default_hvsc_root)
+            .ok_or(HvscError::NoRoot)?;
+        let url = sync_archive_url();
+        let handle = hvsc_sync::HvscSyncHandle::start_from_zip(&url, &root)
+            .map_err(|message| HvscError::Io { message })?;
+        *self.sync.lock().unwrap() = Some(handle);
+        *self.sync_state.lock().unwrap() = Some(SyncState {
+            root: root.clone(),
+            status: HvscSyncStatus {
+                root: root.to_string_lossy().into_owned(),
+                running: true,
+                error: None,
+                current: "Starting…".to_string(),
+                files_done: 0,
+                files_total: 0,
+                bytes_done: 0,
+                bytes_total: 0,
+            },
+            settled: false,
+        });
+        Ok(())
+    }
+
+    /// The latest status, or `None` when no download has been started this
+    /// launch. Cheap; poll it like the snapshot.
+    pub fn hvsc_sync_status(&self) -> Option<HvscSyncStatus> {
+        let mut events = Vec::new();
+        if let Some(handle) = self.sync.lock().unwrap().as_ref() {
+            while let Ok(event) = handle.rx.try_recv() {
+                events.push(event);
+            }
+        }
+        let mut state = self.sync_state.lock().unwrap();
+        if let Some(state) = state.as_mut().filter(|s| s.status.running || !events.is_empty()) {
+            for event in events {
+                apply_event(&mut state.status, event);
+            }
+            if !state.status.running && !state.settled && state.status.error.is_none() {
+                state.settled = true;
+                self.apply_post_sync(&state.root);
+            }
+            Some(state.status.clone())
+        } else {
+            state.as_ref().map(|s| s.status.clone())
+        }
+    }
+
+    /// Cancel a running download. The archive is re-fetched on the next
+    /// start; the extraction's skip-if-present makes the resume quick.
+    pub fn cancel_hvsc_sync(&self) {
+        if let Some(handle) = self.sync.lock().unwrap().as_ref() {
+            handle.cancel();
         }
     }
 
@@ -648,9 +786,52 @@ impl PlayerCore {
         let path = self.library.surprise(scope.map(Into::into)).await?;
         Ok(path.map(|p| p.to_string_lossy().into_owned()))
     }
+
+    /// The parsed metadata for the HVSC Home view: the release, the latest
+    /// update announcement, the tune and document counts, the disk images
+    /// and Phosphor's published playlists. `None` when the current folder
+    /// holds no collection. Cached until the tree's revision changes.
+    pub async fn hvsc_info(&self) -> Option<HvscInfo> {
+        let root = self.library.root()?;
+        let tree_revision = self.library.tree_revision();
+        {
+            let cache = self.hvsc_info_cache.lock().unwrap();
+            if let Some(c) = cache.as_ref() {
+                if c.root == root && c.tree_revision == tree_revision {
+                    return Some(c.info.clone());
+                }
+            }
+        }
+        let walk_root = root.clone();
+        let info = tokio::task::spawn_blocking(move || hvsc_info::collect(&walk_root))
+            .await
+            .ok()
+            .flatten()?;
+        *self.hvsc_info_cache.lock().unwrap() = Some(HvscInfoCache {
+            root,
+            tree_revision,
+            info: info.clone(),
+        });
+        Some(info)
+    }
 }
 
 impl PlayerCore {
+    /// Once the download has finished, the tree is new ground: drop the
+    /// shared index cache, reset the library's browsers, and reload the
+    /// databases (the sync brings in STIL.txt and Songlengths.md5 a fresh
+    /// install has no remembered path for). Like Phosphor's
+    /// `apply_post_hvsc_sync`, minus the writes to its config.
+    fn apply_post_sync(&self, root: &Path) {
+        crate::hvsc_index_cache::clear_all();
+        self.library.refresh();
+        let config = crate::config::Config::load();
+        databases::install(
+            &self.databases,
+            databases::Databases::load_after_sync(&config, Some(root)),
+        );
+    }
+
     fn send(&self, cmd: Command) {
         // Only fails once the session thread has shut down.
         let _ = self.driver.commands.send(cmd);
@@ -696,6 +877,55 @@ pub fn phosphor_version() -> String {
 
 fn to_usize(v: Vec<u32>) -> Vec<usize> {
     v.into_iter().map(|i| i as usize).collect()
+}
+
+/// The archive to download: an explicit `hvsc_zip_url` in Phosphor's
+/// config wins, else the mirror's `<N>-all-of-them` archive at the tree's
+/// known release. Mirrors upstream's `HvscZipSyncStart` resolution;
+/// unlike it, an unrecognised mirror host falls back to brona.dk's, the
+/// canonical mirror, rather than dead-ending (Resonance has no field to
+/// paste an archive URL into).
+fn sync_archive_url() -> String {
+    let config = crate::config::Config::load();
+    config
+        .hvsc_zip_url
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .or_else(|| {
+            hvsc_sync::default_hvsc_zip_url(&config.hvsc_mirror_url, config.hvsc_known_version.as_deref())
+        })
+        .unwrap_or_else(|| {
+            hvsc_sync::default_hvsc_zip_url(crate::config::DEFAULT_HVSC_MIRROR_URL, None)
+                .unwrap_or_else(|| "https://hvsc.brona.dk/HVSC/HVSC_85-all-of-them.7z".to_string())
+        })
+}
+
+/// Fold one of the worker's events into the polled status.
+fn apply_event(status: &mut HvscSyncStatus, event: HvscSyncEvent) {
+    match event {
+        HvscSyncEvent::Progress {
+            files_done,
+            files_total,
+            bytes_done,
+            bytes_total,
+            current,
+        } => {
+            status.files_done = files_done;
+            status.files_total = files_total;
+            status.bytes_done = bytes_done;
+            status.bytes_total = bytes_total;
+            status.current = current;
+        }
+        HvscSyncEvent::Done(Ok(())) => {
+            status.running = false;
+        }
+        HvscSyncEvent::Done(Err(message)) => {
+            status.running = false;
+            status.error = Some(message);
+        }
+    }
 }
 
 /// "Hubbard_Rob" → "Hubbard, Rob", other folder names with spaces. Mirrors
@@ -987,5 +1217,64 @@ impl VizVoice {
                 viz::EnvState::Release => EnvelopePhase::Release,
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod sync_tests {
+    use super::{apply_event, HvscSyncStatus};
+    use crate::hvsc_sync::HvscSyncEvent;
+
+    fn running() -> HvscSyncStatus {
+        HvscSyncStatus {
+            root: "/HVSC".into(),
+            running: true,
+            error: None,
+            current: "Starting…".into(),
+            files_done: 0,
+            files_total: 0,
+            bytes_done: 0,
+            bytes_total: 0,
+        }
+    }
+
+    #[test]
+    fn events_fold_into_the_status() {
+        let mut s = running();
+        apply_event(
+            &mut s,
+            HvscSyncEvent::Progress {
+                files_done: 0,
+                files_total: 0,
+                bytes_done: 10_000,
+                bytes_total: 20_000,
+                current: "Downloading archive… 1 MB / 2 MB".into(),
+            },
+        );
+        assert!(s.running);
+        assert_eq!((s.bytes_done, s.bytes_total), (10_000, 20_000));
+
+        // Extraction resets the byte counters and counts files instead.
+        apply_event(
+            &mut s,
+            HvscSyncEvent::Progress {
+                files_done: 1,
+                files_total: 2,
+                bytes_done: 0,
+                bytes_total: 0,
+                current: "Extracting… 1 / 2".into(),
+            },
+        );
+        assert_eq!((s.files_done, s.files_total), (1, 2));
+        assert_eq!((s.bytes_done, s.bytes_total), (0, 0));
+
+        apply_event(&mut s, HvscSyncEvent::Done(Ok(())));
+        assert!(!s.running);
+        assert!(s.error.is_none());
+
+        let mut failed = running();
+        apply_event(&mut failed, HvscSyncEvent::Done(Err("Cancelled".into())));
+        assert!(!failed.running);
+        assert_eq!(failed.error.as_deref(), Some("Cancelled"));
     }
 }

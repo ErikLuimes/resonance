@@ -33,6 +33,23 @@ final class PlayerStore {
     private(set) var trackRevision: UInt64 = 0
     /// HVSC categories whose search index is being built.
     private(set) var hvscIndexing: [HvscCategory] = []
+    /// Changes when the collection folder changes on disk (a new root, or
+    /// the first sync filling the current one); the library drops its
+    /// caches on a change.
+    private(set) var hvscTreeRevision: UInt64 = 0
+
+    // MARK: HVSC collection download (from the core)
+
+    /// The download's latest status; nil until one has been started.
+    private(set) var hvscSync: HvscSyncStatus?
+    /// A failed `startHvscSync()` (no folder to download into, and no
+    /// default either).
+    private(set) var hvscSyncError: String?
+    /// The HVSC Home's parsed metadata (release, latest update, counts,
+    /// playlists, disks); refreshed on a tree-revision change.
+    private(set) var hvscInfo: HvscInfo?
+    /// The tree revision `hvscInfo` was read at.
+    @ObservationIgnored private var hvscInfoRevision: UInt64?
 
     // MARK: Settings (persisted, pushed to the core)
 
@@ -93,6 +110,18 @@ final class PlayerStore {
             // picked up again on the next launch.
             defaults.set(hvscRoot ?? "", forKey: Pref.hvscRoot)
             core.setHvscRoot(root: hvscRoot)
+        }
+    }
+
+    /// Whether the folder actually holds a collection: any of MUSICIANS,
+    /// GAMES or DEMOS is there. Reading the tree revision makes the views
+    /// re-check when the first sync fills the folder in place.
+    var hasCollection: Bool {
+        _ = hvscTreeRevision
+        guard let root = hvscRoot else { return false }
+        let folder = URL(filePath: root)
+        return ["MUSICIANS", "GAMES", "DEMOS"].contains {
+            FileManager.default.fileExists(atPath: folder.appending(path: $0).path)
         }
     }
 
@@ -190,6 +219,16 @@ final class PlayerStore {
         update(\.error, s.error)
         update(\.trackRevision, s.trackRevision)
         update(\.hvscIndexing, s.hvscIndexing)
+        update(\.hvscTreeRevision, s.hvscTreeRevision)
+
+        let sync = core.hvscSyncStatus()
+        update(\.hvscSync, sync)
+        // A finished download into a folder the app isn't pointing at yet:
+        // start browsing what just arrived.
+        if let sync, !sync.running, sync.error == nil, hvscRoot != sync.root {
+            hvscRoot = sync.root
+        }
+        if let sync, !sync.running { hvscSyncError = nil }
     }
 
     private func update<Value: Equatable>(_ keyPath: ReferenceWritableKeyPath<PlayerStore, Value>, _ value: Value) {
@@ -259,6 +298,55 @@ final class PlayerStore {
         hvscRoot = phosphorHvscRoot()
     }
 
+    // MARK: HVSC collection download
+
+    /// Begin downloading the collection into the current HVSC folder, or
+    /// Phosphor's default folder when none is set. Progress arrives through
+    /// `hvscSync` at the snapshot rate.
+    func startHvscSync() {
+        guard hvscSync?.running != true else { return }
+        do {
+            try core.startHvscSync()
+            hvscSyncError = nil
+        } catch {
+            hvscSyncError = LibraryStore.message(for: error)
+        }
+    }
+
+    /// Cancel a running download; the next start resumes where it stopped
+    /// (files already on disk are skipped).
+    func cancelHvscSync() {
+        core.cancelHvscSync()
+    }
+
+    /// The HVSC Home's metadata: the collection's own DOCUMENTS, parsed by
+    /// the core (which caches by tree revision), plus Phosphor's published
+    /// playlists. One walk of the tree per revision.
+    func loadHvscInfo() async {
+        let revision = hvscTreeRevision
+        guard hvscInfoRevision != revision else { return }
+        hvscInfoRevision = revision
+        hvscInfo = await core.hvscInfo()
+    }
+
+    /// Play one of Phosphor's published playlists (its entries are
+    /// HVSC-relative paths) as a temporary queue from the first tune.
+    func playPublishedPlaylist(_ playlist: HvscPlaylist) {
+        guard let root = hvscRoot else { return }
+        let directory = URL.applicationSupportDirectory
+            .appending(path: "phosphor")
+            .appending(path: "published_playlists")
+        let content = (try? String(contentsOf: directory.appending(path: playlist.file), encoding: .utf8)) ?? ""
+        let tunes = content
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && !$0.hasPrefix("#") }
+            .map { URL(filePath: root).appending(path: $0.trimmingCharacters(in: .alphanumerics.inverted)) }
+            .filter { FileManager.default.fileExists(atPath: $0.path) }
+        guard let first = tunes.first else { return }
+        playQueue(tunes, startAt: first)
+    }
+
     /// Start from the Iced Phosphor app's settings.
     func importPhosphorSettings() {
         let shared = sharedDefaults()
@@ -300,5 +388,16 @@ nonisolated enum AppPaths {
 
     static var sessionPlaylist: URL {
         supportDirectory.appending(path: "session.m3u")
+    }
+}
+
+extension PhosphorCore.HvscSyncStatus {
+    /// The progress bar's fill: files while the archive extracts, bytes
+    /// while it streams; nil before either phase reports a total (a
+    /// spinner).
+    var fraction: Double? {
+        if filesTotal > 0 { return Double(filesDone) / Double(filesTotal) }
+        if bytesTotal > 0 { return Double(bytesDone) / Double(bytesTotal) }
+        return nil
     }
 }

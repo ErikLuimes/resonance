@@ -40,13 +40,6 @@ nonisolated struct VisualizerFeed {
     func setOffset(milliseconds: Int) {
         core.setVizOffsetMs(ms: Int32(clamping: milliseconds))
     }
-
-    /// Voices 1–3 of a chip.
-    static let voiceColors: [Color] = [
-        Color(red: 0x5A / 255, green: 0xC8 / 255, blue: 0xE8 / 255),
-        Color(red: 0xA2 / 255, green: 0x7C / 255, blue: 0xF6 / 255),
-        Color(red: 0xF2 / 255, green: 0xA1 / 255, blue: 0x54 / 255),
-    ]
 }
 
 extension PlayerStore {

@@ -14,6 +14,9 @@ nonisolated enum Pref {
     static let hvscRoot = "hvscRoot"
     static let visualizerMode = "visualizerMode"
     static let nowPlayingVisualizer = "nowPlayingVisualizer"
+    static let theme = "theme"
+    static let customTheme = "customTheme"
+    static let themeBadge = "themeBadge"
 }
 
 nonisolated extension PlaybackOptions {
