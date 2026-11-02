@@ -31,7 +31,7 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     }
 
     static let stoppedSnapshot = Snapshot(
-        state: .stopped, currentIndex: nil, queueActive: false, surpriseActive: false, track: nil,
+        state: .stopped, currentIndex: nil, queueActive: false, surpriseActive: false, shuffleCollectionActive: false, track: nil,
         elapsedMs: 0, durationMs: nil,
         shuffle: false, repeat: .off, engine: .sidLite, playlistRevision: 0, trackRevision: 0,
         loading: nil, error: nil, hvscIndexing: [], hvscTreeRevision: 0
@@ -82,6 +82,14 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
         return HvscSearchResult(items: [], totalMatches: 0, indexed: 0)
     }
 
+    private var _recent: [RecentTune] = []
+    private var _heard: UInt32 = 0
+
+    func set(recent: [RecentTune], heard: UInt32) { lock.withLock { _recent = recent; _heard = heard } }
+
+    func recentlyPlayed() async throws -> [RecentTune] { lock.withLock { _recent } }
+    func heardCount() async -> UInt32 { lock.withLock { _heard } }
+
     func hvscTunesAt(paths: [String]) async throws -> [HvscTuneItem] {
         record("tunesAt \(paths.count)")
         return []
@@ -98,6 +106,7 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     }
 
     func surpriseMe() async { record("surpriseMe") }
+    func shuffleCollection() async { record("shuffleCollection") }
 
     func setHvscRoot(root: String?) { record("hvscRoot \(root ?? "nil")") }
 
@@ -252,6 +261,7 @@ struct PlayerStoreTests {
         snapshot.currentIndex = 3
         snapshot.queueActive = true
         snapshot.surpriseActive = true
+        snapshot.shuffleCollectionActive = true
         snapshot.elapsedMs = 30_000
         snapshot.durationMs = 120_000
         fake.set(snapshot: snapshot)
@@ -262,6 +272,7 @@ struct PlayerStoreTests {
         #expect(store.currentIndex == 3)
         #expect(store.queueActive)
         #expect(store.surpriseActive)
+        #expect(store.shuffleCollectionActive)
         #expect(store.elapsed == 30)
         #expect(store.progress == 0.25)
     }
@@ -407,6 +418,22 @@ struct LibraryStoreTests {
 
     private func author(_ name: String, displayName: String? = nil) -> HvscAuthorItem {
         HvscAuthorItem(name: name, displayName: displayName ?? name, letter: "H", path: "/HVSC/MUSICIANS/H/\(name)")
+    }
+
+    @Test func recentHistoryKeepsTheCoresOrderAndTimes() async {
+        let (library, _) = makeLibrary()
+        let tune = { (title: String) in
+            HvscTuneItem(path: "/HVSC/MUSICIANS/H/Hubbard_Rob/\(title).sid", title: title, author: "Rob Hubbard",
+                         released: "1985", songs: 1, startSong: 1, durationSecs: nil, hasStil: false,
+                         isRsid: false, category: .musicians)
+        }
+        fake.set(recent: [RecentTune(item: tune("Commando"), playedAt: 2_000),
+                          RecentTune(item: tune("Delta"), playedAt: 1_000)], heard: 7)
+
+        await library.loadRecent()
+        #expect(library.recent?.map(\.row.title) == ["Commando", "Delta"])
+        #expect(library.recent?.first?.playedAt == Date(timeIntervalSince1970: 2_000))
+        #expect(library.heardCount == 7)
     }
 
     @Test func authorsAreLoadedOncePerFolder() async {

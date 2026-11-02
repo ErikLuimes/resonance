@@ -47,6 +47,7 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
             currentIndex: current.map(UInt32.init),
             queueActive: false,
             surpriseActive: false,
+            shuffleCollectionActive: false,
             track: track,
             elapsedMs: current == nil ? 0 : 83_000,
             durationMs: current.flatMap { items[$0].durationSecs }.map { UInt64($0) * 1000 },
@@ -153,6 +154,13 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
         return HvscSearchResult(items: hits, totalMatches: UInt32(hits.count), indexed: 61_157)
     }
 
+    func recentlyPlayed() async throws -> [RecentTune] {
+        let now = UInt64(Date.now.timeIntervalSince1970)
+        return items.prefix(6).enumerated().map { RecentTune(item: Self.tune($0.element), playedAt: now - UInt64($0.offset) * 1_800) }
+    }
+
+    func heardCount() async -> UInt32 { 2_431 }
+
     func hvscTunesAt(paths: [String]) async throws -> [HvscTuneItem] {
         items.prefix(12).map(Self.tune)
     }
@@ -163,6 +171,7 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
 
     func hvscSurprise(scope: HvscCategory?) async throws -> String? { items.randomElement()?.path }
     func surpriseMe() async {}
+    func shuffleCollection() async {}
 
     private static func tune(_ it: PlaylistItem) -> HvscTuneItem {
         HvscTuneItem(

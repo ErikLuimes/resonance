@@ -22,7 +22,7 @@ use crate::databases::{self, Databases, SharedDatabases};
 use crate::library::{Library, LibraryError};
 use crate::player::{self, PlayState, PlayerCmd, PlayerStatus};
 use crate::playlist::{self, LoadingProgress, PlaylistEntry, RepeatMode};
-use crate::session::{persist, Engine, Options, Session};
+use crate::session::{persist, Engine, Options, RadioKind, Session};
 use crate::viz::{SharedFeed, VizCapture, VizFeed};
 use crate::{audio_volume, config};
 
@@ -52,6 +52,8 @@ pub(crate) enum Command {
     PlayIndex(usize),
     /// Start Surprise Me's radio.
     Surprise,
+    /// Start Shuffle Collection.
+    ShuffleCollection,
     PlayPause {
         fallback: Option<usize>,
     },
@@ -90,6 +92,8 @@ pub(crate) struct SessionView {
     pub queue_active: bool,
     /// The queue is Surprise Me's radio.
     pub surprise_active: bool,
+    /// The queue is Shuffle Collection.
+    pub shuffle_collection_active: bool,
     pub shuffle: bool,
     pub repeat: RepeatMode,
     pub engine: Engine,
@@ -129,6 +133,7 @@ impl Driver {
                 current_duration_secs: None,
                 queue_active: false,
                 surprise_active: false,
+                shuffle_collection_active: false,
                 shuffle: start.shuffle,
                 repeat: start.repeat,
                 engine: start.engine,
@@ -167,8 +172,11 @@ enum Job {
         paths: Vec<PathBuf>,
         start: PathBuf,
     },
-    /// A random tune for Surprise Me, not one of `exclude`.
+    /// The next tune for a radio: for Surprise Me a random one not in
+    /// `exclude`, for Shuffle Collection the next of its order (a new
+    /// order on its first pick).
     Pick {
+        kind: RadioKind,
         exclude: HashSet<PathBuf>,
         first: bool,
     },
@@ -187,7 +195,7 @@ enum Loaded {
         start: PathBuf,
     },
     /// Ok(None): HVSC had nothing left to pick.
-    Picked(Result<Option<PlaylistEntry>, String>),
+    Picked(RadioKind, Result<Option<PlaylistEntry>, String>),
 }
 
 fn spawn_loader(progress: LoadingProgress, library: Library) -> (Sender<Job>, Receiver<Loaded>) {
@@ -196,6 +204,8 @@ fn spawn_loader(progress: LoadingProgress, library: Library) -> (Sender<Job>, Re
     thread::Builder::new()
         .name("resonance-loader".into())
         .spawn(move || {
+            // Shuffle Collection's order, next tune last.
+            let mut order: Vec<PathBuf> = Vec::new();
             for job in job_rx.iter() {
                 let result = match job {
                     Job::Databases => {
@@ -224,11 +234,18 @@ fn spawn_loader(progress: LoadingProgress, library: Library) -> (Sender<Job>, Re
                         entries: playlist::parse_files(paths, LoadingProgress::default()),
                         start,
                     },
-                    Job::Pick { exclude, first } => {
+                    Job::Pick { kind: RadioKind::Surprise, exclude, first } => {
                         if first {
                             set_progress(&progress, "Picking a surprise…");
                         }
-                        Loaded::Picked(pick_tune(&library, exclude))
+                        Loaded::Picked(RadioKind::Surprise, pick_tune(&library, exclude))
+                    }
+                    Job::Pick { kind: RadioKind::Shuffle, first, .. } => {
+                        if first {
+                            set_progress(&progress, "Shuffling the collection…");
+                            order.clear();
+                        }
+                        Loaded::Picked(RadioKind::Shuffle, next_in_order(&library, &mut order))
                     }
                 };
                 if job_rx.is_empty() {
@@ -294,6 +311,35 @@ fn pick_tune(
                 eprintln!("[resonance] surprise: skipping {}: {e}", path.display());
                 exclude.insert(path);
             }
+        }
+    }
+    Ok(None)
+}
+
+/// Shuffle Collection's next tune, parsed: the last of `order`, which is
+/// refilled with a new shuffle of every indexed tune when it runs out (at
+/// the start, and once all of HVSC has played). Files that won't parse are
+/// skipped.
+fn next_in_order(
+    library: &Library,
+    order: &mut Vec<PathBuf>,
+) -> Result<Option<PlaylistEntry>, String> {
+    for _ in 0..8 {
+        if order.is_empty() {
+            *order = library
+                .shuffled_paths()
+                .map_err(|e| match e {
+                    LibraryError::NoRoot => "Choose your HVSC folder in Settings.".to_string(),
+                    LibraryError::NotFound(m) | LibraryError::Io(m) => m,
+                })?;
+            if order.is_empty() {
+                return Err("The collection isn't indexed yet. Try again in a moment.".into());
+            }
+        }
+        let Some(path) = order.pop() else { break };
+        match PlaylistEntry::from_path(&path) {
+            Ok(entry) => return Ok(Some(entry)),
+            Err(e) => eprintln!("[resonance] shuffle: skipping {}: {e}", path.display()),
         }
     }
     Ok(None)
@@ -377,6 +423,7 @@ fn run(
         start.hvsc_root,
         now,
     );
+    session.records_history = true;
     session.set_shuffle(start.shuffle);
     session.set_repeat(start.repeat);
 
@@ -441,6 +488,7 @@ fn run(
             st.session.tick(now);
             if let Some(request) = st.session.take_radio_request() {
                 let _ = st.loader.send(Job::Pick {
+                    kind: request.kind,
                     exclude: request.exclude,
                     first: request.first,
                 });
@@ -484,6 +532,7 @@ impl State {
             }
             Command::PlayIndex(i) => s.play_index(i, now),
             Command::Surprise => s.surprise(),
+            Command::ShuffleCollection => s.shuffle_collection(),
             Command::PlayPause { fallback } => s.play_pause(fallback, now),
             Command::Stop => s.stop(),
             Command::Next => s.next(now),
@@ -542,12 +591,12 @@ impl State {
                 }
                 self.session.play_queue(entries, &start, now);
             }
-            Loaded::Picked(result) => {
+            Loaded::Picked(kind, result) => {
                 let pick = result.unwrap_or_else(|e| {
                     self.error = Some(e);
                     None
                 });
-                self.session.radio_picked(pick, now);
+                self.session.radio_picked(kind, pick, now);
             }
         }
     }
@@ -610,6 +659,7 @@ impl State {
                 current_duration_secs: s.current_entry().and_then(|e| e.duration_secs),
                 queue_active: s.queue_active(),
                 surprise_active: s.radio_active(),
+                shuffle_collection_active: s.shuffle_collection_active(),
                 shuffle: s.playlist.shuffle,
                 repeat: s.playlist.repeat,
                 engine: s.engine,

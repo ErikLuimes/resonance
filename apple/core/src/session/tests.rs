@@ -640,7 +640,7 @@ fn start_radio(h: &mut Harness, first: PlaylistEntry) {
     h.session.surprise();
     let request = h.session.take_radio_request().expect("a first pick");
     assert!(request.first);
-    h.session.radio_picked(Some(first), h.t0);
+    h.session.radio_picked(RadioKind::Surprise, Some(first), h.t0);
 }
 
 #[test]
@@ -656,7 +656,7 @@ fn surprise_starts_the_radio_and_stays_one_pick_ahead() {
 
     assert!(!h.session.radio_active(), "not until the first pick plays");
 
-    h.session.radio_picked(Some(entry("x", 1, Some(10))), h.t0);
+    h.session.radio_picked(RadioKind::Surprise, Some(entry("x", 1, Some(10))), h.t0);
     assert_eq!(played(&h.sent()), vec![(path("x"), 1)]);
     assert!(h.session.queue_active());
     assert!(h.session.radio_active());
@@ -675,7 +675,7 @@ fn radio_plays_one_subtune_then_the_next_pick() {
     let mut h = Harness::new(Vec::new());
     start_radio(&mut h, entry("x", 3, Some(10)));
     h.session.take_radio_request();
-    h.session.radio_picked(Some(entry("y", 1, Some(10))), h.t0);
+    h.session.radio_picked(RadioKind::Surprise, Some(entry("y", 1, Some(10))), h.t0);
     let cmds = h.sent();
     assert_eq!(
         played(&cmds),
@@ -698,7 +698,7 @@ fn next_waits_for_a_pick_the_radio_ran_out_of() {
 
     h.session.next(h.t0);
     assert!(played(&h.sent()).is_empty());
-    h.session.radio_picked(Some(entry("y", 1, None)), h.t0);
+    h.session.radio_picked(RadioKind::Surprise, Some(entry("y", 1, None)), h.t0);
     assert_eq!(played(&h.sent()), vec![(path("y"), 1)]);
 }
 
@@ -707,7 +707,7 @@ fn previous_walks_back_through_the_radio() {
     let mut h = Harness::new(Vec::new());
     start_radio(&mut h, entry("x", 1, None));
     h.session.take_radio_request();
-    h.session.radio_picked(Some(entry("y", 1, None)), h.t0);
+    h.session.radio_picked(RadioKind::Surprise, Some(entry("y", 1, None)), h.t0);
     h.session.next(h.t0);
     h.sent();
 
@@ -723,7 +723,7 @@ fn playing_something_else_ends_the_radio_and_drops_late_picks() {
     h.sent();
 
     h.session.play_index(0, h.t0);
-    h.session.radio_picked(Some(entry("y", 1, None)), h.t0);
+    h.session.radio_picked(RadioKind::Surprise, Some(entry("y", 1, None)), h.t0);
     assert_eq!(played(&h.sent()), vec![(path("a"), 1)]);
     assert!(!h.session.queue_active());
     assert!(!h.session.radio_active());
@@ -741,7 +741,7 @@ fn radio_repicks_instead_of_playing_a_skipped_rsid() {
     );
     h.session.surprise();
     h.session.take_radio_request();
-    h.session.radio_picked(Some(rsid("r")), h.t0);
+    h.session.radio_picked(RadioKind::Surprise, Some(rsid("r")), h.t0);
     assert!(played(&h.sent()).is_empty());
 
     let again = h.session.take_radio_request().expect("another pick");
@@ -754,7 +754,7 @@ fn nothing_to_pick_means_no_radio() {
     let mut h = Harness::new(Vec::new());
     h.session.surprise();
     h.session.take_radio_request();
-    h.session.radio_picked(None, h.t0);
+    h.session.radio_picked(RadioKind::Surprise, None, h.t0);
     assert!(h.sent().is_empty());
     assert!(!h.session.queue_active());
 }
@@ -814,4 +814,43 @@ fn saving_an_empty_playlist_removes_the_file() {
     persist::save(&empty.session.playlist, &file).unwrap();
     assert!(!file.exists());
     std::fs::remove_dir_all(&dir).unwrap();
+}
+
+// ── Shuffle Collection ───────────────────────────────────────────────────────
+
+#[test]
+fn shuffle_collection_walks_its_order_and_previous_goes_back() {
+    let mut h = Harness::new(Vec::new());
+    h.session.shuffle_collection();
+    let first = h.session.take_radio_request().expect("a first pick");
+    assert!(first.first);
+    assert_eq!(first.kind, RadioKind::Shuffle);
+    assert!(first.exclude.is_empty(), "the order has no repeats to avoid");
+
+    h.session.radio_picked(RadioKind::Shuffle, Some(entry("x", 1, Some(10))), h.t0);
+    assert!(h.session.shuffle_collection_active());
+    assert!(!h.session.radio_active(), "not Surprise Me");
+    let ahead = h.session.take_radio_request().expect("the next pick");
+    assert_eq!(ahead.kind, RadioKind::Shuffle);
+    h.session.radio_picked(RadioKind::Shuffle, Some(entry("y", 1, Some(10))), h.t0);
+    h.sent();
+
+    h.session.next(h.t0);
+    assert_eq!(played(&h.sent()), vec![(path("y"), 1)]);
+    h.session.previous(h.t0);
+    assert_eq!(played(&h.sent()), vec![(path("x"), 1)], "back to the first tune");
+}
+
+#[test]
+fn a_pick_for_the_replaced_radio_is_dropped() {
+    let mut h = Harness::new(Vec::new());
+    h.session.surprise();
+    h.session.take_radio_request().expect("Surprise Me's pick");
+    // Shuffle Collection pressed while that pick is on its way.
+    h.session.shuffle_collection();
+    h.session.radio_picked(RadioKind::Surprise, Some(entry("x", 1, None)), h.t0);
+    assert!(played(&h.sent()).is_empty());
+    let request = h.session.take_radio_request().expect("picked again");
+    assert_eq!(request.kind, RadioKind::Shuffle);
+    assert!(request.first);
 }

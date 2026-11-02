@@ -37,6 +37,12 @@ final class LibraryStore {
     /// The rows of Phosphor's published playlists, by playlist file;
     /// absent until loaded, nil when the lookup failed.
     private(set) var playlistTunes: [String: [LibraryRow]?] = [:]
+    /// The play history shared with Phosphor, newest first; nil until
+    /// loaded. Reloaded on every track change (the core records the play
+    /// before it reports the new track).
+    private(set) var recent: [RecentPlay]?
+    /// How many different tunes have ever been played, in either app.
+    private(set) var heardCount: Int?
     /// A sidebar section the window should show (the inspector's link to
     /// the playlist that's playing, a Home playlist card); the window
     /// clears it.
@@ -140,6 +146,15 @@ final class LibraryStore {
         playlistTunes[playlist.file] = found.map { $0.map(LibraryRow.init) }
     }
 
+    /// Re-read the play history and the heard count.
+    func loadRecent() async {
+        let tunes = (try? await core.recentlyPlayed()) ?? []
+        let heard = await core.heardCount()
+        let plays = tunes.map(RecentPlay.init)
+        if plays != recent { recent = plays }
+        if Int(heard) != heardCount { heardCount = Int(heard) }
+    }
+
     /// Fuzzy search; `nil` scope searches all of HVSC. Throws on failure or
     /// cancellation.
     func search(_ query: String, scope: HvscCategory?) async throws -> HvscSearchResult {
@@ -187,6 +202,13 @@ final class LibraryStore {
     func surpriseMe() async {
         surprises += 1
         await core.surpriseMe()
+    }
+
+    /// Every tune in HVSC in a new random order, one after another; Next
+    /// and Previous walk it (the core runs it). Starts once the search
+    /// indexes are loaded.
+    func shuffleCollection() async {
+        await core.shuffleCollection()
     }
 
     /// Who the inspector's composer card is about: `track`'s composer folder
@@ -411,6 +433,22 @@ nonisolated struct LibraryReveal: Equatable, Sendable {
     /// composer's).
     let tunePath: String
     var category: HvscCategory = .musicians
+}
+
+/// A tune from the play history and when it last started.
+nonisolated struct RecentPlay: Equatable, Sendable {
+    let row: LibraryRow
+    let playedAt: Date
+
+    init(_ tune: RecentTune) {
+        row = LibraryRow(item: tune.item)
+        playedAt = Date(timeIntervalSince1970: TimeInterval(tune.playedAt))
+    }
+
+    /// "5 minutes ago", "yesterday".
+    var playedText: String {
+        playedAt.formatted(.relative(presentation: .named))
+    }
 }
 
 /// A composer without a MUSICIANS folder whose tunes the browser should

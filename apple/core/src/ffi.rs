@@ -144,6 +144,8 @@ pub struct Snapshot {
     pub queue_active: bool,
     /// That list is Surprise Me's radio (`surprise_me`).
     pub surprise_active: bool,
+    /// That list is Shuffle Collection (`shuffle_collection`).
+    pub shuffle_collection_active: bool,
     /// What the player reports it's playing.
     pub track: Option<TrackDetails>,
     pub elapsed_ms: u64,
@@ -313,6 +315,14 @@ pub struct HvscTuneItem {
     /// Unknown in search results (the index doesn't store it).
     pub is_rsid: Option<bool>,
     pub category: HvscCategory,
+}
+
+/// A tune from the play history shared with Phosphor.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct RecentTune {
+    pub item: HvscTuneItem,
+    /// Unix time (seconds) it last started playing.
+    pub played_at: u64,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -532,6 +542,7 @@ impl PlayerCore {
             current_index: view.current.map(|i| i as u32),
             queue_active: view.queue_active,
             surprise_active: view.surprise_active,
+            shuffle_collection_active: view.shuffle_collection_active,
             track: status.track_info.as_ref().map(TrackDetails::from),
             elapsed_ms: status.elapsed.as_millis() as u64,
             duration_ms,
@@ -787,6 +798,39 @@ impl PlayerCore {
             .collect())
     }
 
+    /// The play history shared with Phosphor, newest first: the last 100
+    /// different tunes either app played, those still on disk.
+    pub async fn recently_played(&self) -> Result<Vec<RecentTune>, HvscError> {
+        let hits = self.library.recent().await?;
+        Ok(hits
+            .into_iter()
+            .map(|(category, e, has_stil, played_at)| RecentTune {
+                item: HvscTuneItem {
+                    path: e.path.to_string_lossy().into_owned(),
+                    title: e.title,
+                    author: e.author,
+                    released: e.released,
+                    songs: e.songs,
+                    start_song: e.selected_song,
+                    duration_secs: e.duration_secs,
+                    has_stil,
+                    is_rsid: Some(e.is_rsid),
+                    // Outside the collection: filed with the musicians,
+                    // where the inspector looks for a composer anyway.
+                    category: category.unwrap_or(hvsc_browser::HvscCategory::Musicians).into(),
+                },
+                played_at,
+            })
+            .collect())
+    }
+
+    /// How many different tunes Phosphor and Resonance have ever played.
+    pub async fn heard_count(&self) -> u32 {
+        tokio::task::spawn_blocking(crate::history::heard_count)
+            .await
+            .unwrap_or(0) as u32
+    }
+
     /// Surprise Me: an endless stream of random tunes from all of HVSC, one
     /// subtune each, never one played since launch. Next picks a new tune,
     /// Previous goes back; playing anything else ends it. Returns once the
@@ -794,6 +838,16 @@ impl PlayerCore {
     pub async fn surprise_me(&self) {
         self.send(Command::Surprise);
         self.library.warm_indexes().await;
+    }
+
+    /// Shuffle Collection: every tune in HVSC in a new random order, played
+    /// one after another (one subtune each). Next walks the order, Previous
+    /// goes back through what played, and every tune plays once before any
+    /// comes round again; playing anything else ends it. Starts once the
+    /// search indexes are loaded, since the order is made from them.
+    pub async fn shuffle_collection(&self) {
+        self.library.warm_indexes().await;
+        self.send(Command::ShuffleCollection);
     }
 
     /// A random tune's path, from `scope` or the whole collection.

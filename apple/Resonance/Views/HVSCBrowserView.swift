@@ -483,6 +483,8 @@ struct LibraryTable: View {
     /// The published playlist the rows are, which the inspector names
     /// while they play.
     var playlist: HvscPlaylist? = nil
+    /// When each row last played, for a Played column (the history).
+    var played: [LibraryRow.ID: String]? = nil
 
     @Environment(LibraryStore.self) private var library
     @Environment(PlayerStore.self) private var player
@@ -537,6 +539,13 @@ struct LibraryTable: View {
                 }
             }
             .width(36)
+            if let played {
+                TableColumn("Played") { row in
+                    Text(played[row.id] ?? "")
+                        .foregroundStyle(.secondary)
+                }
+                .width(min: 90, ideal: 120)
+            }
         }
         .contextMenu(forSelectionType: LibraryRow.ID.self) { ids in
             if !ids.isEmpty {

@@ -25,6 +25,7 @@ use crate::hvsc_browser::{
     self, HvscAuthor, HvscBrowser, HvscCategory, HvscIndexEntry, HvscQuery, HvscTune,
 };
 use crate::hvsc_index_cache;
+use crate::playlist::PlaylistEntry;
 
 pub(crate) const CATEGORIES: [HvscCategory; 3] = [
     HvscCategory::Musicians,
@@ -440,6 +441,38 @@ impl Library {
         .await
     }
 
+    /// The tunes played most recently (the history shared with Phosphor),
+    /// newest first, read from their headers with song lengths and STIL
+    /// flags, and when each was played. Files no longer on disk are left
+    /// out; tunes outside the collection have no category.
+    pub async fn recent(
+        &self,
+    ) -> Result<Vec<(Option<HvscCategory>, PlaylistEntry, bool, u64)>, LibraryError> {
+        let root = self.root();
+        let db = databases::loaded(&self.databases).await;
+        blocking(move || {
+            crate::history::recent()
+                .into_iter()
+                .filter_map(|recent| {
+                    let mut entry = PlaylistEntry::from_path(&recent.path).ok()?;
+                    if entry.duration_secs.is_none() {
+                        entry.duration_secs = entry.md5.as_deref().and_then(|md5| {
+                            let song = entry.selected_song.saturating_sub(1) as usize;
+                            db.songlengths.as_ref()?.lookup(md5, song)
+                        });
+                    }
+                    let has_stil = db
+                        .stil
+                        .as_ref()
+                        .is_some_and(|s| s.lookup(&entry.path, root.as_deref()).is_some());
+                    let category = root.as_deref().and_then(|r| category_of(r, &entry.path));
+                    Some((category, entry, has_stil, recent.played_at))
+                })
+                .collect()
+        })
+        .await
+    }
+
     /// A random tune: uniformly from the loaded indexes in scope, or by
     /// walking the folder when none is loaded yet.
     pub async fn surprise(
@@ -497,6 +530,22 @@ impl Library {
             }
         }
         Ok(walk_pick(&root, HvscCategory::Musicians, exclude))
+    }
+
+    /// Every indexed tune in a random order: Shuffle Collection's walk.
+    /// Empty until an index is loaded.
+    pub fn shuffled_paths(&self) -> Result<Vec<PathBuf>, LibraryError> {
+        use rand::seq::SliceRandom;
+        self.root().ok_or(LibraryError::NoRoot)?;
+        let mut paths: Vec<PathBuf> = {
+            let inner = self.lock();
+            CATEGORIES
+                .iter()
+                .flat_map(|&c| inner.index(c).iter().map(|e| e.path.clone()))
+                .collect()
+        };
+        paths.shuffle(&mut rand::thread_rng());
+        Ok(paths)
     }
 
     /// Load (or build) every category's index, so `pick_blocking` covers all

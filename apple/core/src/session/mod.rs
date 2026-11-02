@@ -64,9 +64,11 @@ pub struct Session {
     /// playlist is played. Never saved. Not in upstream, whose library adds
     /// what it plays to the playlist.
     pub(crate) queue: Option<Playlist>,
-    /// The queue is Surprise Me's radio: random tunes from all of HVSC, one
-    /// subtune each, kept one pick ahead of playback.
+    /// The queue is a radio: tunes from all of HVSC, one subtune each,
+    /// kept one pick ahead of playback.
     radio: bool,
+    /// Which radio: Surprise Me's random picks or Shuffle Collection's walk.
+    radio_kind: RadioKind,
     /// Surprise Me pressed; the radio starts when the first pick arrives.
     radio_starting: bool,
     /// The radio ran out before its next pick arrived: play it on arrival.
@@ -74,6 +76,9 @@ pub struct Session {
     radio_pick: RadioPick,
     /// Every tune played since launch; Surprise Me doesn't pick these.
     heard: HashSet<PathBuf>,
+    /// Record each play in the history shared with Phosphor. Off unless the
+    /// driver turns it on, so tests never touch the real files.
+    pub(crate) records_history: bool,
     /// Latest status from the player thread, with timing fields zeroed when
     /// it belongs to a track or subtune we've already moved away from.
     pub(crate) status: PlayerStatus,
@@ -105,8 +110,20 @@ enum RadioPick {
     Pending,
 }
 
-/// A pick the driver should make: any tune not in `exclude`.
+/// Where a radio's tunes come from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RadioKind {
+    /// Surprise Me: a random tune, never one heard since launch.
+    Surprise,
+    /// Shuffle Collection: the next tune of one shuffled order of every
+    /// tune in HVSC, so each plays once before any comes round again.
+    Shuffle,
+}
+
+/// A pick the driver should make: for Surprise Me any tune not in
+/// `exclude`, for Shuffle Collection the next in its order.
 pub struct RadioRequest {
+    pub kind: RadioKind,
     pub exclude: HashSet<PathBuf>,
     /// The first pick of a new radio (worth a progress message: with no
     /// index loaded yet it walks the disk).
@@ -126,10 +143,12 @@ impl Session {
             playlist: Playlist::new(),
             queue: None,
             radio: false,
+            radio_kind: RadioKind::Surprise,
             radio_starting: false,
             radio_waiting: false,
             radio_pick: RadioPick::Idle,
             heard: HashSet::new(),
+            records_history: false,
             status: PlayerStatus::default(),
             songlength_db: None,
             hvsc_root,
@@ -267,8 +286,14 @@ impl Session {
     }
 
     /// The queue is Surprise Me's radio.
+    /// Surprise Me's radio is playing.
     pub(crate) fn radio_active(&self) -> bool {
-        self.radio
+        self.radio && self.radio_kind == RadioKind::Surprise
+    }
+
+    /// Shuffle Collection's radio is playing.
+    pub(crate) fn shuffle_collection_active(&self) -> bool {
+        self.radio && self.radio_kind == RadioKind::Shuffle
     }
 
     // ── Transport ─────────────────────────────────────────────────────────
@@ -301,6 +326,11 @@ impl Session {
             }
 
             self.heard.insert(path.clone());
+            if self.records_history {
+                if let Some(entry) = self.active().entries.get(idx) {
+                    crate::history::record(entry);
+                }
+            }
             let cmd = self.play_cmd(path, song);
             self.active_mut().current = Some(idx);
             self.send(cmd);
@@ -407,9 +437,24 @@ impl Session {
     // still loops a tune; shuffle and Repeat All don't apply. Playing
     // anything else ends it. Upstream's Surprise Me plays one tune.
 
-    /// Start the radio. It begins when the driver's first pick arrives.
+    /// Start Surprise Me's radio. It begins when the driver's first pick
+    /// arrives.
     pub fn surprise(&mut self) {
+        self.start_radio(RadioKind::Surprise);
+    }
+
+    /// Start Shuffle Collection: every tune in HVSC in a fresh random
+    /// order, played one after another. Next walks the order, Previous
+    /// goes back through what played; playing anything else ends it.
+    pub fn shuffle_collection(&mut self) {
+        self.start_radio(RadioKind::Shuffle);
+    }
+
+    fn start_radio(&mut self, kind: RadioKind) {
+        self.radio_kind = kind;
         self.radio_starting = true;
+        // A pick still on its way is for the old radio: `radio_picked`
+        // drops it and asks again.
         if self.radio_pick == RadioPick::Idle {
             self.radio_pick = RadioPick::Wanted;
         }
@@ -422,15 +467,27 @@ impl Session {
         }
         self.radio_pick = RadioPick::Pending;
         Some(RadioRequest {
-            exclude: self.heard.clone(),
+            kind: self.radio_kind,
+            // The shuffle walks its own order.
+            exclude: match self.radio_kind {
+                RadioKind::Surprise => self.heard.clone(),
+                RadioKind::Shuffle => HashSet::new(),
+            },
             first: self.radio_starting,
         })
     }
 
     /// The driver's pick (None when there was nothing to pick). Starts the
     /// radio, or joins it as the next tune and plays if it had run out.
-    pub fn radio_picked(&mut self, pick: Option<PlaylistEntry>, now: Instant) {
+    pub fn radio_picked(&mut self, kind: RadioKind, pick: Option<PlaylistEntry>, now: Instant) {
         self.radio_pick = RadioPick::Idle;
+        if kind != self.radio_kind {
+            // Picked for the radio this one replaced: pick again.
+            if self.radio_starting || self.radio {
+                self.radio_pick = RadioPick::Wanted;
+            }
+            return;
+        }
         let Some(entry) = pick else {
             self.radio_starting = false;
             self.radio_waiting = false;

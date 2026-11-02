@@ -132,6 +132,10 @@ struct NowPlayingInspector: View {
             Label("Surprise Me", systemImage: "dice.fill")
                 .foregroundStyle(.tint)
                 .help("Next plays another random tune from HVSC. Play anything else to stop.")
+        } else if store.shuffleCollectionActive {
+            Label("Shuffle Collection", systemImage: "shuffle")
+                .foregroundStyle(.tint)
+                .help("Every tune in HVSC in a random order. Previous goes back; play anything else to stop.")
         } else if let playlist = store.queuePlaylist {
             // The published playlist it's playing from, which opens it.
             Label {
@@ -162,7 +166,7 @@ struct NowPlayingInspector: View {
             }
             .controlSize(.small)
             .help("Add this tune to your playlist")
-        } else if store.queueActive || store.surpriseActive {
+        } else if store.queueActive || store.surpriseActive || store.shuffleCollectionActive {
             Label("In Playlist", systemImage: "checkmark")
                 .font(.caption)
                 .foregroundStyle(.secondary)

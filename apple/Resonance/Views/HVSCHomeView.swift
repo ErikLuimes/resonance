@@ -220,6 +220,7 @@ private struct CollectionHome: View {
                     whatsNewSection
                     playlistsSection
                 }
+                jumpBackIn
                 extras
             }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
@@ -228,6 +229,8 @@ private struct CollectionHome: View {
             .frame(maxWidth: 1200)
             .frame(maxWidth: .infinity)
         }
+        // The history gains each play before the core reports the track.
+        .task(id: store.trackRevision) { await library.loadRecent() }
         .sheet(isPresented: $showAllPlaylists) {
             PlaylistsSheet(playlists: info.playlists)
         }
@@ -313,12 +316,12 @@ private struct CollectionHome: View {
             }
             HStack(spacing: 8) {
                 Button {
-                    Task { await library.surpriseMe() }
+                    Task { await library.shuffleCollection() }
                 } label: {
                     Label("Shuffle Collection", systemImage: "shuffle")
                 }
                 .buttonStyle(.borderedProminent)
-                .help("Play random tunes from all of HVSC")
+                .help("Play every tune in HVSC in a random order")
                 if let top = topPlaylist {
                     Button {
                         store.playPublishedPlaylist(top)
@@ -449,6 +452,37 @@ private struct CollectionHome: View {
                                 }
                             }
                             if start + columns > top.count {
+                                Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Jump back in ──
+
+    /// The last few tunes played, here or in Phosphor; a click plays the
+    /// history from that tune.
+    @ViewBuilder
+    private var jumpBackIn: some View {
+        if let recent = library.recent, !recent.isEmpty {
+            let shown = Array(recent.prefix(width >= 640 ? 6 : 4))
+            let columns = width >= 640 ? 2 : 1
+            VStack(alignment: .leading, spacing: 12) {
+                sectionHeader("Jump Back In", sub: "Recently played here and in Phosphor") {
+                    AccentLink("History") { library.shownSection = .recent }
+                }
+                Grid(horizontalSpacing: 20, verticalSpacing: 2) {
+                    ForEach(Array(stride(from: 0, to: shown.count, by: columns)), id: \.self) { start in
+                        GridRow {
+                            ForEach(start..<min(start + columns, shown.count), id: \.self) { index in
+                                RecentTuneRow(number: index + 1, play: shown[index]) {
+                                    library.play(recent.map(\.row), startAt: shown[index].row)
+                                }
+                            }
+                            if start + columns > shown.count {
                                 Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
                             }
                         }
@@ -863,6 +897,71 @@ private struct PlaylistCard: View {
         .help("Show \(playlist.name)")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction(named: "Show", open)
+    }
+}
+
+/// One tune in Jump Back In: its place, title, who and when it was
+/// released, its length and when it played.
+private struct RecentTuneRow: View {
+    let number: Int
+    let play: RecentPlay
+    let action: () -> Void
+    @Environment(PlayerStore.self) private var store
+
+    @State private var hovering = false
+
+    var body: some View {
+        let row = play.row
+        let current = store.nowPlaying?.path == row.id
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Group {
+                    if current {
+                        Image(systemName: store.isPlaying ? "speaker.wave.2.fill" : "speaker.fill")
+                            .foregroundStyle(.tint)
+                    } else {
+                        Text("\(number)")
+                            .foregroundStyle(.tertiary)
+                            .monospacedDigit()
+                    }
+                }
+                .font(.caption)
+                .frame(width: 22, alignment: .trailing)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(row.title)
+                        .fontWeight(.semibold)
+                        .lineLimit(1)
+                    Text(byline(row))
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text(row.lengthText)
+                        .font(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                    Text(play.playedText)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(hovering ? AnyShapeStyle(.fill.quaternary) : AnyShapeStyle(.clear), in: .rect(cornerRadius: 9))
+            .contentShape(.rect(cornerRadius: 9))
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .help("Play \(row.title)")
+    }
+
+    /// "Rob Hubbard · 1985".
+    private func byline(_ row: LibraryRow) -> String {
+        let year = NowPlayingInspector.releasedParts(row.released).year
+        return [row.author, year].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · ")
     }
 }
 

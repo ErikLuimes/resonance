@@ -5,6 +5,8 @@ import PhosphorCore
 /// What the sidebar can show. Favorites and Recent slot in here later.
 enum SidebarItem: Hashable {
     case playlist
+    /// The play history shared with Phosphor.
+    case recent
     /// The HVSC Home: the collection's header row in the sidebar.
     case hvscHome
     case hvsc(HvscCategory)
@@ -151,6 +153,8 @@ struct ContentView: View {
                 Label("Playlist", systemImage: "music.note.list")
                     .badge(store.rows.count)
                     .tag(SidebarItem.playlist)
+                Label("Recently Played", systemImage: "clock")
+                    .tag(SidebarItem.recent)
             }
             Section("HVSC") {
                 HvscCollectionRow()
@@ -211,6 +215,8 @@ struct ContentView: View {
         switch section {
         case .playlist:
             PlaylistView(search: searchText.wrappedValue)
+        case .recent:
+            RecentlyPlayedView(search: searchText.wrappedValue)
         case .hvscHome:
             HVSCHomeView { category in
                 searches[.hvsc(category)] = ""

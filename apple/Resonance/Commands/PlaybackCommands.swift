@@ -45,6 +45,8 @@ struct PlaybackCommands: Commands {
             Button("Surprise Me") { Task { await library.surpriseMe() } }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
                 .disabled(!library.hasRoot)
+            Button("Shuffle Collection") { Task { await library.shuffleCollection() } }
+                .disabled(!library.hasRoot)
 
             Divider()
 

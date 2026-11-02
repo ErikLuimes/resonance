@@ -35,6 +35,9 @@ pub(crate) mod dsp;
 #[path = "../../../src/favorites.rs"]
 pub(crate) mod favorites;
 #[allow(dead_code, unused, clippy::all)]
+#[path = "../../../src/heard_db.rs"]
+pub(crate) mod heard_db;
+#[allow(dead_code, unused, clippy::all)]
 #[path = "../../../src/hvsc_browser.rs"]
 pub(crate) mod hvsc_browser;
 #[allow(dead_code, unused, clippy::all)]
@@ -49,6 +52,9 @@ pub(crate) mod player;
 #[allow(dead_code, unused, clippy::all)]
 #[path = "../../../src/playlist.rs"]
 pub(crate) mod playlist;
+#[allow(dead_code, unused, clippy::all)]
+#[path = "../../../src/recently_played.rs"]
+pub(crate) mod recently_played;
 #[allow(dead_code, unused, clippy::all)]
 #[path = "../../../src/sid_device.rs"]
 pub(crate) mod sid_device;
@@ -70,6 +76,7 @@ uniffi::setup_scaffolding!();
 mod databases;
 mod driver;
 mod ffi;
+mod history;
 mod hvsc_info;
 mod library;
 pub(crate) mod session;

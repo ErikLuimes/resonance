@@ -23,6 +23,8 @@ final class PlayerStore {
     private(set) var queueActive = false
     /// That list is Surprise Me's endless random one.
     private(set) var surpriseActive = false
+    /// That list is Shuffle Collection's walk through all of HVSC.
+    private(set) var shuffleCollectionActive = false
     /// The published playlist the playing queue came from; nil for the
     /// playlist, Surprise Me and any other queue (a selection, a search).
     private(set) var queuePlaylist: HvscPlaylist?
@@ -216,11 +218,12 @@ final class PlayerStore {
         // The queue ended, or Surprise Me took over: it's no longer the
         // published playlist that plays. (Not on a still-inactive queue: a
         // queue just started shows up a snapshot later.)
-        if (queueActive && !s.queueActive) || s.surpriseActive {
+        if (queueActive && !s.queueActive) || s.surpriseActive || s.shuffleCollectionActive {
             update(\.queuePlaylist, nil)
         }
         update(\.queueActive, s.queueActive)
         update(\.surpriseActive, s.surpriseActive)
+        update(\.shuffleCollectionActive, s.shuffleCollectionActive)
         update(\.nowPlaying, s.track)
         update(\.elapsed, TimeInterval(s.elapsedMs) / 1000)
         update(\.duration, s.durationMs.map { TimeInterval($0) / 1000 })
