@@ -194,7 +194,10 @@ struct ContentView: View {
         case .playlist:
             PlaylistView(search: searchText.wrappedValue)
         case .hvscHome:
-            HVSCHomeView()
+            HVSCHomeView { category in
+                searches[.hvsc(category)] = ""
+                sidebarSelection = .hvsc(category)
+            }
         case .hvsc(let category):
             // A fresh view (and selection) per category.
             HVSCBrowserView(category: category, search: searchText.wrappedValue)
