@@ -490,3 +490,31 @@ async fn surprise_picks_a_tune_in_scope_with_or_without_an_index() {
         );
     }
 }
+
+#[tokio::test]
+async fn tunes_at_keeps_the_playlists_order_and_skips_strangers() {
+    let tree = Tree::sample();
+    tree.sid("GAMES/A-F/Exos.sid", "Exos", "Someone Else", "1990", 1);
+    let lib = library(Some(tree.root()));
+    let root = tree.root();
+
+    let hits = lib
+        .tunes_at(vec![
+            root.join("GAMES/A-F/Exos.sid"),
+            root.join("MUSICIANS/Nobody/Missing.sid"),
+            root.join("MUSICIANS/H/Hubbard_Rob/Commando.sid"),
+        ])
+        .await
+        .unwrap();
+    let found: Vec<_> = hits
+        .iter()
+        .map(|(category, e, author)| (*category, e.title.as_str(), author.as_str()))
+        .collect();
+    assert_eq!(
+        found,
+        [
+            (HvscCategory::Games, "Exos", "Someone Else"),
+            (HvscCategory::Musicians, "Commando", "Rob Hubbard"),
+        ]
+    );
+}

@@ -399,6 +399,47 @@ impl Library {
         .await
     }
 
+    /// The tunes at `paths` (files in the collection), in that order, with
+    /// their index entries and header authors: a published playlist's
+    /// rows. Paths that aren't in an index are left out.
+    pub async fn tunes_at(
+        &self,
+        paths: Vec<PathBuf>,
+    ) -> Result<Vec<(HvscCategory, HvscIndexEntry, String)>, LibraryError> {
+        let root = self.root().ok_or(LibraryError::NoRoot)?;
+        let wanted: Vec<HvscCategory> = CATEGORIES
+            .into_iter()
+            .filter(|&c| paths.iter().any(|p| category_of(&root, p) == Some(c)))
+            .collect();
+        for &category in &wanted {
+            self.ensure_index(category).await?;
+        }
+        let inner = self.inner.clone();
+        blocking(move || {
+            let lookup: HashSet<&PathBuf> = paths.iter().collect();
+            let mut found = std::collections::HashMap::new();
+            {
+                let inner = lock(&inner);
+                for &category in &wanted {
+                    for entry in inner.index(category) {
+                        if lookup.contains(&entry.path) {
+                            found.insert(entry.path.clone(), (category, entry.clone()));
+                        }
+                    }
+                }
+            }
+            paths
+                .iter()
+                .filter_map(|p| found.get(p).cloned())
+                .map(|(category, entry)| {
+                    let author = header_author(&entry.path);
+                    (category, entry, author)
+                })
+                .collect()
+        })
+        .await
+    }
+
     /// A random tune: uniformly from the loaded indexes in scope, or by
     /// walking the folder when none is loaded yet.
     pub async fn surprise(

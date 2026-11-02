@@ -438,22 +438,18 @@ private struct CollectionHome: View {
                 sectionHeader("Curated Playlists", sub: "\(info.playlists.count) playlists") {
                     AccentLink("See All") { showAllPlaylists = true }
                 }
-                // Four across, or two rows of two where a cover would get
-                // too small to read.
-                let columns = (wide ? (width - 20) * 7 / 12 : width) >= 440 ? 4 : 2
+                // Two across, or one where a card would get too narrow.
+                let columns = (wide ? (width - 20) * 7 / 12 : width) >= 440 ? 2 : 1
                 Grid(horizontalSpacing: 14, verticalSpacing: 14) {
                     ForEach(Array(stride(from: 0, to: top.count, by: columns)), id: \.self) { start in
-                        GridRow(alignment: .top) {
+                        GridRow {
                             ForEach(start..<min(start + columns, top.count), id: \.self) { index in
-                                PlaylistCover(
-                                    playlist: top[index],
-                                    label: shortName(top[index].name),
-                                    stripes: Raster.sets[index % Raster.sets.count]
-                                )
+                                PlaylistCard(playlist: top[index]) {
+                                    library.shownSection = .curated(top[index].file)
+                                }
                             }
-                            // Keep the last row's covers the same size.
-                            ForEach(0..<(columns - min(columns, top.count - start)), id: \.self) { _ in
-                                Color.clear.gridCellUnsizedAxes(.vertical)
+                            if start + columns > top.count {
+                                Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
                             }
                         }
                     }
@@ -810,105 +806,64 @@ private struct WhatsNewPanel: View {
     }
 }
 
-/// A published playlist as a square cover of C64 raster bars; the play
-/// button shows on hover, and a click anywhere on the cover plays it.
-private struct PlaylistCover: View {
+/// A published playlist on the Home: its artwork, name, what it is and
+/// how many tunes. The card opens the playlist; its button plays it.
+private struct PlaylistCard: View {
     let playlist: HvscPlaylist
-    let label: String
-    let stripes: [Color]
+    let open: () -> Void
     @Environment(PlayerStore.self) private var store
 
     @State private var hovering = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Button {
-                store.playPublishedPlaylist(playlist)
-            } label: {
-                Raster(stripes: stripes)
-                    .aspectRatio(1, contentMode: .fit)
-                    .overlay(alignment: .bottomLeading) {
-                        Text(label)
-                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                            .textCase(.uppercase)
-                            .kerning(0.4)
-                            .foregroundStyle(.white)
-                            .shadow(color: .black.opacity(0.6), radius: 1, y: 1)
-                            .lineLimit(2)
-                            .padding(.leading, 10)
-                            .padding(.trailing, 50)
-                            .padding(.bottom, 9)
-                    }
-                    .overlay(alignment: .bottomTrailing) {
-                        Image(systemName: "play.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.white)
-                            .frame(width: 34, height: 34)
-                            .background(Color.accentColor, in: .circle)
-                            .shadow(color: .black.opacity(0.4), radius: 8, y: 4)
-                            .padding(10)
-                            .opacity(hovering ? 1 : 0)
-                            .offset(y: hovering ? 0 : 6)
-                    }
-                    .clipShape(.rect(cornerRadius: 12))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(.separator)
-                    }
-                    .shadow(color: .black.opacity(0.3), radius: 12, y: 8)
-                    .contentShape(.rect(cornerRadius: 12))
-                    .animation(.easeOut(duration: 0.2), value: hovering)
+        let playing = store.queuePlaylist == playlist
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                PlaylistArtwork(name: playlist.name, size: 48)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(playlist.name)
+                        .font(.callout.weight(.semibold))
+                        .lineLimit(2)
+                    Text("\(playlist.tracks.formatted()) tunes")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .monospacedDigit()
+                }
+                Spacer(minLength: 0)
             }
-            .buttonStyle(.plain)
-            .onHover { hovering = $0 }
-            .help("Play \(playlist.name)")
-
-            Text(playlist.name)
-                .font(.callout.weight(.semibold))
-                .lineLimit(1)
-                .padding(.top, 2)
-            Text("\(playlist.tracks.formatted()) tunes")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-        }
-    }
-}
-
-/// Horizontal C64 raster bars, repeating the stripe pattern down the cover.
-private struct Raster: View {
-    /// One color per 4 pt band.
-    let stripes: [Color]
-
-    var body: some View {
-        Canvas { context, size in
-            let band: CGFloat = 4
-            var y: CGFloat = 0
-            var index = 0
-            while y < size.height {
-                context.fill(Path(CGRect(x: 0, y: y, width: size.width, height: band)),
-                             with: .color(stripes[index % stripes.count]))
-                y += band
-                index += 1
+            if let description = playlist.description, !description.isEmpty {
+                Text(description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2, reservesSpace: true)
+            }
+            HStack {
+                if playing {
+                    Label("Playing", systemImage: store.isPlaying ? "speaker.wave.2.fill" : "speaker.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.tint)
+                }
+                Spacer(minLength: 0)
+                Button(playing ? "Play Again" : "Play") {
+                    store.playPublishedPlaylist(playlist)
+                }
+                .controlSize(.small)
+                .help("Play \(playlist.name)")
             }
         }
+        .padding(14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .modifier(CardBackground(highlighted: hovering))
+        .contentShape(.rect(cornerRadius: 16))
+        // The card opens the playlist; the Play button inside wins its
+        // own clicks.
+        .onTapGesture(perform: open)
+        .onHover { hovering = $0 }
+        .pointerStyle(.link)
+        .help("Show \(playlist.name)")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction(named: "Show", open)
     }
-
-    /// Patterns in the C64's own palette (Pepto's values).
-    static let sets: [[Color]] = {
-        func c64(_ hex: UInt32) -> Color {
-            Color(red: Double(hex >> 16 & 0xFF) / 255, green: Double(hex >> 8 & 0xFF) / 255, blue: Double(hex & 0xFF) / 255)
-        }
-        let blue = c64(0x352879), lightBlue = c64(0x6C5EB5), cyan = c64(0x70A4B2)
-        let brown = c64(0x68372B), lightRed = c64(0x9A6759), yellow = c64(0xB8C76F)
-        let green = c64(0x588D43), lightGreen = c64(0x9AE29B), black = c64(0x000000)
-        let purple = c64(0x6F3D86)
-        return [
-            [blue, blue, lightBlue, lightBlue, cyan, cyan, lightBlue, lightBlue],
-            [brown, lightRed, yellow, lightRed, brown, black],
-            [green, lightGreen, green, black, black, black],
-            [purple, purple, black, cyan, black],
-        ]
-    }()
 }
 
 /// A 5¼" floppy: a sleeve with a label strip, the hub and the read slot.

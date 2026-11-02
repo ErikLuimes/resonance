@@ -478,8 +478,11 @@ private struct CreditedTunes: View {
 /// Playing works like Music: one tune plays the whole list as shown,
 /// starting there; several selected tunes play just those. Either way the
 /// player walks that list, not the playlist.
-private struct LibraryTable: View {
+struct LibraryTable: View {
     let rows: [LibraryRow]
+    /// The published playlist the rows are, which the inspector names
+    /// while they play.
+    var playlist: HvscPlaylist? = nil
 
     @Environment(LibraryStore.self) private var library
     @Environment(PlayerStore.self) private var player
@@ -552,7 +555,7 @@ private struct LibraryTable: View {
     private func play(_ ids: Set<LibraryRow.ID>) {
         let picked = chosen(ids)
         if picked.count == 1 {
-            library.play(sortedRows, startAt: picked[0])
+            library.play(sortedRows, startAt: picked[0], from: playlist)
         } else {
             library.play(picked)
         }

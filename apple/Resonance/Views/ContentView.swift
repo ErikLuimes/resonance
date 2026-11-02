@@ -8,6 +8,8 @@ enum SidebarItem: Hashable {
     /// The HVSC Home: the collection's header row in the sidebar.
     case hvscHome
     case hvsc(HvscCategory)
+    /// One of Phosphor's published playlists, by its file name.
+    case curated(String)
 }
 
 struct ContentView: View {
@@ -16,6 +18,7 @@ struct ContentView: View {
     @State private var sidebarSelection: SidebarItem? = .playlist
     @State private var showInspector = true
     @State private var isDropTargeted = false
+    @AppStorage("sidebar.curatedExpanded") private var curatedExpanded = true
     /// Each sidebar section keeps its own search text.
     @State private var searches: [SidebarItem: String] = [:]
 
@@ -128,6 +131,13 @@ struct ContentView: View {
         }
         // For a composer without a folder: the tune's section, with no
         // search, so the browser can list their tunes.
+        // The inspector's playlist link, a Home playlist card.
+        .onChange(of: library.shownSection) { _, section in
+            guard let section else { return }
+            searches[section] = ""
+            sidebarSelection = section
+            library.shownSection = nil
+        }
         .onChange(of: library.credits) { _, credits in
             guard let credits else { return }
             searches[.hvsc(credits.category)] = ""
@@ -148,6 +158,14 @@ struct ContentView: View {
                     ForEach(HvscCategory.allCases, id: \.self) { category in
                         Label(category.displayName, systemImage: category.symbolName)
                             .tag(SidebarItem.hvsc(category))
+                    }
+                }
+            }
+            if store.hasCollection, let playlists = store.hvscInfo?.playlists, !playlists.isEmpty {
+                Section("Curated Playlists", isExpanded: $curatedExpanded) {
+                    ForEach(playlists, id: \.file) { playlist in
+                        CuratedPlaylistRow(playlist: playlist)
+                            .tag(SidebarItem.curated(playlist.file))
                     }
                 }
             }
@@ -202,6 +220,13 @@ struct ContentView: View {
             // A fresh view (and selection) per category.
             HVSCBrowserView(category: category, search: searchText.wrappedValue)
                 .id(category)
+        case .curated(let file):
+            if let playlist = store.hvscInfo?.playlists.first(where: { $0.file == file }) {
+                CuratedPlaylistView(playlist: playlist, search: searchText.wrappedValue)
+                    .id(file)
+            } else {
+                ContentUnavailableView("Playlist Not Found", systemImage: "music.note.list")
+            }
         }
     }
 }

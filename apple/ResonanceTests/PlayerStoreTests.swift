@@ -82,6 +82,11 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
         return HvscSearchResult(items: [], totalMatches: 0, indexed: 0)
     }
 
+    func hvscTunesAt(paths: [String]) async throws -> [HvscTuneItem] {
+        record("tunesAt \(paths.count)")
+        return []
+    }
+
     func hvscTunesCrediting(names: [String]) async throws -> [HvscTuneItem] {
         record("crediting \(names.joined(separator: "|"))")
         return lock.withLock { _credited }

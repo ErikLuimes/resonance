@@ -179,6 +179,7 @@ struct NowPlayingView: View {
     /// Which list is playing, and where in it.
     private var source: String {
         if store.surpriseActive { return "Now playing · Surprise Me" }
+        if let playlist = store.queuePlaylist { return "Now playing · \(playlist.name)" }
         if store.queueActive { return "Now playing · Queue" }
         if let index = store.currentIndex, store.nowPlaying != nil {
             return "Now playing · Playlist \(index + 1) / \(store.rows.count)"

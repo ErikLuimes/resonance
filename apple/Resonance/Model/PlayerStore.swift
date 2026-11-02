@@ -23,6 +23,9 @@ final class PlayerStore {
     private(set) var queueActive = false
     /// That list is Surprise Me's endless random one.
     private(set) var surpriseActive = false
+    /// The published playlist the playing queue came from; nil for the
+    /// playlist, Surprise Me and any other queue (a selection, a search).
+    private(set) var queuePlaylist: HvscPlaylist?
     private(set) var nowPlaying: TrackDetails?
     private(set) var elapsed: TimeInterval = 0
     private(set) var duration: TimeInterval?
@@ -210,6 +213,12 @@ final class PlayerStore {
         }
         update(\.state, s.state)
         update(\.currentIndex, s.currentIndex.map(Int.init))
+        // The queue ended, or Surprise Me took over: it's no longer the
+        // published playlist that plays. (Not on a still-inactive queue: a
+        // queue just started shows up a snapshot later.)
+        if (queueActive && !s.queueActive) || s.surpriseActive {
+            update(\.queuePlaylist, nil)
+        }
         update(\.queueActive, s.queueActive)
         update(\.surpriseActive, s.surpriseActive)
         update(\.nowPlaying, s.track)
@@ -249,10 +258,12 @@ final class PlayerStore {
     }
 
     /// Play `urls` as a temporary list from `start`, leaving the playlist
-    /// alone; Next and Previous stay inside the list.
-    func playQueue(_ urls: [URL], startAt start: URL) {
+    /// alone; Next and Previous stay inside the list. `playlist` names the
+    /// published playlist the list is (part of), for the inspector.
+    func playQueue(_ urls: [URL], startAt start: URL, from playlist: HvscPlaylist? = nil) {
         guard !urls.isEmpty else { return }
         core.playQueue(paths: urls.map(\.path), start: start.path)
+        update(\.queuePlaylist, playlist)
     }
 
     /// Pause / resume; when stopped, start `fallback` (the selection).
@@ -329,22 +340,29 @@ final class PlayerStore {
         hvscInfo = await core.hvscInfo()
     }
 
-    /// Play one of Phosphor's published playlists (its entries are
-    /// HVSC-relative paths) as a temporary queue from the first tune.
+    /// Play one of Phosphor's published playlists as a temporary queue
+    /// from the first tune.
     func playPublishedPlaylist(_ playlist: HvscPlaylist) {
-        guard let root = hvscRoot else { return }
+        let tunes = publishedPlaylistTunes(playlist)
+        guard let first = tunes.first else { return }
+        playQueue(tunes, startAt: first, from: playlist)
+    }
+
+    /// The files of one of Phosphor's published playlists (its entries are
+    /// HVSC-relative paths), in its order; those missing from the
+    /// collection are left out.
+    func publishedPlaylistTunes(_ playlist: HvscPlaylist) -> [URL] {
+        guard let root = hvscRoot else { return [] }
         let directory = URL.applicationSupportDirectory
             .appending(path: "phosphor")
             .appending(path: "published_playlists")
         let content = (try? String(contentsOf: directory.appending(path: playlist.file), encoding: .utf8)) ?? ""
-        let tunes = content
+        return content
             .split(whereSeparator: \.isNewline)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty && !$0.hasPrefix("#") }
             .map { URL(filePath: root).appending(path: $0.trimmingCharacters(in: .alphanumerics.inverted)) }
             .filter { FileManager.default.fileExists(atPath: $0.path) }
-        guard let first = tunes.first else { return }
-        playQueue(tunes, startAt: first)
     }
 
     /// Start from the Iced Phosphor app's settings.

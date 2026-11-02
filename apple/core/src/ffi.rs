@@ -769,6 +769,24 @@ impl PlayerCore {
             .collect())
     }
 
+    /// The tunes at `paths`, in that order, each with its header's author:
+    /// the rows of one of Phosphor's published playlists. Paths outside
+    /// the collection's indexes are left out.
+    pub async fn hvsc_tunes_at(&self, paths: Vec<String>) -> Result<Vec<HvscTuneItem>, HvscError> {
+        let hits = self
+            .library
+            .tunes_at(paths.into_iter().map(PathBuf::from).collect())
+            .await?;
+        Ok(hits
+            .into_iter()
+            .map(|(category, entry, author)| {
+                let item = HvscTuneItem::from_index(&entry, category.into());
+                // An unreadable header keeps the folder's name.
+                if author.is_empty() { item } else { HvscTuneItem { author, ..item } }
+            })
+            .collect())
+    }
+
     /// Surprise Me: an endless stream of random tunes from all of HVSC, one
     /// subtune each, never one played since launch. Next picks a new tune,
     /// Previous goes back; playing anything else ends it. Returns once the

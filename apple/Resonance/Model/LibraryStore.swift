@@ -34,6 +34,13 @@ final class LibraryStore {
     var credits: LibraryCredits?
     /// A tune to select once a list shows it; the tune table clears it.
     var revealedTune: String?
+    /// The rows of Phosphor's published playlists, by playlist file;
+    /// absent until loaded, nil when the lookup failed.
+    private(set) var playlistTunes: [String: [LibraryRow]?] = [:]
+    /// A sidebar section the window should show (the inspector's link to
+    /// the playlist that's playing, a Home playlist card); the window
+    /// clears it.
+    var shownSection: SidebarItem?
     /// How often Surprise Me was started; the toolbar's dice wiggles on each.
     private(set) var surprises = 0
 
@@ -122,6 +129,17 @@ final class LibraryStore {
             .map(LibraryRow.init)
     }
 
+    /// The tunes of one of Phosphor's published playlists, in its order.
+    /// The first load in a category waits for its search index.
+    func loadPlaylist(_ playlist: HvscPlaylist) async {
+        dropCachesIfStale()
+        guard playlistTunes[playlist.file] == nil else { return }
+        let paths = player.publishedPlaylistTunes(playlist).map(\.path)
+        let found = try? await core.hvscTunesAt(paths: paths)
+        dropCachesIfStale()
+        playlistTunes[playlist.file] = found.map { $0.map(LibraryRow.init) }
+    }
+
     /// Fuzzy search; `nil` scope searches all of HVSC. Throws on failure or
     /// cancellation.
     func search(_ query: String, scope: HvscCategory?) async throws -> HvscSearchResult {
@@ -142,15 +160,17 @@ final class LibraryStore {
         errors = [:]
         composersByWords = [:]
         linkedTunes = [:]
+        playlistTunes = [:]
     }
 
     // MARK: Actions
 
     /// Play `rows` as a temporary list from `start` (else the first). The
     /// playlist is left alone: playing from the library never adds to it.
-    func play(_ rows: [LibraryRow], startAt start: LibraryRow? = nil) {
+    /// `playlist` is the published playlist the rows come from.
+    func play(_ rows: [LibraryRow], startAt start: LibraryRow? = nil, from playlist: HvscPlaylist? = nil) {
         guard let first = rows.first else { return }
-        player.playQueue(rows.map(\.url), startAt: (start ?? first).url)
+        player.playQueue(rows.map(\.url), startAt: (start ?? first).url, from: playlist)
     }
 
     func addToPlaylist(_ rows: [LibraryRow]) {

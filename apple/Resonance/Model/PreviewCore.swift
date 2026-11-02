@@ -153,6 +153,10 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
         return HvscSearchResult(items: hits, totalMatches: UInt32(hits.count), indexed: 61_157)
     }
 
+    func hvscTunesAt(paths: [String]) async throws -> [HvscTuneItem] {
+        items.prefix(12).map(Self.tune)
+    }
+
     func hvscTunesCrediting(names: [String]) async throws -> [HvscTuneItem] {
         items.filter { item in names.contains { item.author.localizedStandardContains($0) } }.map(Self.tune)
     }

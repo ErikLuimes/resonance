@@ -132,8 +132,20 @@ struct NowPlayingInspector: View {
             Label("Surprise Me", systemImage: "dice.fill")
                 .foregroundStyle(.tint)
                 .help("Next plays another random tune from HVSC. Play anything else to stop.")
+        } else if let playlist = store.queuePlaylist {
+            // The published playlist it's playing from, which opens it.
+            Label {
+                AccentLink(playlist.name) {
+                    library.shownSection = .curated(playlist.file)
+                }
+                .lineLimit(1)
+                .help("Show the playlist")
+            } icon: {
+                Image(systemName: "music.note.list")
+            }
         } else if store.queueActive {
-            Label("From HVSC", systemImage: "books.vertical")
+            Label("From Queue", systemImage: "list.bullet")
+                .help("A selection, search or folder from HVSC")
         } else {
             Label("From Playlist", systemImage: "music.note.list")
         }
