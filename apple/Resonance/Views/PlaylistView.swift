@@ -5,8 +5,12 @@ import SwiftUI
 /// itself, so it's only offered in playlist order.
 struct PlaylistView: View {
     @Environment(PlayerStore.self) private var store
+    @Environment(LibraryStore.self) private var library
     @State private var selection = Set<TrackRow.ID>()
     @State private var sortOrder = [KeyPathComparator(\TrackRow.index)]
+    /// Which columns show (the header's menu), kept per window. Title,
+    /// Author, Released and Length by default; the rest are a right-click away.
+    @SceneStorage("PlaylistColumns") private var columns = TableColumnCustomization<TrackRow>()
     /// The window search field's text for the playlist.
     let search: String
 
@@ -21,7 +25,7 @@ struct PlaylistView: View {
     }
 
     private var table: some View {
-        Table(of: TrackRow.self, selection: $selection, sortOrder: $sortOrder) {
+        Table(of: TrackRow.self, selection: $selection, sortOrder: $sortOrder, columnCustomization: $columns) {
             TableColumn("#", value: \.index) { row in
                 if row.index == store.currentIndex {
                     Image(systemName: store.isPlaying ? "speaker.wave.2.fill" : "speaker.fill")
@@ -33,27 +37,39 @@ struct PlaylistView: View {
                 }
             }
             .width(36)
+            .customizationID("number")
 
             TableColumn("Title", value: \.title) { row in
-                Text(row.title)
-                    .fontWeight(row.index == store.currentIndex ? .semibold : .regular)
+                TuneTitleCell(library: library, path: row.id, title: row.title, author: row.author,
+                              isCurrent: row.index == store.currentIndex)
             }
+            .width(min: 160, ideal: 320)
+            .customizationID("title")
             TableColumn("Author", value: \.author)
+                .customizationID("author")
             TableColumn("Released", value: \.released)
+                .customizationID("released")
             TableColumn("Length", value: \.length) { row in
                 Text(row.lengthText).monospacedDigit()
             }
             .width(60)
+            .customizationID("length")
             TableColumn("Songs", value: \.songs) { row in
                 Text(row.songsText).monospacedDigit()
             }
             .width(56)
+            .customizationID("songs")
+            .defaultVisibility(.hidden)
             TableColumn("SIDs", value: \.chips) { row in
                 Text("\(row.chips)")
             }
             .width(36)
+            .customizationID("sids")
+            .defaultVisibility(.hidden)
             TableColumn("Type", value: \.format)
                 .width(48)
+                .customizationID("type")
+                .defaultVisibility(.hidden)
         } rows: {
             // Rows only drag in playlist order. Sorted or filtered, a drop
             // position doesn't map to a playlist position, and an insertion

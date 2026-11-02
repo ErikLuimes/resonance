@@ -1,0 +1,73 @@
+{
+  "path": "/MUSICIANS/K/Kriwanek_Mario/U-96.sid",
+  "composer": {
+    "name": "Mario Kriwanek",
+    "initials": "MK",
+    "aliases": [
+      "Kriwanek",
+      "MK",
+      "Mario",
+      "Mario Kriwanek"
+    ]
+  },
+  "sections": [
+    {
+      "subtune": 1,
+      "names": [],
+      "authors": [
+        "Geir Tjelta"
+      ],
+      "covers": [],
+      "isMedley": false,
+      "comments": [
+        {
+          "blocks": [
+            {
+              "kind": "note",
+              "by": null,
+              "role": null,
+              "paragraphs": [
+                [
+                  {
+                    "t": "Same as "
+                  },
+                  {
+                    "t": "/MUSICIANS/T/Tjelta_Geir/Remoteness.sid",
+                    "link": "/MUSICIANS/T/Tjelta_Geir/Remoteness.sid"
+                  }
+                ]
+              ]
+            },
+            {
+              "kind": "quote",
+              "by": "Geir Tjelta",
+              "role": null,
+              "paragraphs": [
+                [
+                  {
+                    "t": "Used in the game without my permission. Uses Hubbard’s Ace2 player."
+                  }
+                ]
+              ]
+            }
+          ],
+          "memoriam": false,
+          "teaser": "Same as /MUSICIANS/T/Tjelta_Geir/Remoteness.sid",
+          "links": [
+            "/MUSICIANS/T/Tjelta_Geir/Remoteness.sid"
+          ]
+        }
+      ]
+    },
+    {
+      "subtune": 2,
+      "names": [],
+      "authors": [
+        "Mario Kriwanek"
+      ],
+      "covers": [],
+      "isMedley": false,
+      "comments": []
+    }
+  ]
+}

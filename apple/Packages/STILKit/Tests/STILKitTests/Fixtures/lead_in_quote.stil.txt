@@ -1,0 +1,8 @@
+/MUSICIANS/K/Kriwanek_Mario/U-96.sid
+(#1)
+ AUTHOR: Geir Tjelta
+COMMENT: Same as /MUSICIANS/T/Tjelta_Geir/Remoteness.sid
+         "Used in the game without my permission. Uses Hubbard's Ace2 player."
+         (Geir Tjelta)
+(#2)
+ AUTHOR: Mario Kriwanek

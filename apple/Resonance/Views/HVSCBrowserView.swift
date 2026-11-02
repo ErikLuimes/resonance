@@ -490,6 +490,9 @@ struct LibraryTable: View {
     @Environment(PlayerStore.self) private var player
     @State private var selection = Set<LibraryRow.ID>()
     @State private var sortOrder: [KeyPathComparator<LibraryRow>] = []
+    /// Which columns show (the header's menu), kept per window and shared by
+    /// every library list. Title, Author, Released and Length by default.
+    @SceneStorage("LibraryColumns") private var columns = TableColumnCustomization<LibraryRow>()
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -508,7 +511,7 @@ struct LibraryTable: View {
     }
 
     private var table: some View {
-        Table(sortedRows, selection: $selection, sortOrder: $sortOrder) {
+        Table(sortedRows, selection: $selection, sortOrder: $sortOrder, columnCustomization: $columns) {
             TableColumn("") { row in
                 if isCurrent(row) {
                     Image(systemName: player.isPlaying ? "speaker.wave.2.fill" : "speaker.fill")
@@ -517,20 +520,28 @@ struct LibraryTable: View {
                 }
             }
             .width(22)
+            .customizationID("playing")
             TableColumn("Title", value: \.title) { row in
-                Text(row.title)
-                    .fontWeight(isCurrent(row) ? .semibold : .regular)
+                TuneTitleCell(library: library, path: row.id, title: row.title, author: row.author,
+                              isCurrent: isCurrent(row), mayHaveStil: row.item.hasStil)
             }
+            .width(min: 160, ideal: 320)
+            .customizationID("title")
             TableColumn("Author", value: \.author)
+                .customizationID("author")
             TableColumn("Released", value: \.released)
+                .customizationID("released")
             TableColumn("Songs", value: \.songs) { row in
                 Text("\(row.songs)").monospacedDigit()
             }
             .width(48)
+            .customizationID("songs")
+            .defaultVisibility(.hidden)
             TableColumn("Length", value: \.length) { row in
                 Text(row.lengthText).monospacedDigit()
             }
             .width(56)
+            .customizationID("length")
             TableColumn("STIL", value: \.stilSort) { row in
                 if row.item.hasStil {
                     Image(systemName: "text.quote")
@@ -539,12 +550,15 @@ struct LibraryTable: View {
                 }
             }
             .width(36)
+            .customizationID("stil")
+            .defaultVisibility(.hidden)
             if let played {
                 TableColumn("Played") { row in
                     Text(played[row.id] ?? "")
                         .foregroundStyle(.secondary)
                 }
                 .width(min: 90, ideal: 120)
+                .customizationID("played")
             }
         }
         .contextMenu(forSelectionType: LibraryRow.ID.self) { ids in

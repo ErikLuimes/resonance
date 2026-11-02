@@ -209,7 +209,58 @@ public enum STILEnricher {
             let quoted = p.utf16Slice(k, end.range.location + 1)
             if quoteCount(quoted) % 2 == 0 { return (head, tail) }
         }
+        // No sentence boundary before the quote: a reference or a tool name
+        // in front of it ("Same as /…/Remoteness.sid "Used in the game…"
+        // (Geir Tjelta)", "SW1.8 "Title is…" (NP)"). Split there too when
+        // the byline is a name or initials and the quote is a phrase, not a
+        // title.
+        guard isByline(end.group("by")) else { return nil }
+        for m in inlineQuoteStartRx.matches(p) {
+            let k = m.range.location
+            if k == 0 { return nil }
+            let head = p.utf16Slice(0, k).rstripped
+            let tail = p.utf16Slice(k)
+            let quoted = p.utf16Slice(k, end.range.location + 1)
+            let body = p.utf16Slice(k + 1, end.range.location)
+            // A phrase, or anything after a short label like "SW1.7".
+            if quoteCount(quoted) % 2 == 0, words(body) >= 4 || words(head) <= 3 { return (head, tail) }
+        }
         return nil
+    }
+
+    /// A quote that opens after a short lead-in ("SW1.8 "This angry tune…",
+    /// "Covers /…/Traz.sid "…") and closes, signed, in a later paragraph:
+    /// (lead-in, quote start). The lead-in is a few words or ends in a tune
+    /// path; the quote must close with a name or initials.
+    static func splitOpeningQuote(_ p: String, rest: ArraySlice<String>) -> (String, String)? {
+        guard let m = inlineQuoteStartRx.matches(p).first else { return nil }
+        let k = m.range.location
+        if k == 0 { return nil }
+        let head = p.utf16Slice(0, k).rstripped
+        let tail = p.utf16Slice(k)
+        if words(head) > 3, !head.hasSuffix(".sid") { return nil }
+        var count = quoteCount(tail)
+        if count % 2 == 0 { return nil }   // closed here: not this case
+        for q in rest {
+            count += quoteCount(q)
+            if count % 2 == 0 {
+                return isByline(quoteEndRx.search(q)?.group("by")) ? (head, tail) : nil
+            }
+        }
+        return nil
+    }
+
+    static func words(_ s: String) -> Int { s.split(whereSeparator: \.isWhitespace).count }
+
+    static let bylineParticles: Set<String> = ["van", "de", "der", "den", "von", "of", "the", "la", "le", "di", "da", "and", "&"]
+
+    /// A byline that is a name or initials: every word capitalised (or a
+    /// digit, or a name particle), so "(German children's song)" isn't one.
+    static func isByline(_ by: String?) -> Bool {
+        guard let by, !by.isEmpty else { return false }
+        return by.split(whereSeparator: \.isWhitespace).allSatisfy { w in
+            w.first.map { $0.isUppercase || $0.isNumber } == true || bylineParticles.contains(w.lowercased())
+        }
     }
 
     struct RawBlock { var kind: STILBlock.Kind; var by: String?; var paragraphs: [String] }
@@ -226,9 +277,10 @@ public enum STILEnricher {
     /// "A" sign an answer that has no (byline).
     static func splitBlocks(_ paras: [String]) -> [RawBlock] {
         var work: [String] = []
-        for p in paras {
+        for (n, p) in paras.enumerated() {
             // (not an interview line: its "A: " isn't a note)
-            if !p.hasPrefix("\""), qaRx.matchPrefix(p) == nil, let pair = splitInlineQuote(p) {
+            if !p.hasPrefix("\""), qaRx.matchPrefix(p) == nil,
+               let pair = splitInlineQuote(p) ?? splitOpeningQuote(p, rest: paras[(n + 1)...]) {
                 work += [pair.0, pair.1]
             } else {
                 work.append(p)

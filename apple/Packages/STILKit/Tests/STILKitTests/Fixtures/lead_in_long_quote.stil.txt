@@ -1,0 +1,15 @@
+/MUSICIANS/N/NecroPolo/
+COMMENT: NecroPolo's own comments are denoted (NP).
+
+/MUSICIANS/N/NecroPolo/Snowpiercer.sid
+  TITLE: Cölöpök [from Sárkányfejezet]
+ ARTIST: Diabolus in Musica
+COMMENT: X-SID "I'm still sort of pissed about the fact that X-SID was
+         stolen from Jeff and became spread, therefore became never
+         finished. Quite understandable reaction. Still, it is a pity as
+         this tracker is bloody awesome. Title is a reference for the
+         hyper freezing train movie and subsequent Netflix TV show. One
+         year later this SID became completely intergrated into the
+         band Diabolus in Musica, where it was originally intended. It
+         was just a demo around the time of Vincenzo's C64GT Challenge.
+         So, the SID became released first." (NP)

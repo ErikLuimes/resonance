@@ -725,7 +725,7 @@ private struct CoversView: View {
 }
 
 /// "Cover", or "Arcade Cover" when it's from an arcade game.
-private struct CoverChip: View {
+struct CoverChip: View {
     let arcade: Bool
 
     var body: some View {

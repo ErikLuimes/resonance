@@ -142,6 +142,14 @@ composer's quote.
   alone as the next paragraph: `(Comment by game programmer Chris Harvey)`.
 - **Inline quotes**: `Demo version of X. "This is a track I wrote…" (AB)` is split at the earliest
   opening `"` that follows sentence punctuation and leaves a balanced quote to the end.
+- **Lead-in quotes** (no sentence break before the quote): `Same as /…/Remoteness.sid "Used in the
+  game without my permission…" (Geir Tjelta)`, `SW1.8 "Title is a direct reference…" (NP)`. Split at
+  the earliest opening `"` whose rest is balanced when the attribution is a **byline** (every word
+  capitalised, a digit or a name particle: so not "(German children's song)") and the quote is a
+  phrase (≥ 4 words) or follows a short label (≤ 3 words). A quote that opens after such a lead-in
+  (≤ 3 words, or ending in a `.sid` path) and closes, signed with a byline, in a **later**
+  paragraph is split the same way. ~150 more quotes on v85; short inline quotes inside a sentence
+  ("used "for a fee." (GT)") stay notes.
 - The outer quote marks are removed from the text; the UI draws them.
 - An unclosed leading quote (`"Remix" of …`) is just a note.
 - **Interviews** (3 entries in v85): a paragraph starting `Q: ` is a `question` block (prefix

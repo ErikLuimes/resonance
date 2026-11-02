@@ -60,6 +60,16 @@
     "exercises": "Quote, then Q: question and a quoted 'A: \"...\" (BD)' answer resolved to Ben Daglish; the note after it stays a note"
   },
   {
+    "name": "lead_in_quote",
+    "entry": "/MUSICIANS/K/Kriwanek_Mario/U-96.sid",
+    "exercises": "Song 1: 'Same as /…/Remoteness.sid \"…\" (Geir Tjelta)': no sentence break before the quote, yet it splits into a note and someone else's quote"
+  },
+  {
+    "name": "lead_in_long_quote",
+    "entry": "/MUSICIANS/N/NecroPolo/Snowpiercer.sid",
+    "exercises": "'X-SID \"…' opens a quote after a tracker name that closes, signed (NP), paragraphs later"
+  },
+  {
     "name": "emphasis",
     "entry": "/MUSICIANS/C/CreaMD/Black_Sistah.sid",
     "exercises": "*word* becomes an em run"

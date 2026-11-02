@@ -393,7 +393,60 @@ def _split_inline_quote(p: str) -> Optional[tuple[str, str]]:
             continue
         if tail[:end.start() - k + 1].count('"') % 2 == 0:
             return head, tail
+    # No sentence boundary before the quote: a reference or a tool name in
+    # front of it ("Same as /…/Remoteness.sid "Used in the game…" (Geir
+    # Tjelta)", "SW1.8 "Title is…" (NP)"). Split there too when the byline
+    # is a name or initials and the quote is a phrase, not a title.
+    if not _is_byline(end.group("by")):
+        return None
+    for m in INLINE_QUOTE_START_RE.finditer(p):
+        k = m.start()
+        if k == 0:
+            return None
+        head, tail = p[:k].rstrip(), p[k:]
+        body = tail[1:end.start() - k]
+        # A phrase, or anything after a short label like "SW1.7".
+        if tail[:end.start() - k + 1].count('"') % 2 == 0 and (len(body.split()) >= 4 or len(head.split()) <= 3):
+            return head, tail
     return None
+
+
+def _split_opening_quote(p: str, rest: list[str]) -> Optional[tuple[str, str]]:
+    """A quote that opens after a short lead-in ("SW1.8 "This angry tune…",
+    "Covers /…/Traz.sid "…") and closes, signed, in a later paragraph:
+    (lead-in, quote start). The lead-in is a few words or ends in a tune
+    path; the quote must close with a name or initials."""
+    for m in INLINE_QUOTE_START_RE.finditer(p):
+        k = m.start()
+        if k == 0:
+            return None
+        head, tail = p[:k].rstrip(), p[k:]
+        if len(head.split()) > 3 and not head.endswith(".sid"):
+            return None
+        count = tail.count('"')
+        if count % 2 == 0:
+            return None                               # closed here: not this case
+        for q in rest:
+            count += q.count('"')
+            end = QUOTE_END_RE.search(q)
+            if count % 2 == 0:
+                if end and _is_byline(end.group("by")):
+                    return head, tail
+                return None
+        return None
+    return None
+
+
+# A byline that is a name or initials: every word capitalised (or a digit,
+# or a name particle), so "(German children's song)" isn't one.
+BYLINE_PARTICLES = {"van", "de", "der", "den", "von", "of", "the", "la", "le", "di", "da", "and", "&"}
+
+
+def _is_byline(by: Optional[str]) -> bool:
+    if not by:
+        return False
+    words = by.split()
+    return all(w[0].isupper() or w[0].isdigit() or w.lower() in BYLINE_PARTICLES for w in words)
 
 
 # "Q: Is this a cover?" / "A: ..." / "JT: ...": an interview line.
@@ -407,9 +460,11 @@ def split_blocks(paras: list[str]) -> list[dict]:
     it opens with one, else up to the next question or the comment's end.
     Initials other than "A" sign an answer that has no (byline)."""
     work: list[str] = []
-    for p in paras:                                   # split "Note. "Quote" (X)" first
+    for n, p in enumerate(paras):                     # split "Note. "Quote" (X)" first
         # (not an interview line: its "A: " isn't a note)
-        sp = _split_inline_quote(p) if not p.startswith('"') and not QA_RE.match(p) else None
+        sp = None
+        if not p.startswith('"') and not QA_RE.match(p):
+            sp = _split_inline_quote(p) or _split_opening_quote(p, paras[n + 1:])
         work.extend(sp if sp else [p])
 
     def is_question(p: str) -> bool:

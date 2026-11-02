@@ -761,6 +761,17 @@ struct StilNotesTests {
         #expect(rest.sections[0].comments[0].blocks.map(\.kind) == [.note, .question, .quote])
     }
 
+    @Test func theTeaserIsTheFirstThingStilSays() {
+        let teaser = Teaser(commando)
+        #expect(teaser?.isQuote == true)
+        #expect(teaser?.plain == "\u{201C}There is an interesting story behind Commando.\u{201D} \u{2014} Rob Hubbard")
+        let note = STILEntry.parsing("""
+            /MUSICIANS/M/Mega_Apocalypse.sid
+            COMMENT: Mega Apocalypse was the sequel to Crazy Comets. It has more.
+            """, sidAuthor: nil)!
+        #expect(Teaser(note)?.plain == "Mega Apocalypse was the sequel to Crazy Comets.")
+    }
+
     @Test func theEpitaphSaysWhenTheyPassedAway() {
         #expect(MemorialCard.passed("On May 6th, 2011.") == "Passed away on May 6th, 2011")
         #expect(MemorialCard.passed(nil) == "Passed away")
