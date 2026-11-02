@@ -89,6 +89,7 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
 
     func recentlyPlayed() async throws -> [RecentTune] { lock.withLock { _recent } }
     func heardCount() async -> UInt32 { lock.withLock { _heard } }
+    func hvscBugs(path: String) async -> [TuneBug] { [] }
 
     func hvscTunesAt(paths: [String]) async throws -> [HvscTuneItem] {
         record("tunesAt \(paths.count)")

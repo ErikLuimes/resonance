@@ -161,6 +161,11 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
 
     func heardCount() async -> UInt32 { 2_431 }
 
+    func hvscBugs(path: String) async -> [TuneBug] {
+        guard path == items.first?.path else { return [] }
+        return [TuneBug(text: "Falls out of synch at around 2:40. Happens the same in the original.", reporter: "iAN CooG", subtune: nil)]
+    }
+
     func hvscTunesAt(paths: [String]) async throws -> [HvscTuneItem] {
         items.prefix(12).map(Self.tune)
     }

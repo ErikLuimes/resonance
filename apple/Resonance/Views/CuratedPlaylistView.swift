@@ -46,7 +46,8 @@ struct CuratedPlaylistView: View {
     // MARK: Header
 
     private var header: some View {
-        HStack(alignment: .center, spacing: 16) {
+        @Bindable var store = store
+        return HStack(alignment: .center, spacing: 16) {
             PlaylistArtwork(name: playlist.name, size: 76)
             VStack(alignment: .leading, spacing: 4) {
                 Text("Curated Playlist")
@@ -71,19 +72,20 @@ struct CuratedPlaylistView: View {
             Spacer(minLength: 12)
             HStack(spacing: 8) {
                 Button {
-                    play(shuffled: false)
+                    play()
                 } label: {
                     Label(isPlaying ? "Play Again" : "Play", systemImage: "play.fill")
                 }
                 .buttonStyle(.borderedProminent)
-                Button {
-                    play(shuffled: true)
-                } label: {
+                .disabled(rows.isEmpty)
+                // The player's own shuffle, the same one as the player
+                // bar's button: it applies to the playlist playing now too.
+                Toggle(isOn: $store.shuffle) {
                     Label("Shuffle", systemImage: "shuffle")
                 }
-                .buttonStyle(.bordered)
+                .toggleStyle(.button)
+                .help(store.shuffle ? "Shuffle: On" : "Shuffle: Off")
             }
-            .disabled(rows.isEmpty)
             .fixedSize()
         }
         .padding(.horizontal, 20)
@@ -120,9 +122,11 @@ struct CuratedPlaylistView: View {
 
     private var isPlaying: Bool { store.queuePlaylist == playlist }
 
-    private func play(shuffled: Bool) {
-        let list = shuffled ? rows.shuffled() : rows
-        library.play(list, from: playlist)
+    /// From the top, or with shuffle on from a random tune (the core then
+    /// plays the rest in shuffled order).
+    private func play() {
+        let start = store.shuffle ? rows.randomElement() : rows.first
+        library.play(rows, startAt: start, from: playlist)
     }
 }
 

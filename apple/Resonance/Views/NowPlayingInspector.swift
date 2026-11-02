@@ -25,6 +25,9 @@ struct NowPlayingInspector: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     header(track, showsAuthor: composer == nil)
+                    if let bugs = library.bugs[track.path], !bugs.isEmpty {
+                        KnownIssueCard(bugs: bugs, currentSong: Int(track.currentSong))
+                    }
                     if let composer {
                         ComposerCard(composer: composer, tunePath: track.path)
                     }
@@ -44,6 +47,7 @@ struct NowPlayingInspector: View {
             // The composer card matches composers against the MUSICIANS list.
             .task(id: store.hvscRoot) { await library.loadAuthors(.musicians) }
             .task(id: track.path) { await library.loadStil(path: track.path, sidAuthor: track.author) }
+            .task(id: track.path) { await library.loadBugs(path: track.path) }
         } else {
             ContentUnavailableView {
                 Label("Not Playing", systemImage: "waveform")
@@ -247,6 +251,51 @@ private struct InspectorSection<Content: View>: View {
             content
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(.fill.quaternary, in: .rect(cornerRadius: 10))
+        }
+    }
+}
+
+/// What HVSC's bugged-tunes list says is wrong with the tune: wrong notes,
+/// falling out of sync, an incomplete rip. Orange, so it reads as a
+/// warning before the notes about the music.
+private struct KnownIssueCard: View {
+    let bugs: [TuneBug]
+    /// The subtune playing, to say whether a subtune's bug is this one.
+    let currentSong: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(bugs.count == 1 ? "Known Issue" : "Known Issues", systemImage: "exclamationmark.triangle.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.orange)
+            ForEach(Array(bugs.enumerated()), id: \.offset) { _, bug in
+                VStack(alignment: .leading, spacing: 3) {
+                    if let subtune = bug.subtune {
+                        Text(Int(subtune) == currentSong ? "This subtune (\(subtune))" : "Subtune \(subtune)")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(bug.text)
+                        .font(.callout)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let reporter = bug.reporter {
+                        Text("Reported by \(reporter)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            Text("From HVSC's list of bugged tunes")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .textSelection(.enabled)
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.orange.opacity(0.12), in: .rect(cornerRadius: 10))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(.orange.opacity(0.35))
         }
     }
 }

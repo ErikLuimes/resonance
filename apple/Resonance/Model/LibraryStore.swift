@@ -34,6 +34,9 @@ final class LibraryStore {
     var credits: LibraryCredits?
     /// A tune to select once a list shows it; the tune table clears it.
     var revealedTune: String?
+    /// What HVSC's bugged-tunes list says about tunes, by path; absent
+    /// until loaded, empty for most.
+    private(set) var bugs: [String: [TuneBug]] = [:]
     /// The rows of Phosphor's published playlists, by playlist file;
     /// absent until loaded, nil when the lookup failed.
     private(set) var playlistTunes: [String: [LibraryRow]?] = [:]
@@ -112,6 +115,15 @@ final class LibraryStore {
         stil[path] = excerpt.flatMap { STILEntry.parsing($0, sidAuthor: sidAuthor) }
     }
 
+    /// The bugs HVSC's bugged-tunes list reports on the tune at `path`.
+    func loadBugs(path: String) async {
+        dropCachesIfStale()
+        guard bugs[path] == nil else { return }
+        let found = await core.hvscBugs(path: path)
+        dropCachesIfStale()
+        bugs[path] = found
+    }
+
     /// The title and author of a tune STIL links to (an HVSC path).
     func loadLinkedTune(_ hvscPath: String) async {
         dropCachesIfStale()
@@ -176,6 +188,7 @@ final class LibraryStore {
         composersByWords = [:]
         linkedTunes = [:]
         playlistTunes = [:]
+        bugs = [:]
     }
 
     // MARK: Actions

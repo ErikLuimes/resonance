@@ -248,6 +248,20 @@ impl Library {
         db.stil_text(&path, self.root().as_deref())
     }
 
+    /// What HVSC's bugged-tunes list (DOCUMENTS/BUGlist.txt) reports on the
+    /// tune at `path`; empty for most tunes.
+    pub async fn bugs(&self, path: PathBuf) -> Vec<crate::buglist::Bug> {
+        let Some(root) = self.root() else {
+            return Vec::new();
+        };
+        let Some(hvsc_path) = databases::hvsc_path(&path, Some(&root)) else {
+            return Vec::new();
+        };
+        blocking(move || crate::buglist::bugs(&root, &hvsc_path))
+            .await
+            .unwrap_or_default()
+    }
+
     /// Fuzzy search over the given category, or all of them. Builds (or
     /// loads from cache) any index that isn't ready yet first.
     ///

@@ -179,7 +179,7 @@ impl StilText {
 }
 
 /// HVSC ships STIL.txt in Latin-1; some copies are re-encoded as UTF-8.
-fn decode_stil(bytes: &[u8]) -> String {
+pub(crate) fn decode_stil(bytes: &[u8]) -> String {
     match std::str::from_utf8(bytes) {
         Ok(text) => text.to_string(),
         Err(_) => bytes.iter().map(|&b| char::from(b)).collect(),
@@ -189,7 +189,7 @@ fn decode_stil(bytes: &[u8]) -> String {
 /// A tune's or folder's path as STIL names it: "/MUSICIANS/H/Hubbard_Rob/
 /// Commando.sid". Outside the HVSC folder, counted from its MUSICIANS,
 /// GAMES or DEMOS folder, as in another copy of HVSC.
-fn hvsc_path(path: &Path, hvsc_root: Option<&Path>) -> Option<String> {
+pub(crate) fn hvsc_path(path: &Path, hvsc_root: Option<&Path>) -> Option<String> {
     let parts: Vec<String> = path
         .components()
         .filter_map(|c| match c {

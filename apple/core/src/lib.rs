@@ -73,6 +73,7 @@ pub(crate) mod stil;
 
 uniffi::setup_scaffolding!();
 
+mod buglist;
 mod databases;
 mod driver;
 mod ffi;

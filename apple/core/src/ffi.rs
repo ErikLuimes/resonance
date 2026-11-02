@@ -317,6 +317,17 @@ pub struct HvscTuneItem {
     pub category: HvscCategory,
 }
 
+/// A bug HVSC's bugged-tunes list reports on a tune.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct TuneBug {
+    /// "Falls out of synch at 2:50."
+    pub text: String,
+    /// Who reported it.
+    pub reporter: Option<String>,
+    /// The subtune it's about, when the list names one.
+    pub subtune: Option<u16>,
+}
+
 /// A tune from the play history shared with Phosphor.
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct RecentTune {
@@ -796,6 +807,21 @@ impl PlayerCore {
                 if author.is_empty() { item } else { HvscTuneItem { author, ..item } }
             })
             .collect())
+    }
+
+    /// What HVSC's bugged-tunes list (DOCUMENTS/BUGlist.txt) reports on the
+    /// tune at `path` (a file in the collection); usually nothing.
+    pub async fn hvsc_bugs(&self, path: String) -> Vec<TuneBug> {
+        self.library
+            .bugs(PathBuf::from(path))
+            .await
+            .into_iter()
+            .map(|b| TuneBug {
+                text: b.text,
+                reporter: b.reporter,
+                subtune: b.subtune,
+            })
+            .collect()
     }
 
     /// The play history shared with Phosphor, newest first: the last 100
