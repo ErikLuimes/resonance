@@ -1,0 +1,77 @@
+[
+  {
+    "name": "freaky_dna_reflow",
+    "entry": "/DEMOS/0-9/128_Byte_Blues_BASIC.sid",
+    "exercises": "Hard-wrapped essay: unwrap into 3 paragraphs; whole comment is one quote; byline from (Freaky DNA); PAL/NTSC and 6581/8580 as tech runs; 'etc..' fix"
+  },
+  {
+    "name": "commando_medley",
+    "entry": "/MUSICIANS/H/Hubbard_Rob/Commando.sid",
+    "exercises": "File-level quote signed (RH) resolved via folder entry to Rob Hubbard (composer); subtune 1 medley with point and range timestamps; subtune 3 <?> unknown title"
+  },
+  {
+    "name": "seven_years_remix",
+    "entry": "/DEMOS/0-9/7_Years.sid",
+    "exercises": "Cover (TITLE + ARTIST) and a cross-reference link run 'Remix of /MUSICIANS/...sid'"
+  },
+  {
+    "name": "three_oversample_link",
+    "entry": "/DEMOS/0-9/3_Oversample.sid",
+    "exercises": "Inline link mid-sentence; text before/after the link stays plain"
+  },
+  {
+    "name": "miles_memoriam",
+    "entry": "/DEMOS/0-9/53_Miles_West_of_Venus.sid",
+    "exercises": "memoriam flag"
+  },
+  {
+    "name": "lion_heart_other_voice",
+    "entry": "/MUSICIANS/H/Hubbard_Rob/Lion_Heart.sid",
+    "exercises": "Quote by someone who is not the folder's musician: role stays null (never 'not the composer'); spaced hyphen becomes em dash"
+  },
+  {
+    "name": "master_of_magic_cover_quote",
+    "entry": "/MUSICIANS/H/Hubbard_Rob/Master_of_Magic.sid",
+    "exercises": "Subtune with cover [from Audion] by Synergy plus a composer quote in the same subtune"
+  },
+  {
+    "name": "phobos_initials_mixed",
+    "entry": "/MUSICIANS/P/Phobos/Batman.sid",
+    "exercises": "Note block + quote block in one comment; (KM) resolved via folder declaration; link with ', Tune #2' subtune"
+  },
+  {
+    "name": "scotland_mixed",
+    "entry": "/MUSICIANS/C/Clarke_Peter/Scotland_the_Brave.sid",
+    "exercises": "Note paragraph followed by a composer quote; '...' becomes ellipsis"
+  },
+  {
+    "name": "numbered_list",
+    "entry": "/MUSICIANS/D/Deetsay/Great_Hirmu_Sisters.sid",
+    "exercises": "Numbered list '1) 2) 3)' gets one paragraph per item"
+  },
+  {
+    "name": "interview_qa",
+    "entry": "/MUSICIANS/T/Tel_Jeroen/Bad_Blood.sid",
+    "exercises": "Q:/A: interview lines become separate paragraphs"
+  },
+  {
+    "name": "emphasis",
+    "entry": "/MUSICIANS/C/CreaMD/Black_Sistah.sid",
+    "exercises": "*word* becomes an em run"
+  },
+  {
+    "name": "url",
+    "entry": "/GAMES/A-F/Catalypse.sid",
+    "exercises": "URL run"
+  },
+  {
+    "name": "hex_address",
+    "entry": "/GAMES/A-F/Alf_the_First_Adventure.sid",
+    "exercises": "$hex address as tech run"
+  },
+  {
+    "name": "names_field",
+    "entry": "/DEMOS/A-F/Battle_Hymn_of_the_Republic_v1_BASIC.sid",
+    "exercises": "NAME / AUTHOR fields"
+  }
+]

@@ -1,0 +1,49 @@
+{
+  "path": "/DEMOS/0-9/7_Years.sid",
+  "composer": null,
+  "sections": [
+    {
+      "subtune": null,
+      "names": [],
+      "authors": [],
+      "covers": [
+        {
+          "title": "Peppered Pizza",
+          "unknown": false,
+          "source": null,
+          "at": null,
+          "until": null,
+          "artist": "Reyn Ouwehand"
+        }
+      ],
+      "isMedley": false,
+      "comments": [
+        {
+          "blocks": [
+            {
+              "kind": "note",
+              "by": null,
+              "role": null,
+              "paragraphs": [
+                [
+                  {
+                    "t": "Remix of "
+                  },
+                  {
+                    "t": "/MUSICIANS/O/Ouwehand_Reyn/Peppered_Pizza.sid",
+                    "link": "/MUSICIANS/O/Ouwehand_Reyn/Peppered_Pizza.sid"
+                  }
+                ]
+              ]
+            }
+          ],
+          "memoriam": false,
+          "teaser": "Remix of /MUSICIANS/O/Ouwehand_Reyn/Peppered_Pizza.sid",
+          "links": [
+            "/MUSICIANS/O/Ouwehand_Reyn/Peppered_Pizza.sid"
+          ]
+        }
+      ]
+    }
+  ]
+}

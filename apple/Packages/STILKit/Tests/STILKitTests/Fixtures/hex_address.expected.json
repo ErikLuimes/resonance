@@ -1,0 +1,147 @@
+{
+  "path": "/GAMES/A-F/Alf_the_First_Adventure.sid",
+  "composer": null,
+  "sections": [
+    {
+      "subtune": 2,
+      "names": [],
+      "authors": [],
+      "covers": [
+        {
+          "title": "Charge",
+          "unknown": false,
+          "source": null,
+          "at": null,
+          "until": null,
+          "artist": "Tommy Walker"
+        }
+      ],
+      "isMedley": false,
+      "comments": [
+        {
+          "blocks": [
+            {
+              "kind": "note",
+              "by": null,
+              "role": null,
+              "paragraphs": [
+                [
+                  {
+                    "t": "Conversion of "
+                  },
+                  {
+                    "t": "/DEMOS/A-F/Fanfare_BASIC.sid",
+                    "link": "/DEMOS/A-F/Fanfare_BASIC.sid"
+                  },
+                  {
+                    "t": " with a typo on last harmony. Also used in the games “"
+                  },
+                  {
+                    "t": "$100",
+                    "tech": true
+                  },
+                  {
+                    "t": ",000 Pyramid” and “High Rollers”, both also (C) 1988 Box Office"
+                  }
+                ]
+              ]
+            }
+          ],
+          "memoriam": false,
+          "teaser": "Conversion of /DEMOS/A-F/Fanfare_BASIC.sid with a typo on last harmony.",
+          "links": [
+            "/DEMOS/A-F/Fanfare_BASIC.sid"
+          ]
+        }
+      ]
+    },
+    {
+      "subtune": 3,
+      "names": [],
+      "authors": [],
+      "covers": [
+        {
+          "title": "Original Rags",
+          "unknown": false,
+          "source": null,
+          "at": null,
+          "until": null,
+          "artist": "Scott Joplin"
+        }
+      ],
+      "isMedley": false,
+      "comments": []
+    },
+    {
+      "subtune": 4,
+      "names": [],
+      "authors": [],
+      "covers": [
+        {
+          "title": "Malbrouk s'en va-t-en guerre",
+          "unknown": false,
+          "source": null,
+          "at": null,
+          "until": null,
+          "artist": "Traditional"
+        }
+      ],
+      "isMedley": false,
+      "comments": [
+        {
+          "blocks": [
+            {
+              "kind": "note",
+              "by": null,
+              "role": null,
+              "paragraphs": [
+                [
+                  {
+                    "t": "An Arab tune that was brought to Europe during the crusades and became popular during the french revolution, ever since spawned many songs, including “For He’s a Jolly Good Fellow”."
+                  }
+                ]
+              ]
+            }
+          ],
+          "memoriam": false,
+          "teaser": "An Arab tune that was brought to Europe during the crusades and became popular during the french revolution, ever since spawned many…",
+          "links": []
+        }
+      ]
+    },
+    {
+      "subtune": 5,
+      "names": [],
+      "authors": [],
+      "covers": [
+        {
+          "title": "Dragnet Theme",
+          "unknown": false,
+          "source": "the television series",
+          "at": null,
+          "until": null,
+          "artist": "Miklós Rózsa & Walter Schumann"
+        }
+      ],
+      "isMedley": false,
+      "comments": []
+    },
+    {
+      "subtune": 6,
+      "names": [],
+      "authors": [],
+      "covers": [
+        {
+          "title": "Land of Hope and Glory",
+          "unknown": false,
+          "source": "Pomp and Circumstance March No. 1",
+          "at": null,
+          "until": null,
+          "artist": "Edward Elgar (music), A.C. Benson (lyrics)"
+        }
+      ],
+      "isMedley": false,
+      "comments": []
+    }
+  ]
+}

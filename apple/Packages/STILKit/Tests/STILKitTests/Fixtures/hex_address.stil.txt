@@ -1,0 +1,22 @@
+/GAMES/A-F/Alf_the_First_Adventure.sid
+(#2)
+  TITLE: Charge
+ ARTIST: Tommy Walker
+COMMENT: Conversion of /DEMOS/A-F/Fanfare_BASIC.sid with a typo on last harmony.
+         Also used in the games "$100,000 Pyramid" and "High Rollers", both
+         also (C) 1988 Box Office
+(#3)
+  TITLE: Original Rags
+ ARTIST: Scott Joplin
+(#4)
+  TITLE: Malbrouk s'en va-t-en guerre
+ ARTIST: Traditional
+COMMENT: An Arab tune that was brought to Europe during the crusades and
+         became popular during the french revolution, ever since spawned
+         many songs, including "For He's a Jolly Good Fellow".
+(#5)
+  TITLE: Dragnet Theme [from the television series]
+ ARTIST: Miklós Rózsa & Walter Schumann
+(#6)
+  TITLE: Land of Hope and Glory [from Pomp and Circumstance March No. 1]
+ ARTIST: Edward Elgar (music), A.C. Benson (lyrics)

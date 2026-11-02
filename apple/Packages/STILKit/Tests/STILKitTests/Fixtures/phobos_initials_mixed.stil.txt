@@ -1,0 +1,12 @@
+/MUSICIANS/P/Phobos/
+COMMENT: Phobos' (Krzysztof Malczewski) own comments are denoted (KM)
+         (translated by Raf).
+
+/MUSICIANS/P/Phobos/Batman.sid
+  TITLE: Batman, The Caped Crusader, Tune #2
+ ARTIST: Fred Gray
+COMMENT: Phobos has mistakenly signed this tune "BATMAN BY M.GRAY", while it
+         covers /MUSICIANS/G/Gray_Fred/Batman_the_Caped_Crusader.sid, Tune #2.
+         "My first tune written in JCH editor with Glover's 2x player. This one
+         was written in 1x in 21.g6, instruments were checked with Turbo
+         Assembler +60K." (KM)

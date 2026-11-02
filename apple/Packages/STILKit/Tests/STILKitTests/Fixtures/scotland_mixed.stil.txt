@@ -1,0 +1,13 @@
+/MUSICIANS/C/Clarke_Peter/
+COMMENT: Sadly, Peter Clarke passed away on 31 July 2025 at age of 66, after a
+         long illness. Peter Clarke's own comments are denoted (PC).
+
+/MUSICIANS/C/Clarke_Peter/Scotland_the_Brave.sid
+  TITLE: Scotland the Brave
+ ARTIST: Traditional
+COMMENT: This was one of six tunes that featured in a music demo produced by
+         Peter Clarke and Paul Hughes in 1986. The tunes eventually were
+         released in the 2025 demo For Pete's Sake as a posthumous tribute to
+         Peter Clarke.
+         "Ooh Er! How bad will this be...? Yep! Pretty bad.. I guess I was
+         focusing on the drums, trying to get a military beat.." (PC)

@@ -1,0 +1,25 @@
+{
+  "path": "/DEMOS/A-F/Battle_Hymn_of_the_Republic_v1_BASIC.sid",
+  "composer": null,
+  "sections": [
+    {
+      "subtune": null,
+      "names": [
+        "Battle Hymn of the Republic v1 (Two Violins)"
+      ],
+      "authors": [],
+      "covers": [
+        {
+          "title": "The Battle Hymn of the Republic",
+          "unknown": false,
+          "source": null,
+          "at": null,
+          "until": null,
+          "artist": "William Steffe (music), Julia Ward Howe (lyrics)"
+        }
+      ],
+      "isMedley": false,
+      "comments": []
+    }
+  ]
+}

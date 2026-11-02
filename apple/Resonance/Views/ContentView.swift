@@ -40,6 +40,16 @@ struct ContentView: View {
         }
         .toolbarVisibility(store.isShowingNowPlaying ? .hidden : .visible, for: .windowToolbar)
         .animation(.spring(response: 0.45, dampingFraction: 0.85), value: store.isShowingNowPlaying)
+        // A constant for the window, not a minimum inside the split view,
+        // which made AppKit re-run layout until it aborted (see
+        // NowPlayingBar). Only the inspector button changes it.
+        .frame(minWidth: Self.minWidth(inspector: showInspector))
+    }
+
+    /// Narrowest the window gets: the sidebar, a bottom bar with room for
+    /// its controls and some of the title, and the inspector when it shows.
+    static func minWidth(inspector: Bool) -> CGFloat {
+        160 + 520 + (inspector ? 260 : 0)
     }
 
     private var libraryMode: some View {
@@ -112,12 +122,12 @@ struct ContentView: View {
                     .allowsHitTesting(false)
             }
         }
-        // The inspector's author link: Musicians, with no search, so the
-        // author list shows.
+        // The inspector's author link (or a tune STIL links to): its
+        // section, with no search, so the author list shows.
         .onChange(of: library.reveal) { _, reveal in
-            guard reveal != nil else { return }
-            searches[.hvsc(.musicians)] = ""
-            sidebarSelection = .hvsc(.musicians)
+            guard let reveal else { return }
+            searches[.hvsc(reveal.category)] = ""
+            sidebarSelection = .hvsc(reveal.category)
         }
         // For a composer without a folder: the tune's section, with no
         // search, so the browser can list their tunes.
@@ -222,3 +232,4 @@ private struct StatusBanner: View {
         .environment(LibraryStore(player: .preview))
         .frame(width: 1100, height: 680)
 }
+

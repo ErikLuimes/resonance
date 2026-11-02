@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import PhosphorCore
+import STILKit
 
 /// The HVSC collection as the sidebar browses it.
 ///
@@ -13,15 +14,19 @@ final class LibraryStore {
     private(set) var authors: [HvscCategory: [HvscAuthorItem]] = [:]
     /// Tunes per author folder path; absent until loaded.
     private(set) var tunes: [String: [LibraryRow]] = [:]
-    /// STIL's note per author folder path, "" when it has none; absent
-    /// until loaded.
-    private(set) var authorNotes: [String: String] = [:]
+    /// What STIL says per tune or author folder path, ready to show; nil
+    /// when it says nothing, absent until loaded.
+    private(set) var stil: [String: STILEntry?] = [:]
     /// Tunes whose header credits a name, per name; absent until loaded.
     private(set) var credited: [String: [LibraryRow]] = [:]
+    /// Tunes STIL links to, by HVSC path, nil when the file can't be read;
+    /// absent until loaded.
+    private(set) var linkedTunes: [String: LinkedTune?] = [:]
     private(set) var errors: [HvscCategory: String] = [:]
-    /// An author the browser should show (the composer card's link). The
-    /// window switches to Musicians and the browser selects the author,
-    /// then hands the tune on to `revealedTune`.
+    /// An author the browser should show (the composer card's link, or a
+    /// tune STIL links to). The window switches to its category and the
+    /// browser selects the author, then hands the tune on to
+    /// `revealedTune`.
     var reveal: LibraryReveal?
     /// A composer without a MUSICIANS folder the browser should show the
     /// tunes of (the composer card's link). The window switches to
@@ -81,12 +86,24 @@ final class LibraryStore {
         }
     }
 
-    func loadAuthorNote(authorPath: String) async {
+    /// STIL's entry on a tune or author folder, which the core hands over
+    /// as STIL.txt has it; parsed here. `sidAuthor` is a tune header's
+    /// author, which tells whose voice a quote is in.
+    func loadStil(path: String, sidAuthor: String? = nil) async {
         dropCachesIfRootChanged()
-        guard authorNotes[authorPath] == nil else { return }
-        let note = try? await core.hvscAuthorNote(authorPath: authorPath)
+        guard stil[path] == nil else { return }
+        let excerpt = await core.hvscStil(path: path)
         dropCachesIfRootChanged()
-        authorNotes[authorPath] = note ?? ""
+        stil[path] = excerpt.flatMap { STILEntry.parsing($0, sidAuthor: sidAuthor) }
+    }
+
+    /// The title and author of a tune STIL links to (an HVSC path).
+    func loadLinkedTune(_ hvscPath: String) async {
+        dropCachesIfRootChanged()
+        guard linkedTunes[hvscPath] == nil, let file = file(atHvscPath: hvscPath) else { return }
+        let tune = await LinkedTune.read(file)
+        dropCachesIfRootChanged()
+        linkedTunes[hvscPath] = tune
     }
 
     /// Every tune in HVSC whose header credits `name`: "Exos" or "EXOS &
@@ -114,10 +131,11 @@ final class LibraryStore {
         cachedRoot = player.hvscRoot
         authors = [:]
         tunes = [:]
-        authorNotes = [:]
+        stil = [:]
         credited = [:]
         errors = [:]
         composersByWords = [:]
+        linkedTunes = [:]
     }
 
     // MARK: Actions
@@ -194,6 +212,22 @@ final class LibraryStore {
         let candidates = Self.people(in: credit.base) + credit.handles.map { $0.trimmingCharacters(in: .whitespaces) }
         guard let name = candidates.first(where: { !words($0).isEmpty }) else { return nil }
         return Composer(authorPath: nil, name: name, subtitle: subtitle(for: name, in: author))
+    }
+
+    /// The file at an HVSC path in the HVSC folder.
+    func file(atHvscPath hvscPath: String) -> URL? {
+        player.hvscRoot.map { URL(filePath: $0).appending(path: hvscPath.trimmingPrefix("/")) }
+    }
+
+    /// Show a tune STIL links to (an HVSC path) in the library, in its
+    /// author's folder or its section.
+    func reveal(hvscPath: String) {
+        guard let tune = file(atHvscPath: hvscPath), let category = category(of: tune.path) else { return }
+        reveal = LibraryReveal(
+            authorPath: tune.deletingLastPathComponent().path,
+            tunePath: tune.path,
+            category: category
+        )
     }
 
     /// Which part of HVSC `path` is in, if any.
@@ -341,13 +375,16 @@ nonisolated struct Composer: Equatable, Sendable {
     }
 }
 
-/// A composer the browser should show, from the composer card's link.
+/// An author (or section) the browser should show, from the composer
+/// card's link or a tune STIL links to.
 nonisolated struct LibraryReveal: Equatable, Sendable {
     let id = UUID()
-    /// The composer's MUSICIANS folder.
+    /// The composer's MUSICIANS folder, or a GAMES or DEMOS section.
     let authorPath: String
-    /// Selected if it's in that folder (a GAMES or DEMOS tune isn't).
+    /// Selected if it's in that folder (a GAMES or DEMOS tune isn't in a
+    /// composer's).
     let tunePath: String
+    var category: HvscCategory = .musicians
 }
 
 /// A composer without a MUSICIANS folder whose tunes the browser should

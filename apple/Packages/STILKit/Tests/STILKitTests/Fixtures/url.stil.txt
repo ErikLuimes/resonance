@@ -1,0 +1,27 @@
+/GAMES/A-F/Catalypse.sid
+COMMENT: Andrea Carboni, the programmer of the game, said in an interview: "I
+         never met Michael Tschoegl, who was contacted by Genias directly. The
+         first music disk was completely broken when it arrived, so I recovered
+         all that I could (almost) hear and composed the full tunes from the
+         beginning. When I got the second disk, I realised that the tunes I
+         modified, were not composed for the game parts I used them in.
+         Moreover, they told me that my compositions were a lot better than
+         his!!! Only the final track, the one that plays during the end titles
+         (tune #6), remained untouched. Furthermore, I didn't write about this
+         on the title screen, since actually the basic sound was created by
+         Michael anyway." (info comes from an interview at www.retrogaming.it)
+(#1)
+COMMENT: Almost the same as /GAMES/M-R/Neverending_Story_II.sid, Tune #2.
+(#3)
+  TITLE: Necronom Intro [from the Amiga game]
+ ARTIST: Michael Tschögl
+(#4)
+COMMENT: Composed by Andrea Pompili. He said in an interview: "The groove in
+         the ingame tune was composed by me, and it's based upon a short piece
+         I used to play during the introduction of my band."
+(#5)
+  TITLE: Necronom Main [from the Amiga game]
+ ARTIST: Michael Tschögl
+(#6)
+  TITLE: Necronom Ingame-2 [from the Amiga game] (0:50-1:36)
+ ARTIST: Michael Tschögl

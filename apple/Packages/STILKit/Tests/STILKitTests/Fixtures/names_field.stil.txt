@@ -1,0 +1,4 @@
+/DEMOS/A-F/Battle_Hymn_of_the_Republic_v1_BASIC.sid
+   NAME: Battle Hymn of the Republic v1 (Two Violins)
+  TITLE: The Battle Hymn of the Republic
+ ARTIST: William Steffe (music), Julia Ward Howe (lyrics)

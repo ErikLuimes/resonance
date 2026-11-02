@@ -1,0 +1,52 @@
+{
+  "path": "/MUSICIANS/H/Hubbard_Rob/Master_of_Magic.sid",
+  "composer": {
+    "name": "Rob Hubbard",
+    "initials": "RH",
+    "aliases": [
+      "Hubbard",
+      "RH",
+      "Rob",
+      "Rob Hubbard"
+    ]
+  },
+  "sections": [
+    {
+      "subtune": 1,
+      "names": [],
+      "authors": [],
+      "covers": [
+        {
+          "title": "Shibolet",
+          "unknown": false,
+          "source": "Audion",
+          "at": null,
+          "until": null,
+          "artist": "Synergy"
+        }
+      ],
+      "isMedley": false,
+      "comments": [
+        {
+          "blocks": [
+            {
+              "kind": "quote",
+              "by": "Rob Hubbard",
+              "role": "composer",
+              "paragraphs": [
+                [
+                  {
+                    "t": "MOM was inspired from the Synergy album Audion."
+                  }
+                ]
+              ]
+            }
+          ],
+          "memoriam": false,
+          "teaser": "MOM was inspired from the Synergy album Audion.",
+          "links": []
+        }
+      ]
+    }
+  ]
+}

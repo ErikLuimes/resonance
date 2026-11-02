@@ -1,0 +1,64 @@
+{
+  "path": "/MUSICIANS/C/Clarke_Peter/Scotland_the_Brave.sid",
+  "composer": {
+    "name": "Peter Clarke",
+    "initials": "PC",
+    "aliases": [
+      "Clarke",
+      "PC",
+      "Peter",
+      "Peter Clarke"
+    ]
+  },
+  "sections": [
+    {
+      "subtune": null,
+      "names": [],
+      "authors": [],
+      "covers": [
+        {
+          "title": "Scotland the Brave",
+          "unknown": false,
+          "source": null,
+          "at": null,
+          "until": null,
+          "artist": "Traditional"
+        }
+      ],
+      "isMedley": false,
+      "comments": [
+        {
+          "blocks": [
+            {
+              "kind": "note",
+              "by": null,
+              "role": null,
+              "paragraphs": [
+                [
+                  {
+                    "t": "This was one of six tunes that featured in a music demo produced by Peter Clarke and Paul Hughes in 1986. The tunes eventually were released in the 2025 demo For Pete’s Sake as a posthumous tribute to Peter Clarke."
+                  }
+                ]
+              ]
+            },
+            {
+              "kind": "quote",
+              "by": "Peter Clarke",
+              "role": "composer",
+              "paragraphs": [
+                [
+                  {
+                    "t": "Ooh Er! How bad will this be…? Yep! Pretty bad.. I guess I was focusing on the drums, trying to get a military beat.."
+                  }
+                ]
+              ]
+            }
+          ],
+          "memoriam": false,
+          "teaser": "This was one of six tunes that featured in a music demo produced by Peter Clarke and Paul Hughes in 1986.",
+          "links": []
+        }
+      ]
+    }
+  ]
+}

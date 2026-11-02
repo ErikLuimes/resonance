@@ -1,0 +1,58 @@
+{
+  "path": "/DEMOS/0-9/128_Byte_Blues_BASIC.sid",
+  "composer": null,
+  "sections": [
+    {
+      "subtune": null,
+      "names": [],
+      "authors": [],
+      "covers": [],
+      "isMedley": false,
+      "comments": [
+        {
+          "blocks": [
+            {
+              "kind": "quote",
+              "by": "Freaky DNA",
+              "role": null,
+              "paragraphs": [
+                [
+                  {
+                    "t": "When I first had a look at the 512b/1k Tiny SID compo, I thought it’d be a great way to get back into doing some assembly language on the C=64 (which I haven’t done for a long time). I spent a fair amount of time thinking of the best way to reduce the size and decided that one of the best ways would be to really challenge myself and to squeeze some music out of 128 bytes just for fun."
+                  }
+                ],
+                [
+                  {
+                    "t": "I really wanted to feature the nature of the C=64, so I thought about several ways to best store the note and instrument data. After a few sketches, I found that I seemed to be wasting a lot of space trying to store both the note and duration data, so I decided that the best way would be to derive the notes and durations directly from the C=64 memory and just index into a basic blues scale and generate some music. It took a bit of playing around with techniques, but I found that utilizing individual bits to step up or down within the scale generated the most musical results. Somewhat of a 1-bit DPCM technique except for successive music notes in a scale instead of successive samples. So, the code basically cycles through the bits which are displayed in the screen memory and uses them to generate the notes. The note duration is set by combining the jiffy clock and the cursor countdown to give some flex to the tempo. I found that staying in one note sequence was boring, so I made it step through two blues scales. I tried to squeeze out more space by removing the low byte of the frequency but found that it either made the music too out of tune or too high in pitch. I also attempted to add a second voice, but ran out of space. I really liked the idea of adding something to watch while it’s playing, so the colours change as it is reading through the bytes of screen memory. Rolling the bits of screen memory had the additional benefit that the bytes would return to their original form after passing over them eight times when the sequence repeats. Since the tempo is partially derived from the cursor blink, it is possible to change the tempo while moving the cursor. The sequence of notes can also be modified by typing in the upper portion of the screen."
+                  }
+                ],
+                [
+                  {
+                    "t": "It should sound fine on any C=64 ("
+                  },
+                  {
+                    "t": "NTSC/PAL",
+                    "tech": true
+                  },
+                  {
+                    "t": "), SID ("
+                  },
+                  {
+                    "t": "6581/8580",
+                    "tech": true
+                  },
+                  {
+                    "t": ") or good emulator (VICE, PowerPC etc.). I’ve had great fun working on this piece and hope others have fun listening and playing around with it as well."
+                  }
+                ]
+              ]
+            }
+          ],
+          "memoriam": false,
+          "teaser": "When I first had a look at the 512b/1k Tiny SID compo, I thought it’d be a great way to get back into doing some assembly language on the…",
+          "links": []
+        }
+      ]
+    }
+  ]
+}

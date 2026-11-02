@@ -143,7 +143,7 @@ async fn lists_an_authors_tunes_with_their_headers() {
 }
 
 #[tokio::test]
-async fn author_notes_come_from_stil_folder_entries() {
+async fn stil_entries_come_as_written_after_their_folders() {
     let tree = Tree::sample();
     let stil = tree.root().join("STIL.txt");
     std::fs::write(
@@ -160,19 +160,26 @@ async fn author_notes_come_from_stil_folder_entries() {
     databases::install(
         &shared,
         Databases {
-            stil: Some(crate::stil::StilDb::load(&stil).unwrap()),
+            stil_text: Some(databases::StilText::load(&stil).unwrap()),
             ..Databases::default()
         },
     );
     let lib = Library::new(Some(tree.root()), shared).without_index_cache();
 
+    let folder = "/MUSICIANS/H/Hubbard_Rob/\n\
+                  COMMENT: People have often stolen Hubbard's routine causing some tunes to be\n         \
+                  falsely credited to him.";
     let hubbard = tree.root().join("MUSICIANS/H/Hubbard_Rob");
+    assert_eq!(lib.stil(hubbard).await.as_deref(), Some(folder));
+    let commando = tree.root().join("MUSICIANS/H/Hubbard_Rob/Commando.sid");
     assert_eq!(
-        lib.author_note(hubbard).await.unwrap().as_deref(),
-        Some("People have often stolen Hubbard's routine causing some tunes to be falsely credited to him.")
+        lib.stil(commando).await,
+        Some(format!(
+            "{folder}\n\n/MUSICIANS/H/Hubbard_Rob/Commando.sid\nCOMMENT: Not about the composer."
+        ))
     );
     let galway = tree.root().join("MUSICIANS/G/Galway_Martin");
-    assert_eq!(lib.author_note(galway).await.unwrap(), None);
+    assert_eq!(lib.stil(galway).await, None);
 }
 
 #[tokio::test]
@@ -271,7 +278,13 @@ async fn search_matches_authors_folders_and_typos() {
 #[tokio::test]
 async fn crediting_finds_tunes_by_their_headers_author() {
     let tree = Tree::sample();
-    tree.sid("DEMOS/A-F/Acid_2.sid", "Acid 2", "Exos", "1989 The Ice Crew", 1);
+    tree.sid(
+        "DEMOS/A-F/Acid_2.sid",
+        "Acid 2",
+        "Exos",
+        "1989 The Ice Crew",
+        1,
+    );
     tree.sid(
         "DEMOS/A-F/Creepin_Death.sid",
         "Creepin Death",
@@ -305,7 +318,11 @@ async fn crediting_finds_tunes_by_their_headers_author() {
     let mut titles: Vec<_> = hubbard.iter().map(|(_, e, _)| e.title.as_str()).collect();
     titles.sort();
     assert_eq!(titles, ["Commando", "Monty on the Run"]);
-    assert!(lib.crediting(vec!["Nobody".into()]).await.unwrap().is_empty());
+    assert!(lib
+        .crediting(vec!["Nobody".into()])
+        .await
+        .unwrap()
+        .is_empty());
 }
 
 #[tokio::test]

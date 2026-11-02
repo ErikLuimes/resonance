@@ -1,0 +1,10 @@
+/MUSICIANS/D/Deetsay/Great_Hirmu_Sisters.sid
+COMMENT: Composed in 1999 for the PC demo "Great Hirmu Sisters" but released
+         as a C64 executable only in 2021.
+         "[...] this was actually a pretty big project consisting of:
+         1) Hunting down the *three* original randomly named DMC5 tunes from
+         the floppy disks whereupon they were saved 22 years ago;
+         2) Figuring out how to integrate the SAM speech between them (massive
+         thanks to Groepaz for releasing the commented disassembly!);
+         3) Coding a bunch of changing parameters on the DMC tunes, which were
+         originally tweaked while recording" (Deetsay)

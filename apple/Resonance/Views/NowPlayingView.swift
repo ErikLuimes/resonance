@@ -241,13 +241,17 @@ struct NowPlayingView: View {
         .disabled(!library.hasRoot)
     }
 
+    /// Always there, but while idle only its cross shows: the circle behind
+    /// it fades with the extras.
     private var closeButton: some View {
         Button { store.isShowingNowPlaying = false } label: {
             Image(systemName: "xmark")
+                .font(.system(size: 13, weight: .semibold))
+                .frame(width: 30, height: 30)
+                .background(.white.opacity(showsExtras ? 0.16 : 0), in: .circle)
+                .contentShape(.circle)
         }
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.circle)
-        .controlSize(.large)
+        .buttonStyle(.plain)
         .help("Close Now Playing (Esc)")
         .accessibilityLabel("Close Now Playing")
     }

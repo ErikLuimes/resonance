@@ -1,0 +1,5 @@
+/DEMOS/0-9/3_Oversample.sid
+  TITLE: Get Ready
+ ARTIST: Jeroen Tel
+COMMENT: Same as /MUSICIANS/T/Tel_Jeroen/Get_Ready.sid, but with digis
+         added and with voice 1 largely muted.

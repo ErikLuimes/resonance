@@ -1,5 +1,7 @@
+import AppKit
 import SwiftUI
 import PhosphorCore
+import STILKit
 
 /// Transport, progress, subtunes and volume in a floating glass bar.
 ///
@@ -11,21 +13,25 @@ import PhosphorCore
 /// drop out as the bar narrows instead.
 struct NowPlayingBar: View {
     @Environment(PlayerStore.self) private var store
+    @Environment(LibraryStore.self) private var library
     @State private var width: CGFloat = 0
+    /// The volume slider is slid open next to its speaker button.
+    @State private var showsVolume = false
+    @State private var volumeClosing: Task<Void, Never>?
+    /// Bumped as the pointer reaches the Now Playing button, to bounce it.
+    @State private var nowPlayingHovers = 0
 
     var body: some View {
         GlassEffectContainer(spacing: 12) {
             HStack(spacing: 16) {
                 transport
-                nowPlaying
                 trackInfo
                     .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                 if store.hasSubtunes {
                     subtunes
                 }
-                if width >= 700 {
-                    volume
-                }
+                volume
+                nowPlaying
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
@@ -54,6 +60,9 @@ struct NowPlayingBar: View {
                 Button("Next", systemImage: "forward.fill") { store.next() }
                     .font(.title3)
             }
+            // Bold and bright, so they read on the glass.
+            .fontWeight(.semibold)
+            .foregroundStyle(.primary)
             .disabled(store.rows.isEmpty && !store.queueActive)
             if width >= 480 {
                 repeatMode
@@ -63,12 +72,17 @@ struct NowPlayingBar: View {
         .buttonStyle(.borderless)
     }
 
+    /// At the bar's far end, where players keep their full-screen button.
     /// Never drops out as the bar narrows: it's one of the ways into Now
     /// Playing, along with the track title and View › Now Playing.
     private var nowPlaying: some View {
-        Button("Now Playing", systemImage: "chevron.up") { store.toggleNowPlaying() }
+        Button("Now Playing", systemImage: "arrow.up.left.and.arrow.down.right") { store.toggleNowPlaying() }
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
+            .font(.title3.weight(.semibold))
+            .foregroundStyle(.primary)
+            .symbolEffect(.bounce, value: nowPlayingHovers)
+            .onHover { if $0 { nowPlayingHovers += 1 } }
             .help("Show Now Playing")
     }
 
@@ -114,7 +128,9 @@ struct NowPlayingBar: View {
                 }
                 .lineLimit(1)
             } else {
-                Text("Not Playing").foregroundStyle(.secondary)
+                Text("Not Playing")
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
             ProgressRow(
                 elapsed: store.elapsed,
@@ -125,31 +141,123 @@ struct NowPlayingBar: View {
         }
     }
 
+    /// One pill: step with the chevrons, or pick any song from the menu
+    /// behind the number, named from STIL where it can.
     private var subtunes: some View {
-        HStack(spacing: 2) {
-            Button("Previous Subtune", systemImage: "chevron.left") { store.previousSubtune() }
-            Text("Song \(store.nowPlaying?.currentSong ?? 1)/\(store.nowPlaying?.songs ?? 1)")
-                .monospacedDigit()
-                .lineLimit(1)
-                .frame(width: 84)
-            Button("Next Subtune", systemImage: "chevron.right") { store.nextSubtune() }
+        let song = Int(store.nowPlaying?.currentSong ?? 1)
+        let songs = Int(store.nowPlaying?.songs ?? 1)
+        let stil = store.nowPlaying.flatMap { library.stil[$0.path] ?? nil }
+        return HStack(spacing: 0) {
+            Button("Previous Song", systemImage: "chevron.left") { store.previousSubtune() }
+                .disabled(song <= 1)
+            Menu {
+                ForEach(1...max(songs, 1), id: \.self) { n in
+                    Toggle(Self.songTitle(stil, song: n), isOn: Binding(
+                        get: { n == song },
+                        set: { if $0 { store.setSubtune(n) } }
+                    ))
+                }
+            } label: {
+                Text("\(song)/\(songs)")
+                    .monospacedDigit()
+                    .lineLimit(1)
+            }
+            .menuStyle(.button)
+            .buttonStyle(.borderless)
+            .menuIndicator(.hidden)
+            // AppKit draws the menu's title itself, so its width follows the
+            // text; fixed to the longest number, stepping never moves the
+            // chevrons.
+            .frame(width: Self.songNumberWidth(songs))
+            .help("Choose a song")
+            .accessibilityLabel("Song \(song) of \(songs)")
+            Button("Next Song", systemImage: "chevron.right") { store.nextSubtune() }
+                .disabled(song >= songs)
         }
         .labelStyle(.iconOnly)
         .buttonStyle(.borderless)
-        .help("Subtune")
+        .fontWeight(.semibold)
+        .foregroundStyle(.primary)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(.fill.tertiary, in: .capsule)
     }
 
+    /// Room for "19/19", the longest number a tune with `songs` songs
+    /// shows, in the bar's semibold system font.
+    private static func songNumberWidth(_ songs: Int) -> CGFloat {
+        let font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .semibold)
+        return ("\(songs)/\(songs)" as NSString).size(withAttributes: [.font: font]).width.rounded(.up) + 12
+    }
+
+    /// A song as the menu names it: "Song 1: Tea for the Seasick", from
+    /// STIL's NAME, else the piece it covers, else "Medley"; just "Song 3"
+    /// when STIL has nothing to call it.
+    nonisolated static func songTitle(_ entry: STILEntry?, song: Int) -> String {
+        let section = entry?.sections.first { $0.subtune == song }
+        let name = section?.names.first
+            ?? (section?.isMedley == true ? "Medley" : section?.covers.compactMap(\.title).first)
+        return name.map { "Song \(song): \($0)" } ?? "Song \(song)"
+    }
+
+    /// A speaker button that shows the level, like Music's; a click slides
+    /// the slider out to its left, floating over the controls there rather
+    /// than pushing them aside. It closes again shortly after you've set
+    /// the volume or moved away, or with another click.
     private var volume: some View {
         @Bindable var store = store
-        return HStack(spacing: 6) {
-            Image(systemName: "speaker.fill").foregroundStyle(.secondary)
-            Slider(value: $store.volume, in: 0...1)
-                .frame(width: 90)
-                .controlSize(.small)
-            Image(systemName: "speaker.wave.3.fill").foregroundStyle(.secondary)
+        return Button {
+            volumeClosing?.cancel()
+            withAnimation(.snappy(duration: 0.25)) { showsVolume.toggle() }
+        } label: {
+            Image(systemName: store.volume > 0 ? "speaker.wave.3.fill" : "speaker.slash.fill", variableValue: store.volume)
+                .frame(width: 26)
+                // Waves follow the level; muting swaps the symbol; opening
+                // and closing the slider bounces it.
+                .contentTransition(.symbolEffect(.replace))
+                .symbolEffect(.bounce, value: showsVolume)
         }
-        .accessibilityElement(children: .combine)
+        .buttonStyle(.borderless)
+        // Bold and bright like the transport, so it reads on the glass.
+        .font(.title3.weight(.semibold))
+        .foregroundStyle(showsVolume ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+        .help(showsVolume ? "Hide Volume" : "Volume")
         .accessibilityLabel("Volume")
+        .accessibilityValue(Text(store.volume, format: .percent.precision(.fractionLength(0))))
+        .onHover { hoveringVolume($0) }
+        .overlay(alignment: .trailing) {
+            if showsVolume {
+                Slider(value: $store.volume, in: 0...1) { editing in
+                    if editing { volumeClosing?.cancel() } else { closeVolume(after: 1.2) }
+                }
+                .frame(width: 110)
+                .controlSize(.small)
+                .accessibilityLabel("Volume")
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(.regularMaterial, in: .capsule)
+                .shadow(color: .black.opacity(0.15), radius: 6, y: 2)
+                .fixedSize()
+                .offset(x: -30)
+                .onHover { hoveringVolume($0) }
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
+        }
+    }
+
+    /// The pointer on the button or the slider keeps it open; leaving both
+    /// closes it.
+    private func hoveringVolume(_ inside: Bool) {
+        if inside { volumeClosing?.cancel() } else if showsVolume { closeVolume(after: 0.8) }
+    }
+
+    private func closeVolume(after seconds: Double) {
+        volumeClosing?.cancel()
+        volumeClosing = Task {
+            try? await Task.sleep(for: .seconds(seconds))
+            guard !Task.isCancelled else { return }
+            withAnimation(.snappy(duration: 0.25)) { showsVolume = false }
+        }
     }
 }
 
@@ -235,6 +343,7 @@ private struct ProgressRow: View {
 #Preview {
     NowPlayingBar()
         .environment(PlayerStore.preview)
+        .environment(LibraryStore(player: .preview))
         .padding()
         .frame(width: 900)
 }

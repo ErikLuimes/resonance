@@ -1,0 +1,10 @@
+/MUSICIANS/H/Hubbard_Rob/
+COMMENT: People have often stolen Hubbard's routine causing some tunes to be
+         falsely credited to him.
+         Hubbard's own comments are denoted (RH).
+
+/MUSICIANS/H/Hubbard_Rob/Lion_Heart.sid
+COMMENT: "Pushing RobTracker to its limits, this was a lot of fun to convert!
+         The original was all brass and jazz and notes and more notes. Really
+         not my thing - or at least, it wasn't. I've a completely newfound
+         respect for this style of music now." (Jason Page)

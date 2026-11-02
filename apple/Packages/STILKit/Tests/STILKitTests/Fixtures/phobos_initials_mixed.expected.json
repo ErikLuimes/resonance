@@ -1,0 +1,71 @@
+{
+  "path": "/MUSICIANS/P/Phobos/Batman.sid",
+  "composer": {
+    "name": "Phobos",
+    "initials": "P",
+    "aliases": [
+      "Phobos"
+    ]
+  },
+  "sections": [
+    {
+      "subtune": null,
+      "names": [],
+      "authors": [],
+      "covers": [
+        {
+          "title": "Batman, The Caped Crusader, Tune #2",
+          "unknown": false,
+          "source": null,
+          "at": null,
+          "until": null,
+          "artist": "Fred Gray"
+        }
+      ],
+      "isMedley": false,
+      "comments": [
+        {
+          "blocks": [
+            {
+              "kind": "note",
+              "by": null,
+              "role": null,
+              "paragraphs": [
+                [
+                  {
+                    "t": "Phobos has mistakenly signed this tune “BATMAN BY M.GRAY”, while it covers "
+                  },
+                  {
+                    "t": "/MUSICIANS/G/Gray_Fred/Batman_the_Caped_Crusader.sid",
+                    "link": "/MUSICIANS/G/Gray_Fred/Batman_the_Caped_Crusader.sid",
+                    "subtune": 2
+                  },
+                  {
+                    "t": ", Tune #2."
+                  }
+                ]
+              ]
+            },
+            {
+              "kind": "quote",
+              "by": "Phobos",
+              "role": "composer",
+              "paragraphs": [
+                [
+                  {
+                    "t": "My first tune written in JCH editor with Glover’s 2x player. This one was written in 1x in 21.g6, instruments were checked with Turbo Assembler +60K."
+                  }
+                ]
+              ]
+            }
+          ],
+          "memoriam": false,
+          "teaser": "Phobos has mistakenly signed this tune “BATMAN BY M.GRAY”, while it covers /MUSICIANS/G/Gray_Fred/Batman_the_Caped_Crusader.sid, Tune #2.",
+          "links": [
+            "/MUSICIANS/G/Gray_Fred/Batman_the_Caped_Crusader.sid"
+          ]
+        }
+      ]
+    }
+  ]
+}

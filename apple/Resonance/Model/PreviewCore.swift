@@ -52,14 +52,7 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
             durationMs: current.flatMap { items[$0].durationSecs }.map { UInt64($0) * 1000 },
             shuffle: false, repeat: .off, engine: .sidLite,
             playlistRevision: 1, trackRevision: 1, loading: nil, error: nil,
-            hvscIndexing: [],
-            stil: current == nil ? nil : TuneStil(
-                comment: "Rob Hubbard's arrangement for Elite's arcade conversion.",
-                blocks: [StilBlock(
-                    subtune: 1, name: nil, title: "Commando (arcade)", artist: "Tamayo Kawamoto", author: nil,
-                    comment: "Based on /MUSICIANS/H/Hubbard_Rob/Commando.sid"
-                )]
-            )
+            hvscIndexing: []
         )
     }
 
@@ -127,11 +120,33 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
         items.map(Self.tune)
     }
 
-    func hvscAuthorNote(authorPath: String) async throws -> String? {
-        guard authorPath.hasSuffix("/Hubbard_Rob") else { return nil }
-        return "People have often stolen Hubbard's routine causing some tunes to be falsely credited to him.\n"
-            + "Hubbard's own comments are denoted (RH)."
+    func hvscStil(path: String) async -> String? {
+        if path.hasSuffix("/Hubbard_Rob") { return Self.hubbardStil }
+        if path.hasSuffix("/Commando.sid") { return Self.hubbardStil + "\n\n" + Self.commandoStil }
+        return nil
     }
+
+    private static let hubbardStil = """
+        /MUSICIANS/H/Hubbard_Rob/
+        COMMENT: People have often stolen Hubbard's routine causing some tunes to be
+                 falsely credited to him.
+                 Hubbard's own comments are denoted (RH).
+        """
+
+    private static let commandoStil = """
+        /MUSICIANS/H/Hubbard_Rob/Commando.sid
+        COMMENT: "There is an interesting story behind Commando. I went down to their
+                 office and started working on it late at night, and worked on it
+                 through the night. I took one listen to the original arcade version
+                 and started working on the C64 version." (RH)
+        (#1)
+          TITLE: BGM1 [from the arcade game Commando] (0:00)
+         ARTIST: Tamayo Kawamoto
+          TITLE: Base [from the arcade game Commando] (0:53)
+         ARTIST: Tamayo Kawamoto
+          TITLE: Level Complete [from the arcade game Commando] (1:16-1:32)
+         ARTIST: Tamayo Kawamoto
+        """
 
     func hvscSearch(query: String, scope: HvscCategory?) async throws -> HvscSearchResult {
         let hits = items.filter { $0.title.localizedStandardContains(query) }.map(Self.tune)

@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import PhosphorCore
+import STILKit
 @testable import Resonance
 
 /// Records what the store sends to the core and serves canned snapshots.
@@ -33,24 +34,24 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
         state: .stopped, currentIndex: nil, queueActive: false, surpriseActive: false, track: nil,
         elapsedMs: 0, durationMs: nil,
         shuffle: false, repeat: .off, engine: .sidLite, playlistRevision: 0, trackRevision: 0,
-        loading: nil, error: nil, hvscIndexing: [], stil: nil
+        loading: nil, error: nil, hvscIndexing: []
     )
 
     // Library: canned answers, settable per test.
     private var _authors: [HvscAuthorItem] = []
-    private var _notes: [String: String] = [:]
+    private var _stil: [String: String] = [:]
     private var _credited: [HvscTuneItem] = []
     private var _surprise: String?
     private var _authorLoads = 0
-    private var _noteLoads = 0
+    private var _stilLoads = 0
 
     var authorLoads: Int { lock.withLock { _authorLoads } }
-    var noteLoads: Int { lock.withLock { _noteLoads } }
+    var stilLoads: Int { lock.withLock { _stilLoads } }
 
-    func set(authors: [HvscAuthorItem] = [], notes: [String: String] = [:], surprise: String? = nil) {
+    func set(authors: [HvscAuthorItem] = [], stil: [String: String] = [:], surprise: String? = nil) {
         lock.withLock {
             _authors = authors
-            _notes = notes
+            _stil = stil
             _surprise = surprise
         }
     }
@@ -69,10 +70,10 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
 
     func hvscTunes(authorPath: String) async throws -> [HvscTuneItem] { [] }
 
-    func hvscAuthorNote(authorPath: String) async throws -> String? {
+    func hvscStil(path: String) async -> String? {
         lock.withLock {
-            _noteLoads += 1
-            return _notes[authorPath]
+            _stilLoads += 1
+            return _stil[path]
         }
     }
 
@@ -479,21 +480,49 @@ struct LibraryStoreTests {
         #expect(Composer(authorPath: "", name: "<?>").initials == "")
     }
 
-    @Test func authorNotesAreLoadedOncePerFolder() async {
+    @Test func stilIsLoadedOncePerPathAndParsedHere() async throws {
         let (library, player) = makeLibrary()
         let hubbard = "/HVSC/MUSICIANS/H/Hubbard_Rob"
-        fake.set(notes: [hubbard: "People have often stolen Hubbard's routine."])
+        let commando = "/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid"
+        let folder = """
+            /MUSICIANS/H/Hubbard_Rob/
+            COMMENT: Hubbard's own comments are denoted (RH).
+            """
+        fake.set(stil: [
+            hubbard: folder,
+            commando: folder + """
 
-        await library.loadAuthorNote(authorPath: hubbard)
-        await library.loadAuthorNote(authorPath: hubbard)
-        await library.loadAuthorNote(authorPath: "/HVSC/MUSICIANS/G/Galway_Martin")
-        #expect(fake.noteLoads == 2)
-        #expect(library.authorNotes[hubbard] == "People have often stolen Hubbard's routine.")
-        #expect(library.authorNotes["/HVSC/MUSICIANS/G/Galway_Martin"] == "", "none is remembered too")
+
+                /MUSICIANS/H/Hubbard_Rob/Commando.sid
+                COMMENT: "I got my cheque and was on a train home by 10.00 am..." (RH)
+                """,
+        ])
+
+        await library.loadStil(path: commando, sidAuthor: "Rob Hubbard")
+        await library.loadStil(path: commando, sidAuthor: "Rob Hubbard")
+        await library.loadStil(path: "/HVSC/MUSICIANS/G/Galway_Martin")
+        #expect(fake.stilLoads == 2)
+        let quote = try #require(library.stil[commando] ?? nil).sections[0].comments[0].blocks[0]
+        #expect(quote.kind == .quote)
+        #expect(quote.by == "Rob Hubbard", "the folder declares (RH)")
+        #expect(quote.role == .composer)
+        #expect(quote.paragraphs[0].map(\.t).joined() == "I got my cheque and was on a train home by 10.00 am\u{2026}")
+        #expect(library.stil["/HVSC/MUSICIANS/G/Galway_Martin"] == .some(nil), "none is remembered too")
+
+        await library.loadStil(path: hubbard)
+        #expect(library.stil[hubbard]??.path == "/MUSICIANS/H/Hubbard_Rob/")
 
         player.hvscRoot = "/Other"
-        await library.loadAuthorNote(authorPath: hubbard)
-        #expect(fake.noteLoads == 3)
+        await library.loadStil(path: commando)
+        #expect(fake.stilLoads == 4)
+    }
+
+    @Test func stilLinksRevealTheirTuneInItsSection() {
+        let (library, _) = makeLibrary()
+        library.reveal(hvscPath: "/GAMES/A-F/Catalypse.sid")
+        #expect(library.reveal?.category == .games)
+        #expect(library.reveal?.authorPath == "/HVSC/GAMES/A-F")
+        #expect(library.reveal?.tunePath == "/HVSC/GAMES/A-F/Catalypse.sid")
     }
 
     @Test func searchPassesItsScope() async throws {
@@ -524,39 +553,90 @@ struct InspectorHeaderTests {
     }
 }
 
-struct StilCoverTests {
-    typealias Cover = StilNotesView.Cover
+struct StilNotesTests {
+    /// Commando, as STIL has it: the composer's quote on the file, a medley
+    /// as song 1, an unknown title as song 3.
+    private let commando = STILEntry.parsing("""
+        /MUSICIANS/H/Hubbard_Rob/
+        COMMENT: Hubbard's own comments are denoted (RH).
 
-    @Test func oneArtistOfSeveralTitlesIsNamedOnce() {
-        // Commando, song 1: each piece is Tamayo Kawamoto's.
-        let titles = """
-            BGM1 [from the arcade game Commando] (0:00)
-            Base [from the arcade game Commando] (0:53)
-            Level Complete [from the arcade game Commando] (1:16-1:32)
-            """
-        let artists = "Tamayo Kawamoto\nTamayo Kawamoto\nTamayo Kawamoto"
-        #expect(StilNotesView.covers(title: titles, by: artists) == [Cover(title: titles, by: "Tamayo Kawamoto")])
+        /MUSICIANS/H/Hubbard_Rob/Commando.sid
+        COMMENT: "There is an interesting story behind Commando." (RH)
+        (#1)
+          TITLE: BGM1 [from the arcade game Commando] (0:00)
+         ARTIST: Tamayo Kawamoto
+          TITLE: Base [from the arcade game Commando] (0:53)
+         ARTIST: Tamayo Kawamoto
+        (#3)
+          TITLE: <?> [from the arcade game Commando]
+         ARTIST: Tamayo Kawamoto
+        """, sidAuthor: "Rob Hubbard")!
+
+    private func headings(_ cards: [StilNotesView.Card]) -> [String] {
+        cards.map {
+            switch $0 {
+            case .memoriam: "memoriam"
+            case .section(_, .file(let quote)): quote ? "file quote" : "file"
+            case .section(_, .song(let n)): "song \(n)"
+            case .noNotes(let n): "no notes \(n)"
+            }
+        }
     }
 
-    @Test func differentArtistsPairUpWithTheirTitles() {
-        // Delta, song 1.
-        let titles = """
-            On the Run [from the Dark Side of the Moon] (0:00)
-            Pruit Igoe [from the movie Koyaanisqatsi] (4:00)
-            Resource [from the movie Koyaanisqatsi] (5:26-9:07)
-            """
-        #expect(StilNotesView.covers(title: titles, by: "Pink Floyd\nPhilip Glass\nPhilip Glass") == [
-            Cover(title: "On the Run [from the Dark Side of the Moon] (0:00)", by: "Pink Floyd"),
-            Cover(title: "Pruit Igoe [from the movie Koyaanisqatsi] (4:00)", by: "Philip Glass"),
-            Cover(title: "Resource [from the movie Koyaanisqatsi] (5:26-9:07)", by: "Philip Glass"),
-        ])
+    @Test func theFileComesFirstThenThePlayingSong() {
+        #expect(headings(StilNotesView.cards(commando, song: 1, songs: 3)) == ["file quote", "song 1"])
+        #expect(headings(StilNotesView.cards(commando, song: 3, songs: 3)) == ["file quote", "song 3"])
     }
 
-    @Test func anythingElseStaysAsStilHasIt() {
-        #expect(StilNotesView.covers(title: "Shades", by: "Chris Hülsbeck") == [Cover(title: "Shades", by: "Chris Hülsbeck")])
-        #expect(StilNotesView.covers(title: "Shades", by: nil) == [Cover(title: "Shades", by: nil)])
-        #expect(StilNotesView.covers(title: "A\nB\nC", by: "X\nY") == [Cover(title: "A\nB\nC", by: "X\nY")])
-        #expect(StilNotesView.covers(title: "A\nB", by: nil) == [Cover(title: "A\nB", by: nil)])
+    @Test func aSongWithoutNotesSaysSoWhenOthersHaveThem() {
+        #expect(headings(StilNotesView.cards(commando, song: 2, songs: 3)) == ["file quote", "no notes 2"])
+        let fileOnly = STILEntry.parsing("""
+            /DEMOS/0-9/3_Oversample.sid
+              TITLE: Get Ready
+             ARTIST: Jeroen Tel
+            COMMENT: Same as /MUSICIANS/T/Tel_Jeroen/Get_Ready.sid, but with digis added.
+            """, sidAuthor: nil)!
+        #expect(headings(StilNotesView.cards(fileOnly, song: 2, songs: 3)) == ["file"])
+    }
+
+    @Test func remembrancesGetACardOfTheirOwn() {
+        let miles = STILEntry.parsing("""
+            /DEMOS/0-9/53_Miles_West_of_Venus.sid
+            COMMENT: Sadly, Radek Stypczynski passed away on May 6th, 2011.
+            """, sidAuthor: nil)!
+        #expect(headings(StilNotesView.cards(miles, song: 1, songs: 1)) == ["memoriam"])
+    }
+
+    @Test func aNoteThatOnlyRelatesToATuneBecomesALinkCard() {
+        let remix = [STILRun(t: "Remix of "), STILRun(t: "/MUSICIANS/O/Ouwehand_Reyn/Peppered_Pizza.sid", link: "/MUSICIANS/O/Ouwehand_Reyn/Peppered_Pizza.sid")]
+        #expect(RelationLink(remix)?.relation == "Remix of")
+        #expect(RelationLink(remix)?.hvscPath == "/MUSICIANS/O/Ouwehand_Reyn/Peppered_Pizza.sid")
+        // More to say stays a sentence with the link in it.
+        #expect(RelationLink(remix + [STILRun(t: ", but with digis added.")]) == nil)
+        #expect(RelationLink([STILRun(t: "Composed for "), remix[1]]) == nil)
+    }
+
+    @Test func theSongMenuNamesSongsFromStil() {
+        let names = STILEntry.parsing("""
+            /DEMOS/A-F/Battle_Hymn.sid
+            (#1)
+               NAME: Two Violins
+              TITLE: Something Else
+            (#2)
+              TITLE: Shades
+            """, sidAuthor: nil)
+        #expect(NowPlayingBar.songTitle(nil, song: 2) == "Song 2")
+        #expect(NowPlayingBar.songTitle(names, song: 1) == "Song 1: Two Violins")
+        #expect(NowPlayingBar.songTitle(names, song: 2) == "Song 2: Shades")
+        #expect(NowPlayingBar.songTitle(commando, song: 1) == "Song 1: Medley")
+        #expect(NowPlayingBar.songTitle(commando, song: 3) == "Song 3", "its title is <?>")
+        #expect(NowPlayingBar.songTitle(commando, song: 2) == "Song 2")
+    }
+
+    @Test func linkedTunesAreNamedByTheirFileUntilTheirHeaderIsRead() {
+        #expect(LinkedTune.fallbackTitle("/MUSICIANS/T/Tel_Jeroen/Get_Ready.sid") == "Get Ready")
+        #expect(StilLink.path(StilLink.url("/GAMES/A-F/Catalypse.sid")!) == "/GAMES/A-F/Catalypse.sid")
+        #expect(StilLink.path(URL(string: "https://hvsc.c64.org")!) == nil)
     }
 }
 

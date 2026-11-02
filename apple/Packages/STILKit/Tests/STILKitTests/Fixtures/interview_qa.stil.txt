@@ -1,0 +1,16 @@
+/MUSICIANS/T/Tel_Jeroen/Bad_Blood.sid
+(#2)
+  TITLE: Vallåt
+ ARTIST: <?>
+COMMENT: The tune might be inspired by this piece.
+         Q: Is this a cover?
+         JT: NO! Worldshocking huh? I could actually compose music in the
+         classical traditional sence :) It's all COMPOSED by me. More people
+         seemed to be wondering if I *really composed Bad Blood*. The answer is
+         yes with a capital Y.
+         Charles Deenen said it was the "best music I made on C64" when I
+         finished it. (I do NOT agree ofcourse, although I must say it's the
+         best "filmscore" soundtrack I've done for a game on the C64. I
+         actually got some kind of filmscript for it, that's why I could be
+         very specific when composing themes for characters and events in the
+         game.

@@ -1,0 +1,52 @@
+{
+  "path": "/DEMOS/0-9/3_Oversample.sid",
+  "composer": null,
+  "sections": [
+    {
+      "subtune": null,
+      "names": [],
+      "authors": [],
+      "covers": [
+        {
+          "title": "Get Ready",
+          "unknown": false,
+          "source": null,
+          "at": null,
+          "until": null,
+          "artist": "Jeroen Tel"
+        }
+      ],
+      "isMedley": false,
+      "comments": [
+        {
+          "blocks": [
+            {
+              "kind": "note",
+              "by": null,
+              "role": null,
+              "paragraphs": [
+                [
+                  {
+                    "t": "Same as "
+                  },
+                  {
+                    "t": "/MUSICIANS/T/Tel_Jeroen/Get_Ready.sid",
+                    "link": "/MUSICIANS/T/Tel_Jeroen/Get_Ready.sid"
+                  },
+                  {
+                    "t": ", but with digis added and with voice 1 largely muted."
+                  }
+                ]
+              ]
+            }
+          ],
+          "memoriam": false,
+          "teaser": "Same as /MUSICIANS/T/Tel_Jeroen/Get_Ready.sid, but with digis added and with voice 1 largely muted.",
+          "links": [
+            "/MUSICIANS/T/Tel_Jeroen/Get_Ready.sid"
+          ]
+        }
+      ]
+    }
+  ]
+}

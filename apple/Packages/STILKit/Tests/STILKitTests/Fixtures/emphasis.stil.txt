@@ -1,0 +1,4 @@
+/MUSICIANS/C/CreaMD/Black_Sistah.sid
+COMMENT: Inspired by /MUSICIANS/D/Derrett_Jay/Counterforce.sid, Tune #1.
+         "I actually ripped (*cough* ;)) first 10 second motive from the tune
+         and the rest is developed differently (in a quite crazy way ;-))" (RC)

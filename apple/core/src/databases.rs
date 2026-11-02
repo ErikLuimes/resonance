@@ -3,7 +3,8 @@
 //! search-index cache). Loaded once from Phosphor's data folder on the
 //! loader thread, then published through a shared slot.
 
-use std::path::{Path, PathBuf};
+use std::collections::HashMap;
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
 use tokio::sync::watch;
@@ -16,6 +17,8 @@ use crate::stil::{self, StilDb};
 pub(crate) struct Databases {
     pub songlengths: Option<SonglengthDb>,
     pub stil: Option<StilDb>,
+    /// The same STIL.txt's entries as written, for the app's own parser.
+    pub stil_text: Option<StilText>,
     /// HVSC release, e.g. 85. Part of the index-cache key, derived the same
     /// way as Phosphor's (main.rs:4476-4485) so both apps share one cache.
     pub hvsc_version: Option<u32>,
@@ -31,11 +34,6 @@ pub(crate) fn shared() -> SharedDatabases {
 
 pub(crate) fn install(shared: &SharedDatabases, databases: Databases) {
     shared.send_replace(Some(Arc::new(databases)));
-}
-
-/// What's loaded so far: empty databases before the loader finishes.
-pub(crate) fn current(shared: &SharedDatabases) -> Arc<Databases> {
-    shared.borrow().clone().unwrap_or_default()
 }
 
 /// The databases once loaded. Index builds and tune listings wait for this:
@@ -61,13 +59,18 @@ impl Databases {
         let songlengths = config::songlength_db_path()
             .filter(|p| p.exists())
             .and_then(|p| log_err("Songlengths", &p, SonglengthDb::load(&p)));
-        let stil = config
+        let stil_file = config
             .last_stil_file
             .as_ref()
             .map(PathBuf::from)
             .filter(|p| p.exists())
-            .or_else(|| stil::stil_db_path().filter(|p| p.exists()))
-            .and_then(|p| log_err("STIL", &p, StilDb::load(&p)));
+            .or_else(|| stil::stil_db_path().filter(|p| p.exists()));
+        let stil = stil_file
+            .as_ref()
+            .and_then(|p| log_err("STIL", p, StilDb::load(p)));
+        let stil_text = stil_file
+            .as_ref()
+            .and_then(|p| log_err("STIL", p, StilText::load(p)));
         let hvsc_version = stil.as_ref().and_then(|s| s.hvsc_version).or_else(|| {
             config
                 .hvsc_known_version
@@ -77,124 +80,106 @@ impl Databases {
         Self {
             songlengths,
             stil,
+            stil_text,
             hvsc_version,
         }
     }
 
-    /// What STIL says about one subtune of a tune, if anything.
-    pub fn stil_notes(
-        &self,
-        path: &Path,
-        hvsc_root: Option<&Path>,
-        song: u16,
-    ) -> Option<StilNotes> {
-        let entry = self.stil.as_ref()?.lookup(path, hvsc_root)?;
-        let notes = StilNotes {
-            comment: reflowed(&entry.global_comment),
-            blocks: entry
-                .for_subtune(song)
-                .into_iter()
-                .map(|t| StilBlock {
-                    subtune: t.subtune.into(),
-                    name: reflowed(&t.name),
-                    title: reflowed(&t.title),
-                    artist: reflowed(&t.artist),
-                    author: reflowed(&t.author),
-                    comment: reflowed(&t.comment),
-                })
-                .filter(|b| {
-                    [&b.name, &b.title, &b.artist, &b.author, &b.comment]
-                        .iter()
-                        .any(|f| f.is_some())
-                })
-                .collect(),
-        };
-        (notes.comment.is_some() || !notes.blocks.is_empty()).then_some(notes)
-    }
-
-    /// STIL's note on a whole folder, most often a composer's
-    /// (`MUSICIANS/H/Hubbard_Rob`, relative to the HVSC root).
-    pub fn folder_note(&self, folder: &Path) -> Option<String> {
-        let rel = folder.to_string_lossy().replace('\\', "/");
-        let key = format!("/{}/", rel.trim_matches('/'));
-        let entry = self.stil.as_ref()?.lookup_by_hvsc_path(&key)?;
-        reflowed(&entry.global_comment)
+    /// STIL's entry on a tune or folder (`path` on disk), as STIL.txt has
+    /// it; see `StilText::excerpt`.
+    pub fn stil_text(&self, path: &Path, hvsc_root: Option<&Path>) -> Option<String> {
+        self.stil_text
+            .as_ref()?
+            .excerpt(&hvsc_path(path, hvsc_root)?)
     }
 }
 
-/// STIL on one subtune: the file's comment, then the blocks that apply
-/// (the whole tune's before the subtune's own), all text reflowed.
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct StilNotes {
-    pub comment: Option<String>,
-    pub blocks: Vec<StilBlock>,
+/// STIL.txt's entries as written, by lowercased HVSC path. `StilDb` joins
+/// a field's lines and keeps no quotes or bylines apart; the app's parser
+/// works those out from the text itself, line breaks included.
+#[derive(Debug, Default)]
+pub(crate) struct StilText {
+    entries: HashMap<String, String>,
 }
 
-/// One STIL block: the piece a (sub)tune covers, and notes on it.
-#[derive(Debug, Clone, Default, PartialEq)]
-pub(crate) struct StilBlock {
-    /// 0 for the whole tune.
-    pub subtune: u16,
-    /// NAME: the subtune's own name, e.g. its part in a game.
-    pub name: Option<String>,
-    /// TITLE: the piece it covers.
-    pub title: Option<String>,
-    /// ARTIST: who performed that piece.
-    pub artist: Option<String>,
-    /// AUTHOR: who wrote that piece.
-    pub author: Option<String>,
-    pub comment: Option<String>,
-}
+impl StilText {
+    pub fn load(path: &Path) -> Result<Self, String> {
+        let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+        Ok(Self::parse(&decode_stil(&bytes)))
+    }
 
-/// A STIL field reflowed, or `None` when it's missing or blank.
-fn reflowed(field: &Option<String>) -> Option<String> {
-    field
-        .as_deref()
-        .map(reflow)
-        .filter(|t| !t.trim().is_empty())
-}
-
-/// Text width of a STIL line: fields wrap at 80 columns, their values
-/// indented to column 9.
-const STIL_TEXT_WIDTH: usize = 71;
-
-/// Undo STIL's hard wrapping, which leaves ragged lines in a narrow column.
-/// The parser keeps every line break, so each one is judged on its own.
-fn reflow(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
-    let mut last: Option<&str> = None;
-    for line in text.lines().map(str::trim_end) {
-        match last {
-            Some(prev) if is_wrap(prev, line) => {
-                out.push(' ');
-                out.push_str(line.trim_start());
+    /// A line starting with "/" opens an entry (a folder's ends in "/"); it
+    /// runs to the next one, or to a "#" divider.
+    fn parse(text: &str) -> Self {
+        let mut entries = HashMap::new();
+        let mut current: Option<(String, Vec<&str>)> = None;
+        for line in text.lines() {
+            if line.starts_with('/') || line.starts_with('#') {
+                if let Some((key, lines)) = current.take() {
+                    entries.insert(key, lines.join("\n").trim_end().to_string());
+                }
+                if line.starts_with('/') {
+                    current = Some((line.trim().to_lowercase(), vec![line.trim_end()]));
+                }
+            } else if let Some((_, lines)) = current.as_mut() {
+                lines.push(line.trim_end());
             }
-            Some(_) => {
-                out.push('\n');
-                out.push_str(line);
-            }
-            None => out.push_str(line),
         }
-        last = Some(line);
+        if let Some((key, lines)) = current {
+            entries.insert(key, lines.join("\n").trim_end().to_string());
+        }
+        Self { entries }
     }
-    out
+
+    /// The entry on `hvsc_path` ("/MUSICIANS/H/Hubbard_Rob/Commando.sid",
+    /// or a folder with or without its trailing "/"), after the entries of
+    /// the folders it's in: those declare whose initials sign its comments.
+    pub fn excerpt(&self, hvsc_path: &str) -> Option<String> {
+        let mut key = hvsc_path.to_lowercase();
+        if !self.entries.contains_key(&key) && !key.ends_with('/') {
+            key.push('/');
+        }
+        let entry = self.entries.get(&key)?;
+        let mut parts: Vec<&str> = key
+            .match_indices('/')
+            .map(|(i, _)| &key[..=i])
+            .filter(|folder| folder.len() < key.len())
+            .filter_map(|folder| self.entries.get(folder))
+            .map(String::as_str)
+            .collect();
+        parts.push(entry);
+        Some(parts.join("\n\n"))
+    }
 }
 
-/// Whether the break between `prev` and `next` is STIL's wrapping rather
-/// than the writer's. A wrap when `next`'s first word wouldn't have fit;
-/// otherwise when `prev` stops mid-sentence, as writers who wrapped short
-/// of 80 columns leave it. Short unfinished lines are deliberate (lyrics,
-/// lists), unless the next line is a path too long to have fit.
-fn is_wrap(prev: &str, next: &str) -> bool {
-    let Some(first_word) = next.split_whitespace().next() else {
-        return false;
-    };
-    let prev_len = prev.chars().count();
-    if prev_len + 1 + first_word.chars().count() > STIL_TEXT_WIDTH {
-        return true;
+/// HVSC ships STIL.txt in Latin-1; some copies are re-encoded as UTF-8.
+fn decode_stil(bytes: &[u8]) -> String {
+    match std::str::from_utf8(bytes) {
+        Ok(text) => text.to_string(),
+        Err(_) => bytes.iter().map(|&b| char::from(b)).collect(),
     }
-    let ends_sentence = prev.ends_with(['.', '!', '?', ':', '"', '\'', ')', ']']);
-    !ends_sentence && (prev_len >= 40 || next.starts_with('/'))
+}
+
+/// A tune's or folder's path as STIL names it: "/MUSICIANS/H/Hubbard_Rob/
+/// Commando.sid". Outside the HVSC folder, counted from its MUSICIANS,
+/// GAMES or DEMOS folder, as in another copy of HVSC.
+fn hvsc_path(path: &Path, hvsc_root: Option<&Path>) -> Option<String> {
+    let parts: Vec<String> = path
+        .components()
+        .filter_map(|c| match c {
+            Component::Normal(part) => Some(part.to_string_lossy().into_owned()),
+            _ => None,
+        })
+        .collect();
+    let inside = hvsc_root
+        .and_then(|root| path.strip_prefix(root).ok())
+        .map(|rel| parts.len() - rel.components().count())
+        .or_else(|| {
+            parts
+                .iter()
+                .rposition(|p| ["MUSICIANS", "GAMES", "DEMOS"].contains(&p.as_str()))
+        })?;
+    (inside < parts.len()).then(|| format!("/{}", parts[inside..].join("/")))
 }
 
 fn log_err<T>(what: &str, path: &Path, result: Result<T, String>) -> Option<T> {
@@ -207,86 +192,75 @@ fn log_err<T>(what: &str, path: &Path, result: Result<T, String>) -> Option<T> {
 mod tests {
     use std::path::Path;
 
-    use super::{reflow, Databases, StilBlock, StilNotes};
-    use crate::stil::StilDb;
+    use super::{hvsc_path, StilText};
+
+    const STIL: &str = "### /MUSICIANS/ ###\r\n\
+        \r\n\
+        /MUSICIANS/H/Hubbard_Rob/\r\n\
+        COMMENT: Hubbard's own comments are denoted (RH).\r\n\
+        \r\n\
+        /MUSICIANS/H/Hubbard_Rob/Commando.sid\r\n\
+        COMMENT: \"There is an interesting story behind Commando. I\r\n\
+        \x20        went down to their office...\" (RH)\r\n\
+        (#1)\r\n\
+        \x20 TITLE: BGM1 [from the arcade game Commando] (0:00)\r\n\
+        \r\n\
+        ### /MUSICIANS/J/ ###\r\n\
+        /MUSICIANS/J/Jammer/Lyrics.sid\r\n\
+        COMMENT: Last entry, no blank line after it.";
 
     #[test]
-    fn stil_notes_hold_the_file_comment_and_the_subtunes_blocks() {
-        let file = std::env::temp_dir().join(format!("resonance-stil-{}.txt", std::process::id()));
-        std::fs::write(
-            &file,
-            "/MUSICIANS/F/Fanta/Lightforce.sid\n\
-             COMMENT: Remixed for a compo.\n\
-             (#1)\n  \
-             TITLE: Lightforce\n \
-             ARTIST: Rob Hubbard\n\
-             COMMENT: Based on /MUSICIANS/H/Hubbard_Rob/Lightforce.sid\n\
-             (#2)\n\
-             COMMENT: An original.\n",
-        )
-        .unwrap();
-        let db = Databases {
-            stil: Some(StilDb::load(&file).unwrap()),
-            ..Databases::default()
-        };
-        std::fs::remove_file(&file).unwrap();
-        let tune = Path::new("/HVSC/MUSICIANS/F/Fanta/Lightforce.sid");
+    fn excerpts_hold_the_entry_after_its_folders_entries() {
+        let stil = StilText::parse(STIL);
+        assert_eq!(
+            stil.excerpt("/MUSICIANS/H/Hubbard_Rob/Commando.sid")
+                .as_deref(),
+            Some(
+                "/MUSICIANS/H/Hubbard_Rob/\n\
+                 COMMENT: Hubbard's own comments are denoted (RH).\n\
+                 \n\
+                 /MUSICIANS/H/Hubbard_Rob/Commando.sid\n\
+                 COMMENT: \"There is an interesting story behind Commando. I\n\
+                 \x20        went down to their office...\" (RH)\n\
+                 (#1)\n\
+                 \x20 TITLE: BGM1 [from the arcade game Commando] (0:00)"
+            )
+        );
+        // A folder, as the library names it (no trailing slash).
+        assert_eq!(
+            stil.excerpt("/musicians/h/hubbard_rob").as_deref(),
+            Some("/MUSICIANS/H/Hubbard_Rob/\nCOMMENT: Hubbard's own comments are denoted (RH).")
+        );
+        assert_eq!(
+            stil.excerpt("/MUSICIANS/J/Jammer/Lyrics.sid").as_deref(),
+            Some("/MUSICIANS/J/Jammer/Lyrics.sid\nCOMMENT: Last entry, no blank line after it.")
+        );
+        assert_eq!(stil.excerpt("/MUSICIANS/H/Hubbard_Rob/Delta.sid"), None);
+    }
+
+    #[test]
+    fn latin1_stil_keeps_its_accents() {
+        assert_eq!(
+            super::decode_stil(b"Paco's (\xC1d\xE1m Papp)"),
+            "Paco's (Ádám Papp)"
+        );
+        assert_eq!(super::decode_stil("Ádám".as_bytes()), "Ádám");
+    }
+
+    #[test]
+    fn hvsc_paths_count_from_the_root_or_the_category_folder() {
         let root = Some(Path::new("/HVSC"));
-
+        let tune = Path::new("/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid");
         assert_eq!(
-            db.stil_notes(tune, root, 1),
-            Some(StilNotes {
-                comment: Some("Remixed for a compo.".into()),
-                blocks: vec![StilBlock {
-                    subtune: 1,
-                    title: Some("Lightforce".into()),
-                    artist: Some("Rob Hubbard".into()),
-                    comment: Some("Based on /MUSICIANS/H/Hubbard_Rob/Lightforce.sid".into()),
-                    ..StilBlock::default()
-                }],
-            })
+            hvsc_path(tune, root).as_deref(),
+            Some("/MUSICIANS/H/Hubbard_Rob/Commando.sid")
         );
-        let second = db.stil_notes(tune, root, 2).unwrap();
-        assert_eq!(second.blocks.len(), 1);
-        assert_eq!(second.blocks[0].comment.as_deref(), Some("An original."));
+        let elsewhere = Path::new("/Music/C64/GAMES/A-F/Catalypse.sid");
         assert_eq!(
-            db.stil_notes(Path::new("/HVSC/Elsewhere.sid"), root, 1),
-            None
+            hvsc_path(elsewhere, root).as_deref(),
+            Some("/GAMES/A-F/Catalypse.sid")
         );
-    }
-
-    #[test]
-    fn reflow_joins_wrapped_lines_and_keeps_deliberate_breaks() {
-        // STIL's note on /MUSICIANS/D/Daglish_Ben/, as the parser keeps it.
-        let parsed = "Comments from Ben Daglish are denoted (BD)\n\
-            Q: Is it Ben or Benn?\n\
-            A: \"Ben is my real name....Benn was a nick from Compu-Net days - the\n\
-            double letter was all the rage...Ratt, Bogg etc. etc.\" (BD)\n\
-            Sadly, Ben Daglish passed away on October 1st, 2018, at the age of 52,\n\
-            due to complications from lung cancer.";
-        assert_eq!(
-            reflow(parsed),
-            "Comments from Ben Daglish are denoted (BD)\n\
-             Q: Is it Ben or Benn?\n\
-             A: \"Ben is my real name....Benn was a nick from Compu-Net days - the \
-             double letter was all the rage...Ratt, Bogg etc. etc.\" (BD)\n\
-             Sadly, Ben Daglish passed away on October 1st, 2018, at the age of 52, \
-             due to complications from lung cancer."
-        );
-    }
-
-    #[test]
-    fn reflow_joins_lines_wrapped_short_of_80_columns() {
-        let parsed = "I rushed to buy it at some electronic store on 45th\nstreet in Manhattan.";
-        assert_eq!(
-            reflow(parsed),
-            "I rushed to buy it at some electronic store on 45th street in Manhattan."
-        );
-    }
-
-    #[test]
-    fn reflow_keeps_lyrics_apart() {
-        let lyrics = "I came, I saw, I Comm-o-dored,\nIt's plain to see\nYou Comm-o-dored me";
-        assert_eq!(reflow(lyrics), lyrics);
+        assert_eq!(hvsc_path(Path::new("/Music/Own.sid"), root), None);
+        assert_eq!(hvsc_path(Path::new("/HVSC"), root), None);
     }
 }

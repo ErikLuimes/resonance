@@ -1,0 +1,43 @@
+{
+  "path": "/MUSICIANS/H/Hubbard_Rob/Lion_Heart.sid",
+  "composer": {
+    "name": "Rob Hubbard",
+    "initials": "RH",
+    "aliases": [
+      "Hubbard",
+      "RH",
+      "Rob",
+      "Rob Hubbard"
+    ]
+  },
+  "sections": [
+    {
+      "subtune": null,
+      "names": [],
+      "authors": [],
+      "covers": [],
+      "isMedley": false,
+      "comments": [
+        {
+          "blocks": [
+            {
+              "kind": "quote",
+              "by": "Jason Page",
+              "role": null,
+              "paragraphs": [
+                [
+                  {
+                    "t": "Pushing RobTracker to its limits, this was a lot of fun to convert! The original was all brass and jazz and notes and more notes. Really not my thing — or at least, it wasn’t. I’ve a completely newfound respect for this style of music now."
+                  }
+                ]
+              ]
+            }
+          ],
+          "memoriam": false,
+          "teaser": "Pushing RobTracker to its limits, this was a lot of fun to convert!",
+          "links": []
+        }
+      ]
+    }
+  ]
+}

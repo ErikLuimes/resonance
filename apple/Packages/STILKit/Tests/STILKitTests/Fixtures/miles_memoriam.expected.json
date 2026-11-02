@@ -1,0 +1,34 @@
+{
+  "path": "/DEMOS/0-9/53_Miles_West_of_Venus.sid",
+  "composer": null,
+  "sections": [
+    {
+      "subtune": null,
+      "names": [],
+      "authors": [],
+      "covers": [],
+      "isMedley": false,
+      "comments": [
+        {
+          "blocks": [
+            {
+              "kind": "note",
+              "by": null,
+              "role": null,
+              "paragraphs": [
+                [
+                  {
+                    "t": "Sadly, Radek Stypczynski passed away on May 6th, 2011."
+                  }
+                ]
+              ]
+            }
+          ],
+          "memoriam": true,
+          "teaser": "Sadly, Radek Stypczynski passed away on May 6th, 2011.",
+          "links": []
+        }
+      ]
+    }
+  ]
+}

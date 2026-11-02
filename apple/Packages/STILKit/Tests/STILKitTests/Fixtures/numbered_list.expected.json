@@ -1,0 +1,74 @@
+{
+  "path": "/MUSICIANS/D/Deetsay/Great_Hirmu_Sisters.sid",
+  "composer": {
+    "name": "Deetsay",
+    "initials": "D",
+    "aliases": [
+      "Deetsay"
+    ]
+  },
+  "sections": [
+    {
+      "subtune": null,
+      "names": [],
+      "authors": [],
+      "covers": [],
+      "isMedley": false,
+      "comments": [
+        {
+          "blocks": [
+            {
+              "kind": "note",
+              "by": null,
+              "role": null,
+              "paragraphs": [
+                [
+                  {
+                    "t": "Composed in 1999 for the PC demo “Great Hirmu Sisters” but released as a C64 executable only in 2021."
+                  }
+                ]
+              ]
+            },
+            {
+              "kind": "quote",
+              "by": "Deetsay",
+              "role": "composer",
+              "paragraphs": [
+                [
+                  {
+                    "t": "[…] this was actually a pretty big project consisting of:"
+                  }
+                ],
+                [
+                  {
+                    "t": "1) Hunting down the "
+                  },
+                  {
+                    "t": "three",
+                    "em": true
+                  },
+                  {
+                    "t": " original randomly named DMC5 tunes from the floppy disks whereupon they were saved 22 years ago;"
+                  }
+                ],
+                [
+                  {
+                    "t": "2) Figuring out how to integrate the SAM speech between them (massive thanks to Groepaz for releasing the commented disassembly!);"
+                  }
+                ],
+                [
+                  {
+                    "t": "3) Coding a bunch of changing parameters on the DMC tunes, which were originally tweaked while recording"
+                  }
+                ]
+              ]
+            }
+          ],
+          "memoriam": false,
+          "teaser": "Composed in 1999 for the PC demo “Great Hirmu Sisters” but released as a C64 executable only in 2021.",
+          "links": []
+        }
+      ]
+    }
+  ]
+}

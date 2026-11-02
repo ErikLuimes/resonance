@@ -33,8 +33,6 @@ final class PlayerStore {
     private(set) var trackRevision: UInt64 = 0
     /// HVSC categories whose search index is being built.
     private(set) var hvscIndexing: [HvscCategory] = []
-    /// What STIL says about the playing subtune.
-    private(set) var stil: TuneStil?
 
     // MARK: Settings (persisted, pushed to the core)
 
@@ -192,7 +190,6 @@ final class PlayerStore {
         update(\.error, s.error)
         update(\.trackRevision, s.trackRevision)
         update(\.hvscIndexing, s.hvscIndexing)
-        update(\.stil, s.stil)
     }
 
     private func update<Value: Equatable>(_ keyPath: ReferenceWritableKeyPath<PlayerStore, Value>, _ value: Value) {

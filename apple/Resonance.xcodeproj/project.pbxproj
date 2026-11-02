@@ -12,6 +12,7 @@
 		E836E96C5BC45F7A1EFF5F86 /* PhosphorCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */; };
 		0BC0465548DDA9FA7F88FFB1 /* PhosphorCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FA99E36DFC9909E36EFDFFA1 /* PhosphorCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */; };
+		5C1A7E0B2D9F4E3A8B6C0D11 /* STILKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5C1A7E0B2D9F4E3A8B6C0D12 /* STILKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -84,6 +85,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E836E96C5BC45F7A1EFF5F86 /* PhosphorCore.framework in Frameworks */,
+				5C1A7E0B2D9F4E3A8B6C0D11 /* STILKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -194,6 +196,7 @@
 			);
 			name = Resonance;
 			packageProductDependencies = (
+				5C1A7E0B2D9F4E3A8B6C0D12 /* STILKit */,
 			);
 			productName = Resonance;
 			productReference = BD618DF38BE01ED7BAC0B411 /* Resonance.app */;
@@ -253,6 +256,9 @@
 			);
 			mainGroup = AF62C528221C8940CE4CCAD7;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5C1A7E0B2D9F4E3A8B6C0D13 /* XCLocalSwiftPackageReference "Packages/STILKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2AB91D63C9C73ECC697336D4 /* Products */;
 			projectDirPath = "";
@@ -610,6 +616,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		5C1A7E0B2D9F4E3A8B6C0D13 /* XCLocalSwiftPackageReference "Packages/STILKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/STILKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5C1A7E0B2D9F4E3A8B6C0D12 /* STILKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = STILKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AF0D8A68B51A43F4FE134FAF /* Project object */;
 }

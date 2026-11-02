@@ -70,7 +70,7 @@ struct HVSCBrowserView: View {
     /// Follow the inspector's author link: select the composer, and leave
     /// the tune for their tune table to select.
     private func applyReveal() {
-        guard category == .musicians, let reveal = library.reveal else { return }
+        guard let reveal = library.reveal, reveal.category == category else { return }
         selectedAuthor = reveal.authorPath
         authorScroll = AuthorScroll(path: reveal.authorPath, request: reveal.id)
         library.revealedTune = reveal.tunePath

@@ -1,0 +1,69 @@
+{
+  "path": "/MUSICIANS/C/CreaMD/Black_Sistah.sid",
+  "composer": {
+    "name": "CreaMD",
+    "initials": "C",
+    "aliases": [
+      "CreaMD"
+    ]
+  },
+  "sections": [
+    {
+      "subtune": null,
+      "names": [],
+      "authors": [],
+      "covers": [],
+      "isMedley": false,
+      "comments": [
+        {
+          "blocks": [
+            {
+              "kind": "note",
+              "by": null,
+              "role": null,
+              "paragraphs": [
+                [
+                  {
+                    "t": "Inspired by "
+                  },
+                  {
+                    "t": "/MUSICIANS/D/Derrett_Jay/Counterforce.sid",
+                    "link": "/MUSICIANS/D/Derrett_Jay/Counterforce.sid",
+                    "subtune": 1
+                  },
+                  {
+                    "t": ", Tune #1."
+                  }
+                ]
+              ]
+            },
+            {
+              "kind": "quote",
+              "by": "RC",
+              "role": null,
+              "paragraphs": [
+                [
+                  {
+                    "t": "I actually ripped ("
+                  },
+                  {
+                    "t": "cough",
+                    "em": true
+                  },
+                  {
+                    "t": " ;)) first 10 second motive from the tune and the rest is developed differently (in a quite crazy way ;-))"
+                  }
+                ]
+              ]
+            }
+          ],
+          "memoriam": false,
+          "teaser": "Inspired by /MUSICIANS/D/Derrett_Jay/Counterforce.sid, Tune #1.",
+          "links": [
+            "/MUSICIANS/D/Derrett_Jay/Counterforce.sid"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -12,6 +12,9 @@ struct ResonanceApp: App {
                 .environment(appDelegate.library)
         }
         .defaultSize(width: 1100, height: 680)
+        // At least as wide as ContentView's minimum, so the bottom bar never
+        // collapses.
+        .windowResizability(.contentMinSize)
         .commands {
             AboutCommands()
             PlaybackCommands(store: appDelegate.store, library: appDelegate.library)

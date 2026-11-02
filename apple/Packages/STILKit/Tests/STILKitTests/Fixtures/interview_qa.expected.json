@@ -1,0 +1,74 @@
+{
+  "path": "/MUSICIANS/T/Tel_Jeroen/Bad_Blood.sid",
+  "composer": {
+    "name": "Jeroen Tel",
+    "initials": "JT",
+    "aliases": [
+      "JT",
+      "Jeroen",
+      "Jeroen Tel",
+      "Tel"
+    ]
+  },
+  "sections": [
+    {
+      "subtune": 2,
+      "names": [],
+      "authors": [],
+      "covers": [
+        {
+          "title": "Vallåt",
+          "unknown": false,
+          "source": null,
+          "at": null,
+          "until": null,
+          "artist": null
+        }
+      ],
+      "isMedley": false,
+      "comments": [
+        {
+          "blocks": [
+            {
+              "kind": "note",
+              "by": null,
+              "role": null,
+              "paragraphs": [
+                [
+                  {
+                    "t": "The tune might be inspired by this piece."
+                  }
+                ],
+                [
+                  {
+                    "t": "Q: Is this a cover?"
+                  }
+                ],
+                [
+                  {
+                    "t": "JT: NO! Worldshocking huh? I could actually compose music in the classical traditional sence :) It’s all COMPOSED by me. More people seemed to be wondering if I "
+                  },
+                  {
+                    "t": "really composed Bad Blood",
+                    "em": true
+                  },
+                  {
+                    "t": ". The answer is yes with a capital Y."
+                  }
+                ],
+                [
+                  {
+                    "t": "Charles Deenen said it was the “best music I made on C64” when I finished it. (I do NOT agree ofcourse, although I must say it’s the best “filmscore” soundtrack I’ve done for a game on the C64. I actually got some kind of filmscript for it, that’s why I could be very specific when composing themes for characters and events in the game."
+                  }
+                ]
+              ]
+            }
+          ],
+          "memoriam": false,
+          "teaser": "The tune might be inspired by this piece.",
+          "links": []
+        }
+      ]
+    }
+  ]
+}

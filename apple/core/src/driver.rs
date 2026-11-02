@@ -18,7 +18,7 @@ use std::time::{Duration, Instant};
 
 use crossbeam_channel::{select, unbounded, Receiver, Sender};
 
-use crate::databases::{self, Databases, SharedDatabases, StilNotes};
+use crate::databases::{self, Databases, SharedDatabases};
 use crate::library::{Library, LibraryError};
 use crate::player::{self, PlayState, PlayerCmd, PlayerStatus};
 use crate::playlist::{self, LoadingProgress, PlaylistEntry, RepeatMode};
@@ -77,8 +77,6 @@ pub(crate) struct Published {
     pub playlist: Arc<Vec<PlaylistEntry>>,
     pub loading: Option<String>,
     pub error: Option<String>,
-    /// STIL on the playing tune's current subtune.
-    pub stil: Option<StilNotes>,
 }
 
 /// The parts of `Session` the FFI layer turns into records.
@@ -140,7 +138,6 @@ impl Driver {
             playlist: Arc::new(Vec::new()),
             loading: None,
             error: None,
-            stil: None,
         })));
         let viz = Arc::new(Mutex::new(VizFeed::new()));
         let out = published.clone();
@@ -360,8 +357,6 @@ struct State {
     error: Option<String>,
     published_playlist: (u64, Arc<Vec<PlaylistEntry>>),
     databases: SharedDatabases,
-    /// STIL keyed by the (path, subtune) it was looked up for.
-    published_stil: Option<((PathBuf, u16), Option<StilNotes>)>,
     viz: VizCapture,
 }
 
@@ -404,7 +399,6 @@ fn run(
         error: None,
         published_playlist: (u64::MAX, Arc::new(Vec::new())),
         databases: start.databases,
-        published_stil: None,
         viz,
     };
 
@@ -501,10 +495,7 @@ impl State {
             Command::SetRepeat(mode) => s.set_repeat(mode),
             Command::SetEngine(engine) => s.set_engine(engine, now),
             Command::SetOptions(options) => s.set_options(options, now),
-            Command::SetHvscRoot(root) => {
-                s.set_hvsc_root(root);
-                self.published_stil = None;
-            }
+            Command::SetHvscRoot(root) => s.set_hvsc_root(root),
             Command::Shutdown(_) => unreachable!("handled by the loop"),
         }
     }
@@ -528,7 +519,6 @@ impl State {
                     self.session.set_songlength_db(songlengths.clone());
                 }
                 databases::install(&self.databases, *db);
-                self.published_stil = None;
             }
             Loaded::SessionRestored(entries) => {
                 // Restored entries go first, ahead of anything the user added
@@ -602,22 +592,6 @@ impl State {
         let _ = self.player.commands.try_send(PlayerCmd::Quit);
     }
 
-    /// STIL on what's playing, looked up again only when the tune or
-    /// subtune changes.
-    fn current_stil(&mut self) -> Option<StilNotes> {
-        let info = self.session.status.track_info.as_ref()?;
-        let key = (info.path.clone(), info.current_song);
-        if let Some((cached_key, notes)) = &self.published_stil {
-            if *cached_key == key {
-                return notes.clone();
-            }
-        }
-        let db = databases::current(&self.databases);
-        let notes = db.stil_notes(&key.0, self.session.hvsc_root(), key.1);
-        self.published_stil = Some((key, notes.clone()));
-        notes
-    }
-
     fn publish(&mut self, out: &Mutex<Arc<Published>>) {
         let s = &self.session;
         if self.published_playlist.0 != s.playlist_revision {
@@ -629,8 +603,6 @@ impl State {
             .ok()
             .map(|p| progress_text(&p))
             .filter(|p| !p.is_empty());
-        let stil = self.current_stil();
-        let s = &self.session;
         let published = Published {
             session: SessionView {
                 status: s.status.clone(),
@@ -647,7 +619,6 @@ impl State {
             playlist: self.published_playlist.1.clone(),
             loading,
             error: self.error.clone().or_else(|| s.status.error.clone()),
-            stil,
         };
         if let Ok(mut slot) = out.lock() {
             *slot = Arc::new(published);
