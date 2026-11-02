@@ -655,6 +655,55 @@ struct VisualizerFeedTests {
         #expect(a.shape(at: 1, time: 0) != c.shape(at: 1, time: 0))
     }
 
+    @Test func spectrumFindsASinesBand() {
+        let spectrum = VoiceSpectrum()
+        let rate: Float = 44_800
+        let sine = (0..<VoiceSpectrum.size).map { sin(2 * Float.pi * 440 * Float($0) / rate) }
+        let bands = spectrum.bands(of: sine, sampleRate: rate)
+        let ratio = VoiceSpectrum.highHz / VoiceSpectrum.lowHz
+        let band = Int(log(440 / VoiceSpectrum.lowHz) / log(ratio) * Float(VoiceSpectrum.bands))
+        // Full scale reads as 0 dB; two octaves away it's far down.
+        #expect(abs(bands[band] - 1) < 0.05)
+        #expect(bands[band + 2 * VoiceSpectrum.bands / 8] < 0.5)
+        #expect(spectrum.bands(of: [Float](repeating: 0, count: 2048), sampleRate: rate).allSatisfy { $0 == 0 })
+    }
+
+    @Test func spectrumRisesFastAndFallsSlowly() {
+        let spectrum = VoiceSpectrum()
+        let rate: Float = 44_800
+        let sine = (0..<VoiceSpectrum.size).map { sin(2 * Float.pi * 440 * Float($0) / rate) }
+        let start = Date()
+        spectrum.update(voices: [sine], sampleRate: rate, at: start)
+        spectrum.update(voices: [sine], sampleRate: rate, at: start + 1.0 / 60)
+        let peak = spectrum.levels.prefix(VoiceSpectrum.bands).max()!
+        #expect(peak > 0.4)
+        spectrum.update(voices: [], sampleRate: rate, at: start + 2.0 / 60)
+        #expect(spectrum.levels.prefix(VoiceSpectrum.bands).max()! > peak * 0.8)
+    }
+
+    private func frame(_ index: UInt64, gate: Bool) -> VizSidFrame {
+        var v = envelope(.sustain, level: gate ? 1 : 0)
+        v.gate = gate
+        let chip = VizChip(voices: [v, v, v], registers: Data(count: 29), cutoff: 0,
+                           resonance: 0, filterRouting: 0, filterMode: 0, volume: 15)
+        return VizSidFrame(index: index, isPal: true, chips: [chip])
+    }
+
+    @Test func particleWaveStartsOnANewNote() {
+        let sphere = ParticleSphere()
+        let start = Date()
+        sphere.update(history: [frame(1, gate: false)], at: start)
+        #expect(sphere.hits[0] < 0)
+        // The gate opened in a frame not seen yet.
+        sphere.update(history: [frame(1, gate: false), frame(2, gate: true)], at: start + 0.02)
+        let hit = sphere.hits[0]
+        #expect(abs(hit - 0.02) < 1e-5)
+        // Seen already: no new wave.
+        sphere.update(history: [frame(1, gate: false), frame(2, gate: true)], at: start + 0.04)
+        #expect(sphere.hits[0] == hit)
+        #expect(sphere.levels[0] > 0)
+    }
+
     @Test func meterHoldsASustainAndSoftensADrop() {
         let meter = VoiceMeter()
         let start = Date()

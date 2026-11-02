@@ -13,6 +13,7 @@ nonisolated enum Pref {
     static let pseudoStereo = "pseudoStereo"
     static let hvscRoot = "hvscRoot"
     static let visualizerMode = "visualizerMode"
+    static let nowPlayingVisualizer = "nowPlayingVisualizer"
 }
 
 nonisolated extension PlaybackOptions {

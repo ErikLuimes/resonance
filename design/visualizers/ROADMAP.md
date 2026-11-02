@@ -117,11 +117,11 @@ building it (see the tracker note in ROADMAP.md).
 
 ## Phase 4 — Now Playing (full window / full screen)
 
-- [x] Now Playing — `reference/AppNowPlaying.dc.html`, Halo only. The main window's second mode: it slides up over the library like Music's player (full screen when the window is). Opened from the player bar's button, its track title, or View › Show Now Playing (⇧⌘F); Esc or its top-right button slides it away. A thin progress bar stands in for the overview strip until Phase 2.
-- [ ] Per-voice FFT (vDSP) on the sample taps
+- [x] Now Playing — `reference/AppNowPlaying.dc.html`, with the mockup's Halo / Particles / Radial tabs at the top (the choice is remembered). The main window's second mode: it slides up over the library like Music's player (full screen when the window is). Opened from the player bar's button, its track title, or View › Show Now Playing (⇧⌘F); Esc or its top-right button slides it away. A thin progress bar stands in for the overview strip until Phase 2.
+- [x] Per-voice FFT (vDSP) on the sample taps — `VoiceSpectrum`: 2048 samples, Hann window, 64 log bands from 40 Hz to 10 kHz on a −60…0 dB scale, fast rise and slow fall.
 - [x] Halo (Metal fragment shader) — `reference/Halo.dc.html`. `HaloShape` builds each ring's radii on the CPU from the waveform's harmonics and the envelope; `Shaders/Halo.metal` draws them through SwiftUI's shader API. Building needs Xcode's Metal Toolchain component.
-- [ ] Radial spectrum — `reference/RadialBars.dc.html`
-- [ ] Particle sphere (Metal compute + instanced points, 50k+) — `reference/Particles.dc.html`
+- [x] Radial spectrum — `reference/RadialBars.dc.html`. `RadialView`, a Canvas over `VoiceSpectrum`.
+- [x] Particle sphere — `reference/Particles.dc.html`. `ParticlesView`: an MTKView with 24,000 points. The vertex shader (`Shaders/Particles.metal`) does the displacement, so no compute pass is needed. `ParticleSphere` keeps each voice's level, ripple rate and last note start (gate opening) on the CPU.
 - [ ] Spectrogram waterfall (texture scroll) — `reference/Spectrogram.dc.html`
 
 **Prompt:**
