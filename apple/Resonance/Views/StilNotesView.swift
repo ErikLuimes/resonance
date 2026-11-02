@@ -15,8 +15,8 @@ struct StilNotesView: View {
         VStack(alignment: .leading, spacing: 16) {
             ForEach(Array(Self.cards(entry, song: Int(track.currentSong), songs: Int(track.songs)).enumerated()), id: \.offset) { _, card in
                 switch card {
-                case .memoriam(let comment):
-                    MemoriamCard(comment: comment)
+                case .memorial(let memorial):
+                    MemorialCard(memorial: memorial)
                 case .section(let section, let heading):
                     StilSectionCard(section: section, heading: heading)
                 case .noNotes(let song):
@@ -29,8 +29,8 @@ struct StilNotesView: View {
 
     /// One card in the notes.
     nonisolated enum Card: Equatable {
-        /// A comment remembering someone who passed away.
-        case memoriam(STILComment)
+        /// Someone STIL remembers, at the top.
+        case memorial(STILMemorial)
         case section(STILSection, heading: Heading)
         /// STIL has notes on other songs, not on this one.
         case noNotes(song: Int)
@@ -46,17 +46,16 @@ struct StilNotesView: View {
     /// The cards for `song` of `songs`: remembrances first, then the whole
     /// file's notes, then the song's own (or a word that it has none, when
     /// other songs do).
-    nonisolated static func cards(_ entry: STILEntry, song: Int, songs: Int) -> [Card] {
-        var cards: [Card] = []
+    nonisolated static func cards(_ full: STILEntry, song: Int, songs: Int) -> [Card] {
+        let (memorials, entry) = full.splittingMemorials()
+        var cards: [Card] = memorials.map(Card.memorial)
         var sections: [(STILSection, Heading?)] = entry.sections.filter { $0.subtune == nil }.map { ($0, nil) }
         let own = entry.sections.first { $0.subtune == song }
         if let own {
             sections.append((own, songs > 1 ? .song(song) : nil))
         }
         for (section, heading) in sections {
-            var rest = section
-            rest.comments = section.comments.filter { !$0.memoriam }
-            cards += section.comments.filter(\.memoriam).map(Card.memoriam)
+            let rest = section
             if case .song(let n) = heading, rest.isEmpty {
                 cards.append(.noNotes(song: n))
             } else if !rest.isEmpty {
@@ -81,10 +80,10 @@ struct StilCommentsView: View {
     let entry: STILEntry
 
     var body: some View {
+        let (memorials, rest) = entry.splittingMemorials()
         VStack(alignment: .leading, spacing: 10) {
-            ForEach(Array(entry.sections.flatMap(\.comments).flatMap(\.blocks).enumerated()), id: \.offset) { _, block in
-                StilBlockView(block: block)
-            }
+            ForEach(memorials, id: \.name) { MemorialCard(memorial: $0) }
+            StilBlocksView(blocks: rest.sections.flatMap(\.comments).flatMap(\.blocks), spacing: 10)
         }
         .stilLinks(entry)
     }
@@ -141,9 +140,7 @@ private struct StilSectionCard: View {
                 CoversView(covers: section.covers, isMedley: section.isMedley)
             }
             ForEach(Array(section.comments.enumerated()), id: \.offset) { _, comment in
-                ForEach(Array(comment.blocks.enumerated()), id: \.offset) { _, block in
-                    StilBlockView(block: block)
-                }
+                StilBlocksView(blocks: comment.blocks, spacing: 12)
             }
         }
         .stilCard()
@@ -167,20 +164,40 @@ private struct StilSectionCard: View {
     }
 }
 
-/// Someone remembered: quiet, an outline instead of a fill.
-private struct MemoriamCard: View {
-    let comment: STILComment
+/// Someone remembered, set like an epitaph: centred and unframed, a thin
+/// candle flame, the name in the quotes' serif, and when it happened.
+struct MemorialCard: View {
+    let memorial: STILMemorial
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            StilOverline("In Memoriam")
-            ForEach(Array(comment.blocks.enumerated()), id: \.offset) { _, block in
-                StilBlockView(block: block)
-            }
+        VStack(spacing: 4) {
+            Image(systemName: "flame")
+                .font(.system(size: 17, weight: .light))
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 2)
+                .accessibilityHidden(true)
+            Text(memorial.name)
+                .font(.system(size: 17, design: .serif))
+                .foregroundStyle(.primary)
+            Text(Self.passed(memorial.details))
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.separator))
+        .multilineTextAlignment(.center)
+        .fixedSize(horizontal: false, vertical: true)
+        .textSelection(.enabled)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("In memory of \(memorial.name). \(Self.passed(memorial.details))")
+    }
+
+    /// "On May 6th, 2011." → "Passed away on May 6th, 2011".
+    nonisolated static func passed(_ details: String?) -> String {
+        guard var details, !details.isEmpty else { return "Passed away" }
+        if details.hasSuffix(".") { details.removeLast() }
+        return "Passed away " + details.prefix(1).lowercased() + details.dropFirst()
     }
 }
 
@@ -232,6 +249,139 @@ private extension View {
 
 // MARK: - Blocks
 
+/// A comment's blocks in order, with each interview question and the
+/// answer after it set together as a transcript.
+private struct StilBlocksView: View {
+    let blocks: [STILBlock]
+    let spacing: CGFloat
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: spacing) {
+            ForEach(Array(Self.items(blocks).enumerated()), id: \.offset) { _, item in
+                switch item {
+                case .block(let block):
+                    StilBlockView(block: block)
+                case .interview(let exchanges):
+                    StilTranscript(exchanges: exchanges)
+                }
+            }
+        }
+    }
+
+    enum Item {
+        case block(STILBlock)
+        case interview([StilTranscript.Exchange])
+    }
+
+    /// Questions take the quote after them as their answer; questions in a
+    /// row of exchanges make one transcript.
+    nonisolated static func items(_ blocks: [STILBlock]) -> [Item] {
+        var items: [Item] = []
+        var i = 0
+        while i < blocks.count {
+            let block = blocks[i]
+            guard block.kind == .question else {
+                items.append(.block(block))
+                i += 1
+                continue
+            }
+            let answer = i + 1 < blocks.count && blocks[i + 1].kind == .quote ? blocks[i + 1] : nil
+            let exchange = StilTranscript.Exchange(question: block, answer: answer)
+            if case .interview(let exchanges) = items.last {
+                items[items.count - 1] = .interview(exchanges + [exchange])
+            } else {
+                items.append(.interview([exchange]))
+            }
+            i += answer == nil ? 1 : 2
+        }
+        return items
+    }
+}
+
+/// An interview in STIL: who speaks sits in a narrow left column, the
+/// question muted beside "STIL" (its editors ask), the answer in the
+/// speaker's serif voice beside their initials. Same size and line height
+/// as the quotes.
+private struct StilTranscript: View {
+    struct Exchange {
+        let question: STILBlock
+        let answer: STILBlock?
+    }
+
+    let exchanges: [Exchange]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(Array(exchanges.enumerated()), id: \.offset) { index, exchange in
+                if index > 0 { Divider() }
+                Grid(alignment: .topLeading, horizontalSpacing: 10, verticalSpacing: 10) {
+                    GridRow {
+                        Text(verbatim: "STIL")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                            .frame(width: 28, alignment: .trailing)
+                            .padding(.top, 2)
+                            .accessibilityLabel("Question")
+                        paragraphs(exchange.question.paragraphs, style: .question)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    if let answer = exchange.answer {
+                        GridRow {
+                            Monogram(name: answer.by ?? "A")
+                                .help(answer.by.map { answer.role == .composer ? "\($0), composer" : $0 } ?? "Answer")
+                            AnswerView(answer: answer)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func paragraphs(_ paragraphs: [[STILRun]], style: StilText.Style) -> some View {
+        VStack(alignment: .leading, spacing: style.paragraphSpacing) {
+            ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, runs in
+                StilText(runs: runs, style: style)
+            }
+        }
+        .textSelection(.enabled)
+    }
+}
+
+/// An interview answer in curly quotes, folded like a quote when it's long.
+private struct AnswerView: View {
+    let answer: STILBlock
+
+    @State private var expanded = false
+
+    var body: some View {
+        let folds = answer.paragraphs.reduce(0) { $0 + $1.reduce(0) { $0 + $1.t.count } } > StilBlockView.foldLength
+        let folded = folds && !expanded
+        let quoted = Self.quoted(answer.paragraphs)
+        VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: StilText.Style.quote.paragraphSpacing) {
+                ForEach(Array((folded ? Array(quoted.prefix(1)) : quoted).enumerated()), id: \.offset) { _, runs in
+                    StilText(runs: runs, style: .quote)
+                        .lineLimit(folded ? StilBlockView.foldedLines : nil)
+                }
+            }
+            .textSelection(.enabled)
+            if folds {
+                AccentLink(expanded ? "Show Less" : "Read More") { expanded.toggle() }
+            }
+        }
+    }
+
+    /// The answer's paragraphs between “ and ”.
+    nonisolated static func quoted(_ paragraphs: [[STILRun]]) -> [[STILRun]] {
+        guard !paragraphs.isEmpty else { return paragraphs }
+        var out = paragraphs
+        out[0].insert(STILRun(t: "\u{201C}"), at: 0)
+        out[out.count - 1].append(STILRun(t: "\u{201D}"))
+        return out
+    }
+}
+
 /// One stretch of a comment: the STIL editors' note in plain text, or a
 /// quote in serif with who said it. Long ones start folded.
 private struct StilBlockView: View {
@@ -241,8 +391,8 @@ private struct StilBlockView: View {
 
     /// Blocks longer than this fold to their first paragraph, at most
     /// `foldedLines` lines of it.
-    private static let foldLength = 280
-    private static let foldedLines = 5
+    static let foldLength = 280
+    static let foldedLines = 5
 
     var body: some View {
         let folds = block.paragraphs.reduce(0) { $0 + $1.reduce(0) { $0 + $1.t.count } } > Self.foldLength
@@ -259,6 +409,9 @@ private struct StilBlockView: View {
                 }
                 if folds { foldLink }
             }
+        case .question:
+            // Only reaches here without the transcript around it.
+            text(paragraphs, style: .question, folded: false)
         case .quote:
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top, spacing: 6) {
@@ -303,11 +456,7 @@ private struct Byline: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Text(Self.initials(name))
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .foregroundStyle(.tint)
-                .frame(width: 28, height: 28)
-                .background(.tint.opacity(0.16), in: .circle)
+            Monogram(name: name)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 0) {
                 Text(name)
@@ -332,6 +481,19 @@ private struct Byline: View {
     }
 }
 
+/// Someone's initials in a small tinted circle.
+private struct Monogram: View {
+    let name: String
+
+    var body: some View {
+        Text(Byline.initials(name))
+            .font(.system(size: 11, weight: .semibold, design: .rounded))
+            .foregroundStyle(.tint)
+            .frame(width: 28, height: 28)
+            .background(.tint.opacity(0.16), in: .circle)
+    }
+}
+
 // MARK: - Text
 
 /// A paragraph of STIL: tunes it names as links to the library (by their
@@ -345,13 +507,15 @@ private struct StilText: View {
     enum Style {
         case note
         case quote
+        /// An interviewer's question: the note face, in italics and muted.
+        case question
 
         /// Quotes differ from notes in face only, not size.
         var size: CGFloat { NSFont.systemFontSize }
 
         var design: Font.Design {
             switch self {
-            case .note: .default
+            case .note, .question: .default
             case .quote: .serif
             }
         }
@@ -362,6 +526,8 @@ private struct StilText: View {
     var body: some View {
         Text(attributed)
             .font(.system(size: style.size, design: style.design))
+            .italic(style == .question)
+            .foregroundStyle(style == .question ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
             // New York runs taller than SF; one line height keeps quotes and
             // notes alike.
             .lineHeight(.exact(points: (style.size * 1.3).rounded()))

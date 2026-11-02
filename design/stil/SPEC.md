@@ -132,8 +132,8 @@ join           = "line + ' ' + next", except a word hyphenated across lines
 
 ### 4.1 Blocks
 
-A comment is a list of **blocks**: `note` (STIL editors' voice) or `quote` (someone speaking in the
-first person). 221 comments mix both, e.g. a note ("Won the Big Chip Compo #6.") followed by the
+A comment is a list of **blocks**: `note` (STIL editors' voice), `quote` (someone speaking in the
+first person) or `question` (an interviewer's question, see Interviews below). 221 comments mix both, e.g. a note ("Won the Big Chip Compo #6.") followed by the
 composer's quote.
 
 - A quote block starts with a paragraph that begins with `"` and runs until the paragraph where the
@@ -144,6 +144,11 @@ composer's quote.
   opening `"` that follows sentence punctuation and leaves a balanced quote to the end.
 - The outer quote marks are removed from the text; the UI draws them.
 - An unclosed leading quote (`"Remix" of …`) is just a note.
+- **Interviews** (3 entries in v85): a paragraph starting `Q: ` is a `question` block (prefix
+  dropped). The `A: ` or `XY: ` paragraph right after it is the answer, a `quote` block: when its
+  text opens with `"` it is a normal quote (to its closing quote and attribution), else it runs to
+  the next `Q: ` paragraph or the comment's end. Initials other than `A` sign an answer that has no
+  attribution (`JT: …` → by `JT`). Interview paragraphs are never split as inline quotes.
 
 ### 4.2 Bylines and roles
 

@@ -61,6 +61,16 @@ Inspector width 400 pt, 16 pt side padding, 18 pt gap between cards.
 - When a comment has a note followed by a quote, render both blocks in one card: the note first in
   sans, the quote underneath in serif with its byline. They're one STIL comment.
 
+### Interview transcript (`question` blocks)
+- STIL's few interviews ("Q: …" then "A: …" or "JT: …"; 3 entries in v85) render as a transcript
+  inside the card: a narrow left column says who speaks, the text column fills the rest.
+- Question row: "STIL" in caption2/600 tertiary (STIL's editors ask), the question in italic
+  secondary sans.
+- Answer row: the speaker's 28 pt initials monogram (tooltip: name, ", composer" when confirmed;
+  "A" when unknown), the answer in the quote serif between curly quotes.
+- **Same size and line height as quotes** for question and answer alike; consecutive exchanges are
+  divided by a hairline. Long answers fold like quotes (first paragraph, 5 lines, "Read More").
+
 ### Runs inside text
 - **link**: resolve the HVSC path in the library → "Tune Title ▸" in `accent`, 600 weight; tap opens
   the tune (and subtune). If it can't be resolved, show the file name without `.sid`.
@@ -90,9 +100,17 @@ When a note *starts* with a relation and a link ("Remix of", "Same as", "Covers"
 - Gaps between quoted segments stay unlabelled.
 
 ### In memoriam (`memoriam`)
-- Quiet: 1 pt `border` outline, no fill, thin line candle icon, "In memory of NAME" 15/600 and the
-  date sentence in secondary. Put it on the **musician page** (folder entry) and at the top of the
+- Quiet, set like an epitaph: centred, no frame or fill, a thin line candle icon, the NAME in the
+  quote serif (17) and "Passed away on DATE, …" in caption secondary. (Replaced an outlined card
+  with "In memory of NAME" 15/600, which read too much like a UI box.) Put it on the **musician page** (folder entry) and at the top of the
   tune's notes. No black banners or crosses.
+- Built from STIL's "Sadly, NAME (has) passed away …" sentence (63 in v85, 53 of them on folder
+  entries; the name must start with a capital, so "Sadly, with X having passed away" is no
+  memorial). The epitaph shows NAME and the rest of the sentence ("Passed away on October 1st, 2018,
+  at the age of 52, …"); the sentence leaves the comment, whose other text stays where it was. The model's
+  `memoriam` flag is broader ("Since Anthony passed away, we can't verify…", a dog): those comments
+  stay ordinary notes. In the app: the composer card (folder entry) and the tune's notes, the SF
+  Symbol `flame` at light weight as the candle.
 
 ### Tune list teaser
 - Second line under the title (row height 58) with `teaser`, ellipsised. Quote teasers in **serif
@@ -162,6 +180,7 @@ available on the web. Use the system faces in the app.
 | 11 | memoriam = "passed away" / "R.I.P", not "died" | "died" matches song titles |
 | 12 | Curly quotes, em dashes, ellipses; tokens masked during typography | Typeset text without breaking paths/URLs |
 | 13 | Parse once, enrich lazily, cache | 3.6 MB file; enrichment is per entry |
+| 14 | Interviews as a transcript (speaker column), not one quote | Keeps who asks and who answers apart; picked over an "interview card" mockup |
 
 ## Open questions
 

@@ -50,7 +50,8 @@ public struct STILComment: Codable, Equatable, Sendable {
 }
 
 public struct STILBlock: Codable, Equatable, Sendable {
-    public enum Kind: String, Codable, Sendable { case note, quote }
+    /// `question`: an interviewer's "Q: " line; the quote after it is the answer.
+    public enum Kind: String, Codable, Sendable { case note, quote, question }
     public enum Role: String, Codable, Sendable { case composer }
 
     public var kind: Kind

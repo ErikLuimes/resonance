@@ -38,15 +38,29 @@
                   {
                     "t": "The tune might be inspired by this piece."
                   }
-                ],
+                ]
+              ]
+            },
+            {
+              "kind": "question",
+              "by": null,
+              "role": null,
+              "paragraphs": [
                 [
                   {
-                    "t": "Q: Is this a cover?"
+                    "t": "Is this a cover?"
                   }
-                ],
+                ]
+              ]
+            },
+            {
+              "kind": "quote",
+              "by": "Jeroen Tel",
+              "role": "composer",
+              "paragraphs": [
                 [
                   {
-                    "t": "JT: NO! Worldshocking huh? I could actually compose music in the classical traditional sence :) It’s all COMPOSED by me. More people seemed to be wondering if I "
+                    "t": "NO! Worldshocking huh? I could actually compose music in the classical traditional sence :) It’s all COMPOSED by me. More people seemed to be wondering if I "
                   },
                   {
                     "t": "really composed Bad Blood",

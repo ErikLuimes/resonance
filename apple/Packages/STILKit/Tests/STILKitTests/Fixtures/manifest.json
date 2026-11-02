@@ -52,7 +52,12 @@
   {
     "name": "interview_qa",
     "entry": "/MUSICIANS/T/Tel_Jeroen/Bad_Blood.sid",
-    "exercises": "Q:/A: interview lines become separate paragraphs"
+    "exercises": "Q: becomes a question block; the unquoted 'JT: ...' answer runs to the comment's end as a quote signed JT (Jeroen Tel, composer)"
+  },
+  {
+    "name": "interview_quoted_answer",
+    "entry": "/MUSICIANS/D/Daglish_Ben/Last_Ninja.sid",
+    "exercises": "Quote, then Q: question and a quoted 'A: \"...\" (BD)' answer resolved to Ben Daglish; the note after it stays a note"
   },
   {
     "name": "emphasis",

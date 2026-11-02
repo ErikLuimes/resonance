@@ -58,19 +58,18 @@ struct NowPlayingInspector: View {
         }
     }
 
-    /// Where it's playing from (with a way to keep it), the title, who
-    /// released it when, then how long it runs and which of several songs
-    /// is on. The author too, when no composer card names them.
+    /// Where it's playing from as a small overline, the title with the
+    /// full width, who released it when, how long it runs and which of
+    /// several songs is on, then a way to keep it on its own row. The author
+    /// too, when no composer card names them.
     private func header(_ track: TrackDetails, showsAuthor: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 8) {
-                source
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                playlistStatus(track)
-            }
-            .padding(.bottom, 2)
+        VStack(alignment: .leading, spacing: 4) {
+            source
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
+                .kerning(0.6)
+                .foregroundStyle(.tertiary)
+                .padding(.bottom, 4)
             Text(track.title)
                 .font(.title2.weight(.semibold))
             if showsAuthor {
@@ -96,11 +95,22 @@ struct NowPlayingInspector: View {
                 }
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-                .padding(.top, 5)
+                .padding(.top, 6)
+            }
+            if showsPlaylistStatus(track) {
+                playlistStatus(track)
+                    .padding(.top, 10)
             }
         }
         .textSelection(.enabled)
         .padding(.horizontal, 4)
+    }
+
+    /// Whether `playlistStatus` has anything to show: not for a tune
+    /// playing from the playlist.
+    private func showsPlaylistStatus(_ track: TrackDetails) -> Bool {
+        !store.rows.contains(where: { $0.id == track.path })
+            || store.queueActive || store.surpriseActive || store.shuffleCollectionActive
     }
 
     /// The header's released field in words: "1985 Gremlin Graphics" →

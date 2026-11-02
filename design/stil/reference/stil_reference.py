@@ -396,17 +396,50 @@ def _split_inline_quote(p: str) -> Optional[tuple[str, str]]:
     return None
 
 
+# "Q: Is this a cover?" / "A: ..." / "JT: ...": an interview line.
+QA_RE = re.compile(r"^(?P<who>[A-Z]{1,3}): (?P<rest>.*)$", re.S)
+
+
 def split_blocks(paras: list[str]) -> list[dict]:
-    """Group paragraphs into note blocks and quote blocks."""
+    """Group paragraphs into note blocks, quote blocks and interview
+    questions. A "Q: " paragraph is a question block; the "A: " or "XY: "
+    paragraph after it is the answer, a quote: up to its closing quote when
+    it opens with one, else up to the next question or the comment's end.
+    Initials other than "A" sign an answer that has no (byline)."""
     work: list[str] = []
     for p in paras:                                   # split "Note. "Quote" (X)" first
-        sp = _split_inline_quote(p) if not p.startswith('"') else None
+        # (not an interview line: its "A: " isn't a note)
+        sp = _split_inline_quote(p) if not p.startswith('"') and not QA_RE.match(p) else None
         work.extend(sp if sp else [p])
 
+    def is_question(p: str) -> bool:
+        m = QA_RE.match(p)
+        return bool(m) and m.group("who") == "Q"
+
     blocks: list[dict] = []
+    answer_by: Optional[str] = None                   # an answer's speaker, for its quote
     i = 0
     while i < len(work):
         p = work[i]
+        qa = QA_RE.match(p)
+        if qa and qa.group("who") == "Q":
+            blocks.append({"kind": "question", "by": None, "paragraphs": [qa.group("rest").strip()]})
+            i += 1
+            continue
+        if qa and blocks and blocks[-1]["kind"] == "question":
+            who, rest = qa.group("who"), qa.group("rest").strip()
+            speaker = None if who == "A" else who
+            if rest.startswith('"'):
+                work[i] = p = rest                    # handled as a quote below
+                answer_by = speaker
+            else:
+                body, j = [rest], i + 1
+                while j < len(work) and not is_question(work[j]):
+                    body.append(work[j])
+                    j += 1
+                blocks.append({"kind": "quote", "by": speaker, "paragraphs": body})
+                i = j
+                continue
         if p.startswith('"'):
             # find the paragraph that closes this quote (balanced quote count)
             count, j, closed = 0, i, None
@@ -427,10 +460,13 @@ def split_blocks(paras: list[str]) -> list[dict]:
                     a = ATTR_ONLY_RE.match(work[nxt])
                     if a:
                         by, nxt = a.group("by"), nxt + 1
+                by = by or answer_by
+                answer_by = None
                 blocks.append({"kind": "quote", "by": by.strip() if by else None,
                                "paragraphs": [b.strip() for b in body if b.strip()]})
                 i = nxt
                 continue
+        answer_by = None
         if blocks and blocks[-1]["kind"] == "note":
             blocks[-1]["paragraphs"].append(p)
         else:

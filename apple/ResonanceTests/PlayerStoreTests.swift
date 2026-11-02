@@ -711,7 +711,7 @@ struct StilNotesTests {
     private func headings(_ cards: [StilNotesView.Card]) -> [String] {
         cards.map {
             switch $0 {
-            case .memoriam: "memoriam"
+            case .memorial(let m): "memorial \(m.name)"
             case .section(_, .file(let quote)): quote ? "file quote" : "file"
             case .section(_, .song(let n)): "song \(n)"
             case .noNotes(let n): "no notes \(n)"
@@ -740,7 +740,45 @@ struct StilNotesTests {
             /DEMOS/0-9/53_Miles_West_of_Venus.sid
             COMMENT: Sadly, Radek Stypczynski passed away on May 6th, 2011.
             """, sidAuthor: nil)!
-        #expect(headings(StilNotesView.cards(miles, song: 1, songs: 1)) == ["memoriam"])
+        #expect(headings(StilNotesView.cards(miles, song: 1, songs: 1)) == ["memorial Radek Stypczynski"])
+        let (memorials, _) = miles.splittingMemorials()
+        #expect(memorials.first?.details == "On May 6th, 2011.")
+    }
+
+    @Test func aMemorialLeavesTheRestOfItsCommentInTheNotes() {
+        let ben = STILEntry.parsing("""
+            /MUSICIANS/D/Daglish_Ben/
+            COMMENT: Comments from Ben Daglish are denoted (BD)
+                     Q: Is it Ben or Benn?
+                     A: "Ben is my real name." (BD)
+                     Sadly, Ben Daglish passed away on October 1st, 2018, at the age of 52,
+                     due to complications from lung cancer.
+            """, sidAuthor: nil)!
+        let (memorials, rest) = ben.splittingMemorials()
+        #expect(memorials == [STILMemorial(
+            name: "Ben Daglish",
+            details: "On October 1st, 2018, at the age of 52, due to complications from lung cancer.")])
+        #expect(rest.sections[0].comments[0].blocks.map(\.kind) == [.note, .question, .quote])
+    }
+
+    @Test func theEpitaphSaysWhenTheyPassedAway() {
+        #expect(MemorialCard.passed("On May 6th, 2011.") == "Passed away on May 6th, 2011")
+        #expect(MemorialCard.passed(nil) == "Passed away")
+    }
+
+    @Test func initialsInANameDontEndTheSentence() {
+        let (memorial, rest) = STILMemorial.find(in: "Sadly, Scott T. Etherton passed away on April 20th, 2001. He wrote it.")!
+        #expect(memorial.name == "Scott T. Etherton")
+        #expect(memorial.details == "On April 20th, 2001.")
+        #expect(rest.location == 0)
+    }
+
+    @Test func passingMentionsArentMemorials() {
+        let ninja = STILEntry.parsing("""
+            /MUSICIANS/D/Daglish_Ben/Last_Ninja.sid
+            COMMENT: Since Anthony passed away, we can't verify it anymore.
+            """, sidAuthor: nil)!
+        #expect(headings(StilNotesView.cards(ninja, song: 1, songs: 1)) == ["file"])
     }
 
     @Test func aNoteThatOnlyRelatesToATuneBecomesALinkCard() {

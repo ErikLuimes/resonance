@@ -1,0 +1,294 @@
+{
+  "path": "/MUSICIANS/D/Daglish_Ben/Last_Ninja.sid",
+  "composer": {
+    "name": "Ben Daglish",
+    "initials": "BD",
+    "aliases": [
+      "BD",
+      "Ben",
+      "Ben Daglish",
+      "Daglish"
+    ]
+  },
+  "sections": [
+    {
+      "subtune": null,
+      "names": [],
+      "authors": [],
+      "covers": [],
+      "isMedley": false,
+      "comments": [
+        {
+          "blocks": [
+            {
+              "kind": "quote",
+              "by": "Ben Daglish",
+              "role": "composer",
+              "paragraphs": [
+                [
+                  {
+                    "t": "I got the phone call from Mark [Cale] asking me to write some level tunes — I wrote the music, went down there [to System 3] to meet Archer Maclean (? I think it was Arch that put the driver in…), got offered Mark Cale’s slightly-dodgy-import-status left-hand-drive BMW, said “no thanks, I’ll have the cash please” and that was that."
+                  }
+                ]
+              ]
+            },
+            {
+              "kind": "question",
+              "by": null,
+              "role": null,
+              "paragraphs": [
+                [
+                  {
+                    "t": "How was Anthony Lees to work with?"
+                  }
+                ]
+              ]
+            },
+            {
+              "kind": "quote",
+              "by": "Ben Daglish",
+              "role": "composer",
+              "paragraphs": [
+                [
+                  {
+                    "t": "Only met the guy once — on that one day — he said ‘hi’ — I said ‘hi’ — that was about it."
+                  }
+                ]
+              ]
+            },
+            {
+              "kind": "note",
+              "by": null,
+              "role": null,
+              "paragraphs": [
+                [
+                  {
+                    "t": "The titles of the individual tunes found below are based on as they appear in the game."
+                  }
+                ]
+              ]
+            }
+          ],
+          "memoriam": false,
+          "teaser": "I got the phone call from Mark [Cale] asking me to write some level tunes — I wrote the music, went down there [to System 3] to meet…",
+          "links": []
+        }
+      ]
+    },
+    {
+      "subtune": 1,
+      "names": [
+        "The Wilderness (loader)"
+      ],
+      "authors": [
+        "Anthony Lees"
+      ],
+      "covers": [],
+      "isMedley": false,
+      "comments": []
+    },
+    {
+      "subtune": 2,
+      "names": [
+        "Palace Gardens (loader)"
+      ],
+      "authors": [
+        "Anthony Lees"
+      ],
+      "covers": [],
+      "isMedley": false,
+      "comments": [
+        {
+          "blocks": [
+            {
+              "kind": "quote",
+              "by": "Anthony Lees",
+              "role": null,
+              "paragraphs": [
+                [
+                  {
+                    "t": "I did six tunes for LN, the first of which was the one involving the creepy jungle music (…which was and still is my favourite) — the inspiration is hard to nail down, but it was probably the film ‘Apocalypse Now’ — very dense, troubled and scary moods were evoked."
+                  }
+                ]
+              ]
+            }
+          ],
+          "memoriam": false,
+          "teaser": "I did six tunes for LN, the first of which was the one involving the creepy jungle music (…which was and still is my favourite) — the…",
+          "links": []
+        }
+      ]
+    },
+    {
+      "subtune": 3,
+      "names": [
+        "The Wastelands (loader)"
+      ],
+      "authors": [
+        "Ben Daglish"
+      ],
+      "covers": [],
+      "isMedley": false,
+      "comments": []
+    },
+    {
+      "subtune": 4,
+      "names": [
+        "The Palace (loader)"
+      ],
+      "authors": [
+        "Anthony Lees"
+      ],
+      "covers": [],
+      "isMedley": false,
+      "comments": []
+    },
+    {
+      "subtune": 5,
+      "names": [
+        "The Inner Sanctum (loader)"
+      ],
+      "authors": [
+        "Anthony Lees"
+      ],
+      "covers": [],
+      "isMedley": false,
+      "comments": [
+        {
+          "blocks": [
+            {
+              "kind": "note",
+              "by": null,
+              "role": null,
+              "paragraphs": [
+                [
+                  {
+                    "t": "Interesting comment in this binary: “DONE BY ANTHONY LEES FOR SYSTEM 3 ON 5/4/87…EAT YER HEART OUT GALWAY!”."
+                  }
+                ]
+              ]
+            }
+          ],
+          "memoriam": false,
+          "teaser": "Interesting comment in this binary: “DONE BY ANTHONY LEES FOR SYSTEM 3 ON 5/4/87…EAT YER HEART OUT GALWAY!”.",
+          "links": []
+        }
+      ]
+    },
+    {
+      "subtune": 6,
+      "names": [
+        "The Wastelands"
+      ],
+      "authors": [
+        "Ben Daglish"
+      ],
+      "covers": [],
+      "isMedley": false,
+      "comments": []
+    },
+    {
+      "subtune": 7,
+      "names": [
+        "The Wilderness"
+      ],
+      "authors": [
+        "Ben Daglish"
+      ],
+      "covers": [],
+      "isMedley": false,
+      "comments": []
+    },
+    {
+      "subtune": 8,
+      "names": [
+        "Palace Gardens"
+      ],
+      "authors": [
+        "Ben Daglish"
+      ],
+      "covers": [],
+      "isMedley": false,
+      "comments": []
+    },
+    {
+      "subtune": 9,
+      "names": [
+        "The Dungeons"
+      ],
+      "authors": [
+        "Anthony Lees"
+      ],
+      "covers": [],
+      "isMedley": false,
+      "comments": []
+    },
+    {
+      "subtune": 10,
+      "names": [
+        "The Palace"
+      ],
+      "authors": [],
+      "covers": [],
+      "isMedley": false,
+      "comments": [
+        {
+          "blocks": [
+            {
+              "kind": "note",
+              "by": null,
+              "role": null,
+              "paragraphs": [
+                [
+                  {
+                    "t": "Although the tune is credited to Anthony Lees since 2001 in HVSC, the music player of this tune is by Ben Daglish. Ben doesn’t remember making this tune and also he has no idea how the tune ended up being in his player if it was made by Anthony Lees. It could be that the music was credited to Anthony Lees because Anthony claimed to have made 6 tunes for the game while actually 5 are made in his player."
+                  }
+                ],
+                [
+                  {
+                    "t": "Since Anthony passed away, we can’t verify it anymore and it will be a mystery who of the two actually made the tune."
+                  }
+                ]
+              ]
+            }
+          ],
+          "memoriam": true,
+          "teaser": "Although the tune is credited to Anthony Lees since 2001 in HVSC, the music player of this tune is by Ben Daglish.",
+          "links": []
+        }
+      ]
+    },
+    {
+      "subtune": 11,
+      "names": [
+        "The Dungeons (loader)"
+      ],
+      "authors": [
+        "Ben Daglish"
+      ],
+      "covers": [],
+      "isMedley": false,
+      "comments": [
+        {
+          "blocks": [
+            {
+              "kind": "note",
+              "by": null,
+              "role": null,
+              "paragraphs": [
+                [
+                  {
+                    "t": "This is also the tune for “The Inner Sanctum”."
+                  }
+                ]
+              ]
+            }
+          ],
+          "memoriam": false,
+          "teaser": "This is also the tune for “The Inner Sanctum”.",
+          "links": []
+        }
+      ]
+    }
+  ]
+}

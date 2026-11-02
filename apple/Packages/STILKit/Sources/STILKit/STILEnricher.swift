@@ -214,19 +214,55 @@ public enum STILEnricher {
 
     struct RawBlock { var kind: STILBlock.Kind; var by: String?; var paragraphs: [String] }
 
+    /// "Q: Is this a cover?" / "A: …" / "JT: …": an interview line.
+    static let qaRx = Rx(#"^(?<who>[A-Z]{1,3}): (?<rest>.*)$"#, [.dotMatchesLineSeparators])
+
+    static func isQuestion(_ p: String) -> Bool { qaRx.matchPrefix(p)?.group("who") == "Q" }
+
+    /// Note blocks, quote blocks and interview questions. A "Q: " paragraph
+    /// is a question block; the "A: " or "XY: " paragraph after it is the
+    /// answer, a quote: up to its closing quote when it opens with one, else
+    /// up to the next question or the comment's end. Initials other than
+    /// "A" sign an answer that has no (byline).
     static func splitBlocks(_ paras: [String]) -> [RawBlock] {
         var work: [String] = []
         for p in paras {
-            if !p.hasPrefix("\""), let pair = splitInlineQuote(p) {
+            // (not an interview line: its "A: " isn't a note)
+            if !p.hasPrefix("\""), qaRx.matchPrefix(p) == nil, let pair = splitInlineQuote(p) {
                 work += [pair.0, pair.1]
             } else {
                 work.append(p)
             }
         }
         var blocks: [RawBlock] = []
+        var answerBy: String?
         var i = 0
         while i < work.count {
-            let p = work[i]
+            var p = work[i]
+            if let qa = qaRx.matchPrefix(p) {
+                let who = qa.group("who") ?? "", rest = (qa.group("rest") ?? "").stripped
+                if who == "Q" {
+                    blocks.append(RawBlock(kind: .question, by: nil, paragraphs: [rest]))
+                    i += 1
+                    continue
+                }
+                if blocks.last?.kind == .question {
+                    let speaker: String? = who == "A" ? nil : who
+                    if rest.hasPrefix("\"") {
+                        work[i] = rest   // handled as a quote below
+                        p = rest
+                        answerBy = speaker
+                    } else {
+                        var body = [rest], j = i + 1
+                        while j < work.count, !isQuestion(work[j]) {
+                            body.append(work[j]); j += 1
+                        }
+                        blocks.append(RawBlock(kind: .quote, by: speaker, paragraphs: body))
+                        i = j
+                        continue
+                    }
+                }
+            }
             if p.hasPrefix("\"") {
                 var count = 0, j = i
                 var closed: Int?
@@ -245,12 +281,15 @@ public enum STILEnricher {
                     if by == nil, next < work.count, let a = attrOnlyRx.matchPrefix(work[next]) {
                         by = a.group("by"); next += 1
                     }
+                    by = by ?? answerBy
+                    answerBy = nil
                     blocks.append(RawBlock(kind: .quote, by: by?.stripped,
                                            paragraphs: body.map { $0.stripped }.filter { !$0.isEmpty }))
                     i = next
                     continue
                 }
             }
+            answerBy = nil
             if let last = blocks.last, last.kind == .note {
                 blocks[blocks.count - 1].paragraphs.append(p)
             } else {

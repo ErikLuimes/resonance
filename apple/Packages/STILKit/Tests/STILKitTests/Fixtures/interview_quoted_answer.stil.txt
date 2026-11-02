@@ -1,0 +1,68 @@
+/MUSICIANS/D/Daglish_Ben/
+COMMENT: Comments from Ben Daglish are denoted (BD)
+         Q: Is it Ben or Benn?
+         A: "Ben is my real name....Benn was a nick from Compu-Net days - the
+         double letter was all the rage...Ratt, Bogg etc. etc." (BD)
+         Sadly, Ben Daglish passed away on October 1st, 2018, at the age of 52,
+         due to complications from lung cancer.
+
+/MUSICIANS/D/Daglish_Ben/Last_Ninja.sid
+COMMENT: "I got the phone call from Mark [Cale] asking me to write some level
+         tunes - I wrote the music, went down there [to System 3] to meet
+         Archer Maclean (? I think it was Arch that put the driver in.....),
+         got offered Mark Cale's slightly-dodgy-import-status left-hand-drive
+         BMW, said "no thanks, I'll have the cash please" and that was that."
+         (BD)
+         Q: How was Anthony Lees to work with?
+         A: "Only met the guy once - on that one day - he said 'hi' - I said
+         'hi' - that was about it." (BD)
+         The titles of the individual tunes found below are based on as they
+         appear in the game.
+(#1)
+   NAME: The Wilderness (loader)
+ AUTHOR: Anthony Lees
+(#2)
+   NAME: Palace Gardens (loader)
+ AUTHOR: Anthony Lees
+COMMENT: "I did six tunes for LN, the first of which was the one involving the
+         creepy jungle music (....which was and still is my favourite) - the
+         inspiration is hard to nail down, but it was probably the film
+         'Apocalypse Now' - very dense, troubled and scary moods were evoked."
+         (Anthony Lees)
+(#3)
+   NAME: The Wastelands (loader)
+ AUTHOR: Ben Daglish
+(#4)
+   NAME: The Palace (loader)
+ AUTHOR: Anthony Lees
+(#5)
+   NAME: The Inner Sanctum (loader)
+ AUTHOR: Anthony Lees
+COMMENT: Interesting comment in this binary: "DONE BY ANTHONY LEES FOR SYSTEM 3
+         ON 5/4/87...EAT YER HEART OUT GALWAY!".
+(#6)
+   NAME: The Wastelands
+ AUTHOR: Ben Daglish
+(#7)
+   NAME: The Wilderness
+ AUTHOR: Ben Daglish
+(#8)
+   NAME: Palace Gardens
+ AUTHOR: Ben Daglish
+(#9)
+   NAME: The Dungeons
+ AUTHOR: Anthony Lees
+(#10)
+   NAME: The Palace
+COMMENT: Although the tune is credited to Anthony Lees since 2001 in HVSC, the
+         music player of this tune is by Ben Daglish. Ben doesn't remember making
+         this tune and also he has no idea how the tune ended up being in his
+         player if it was made by Anthony Lees. It could be that the music was
+         credited to Anthony Lees because Anthony claimed to have made 6 tunes
+         for the game while actually 5 are made in his player.
+         Since Anthony passed away, we can't verify it anymore and it will be a
+         mystery who of the two actually made the tune.
+(#11)
+   NAME: The Dungeons (loader)
+ AUTHOR: Ben Daglish
+COMMENT: This is also the tune for "The Inner Sanctum".
