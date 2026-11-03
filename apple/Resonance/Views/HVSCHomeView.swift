@@ -1205,5 +1205,6 @@ private enum Palette {
     HVSCHomeView()
         .environment(PlayerStore.preview)
         .environment(LibraryStore(player: .preview))
+        .environment(FingerprintStore(player: .preview))
         .frame(width: 900, height: 900)
 }

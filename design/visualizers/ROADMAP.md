@@ -136,12 +136,19 @@ followed by Radial spectrum, Particles and Spectrogram. Keep one MTKView and swi
 
 ## Phase 5 — Fingerprints & discovery
 
-- [ ] Batch scanner over HVSC (reuse the Phase 2 pre-scan) computing a feature vector per subtune
-- [ ] Store in SQLite next to the library index (MD5 + subtune)
-- [ ] Sound column with mini fingerprint in the list — `reference/AppFingerprints.dc.html`
-- [ ] Hover card (fingerprint, waveform mix, tags, Play / Find similar)
-- [ ] Filter chips (Arpeggios, Filter sweeps, Noise drums, Ring mod, Sync leads, Digi samples)
-- [ ] "Sounds like" panel in the inspector (cosine similarity on the feature vector)
+- [x] Batch scanner over HVSC computing a feature vector per subtune (Phase 2's pre-scan didn't exist yet, so this is the first one)
+- [x] Store in SQLite next to the library index (MD5 + subtune)
+- [x] Sound column with mini fingerprint in the list — `reference/AppFingerprints.dc.html`. Built as a nine-bar trait barcode (`SoundBarcode`), not voice lanes: every trait sits in the same place, so tunes that sound alike look alike down a column.
+- [x] Hover card (fingerprint, waveform mix, tags, Play / Find similar). The card shows the tune's `MorphSphere`, a particle sphere that bulges towards its traits. Find Similar sorts the list by likeness, with a Match column.
+- [x] Filter chips (Arpeggios, Filter sweeps, Noise drums, Ring mod, Sync leads, Digi samples). A tune needs every chip that's on.
+- [x] "Sounds like" panel in the inspector (cosine similarity on the feature vector): the sphere, the sound in a sentence, seven matches as links, Play These. Scan progress and Pause are in Settings › Sound Fingerprints.
+
+**As built (2026-11-03), core side:**
+- **Extractor.** `apple/core/src/fingerprint/extract.rs` runs each subtune through libsidplayfp with its capture-only SID (the same emulation the player uses, minus synthesis), up to 3 minutes (the Songlengths length, else 2 minutes). Each video frame's cycle-stamped writes feed a register model with a frame-rate ADSR envelope (datasheet times). It records 128 activity bins per SID 1 voice and the features below, plus pitch mean/spread, pulse bass and vibrato. Tags come from fixed thresholds.
+- **Scan.** `fingerprint/scan.rs`: worker threads at utility QoS (half the cores, at most 6). Pass 1 scans every tune's start song, pass 2 the other subtunes. About 5.6 subtunes/s on an M5 Pro, so all of HVSC (≈88k subtunes) takes about 4½ hours and the start songs about 3. Each subtune is marked `scanning` before it runs, so one that takes the app down is retried once and then skipped.
+- **Store.** `fingerprints.sqlite` next to the session in Resonance's Application Support: `fingerprints` keyed by MD5 + subtune, `tunes` mapping collection paths to MD5s. Bump `EXTRACTOR_VERSION` to rescan.
+- **"Sounds like".** `fingerprint/similar.rs`: cosine similarity on z-scored, weighted feature vectors, brute force over the whole store, one subtune per file.
+- **FFI.** `start_fingerprint_scan`, `stop_fingerprint_scan`, `set_fingerprint_scan_paused`, `fingerprint_scan_status`, `fingerprints(paths)`, `fingerprint(path, subtune)`, `similar_tunes(path, subtune, limit)`. Try them with `cargo run -p phosphor-apple --example fingerprints -- scan|show|similar`.
 
 **Features to compute:** per-voice activity over time; waveform mix %; notes per second; arpeggio
 rate (pitch changes per frame on one voice); filter usage (cutoff variance, routing); ring/sync bit

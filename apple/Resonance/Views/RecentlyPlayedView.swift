@@ -119,5 +119,6 @@ struct RecentlyPlayedView: View {
     RecentlyPlayedView(search: "")
         .environment(PlayerStore.preview)
         .environment(LibraryStore(player: .preview))
+        .environment(FingerprintStore(player: .preview))
         .frame(width: 900, height: 500)
 }

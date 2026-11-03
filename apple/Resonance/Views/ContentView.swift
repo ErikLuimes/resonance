@@ -380,6 +380,7 @@ private struct StatusBanner: View {
     ContentView()
         .environment(PlayerStore.preview)
         .environment(LibraryStore(player: .preview))
+        .environment(FingerprintStore(player: .preview))
         .frame(width: 1100, height: 680)
 }
 

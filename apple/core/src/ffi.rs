@@ -16,6 +16,7 @@ use std::time::{Duration, Instant};
 use crossbeam_channel::bounded;
 
 use crate::databases;
+use crate::fingerprint::{self, Fingerprints, ScanTune};
 use crate::driver::{Command, Driver, Published, StartConfig};
 use crate::hvsc_browser::{self, HvscAuthor, HvscIndexEntry, HvscTune};
 use crate::hvsc_info::{self, HvscInfo};
@@ -370,6 +371,95 @@ impl std::fmt::Display for HvscError {
 
 impl std::error::Error for HvscError {}
 
+/// What a tune's sound is known for, from its fingerprint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Enum)]
+pub enum SoundTag {
+    Arpeggios,
+    FilterSweeps,
+    NoiseDrums,
+    RingMod,
+    SyncLeads,
+    DigiSamples,
+    PulseBass,
+    VibratoLeads,
+}
+
+/// Share of the sounding time per waveform, 0–1; they sum to 1 (or 0 for
+/// a silent tune).
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct WaveformMix {
+    pub triangle: f32,
+    pub saw: f32,
+    pub pulse: f32,
+    pub noise: f32,
+}
+
+/// A subtune's sound fingerprint, from the background scan.
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct TuneFingerprint {
+    pub subtune: u16,
+    /// Seconds of the subtune the scan covered (at most three minutes).
+    pub scanned_secs: f32,
+    /// SID 1's three voices, `bins` levels each (0–255), voice 1 first:
+    /// how loud each voice is across the scanned stretch.
+    pub activity: Vec<u8>,
+    pub bins: u32,
+    pub mix: WaveformMix,
+    pub tags: Vec<SoundTag>,
+    /// Notes started per second, all voices.
+    pub notes_per_sec: f32,
+    /// Semitone-or-more pitch jumps within held notes, per second.
+    pub arpeggio_rate: f32,
+    /// Share of the sounding time with a voice through the filter, 0–1.
+    pub filter_usage: f32,
+    /// Share of the sounding time with ring modulation or hard sync, 0–1.
+    pub ring_mod: f32,
+    pub sync: f32,
+    /// Share of the frames that play samples through the chip, 0–1.
+    pub digi: f32,
+    /// Mean pulse-width sweep per note on pulse voices, 0–1.
+    pub pulse_width_depth: f32,
+    /// Vibrato-like pitch wobbles and noise hits (drums), per second.
+    pub vibrato_rate: f32,
+    pub noise_hits: f32,
+    /// The nine traits the glyphs draw, each 0–1, in this order: notes,
+    /// arpeggios, vibrato, filter, ring modulation, sync, digi, noise,
+    /// pulse-width modulation.
+    pub traits: Vec<f32>,
+    /// SID chips the tune uses.
+    pub chips: u8,
+    /// Nothing sounds in the scanned stretch.
+    pub silent: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct FingerprintScanStatus {
+    pub running: bool,
+    pub paused: bool,
+    /// Every subtune has been scanned (or given up on).
+    pub finished: bool,
+    /// 1 while scanning each tune's start song, 2 for the other subtunes.
+    pub pass: u8,
+    /// Subtunes in the collection, and how many have been scanned or
+    /// couldn't be.
+    pub total: u32,
+    pub done: u32,
+    pub failed: u32,
+    /// Changes whenever new fingerprints are saved: refetch visible ones.
+    pub revision: u64,
+    pub error: Option<String>,
+}
+
+/// A tune like another, for "Sounds like".
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct SimilarTune {
+    pub item: HvscTuneItem,
+    /// The subtune that matched best.
+    pub subtune: u16,
+    /// Cosine similarity of the two fingerprints, −1…1.
+    pub score: f32,
+}
+
 // ── PlayerCore ───────────────────────────────────────────────────────────────
 
 /// The collection download's state, updated from the worker's events as the
@@ -396,6 +486,8 @@ pub struct PlayerCore {
     /// The HVSC Home's parsed metadata, keyed by the tree revision the sync
     /// and root changes bump; one collection walk per revision.
     hvsc_info_cache: Mutex<Option<HvscInfoCache>>,
+    /// The sound fingerprints, in `fingerprints.sqlite` next to the session.
+    fingerprints: Arc<Fingerprints>,
 }
 
 /// The collection metadata behind the key, cloned into the cache.
@@ -410,6 +502,9 @@ impl PlayerCore {
     #[uniffi::constructor]
     pub fn new(config: CoreConfig) -> Arc<Self> {
         let hvsc_root = config.hvsc_root.map(PathBuf::from);
+        let fingerprints = Arc::new(Fingerprints::new(
+            Path::new(&config.session_path).with_file_name("fingerprints.sqlite"),
+        ));
         let databases = databases::shared();
         let library = Library::new(hvsc_root.clone(), databases.clone());
         let driver = Driver::start(StartConfig {
@@ -430,6 +525,7 @@ impl PlayerCore {
             sync: Mutex::new(None),
             sync_state: Mutex::new(None),
             hvsc_info_cache: Mutex::new(None),
+            fingerprints,
         })
     }
 
@@ -537,6 +633,11 @@ impl PlayerCore {
     /// and indexes.
     pub fn set_hvsc_root(&self, root: Option<String>) {
         let root = root.map(PathBuf::from);
+        if root != self.library.root() {
+            // Its tune list is the old folder's; `start_fingerprint_scan`
+            // again picks up the new one.
+            self.fingerprints.scanner().stop();
+        }
         self.library.set_root(root.clone());
         self.send(Command::SetHvscRoot(root));
     }
@@ -650,6 +751,34 @@ impl PlayerCore {
         }
     }
 
+    // ── Fingerprints ──
+
+    /// The background scan's progress. Cheap; poll it like the snapshot.
+    pub fn fingerprint_scan_status(&self) -> FingerprintScanStatus {
+        let p = self.fingerprints.scanner().progress();
+        FingerprintScanStatus {
+            running: p.running,
+            paused: p.paused,
+            finished: p.finished,
+            pass: p.pass,
+            total: p.total,
+            done: p.done,
+            failed: p.failed,
+            revision: p.revision,
+            error: p.error,
+        }
+    }
+
+    /// Pause or resume the scan; a paused scan holds its place.
+    pub fn set_fingerprint_scan_paused(&self, paused: bool) {
+        self.fingerprints.scanner().set_paused(paused);
+    }
+
+    /// Stop the scan; `start_fingerprint_scan` resumes where it stopped.
+    pub fn stop_fingerprint_scan(&self) {
+        self.fingerprints.scanner().stop();
+    }
+
     pub fn playlist(&self) -> Vec<PlaylistItem> {
         self.published()
             .playlist
@@ -716,6 +845,7 @@ impl PlayerCore {
     /// Save the playlist and stop the engine. Blocks for at most about a
     /// second; call it when the app terminates.
     pub fn shutdown(&self) {
+        self.fingerprints.scanner().cancel();
         let (ack_tx, ack_rx) = bounded(1);
         if self.driver.commands.send(Command::Shutdown(ack_tx)).is_ok() {
             let _ = ack_rx.recv_timeout(Duration::from_secs(1));
@@ -883,6 +1013,136 @@ impl PlayerCore {
     ) -> Result<Option<String>, HvscError> {
         let path = self.library.surprise(scope.map(Into::into)).await?;
         Ok(path.map(|p| p.to_string_lossy().into_owned()))
+    }
+
+    /// Fingerprint every tune in the collection in the background: start
+    /// songs first, then the other subtunes, skipping what earlier scans
+    /// saved. Returns once the scan has started (after the search indexes
+    /// load); a no-op while one runs.
+    pub async fn start_fingerprint_scan(&self) -> Result<(), HvscError> {
+        let root = self.library.root().ok_or(HvscError::NoRoot)?;
+        let scanner = self.fingerprints.scanner();
+        // A stopped scan still winding down gets replaced.
+        if scanner.is_running() && !scanner.is_stopping() {
+            return Ok(());
+        }
+        self.library.warm_indexes().await;
+        let db = databases::loaded(&self.databases).await;
+        let indexed = self.library.indexed_tunes();
+        let songs = indexed.iter().map(|(_, n)| (*n).max(1) as u32).sum();
+        let tunes = indexed
+            .into_iter()
+            .filter_map(|(path, _)| {
+                let rel = collection_path(&root, &path)?;
+                Some(ScanTune { path, rel })
+            })
+            .collect();
+        self.fingerprints.scanner().start(tunes, songs, db);
+        Ok(())
+    }
+
+    /// Fingerprints for the tunes at `paths` (files in the collection),
+    /// in that order: each one's start song, or None where the scan hasn't
+    /// reached it.
+    pub async fn fingerprints(&self, paths: Vec<String>) -> Vec<Option<TuneFingerprint>> {
+        let root = self.library.root();
+        let fps = self.fingerprints.clone();
+        tokio::task::spawn_blocking(move || {
+            paths
+                .iter()
+                .map(|p| {
+                    let rel = collection_path(root.as_deref()?, Path::new(p))?;
+                    fps.lookup(&rel, None).map(|(sub, fp)| TuneFingerprint::new(sub, &fp))
+                })
+                .collect()
+        })
+        .await
+        .unwrap_or_default()
+    }
+
+    /// One subtune's fingerprint (the start song when `subtune` is None).
+    pub async fn fingerprint(&self, path: String, subtune: Option<u16>) -> Option<TuneFingerprint> {
+        let rel = collection_path(&self.library.root()?, Path::new(&path))?;
+        let fps = self.fingerprints.clone();
+        tokio::task::spawn_blocking(move || {
+            fps.lookup(&rel, subtune).map(|(sub, fp)| TuneFingerprint::new(sub, &fp))
+        })
+        .await
+        .ok()
+        .flatten()
+    }
+
+    /// How alike each tune at `paths` sounds to the one at `seed` (start
+    /// songs), −1…1, in that order; None where either isn't scanned yet.
+    /// For sorting a list by sound.
+    pub async fn similarity(&self, seed: String, paths: Vec<String>) -> Vec<Option<f32>> {
+        let Some(root) = self.library.root() else {
+            return vec![None; paths.len()];
+        };
+        let fps = self.fingerprints.clone();
+        tokio::task::spawn_blocking(move || {
+            let seed = collection_path(&root, Path::new(&seed));
+            let index = fps.index_for(seed.as_deref());
+            paths
+                .iter()
+                .map(|p| {
+                    let rel = collection_path(&root, Path::new(p))?;
+                    index.score(seed.as_deref()?, &rel)
+                })
+                .collect()
+        })
+        .await
+        .unwrap_or_default()
+    }
+
+    /// "Sounds like": up to `limit` tunes whose fingerprints are closest to
+    /// the one at `path` (`subtune`, or its start song), best first, one
+    /// subtune per file. Empty until the scan has reached the tune.
+    pub async fn similar_tunes(
+        &self,
+        path: String,
+        subtune: Option<u16>,
+        limit: u32,
+    ) -> Result<Vec<SimilarTune>, HvscError> {
+        let root = self.library.root().ok_or(HvscError::NoRoot)?;
+        let Some(rel) = collection_path(&root, Path::new(&path)) else {
+            return Ok(Vec::new());
+        };
+        let fps = self.fingerprints.clone();
+        // A few spare, for files the indexes no longer have.
+        let want = limit as usize;
+        let matches: Vec<(PathBuf, u16, f32)> = tokio::task::spawn_blocking(move || {
+            let index = fps.index_for(Some(&rel));
+            index
+                .similar(&rel, subtune, want + 8)
+                .into_iter()
+                .map(|m| (root.join(m.path), m.subtune, m.score))
+                .collect()
+        })
+        .await
+        .map_err(|e| HvscError::Io { message: e.to_string() })?;
+
+        let items = self
+            .library
+            .tunes_at(matches.iter().map(|(p, _, _)| p.clone()).collect())
+            .await?;
+        let mut by_path: std::collections::HashMap<PathBuf, HvscTuneItem> = items
+            .into_iter()
+            .map(|(category, entry, author)| {
+                let item = HvscTuneItem::from_index(&entry, category.into());
+                let item = if author.is_empty() { item } else { HvscTuneItem { author, ..item } };
+                (entry.path, item)
+            })
+            .collect();
+        Ok(matches
+            .into_iter()
+            .filter_map(|(path, subtune, score)| {
+                let mut item = by_path.remove(&path)?;
+                item.start_song = subtune;
+                Some(SimilarTune { item, subtune, score })
+            })
+            .take(want)
+            .collect())
     }
 
     /// The parsed metadata for the HVSC Home view: the release, the latest
@@ -1120,6 +1380,59 @@ impl HvscTuneItem {
             has_stil: e.has_stil,
             is_rsid: None,
             category,
+        }
+    }
+}
+
+/// `path` relative to the collection root, '/'-separated, as the
+/// fingerprint store keys it.
+fn collection_path(root: &Path, path: &Path) -> Option<String> {
+    let rel = path.strip_prefix(root).ok()?;
+    let parts: Vec<&str> = rel.components().filter_map(|c| c.as_os_str().to_str()).collect();
+    (!parts.is_empty()).then(|| parts.join("/"))
+}
+
+impl TuneFingerprint {
+    fn new(subtune: u16, fp: &fingerprint::Fingerprint) -> Self {
+        use fingerprint::tag;
+        let tags = [
+            (tag::ARPEGGIOS, SoundTag::Arpeggios),
+            (tag::FILTER_SWEEPS, SoundTag::FilterSweeps),
+            (tag::NOISE_DRUMS, SoundTag::NoiseDrums),
+            (tag::RING_MOD, SoundTag::RingMod),
+            (tag::SYNC_LEADS, SoundTag::SyncLeads),
+            (tag::DIGI, SoundTag::DigiSamples),
+            (tag::PULSE_BASS, SoundTag::PulseBass),
+            (tag::VIBRATO, SoundTag::VibratoLeads),
+        ]
+        .into_iter()
+        .filter(|(bit, _)| fp.tags & bit != 0)
+        .map(|(_, t)| t)
+        .collect();
+        TuneFingerprint {
+            subtune,
+            scanned_secs: fp.scanned_secs,
+            activity: fp.activity.iter().flatten().copied().collect(),
+            bins: fingerprint::BINS as u32,
+            mix: WaveformMix {
+                triangle: fp.mix[0],
+                saw: fp.mix[1],
+                pulse: fp.mix[2],
+                noise: fp.mix[3],
+            },
+            tags,
+            notes_per_sec: fp.notes_per_sec,
+            arpeggio_rate: fp.arp_rate,
+            filter_usage: fp.filter_usage,
+            ring_mod: fp.ring,
+            sync: fp.sync,
+            digi: fp.digi,
+            pulse_width_depth: fp.pwm_depth,
+            vibrato_rate: fp.vibrato_rate,
+            noise_hits: fp.noise_hits,
+            traits: fp.traits().to_vec(),
+            chips: fp.num_chips,
+            silent: fp.is_silent(),
         }
     }
 }

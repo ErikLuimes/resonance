@@ -10,6 +10,7 @@ struct ResonanceApp: App {
             ContentView()
                 .environment(appDelegate.store)
                 .environment(appDelegate.library)
+                .environment(appDelegate.fingerprints)
                 .voiceThemed()
         }
         .defaultSize(width: 1100, height: 680)
@@ -35,6 +36,7 @@ struct ResonanceApp: App {
         Settings {
             SettingsView()
                 .environment(appDelegate.store)
+                .environment(appDelegate.fingerprints)
                 .voiceThemed()
         }
 

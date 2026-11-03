@@ -344,6 +344,7 @@ private struct ProgressRow: View {
     NowPlayingBar()
         .environment(PlayerStore.preview)
         .environment(LibraryStore(player: .preview))
+        .environment(FingerprintStore(player: .preview))
         .padding()
         .frame(width: 900)
 }

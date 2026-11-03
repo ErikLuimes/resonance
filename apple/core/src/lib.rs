@@ -76,6 +76,7 @@ uniffi::setup_scaffolding!();
 mod buglist;
 mod databases;
 mod driver;
+mod fingerprint;
 mod ffi;
 mod history;
 mod hvsc_info;

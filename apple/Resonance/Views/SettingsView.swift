@@ -80,6 +80,10 @@ struct SettingsView: View {
                 }
             }
 
+            if store.hasCollection {
+                FingerprintSettings()
+            }
+
             Section {
                 Button("Import Settings from Phosphor") { store.importPhosphorSettings() }
             } footer: {
@@ -94,6 +98,40 @@ struct SettingsView: View {
         }
         .frame(width: 460)
         .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// The background scan that fingerprints the collection: how far it has
+/// got, and pausing it.
+private struct FingerprintSettings: View {
+    @Environment(FingerprintStore.self) private var fingerprints
+
+    var body: some View {
+        Section {
+            if let status = fingerprints.status, status.total > 0 {
+                LabeledContent("Fingerprinted") {
+                    Text("\(status.done.formatted()) of \(status.total.formatted()) tunes")
+                        .monospacedDigit()
+                }
+                if !status.finished {
+                    ProgressView(value: Double(status.done), total: Double(status.total))
+                    Button(fingerprints.paused ? "Resume" : "Pause") { fingerprints.paused.toggle() }
+                }
+                if status.failed > 0 {
+                    LabeledContent("Couldn't scan", value: "\(status.failed.formatted()) tunes")
+                }
+                if let error = status.error {
+                    Text(error)
+                        .foregroundStyle(.red)
+                }
+            } else {
+                LabeledContent("Fingerprinted", value: "Starting…")
+            }
+        } header: {
+            Text("Sound Fingerprints")
+        } footer: {
+            Text("Resonance plays every tune silently in the background to learn how it sounds, for the Sound column and Sounds Like. It picks up where it left off, and takes a few hours for all of HVSC.")
+        }
     }
 }
 
@@ -164,4 +202,5 @@ private struct ThemeSettings: View {
 #Preview {
     SettingsView()
         .environment(PlayerStore.preview)
+        .environment(FingerprintStore(player: .preview))
 }

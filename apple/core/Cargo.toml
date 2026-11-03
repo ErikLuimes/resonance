@@ -26,6 +26,12 @@ usb = []
 # do blocking disk work via spawn_blocking).
 uniffi = { workspace = true, features = ["tokio"] }
 
+# Fingerprints: one SQLite file next to the session; bundled so the build
+# doesn't depend on the SDK's sqlite headers.
+rusqlite = { version = "0.41", features = ["bundled"] }
+# Scan workers run at utility QoS (pthread_set_qos_class_self_np).
+libc = "0.2"
+
 # ── Mirrors of the root Cargo.toml ───────────────────────────────────────────
 # Same versions and features as ../../Cargo.toml for the engine sources this
 # crate includes via #[path]. When an upstream merge adds a dependency to one

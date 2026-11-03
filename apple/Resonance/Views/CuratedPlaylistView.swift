@@ -196,5 +196,6 @@ struct PlaylistArtwork: View {
     )
     .environment(PlayerStore.preview)
     .environment(LibraryStore(player: .preview))
+    .environment(FingerprintStore(player: .preview))
     .frame(width: 800, height: 500)
 }

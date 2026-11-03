@@ -133,6 +133,30 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     }
     func cancelHvscSync() { record("syncCancel") }
 
+    func startFingerprintScan() async throws { record("fingerprintScan") }
+    func stopFingerprintScan() {}
+    func setFingerprintScanPaused(paused: Bool) {}
+    func fingerprintScanStatus() -> FingerprintScanStatus {
+        FingerprintScanStatus(running: false, paused: false, finished: false, pass: 1, total: 0, done: 0, failed: 0, revision: 0, error: nil)
+    }
+    private var _fingerprints: [String: TuneFingerprint] = [:]
+    private var _fingerprintLookups: [[String]] = []
+
+    func set(fingerprints: [String: TuneFingerprint]) { lock.withLock { _fingerprints = fingerprints } }
+    var fingerprintLookups: [[String]] { lock.withLock { _fingerprintLookups } }
+
+    func fingerprint(path: String, subtune: UInt16?) async -> TuneFingerprint? { lock.withLock { _fingerprints[path] } }
+    func fingerprints(paths: [String]) async -> [TuneFingerprint?] {
+        lock.withLock {
+            _fingerprintLookups.append(paths.sorted())
+            return paths.map { _fingerprints[$0] }
+        }
+    }
+    func similarTunes(path: String, subtune: UInt16?, limit: UInt32) async throws -> [SimilarTune] { [] }
+    func similarity(seed: String, paths: [String]) async -> [Float?] {
+        lock.withLock { paths.map { _fingerprints[$0] == nil ? nil : ($0 == seed ? 1 : 0.5) } }
+    }
+
     func snapshot() -> Snapshot { lock.withLock { _snapshot } }
     func playlist() -> [PlaylistItem] {
         lock.withLock {

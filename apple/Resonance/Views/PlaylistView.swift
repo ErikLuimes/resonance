@@ -6,6 +6,7 @@ import SwiftUI
 struct PlaylistView: View {
     @Environment(PlayerStore.self) private var store
     @Environment(LibraryStore.self) private var library
+    @Environment(FingerprintStore.self) private var fingerprints
     @State private var selection = Set<TrackRow.ID>()
     @State private var sortOrder = [KeyPathComparator(\TrackRow.index)]
     /// Which columns show (the header's menu), kept per window. Title,
@@ -20,6 +21,7 @@ struct PlaylistView: View {
                 emptyState
             } else {
                 table
+                    .task(id: store.rows.map(\.id)) { fingerprints.load(store.rows.map(\.id)) }
             }
         }
     }
@@ -49,6 +51,13 @@ struct PlaylistView: View {
                 .customizationID("author")
             TableColumn("Released", value: \.released)
                 .customizationID("released")
+            TableColumn("Sound") { row in
+                SoundCell(fingerprints: fingerprints, path: row.id, title: row.title, subtitle: row.author,
+                          length: row.item.durationSecs == nil ? nil : row.lengthText,
+                          onPlay: { store.play(index: row.index) })
+            }
+            .width(72)
+            .customizationID("sound")
             TableColumn("Length", value: \.length) { row in
                 Text(row.lengthText).monospacedDigit()
             }

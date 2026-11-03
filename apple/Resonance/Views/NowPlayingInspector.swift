@@ -34,6 +34,9 @@ struct NowPlayingInspector: View {
                     if let stil = library.stil[track.path] ?? nil {
                         StilNotesView(entry: stil, track: track)
                     }
+                    if store.hasCollection {
+                        SoundsLikeSection(path: track.path)
+                    }
                     InspectorSection("Details") {
                         specs(of: track)
                     }
@@ -404,5 +407,6 @@ private struct ComposerCard: View {
     NowPlayingInspector()
         .environment(PlayerStore.preview)
         .environment(LibraryStore(player: .preview))
+        .environment(FingerprintStore(player: .preview))
         .frame(width: 300, height: 700)
 }

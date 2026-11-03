@@ -488,8 +488,15 @@ struct LibraryTable: View {
 
     @Environment(LibraryStore.self) private var library
     @Environment(PlayerStore.self) private var player
+    @Environment(FingerprintStore.self) private var fingerprints
     @State private var selection = Set<LibraryRow.ID>()
     @State private var sortOrder: [KeyPathComparator<LibraryRow>] = []
+    /// The Sound chips that are on; a tune must have them all.
+    @State private var soundFilter = Set<SoundTag>()
+    /// Find Similar's tune, which the list is sorted by likeness to, and
+    /// how alike each row sounds to it (0–1).
+    @State private var similarTo: LibraryRow?
+    @State private var likeness: [LibraryRow.ID: Double] = [:]
     /// Which columns show (the header's menu), kept per window and shared by
     /// every library list. Title, Author, Released and Length by default.
     @SceneStorage("LibraryColumns") private var columns = TableColumnCustomization<LibraryRow>()
@@ -501,6 +508,83 @@ struct LibraryTable: View {
                 .onChange(of: rows, initial: true) { revealTune(proxy) }
                 .onChange(of: library.revealedTune) { revealTune(proxy) }
         }
+        .safeAreaInset(edge: .top, spacing: 0) { soundBar }
+        .task(id: rows) { fingerprints.load(rows.map(\.id)) }
+        .task(id: TaskKey(seed: similarTo?.id, rows: rows.count, revision: (fingerprints.status?.revision ?? 0) / 500)) {
+            guard let seed = similarTo else { return }
+            likeness = await fingerprints.similarity(to: seed.id, of: rows.map(\.id))
+        }
+        // A list sorted by a column isn't sorted by likeness any more.
+        .onChange(of: sortOrder) { if !sortOrder.isEmpty { similarTo = nil } }
+        .onChange(of: rows) { if let seed = similarTo, !rows.contains(seed) { similarTo = nil } }
+    }
+
+    private struct TaskKey: Equatable {
+        let seed: LibraryRow.ID?
+        let rows: Int
+        let revision: UInt64
+    }
+
+    // MARK: Sound
+
+    /// The Sound chips, and while Find Similar sorts the list, what it's
+    /// sorted by. Only once any row here has a fingerprint.
+    @ViewBuilder
+    private var soundBar: some View {
+        if rows.contains(where: { fingerprints.fingerprint($0.id) != nil }) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Text("Sound")
+                        .foregroundStyle(.secondary)
+                    ForEach(SoundTag.filters, id: \.self) { tag in
+                        chip(tag)
+                    }
+                    Spacer(minLength: 8)
+                    if !soundFilter.isEmpty {
+                        Text("\(shownRows.count) of \(rows.count) tunes")
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                        AccentLink("Clear") { soundFilter = [] }
+                    }
+                }
+                if let seed = similarTo {
+                    HStack(spacing: 6) {
+                        Text("Sorted by how alike they sound to \u{201C}\(seed.title)\u{201D}")
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                        AccentLink("Clear") { similarTo = nil }
+                    }
+                }
+            }
+            .font(.callout)
+            .controlSize(.small)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.bar)
+        }
+    }
+
+    @ViewBuilder
+    private func chip(_ tag: SoundTag) -> some View {
+        let on = soundFilter.contains(tag)
+        let button = Button(tag.name) {
+            if on { soundFilter.remove(tag) } else { soundFilter.insert(tag) }
+        }
+        .buttonBorderShape(.capsule)
+        .accessibilityAddTraits(on ? .isSelected : [])
+        if on {
+            button.buttonStyle(.borderedProminent)
+        } else {
+            button.buttonStyle(.bordered)
+        }
+    }
+
+    private func findSimilar(_ row: LibraryRow) {
+        likeness = [:]
+        sortOrder = []
+        similarTo = row
+        selection = [row.id]
     }
 
     private func revealTune(_ proxy: ScrollViewProxy) {
@@ -511,7 +595,7 @@ struct LibraryTable: View {
     }
 
     private var table: some View {
-        Table(sortedRows, selection: $selection, sortOrder: $sortOrder, columnCustomization: $columns) {
+        Table(shownRows, selection: $selection, sortOrder: $sortOrder, columnCustomization: $columns) {
             TableColumn("") { row in
                 if isCurrent(row) {
                     Image(systemName: player.isPlaying ? "speaker.wave.2.fill" : "speaker.fill")
@@ -531,6 +615,24 @@ struct LibraryTable: View {
                 .customizationID("author")
             TableColumn("Released", value: \.released)
                 .customizationID("released")
+            TableColumn("Sound") { row in
+                SoundCell(fingerprints: fingerprints, path: row.id, title: row.title, subtitle: row.author,
+                          length: row.item.durationSecs == nil ? nil : row.lengthText,
+                          onPlay: { play([row.id]) }, onFindSimilar: { findSimilar(row) })
+            }
+            .width(72)
+            .customizationID("sound")
+            if similarTo != nil {
+                TableColumn("Match") { row in
+                    if row.id != similarTo?.id, let score = likeness[row.id] {
+                        Text(score, format: .percent.precision(.fractionLength(0)))
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .width(52)
+                .customizationID("match")
+            }
             TableColumn("Songs", value: \.songs) { row in
                 Text("\(row.songs)").monospacedDigit()
             }
@@ -565,6 +667,9 @@ struct LibraryTable: View {
             if !ids.isEmpty {
                 Button("Play") { play(ids) }
                 Button("Add to Playlist") { library.addToPlaylist(chosen(ids)) }
+                if ids.count == 1, let row = chosen(ids).first, fingerprints.fingerprint(row.id) != nil {
+                    Button("Find Similar") { findSimilar(row) }
+                }
                 Divider()
                 Button("Show in Finder") {
                     NSWorkspace.shared.activateFileViewerSelecting(chosen(ids).map(\.url))
@@ -578,14 +683,27 @@ struct LibraryTable: View {
     private func play(_ ids: Set<LibraryRow.ID>) {
         let picked = chosen(ids)
         if picked.count == 1 {
-            library.play(sortedRows, startAt: picked[0], from: playlist)
+            library.play(shownRows, startAt: picked[0], from: playlist)
         } else {
             library.play(picked)
         }
     }
 
-    private var sortedRows: [LibraryRow] {
-        sortOrder.isEmpty ? rows : rows.sorted(using: sortOrder)
+    /// The rows as shown: filtered by the Sound chips, then sorted by a
+    /// column or by likeness to Find Similar's tune (it first, unscanned
+    /// tunes last).
+    private var shownRows: [LibraryRow] {
+        let filtered = soundFilter.isEmpty ? rows : rows.filter { row in
+            guard let fp = fingerprints.fingerprint(row.id) else { return false }
+            return soundFilter.isSubset(of: fp.tags)
+        }
+        if let seed = similarTo {
+            return filtered.sorted { a, b in
+                if a.id == seed.id || b.id == seed.id { return a.id == seed.id }
+                return (likeness[a.id] ?? -1) > (likeness[b.id] ?? -1)
+            }
+        }
+        return sortOrder.isEmpty ? filtered : filtered.sorted(using: sortOrder)
     }
 
     /// Played from here or from the playlist, the core reports the same path.
@@ -595,7 +713,7 @@ struct LibraryTable: View {
 
     /// Selected rows, in the order shown.
     private func chosen(_ ids: Set<LibraryRow.ID>) -> [LibraryRow] {
-        sortedRows.filter { ids.contains($0.id) }
+        shownRows.filter { ids.contains($0.id) }
     }
 }
 
@@ -603,5 +721,6 @@ struct LibraryTable: View {
     HVSCBrowserView(category: .musicians, search: "")
         .environment(PlayerStore.preview)
         .environment(LibraryStore(player: .preview))
+        .environment(FingerprintStore(player: .preview))
         .frame(width: 900, height: 500)
 }

@@ -190,6 +190,16 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
     func startHvscSync() throws {}
     func cancelHvscSync() {}
     func hvscInfo() async -> HvscInfo? { nil }
+    func startFingerprintScan() async throws {}
+    func stopFingerprintScan() {}
+    func setFingerprintScanPaused(paused: Bool) {}
+    func fingerprintScanStatus() -> FingerprintScanStatus {
+        FingerprintScanStatus(running: false, paused: false, finished: true, pass: 2, total: 0, done: 0, failed: 0, revision: 0, error: nil)
+    }
+    func fingerprint(path: String, subtune: UInt16?) async -> TuneFingerprint? { nil }
+    func fingerprints(paths: [String]) async -> [TuneFingerprint?] { paths.map { _ in nil } }
+    func similarTunes(path: String, subtune: UInt16?, limit: UInt32) async throws -> [SimilarTune] { [] }
+    func similarity(seed: String, paths: [String]) async -> [Float?] { paths.map { _ in nil } }
     func addPaths(paths: [String], playFirst: Bool) {}
     func clear() {}
     func moveEntries(from: [UInt32], to: UInt32) {}

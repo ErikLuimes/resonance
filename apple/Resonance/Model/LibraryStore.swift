@@ -291,6 +291,17 @@ final class LibraryStore {
         )
     }
 
+    /// Show a tune (a file in the collection) in the library, in its
+    /// author's folder or its section.
+    func reveal(tunePath: String) {
+        guard let category = category(of: tunePath) else { return }
+        reveal = LibraryReveal(
+            authorPath: URL(filePath: tunePath).deletingLastPathComponent().path,
+            tunePath: tunePath,
+            category: category
+        )
+    }
+
     /// Which part of HVSC `path` is in, if any.
     func category(of path: String) -> HvscCategory? {
         guard let root = player.hvscRoot else { return nil }

@@ -562,6 +562,16 @@ impl Library {
         Ok(paths)
     }
 
+    /// Every indexed tune's path and subtune count, all categories (empty
+    /// until `warm_indexes` has run).
+    pub fn indexed_tunes(&self) -> Vec<(PathBuf, u16)> {
+        let inner = self.lock();
+        CATEGORIES
+            .iter()
+            .flat_map(|&c| inner.index(c).iter().map(|e| (e.path.clone(), e.songs)))
+            .collect()
+    }
+
     /// Load (or build) every category's index, so `pick_blocking` covers all
     /// of HVSC and needs no walk.
     pub async fn warm_indexes(&self) {
