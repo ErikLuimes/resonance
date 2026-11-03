@@ -1,110 +1,203 @@
 import SwiftUI
 import PhosphorCore
 
+/// Settings, one tab per area. The selected tab is remembered.
 struct SettingsView: View {
+    @AppStorage(Pref.settingsTab) private var tab = SettingsTab.playback
+
+    var body: some View {
+        TabView(selection: $tab) {
+            Tab("Playback", systemImage: "play.circle", value: .playback) {
+                SettingsPane { PlaybackSettings() }
+            }
+            Tab("Appearance", systemImage: "paintpalette", value: .appearance) {
+                SettingsPane { ThemeSettings() }
+            }
+            Tab("Collection", systemImage: "folder", value: .collection) {
+                SettingsPane { CollectionSettings() }
+            }
+            Tab("History", systemImage: "clock.arrow.circlepath", value: .history) {
+                SettingsPane { HistorySettings() }
+            }
+            Tab("Advanced", systemImage: "gearshape.2", value: .advanced) {
+                SettingsPane { AdvancedSettings() }
+            }
+        }
+    }
+}
+
+enum SettingsTab: String {
+    case playback, appearance, collection, history, advanced
+}
+
+/// A tab's grouped form, as tall as its content: the window resizes to
+/// each tab.
+private struct SettingsPane<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        Form { content }
+            .formStyle(.grouped)
+            .frame(width: 460)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+private struct PlaybackSettings: View {
     @Environment(PlayerStore.self) private var store
-    @State private var choosingHvscFolder = false
 
     var body: some View {
         @Bindable var store = store
-        Form {
-            Section {
-                Picker("Engine", selection: $store.engine) {
-                    ForEach(Engine.allCases, id: \.self) { engine in
-                        Text(engine.displayName).tag(engine)
-                    }
-                }
-            } footer: {
-                Text("SIDLite picks the chip model from each tune's header. Changing the engine restarts the current tune.")
-            }
-
-            Section {
-                Toggle("Skip RSID tunes", isOn: $store.options.skipRsid)
-                LabeledContent("Default song length") {
-                    HStack {
-                        TextField("Seconds", value: $store.options.defaultSongLengthSecs, format: .number)
-                            .labelsHidden()
-                            .frame(width: 60)
-                            .multilineTextAlignment(.trailing)
-                        Text("seconds")
-                    }
-                }
-            } header: {
-                Text("Playback")
-            } footer: {
-                Text("The default length is used for tunes missing from the Songlengths database. 0 means play until silence.")
-            }
-
-            Section("Stereo") {
-                Toggle("Play 2SID tunes in mirrored stereo", isOn: $store.options.forceStereo2sid)
-                Picker("Widen mono tunes", selection: $store.options.pseudoStereo) {
-                    Text("Off").tag(PseudoStereo?.none)
-                    ForEach(PseudoStereo.allCases, id: \.self) { strength in
-                        Text(strength.displayName).tag(Optional(strength))
-                    }
+        Section {
+            Picker("Engine", selection: $store.engine) {
+                ForEach(Engine.allCases, id: \.self) { engine in
+                    Text(engine.displayName).tag(engine)
                 }
             }
+        } footer: {
+            Text("SIDLite picks the chip model from each tune's header. Changing the engine restarts the current tune.")
+        }
 
-            ThemeSettings()
+        Section {
+            Toggle("Skip RSID tunes", isOn: $store.options.skipRsid)
+            LabeledContent("Default song length") {
+                HStack {
+                    TextField("Seconds", value: $store.options.defaultSongLengthSecs, format: .number)
+                        .labelsHidden()
+                        .frame(width: 60)
+                        .multilineTextAlignment(.trailing)
+                    Text("seconds")
+                }
+            }
+        } header: {
+            Text("Playback")
+        } footer: {
+            Text("The default length is used for tunes missing from the Songlengths database. 0 means play until silence.")
+        }
 
-            Section {
-                LabeledContent("Collection folder") {
-                    Text(store.hvscRoot.map { ($0 as NSString).abbreviatingWithTildeInPath } ?? "Not set")
-                        .foregroundStyle(store.hvscRoot == nil ? .secondary : .primary)
+        Section("Stereo") {
+            Toggle("Play 2SID tunes in mirrored stereo", isOn: $store.options.forceStereo2sid)
+            Picker("Widen mono tunes", selection: $store.options.pseudoStereo) {
+                Text("Off").tag(PseudoStereo?.none)
+                ForEach(PseudoStereo.allCases, id: \.self) { strength in
+                    Text(strength.displayName).tag(Optional(strength))
+                }
+            }
+        }
+    }
+}
+
+/// The HVSC folder and its release, and downloading it (again).
+private struct CollectionSettings: View {
+    @Environment(PlayerStore.self) private var store
+    @State private var choosingFolder = false
+    @State private var confirmingDownload = false
+
+    var body: some View {
+        Section {
+            LabeledContent("Collection folder") {
+                Text(store.hvscRoot.map { ($0 as NSString).abbreviatingWithTildeInPath } ?? "Not set")
+                    .foregroundStyle(store.hvscRoot == nil ? .secondary : .primary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            HStack {
+                Button("Choose…") { choosingFolder = true }
+                Button("Use Phosphor's") { store.usePhosphorHvscRoot() }
+            }
+            if store.hasCollection, let info = store.hvscInfo, let version = info.version {
+                LabeledContent("Version") {
+                    Text(info.releaseDate.map { "HVSC \(version), released \($0)" } ?? "HVSC \(version)")
+                }
+            }
+            if store.hasCollection {
+                UpdateRow()
+            }
+            if let sync = store.hvscSync, sync.running {
+                ProgressView(value: sync.fraction) {
+                    Text(sync.current)
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
-                HStack {
-                    Button("Choose…") { choosingHvscFolder = true }
-                    Button("Use Phosphor's") { store.usePhosphorHvscRoot() }
+                Button("Cancel Download") { store.cancelHvscSync() }
+            } else if store.hasCollection {
+                // An available update is the Updates row's button instead.
+                if !store.hvscUpdateAvailable {
+                    Button("Download Again…") { confirmingDownload = true }
                 }
-                if !store.hasCollection, let sync = store.hvscSync, sync.running {
-                    ProgressView {
-                        Text(sync.current)
-                            .lineLimit(1)
-                    }
-                } else if !store.hasCollection, store.hvscSync?.running != true {
-                    Button {
-                        store.startHvscSync()
-                    } label: {
-                        Label("Download Collection…", systemImage: "arrow.down.circle")
-                    }
-                }
-            } header: {
-                Text("HVSC")
-            } footer: {
-                if store.hasCollection {
-                    Text("The folder that holds MUSICIANS, GAMES and DEMOS.")
-                } else {
-                    Text("The folder that holds MUSICIANS, GAMES and DEMOS. With nothing in it yet, download the collection into it — by default the folder Phosphor uses.")
-                }
+            } else {
+                Button("Download Collection…") { store.startHvscSync() }
             }
-
+            if let error = store.hvscSyncError ?? store.hvscSync?.error {
+                Text(error)
+                    .foregroundStyle(.red)
+            }
+        } header: {
+            Text("HVSC")
+        } footer: {
             if store.hasCollection {
-                FingerprintSettings()
-            }
-
-            Section {
-                Button("Import Settings from Phosphor") { store.importPhosphorSettings() }
-            } footer: {
-                Text("Song lengths and your HVSC collection are read from Phosphor's data folder, so both apps share them.")
+                Text("The folder that holds MUSICIANS, GAMES and DEMOS. Updating adds the new and changed tunes; tunes a release moves or removes stay where they were. Downloading again restores missing or damaged files.")
+            } else {
+                Text("The folder that holds MUSICIANS, GAMES and DEMOS. With nothing in it yet, download the collection into it — by default the folder Phosphor uses.")
             }
         }
-        .formStyle(.grouped)
-        .fileImporter(isPresented: $choosingHvscFolder, allowedContentTypes: [.folder]) { result in
+        .fileImporter(isPresented: $choosingFolder, allowedContentTypes: [.folder]) { result in
             if case .success(let url) = result {
                 store.hvscRoot = url.path
             }
         }
-        .frame(width: 460)
-        .fixedSize(horizontal: false, vertical: true)
+        .confirmationDialog("Download HVSC again?", isPresented: $confirmingDownload) {
+            Button("Download") { store.startHvscSync() }
+        } message: {
+            Text("Downloads the whole collection archive and restores any missing or damaged files. The tunes already there are kept, and so are your fingerprints.")
+        }
+        .task { await store.loadHvscInfo() }
+
+        if store.hasCollection {
+            FingerprintSettings()
+        }
+    }
+}
+
+/// Whether a newer HVSC release is out, and getting it.
+private struct UpdateRow: View {
+    @Environment(PlayerStore.self) private var store
+
+    var body: some View {
+        LabeledContent("Updates") {
+            HStack {
+                if store.isCheckingHvscUpdate {
+                    Text("Checking…")
+                        .foregroundStyle(.secondary)
+                } else if let error = store.hvscUpdateError {
+                    Text("Couldn't check: \(error)")
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .help(error)
+                    AccentLink("Try Again") { Task { await store.checkHvscUpdate() } }
+                } else if store.hvscUpdateAvailable, let latest = store.latestHvsc {
+                    if store.hvscSync?.running != true {
+                        Button("Update to HVSC \(latest)") { store.startHvscSync() }
+                    }
+                } else if store.latestHvsc != nil {
+                    Text("Up to date")
+                        .foregroundStyle(.secondary)
+                    AccentLink("Check Again") { Task { await store.checkHvscUpdate() } }
+                } else {
+                    AccentLink("Check for Update") { Task { await store.checkHvscUpdate() } }
+                }
+            }
+        }
     }
 }
 
 /// The background scan that fingerprints the collection: how far it has
-/// got, and pausing it.
+/// got and how long it has left, pausing it, and scanning again.
 private struct FingerprintSettings: View {
     @Environment(FingerprintStore.self) private var fingerprints
+    @State private var confirmingRebuild = false
+    @State private var databaseBytes: Int64?
 
     var body: some View {
         Section {
@@ -114,11 +207,20 @@ private struct FingerprintSettings: View {
                         .monospacedDigit()
                 }
                 if !status.finished {
-                    ProgressView(value: Double(status.done), total: Double(status.total))
-                    Button(fingerprints.paused ? "Resume" : "Pause") { fingerprints.paused.toggle() }
+                    ProgressView(value: Double(status.done), total: Double(status.total)) {
+                        EmptyView()
+                    } currentValueLabel: {
+                        if fingerprints.paused {
+                            Text("Paused")
+                        } else if let remaining = fingerprints.remaining {
+                            Text(Self.timeLeft(remaining))
+                        }
+                    }
                 }
                 if status.failed > 0 {
-                    LabeledContent("Couldn't scan", value: "\(status.failed.formatted()) tunes")
+                    LabeledContent("Couldn't scan \(status.failed.formatted()) tunes") {
+                        AccentLink("Retry") { Task { await fingerprints.retryFailed() } }
+                    }
                 }
                 if let error = status.error {
                     Text(error)
@@ -127,11 +229,151 @@ private struct FingerprintSettings: View {
             } else {
                 LabeledContent("Fingerprinted", value: "Starting…")
             }
+            LabeledContent("Database") {
+                HStack {
+                    if let databaseBytes {
+                        Text(databaseBytes.formatted(.byteCount(style: .file)))
+                            .foregroundStyle(.secondary)
+                    }
+                    if fingerprints.status?.finished != true {
+                        Button(fingerprints.paused ? "Resume" : "Pause") { fingerprints.paused.toggle() }
+                    }
+                    Button("Rebuild All…") { confirmingRebuild = true }
+                }
+            }
         } header: {
             Text("Sound Fingerprints")
         } footer: {
             Text("Resonance plays every tune silently in the background to learn how it sounds, for the Sound column and Sounds Like. It picks up where it left off, and takes a few hours for all of HVSC.")
         }
+        .confirmationDialog("Rebuild all fingerprints?", isPresented: $confirmingRebuild) {
+            Button("Rebuild") { Task { await fingerprints.rebuild() } }
+        } message: {
+            Text("Forgets every fingerprint and scans HVSC again from the start. That takes a few hours, and Sounds Like is incomplete until it's done.")
+        }
+        .task(id: fingerprints.status?.revision) {
+            let url = AppPaths.fingerprintDatabase
+            databaseBytes = await Task.detached(priority: .utility) {
+                ["", "-wal"].reduce(Int64(0)) { sum, suffix in
+                    sum + DiskUsage.bytes(at: URL(filePath: url.path + suffix))
+                }
+            }.value
+        }
+    }
+
+    /// "About 1 hour, 20 minutes left".
+    private static func timeLeft(_ remaining: Duration) -> String {
+        guard remaining >= .seconds(60) else { return "Less than a minute left" }
+        let units: Set<Duration.UnitsFormatStyle.Unit> = remaining >= .seconds(3600) ? [.hours, .minutes] : [.minutes]
+        return "About \(remaining.formatted(.units(allowed: units, width: .wide))) left"
+    }
+}
+
+/// The play history Resonance shares with Phosphor, and clearing it.
+private struct HistorySettings: View {
+    @Environment(LibraryStore.self) private var library
+    @State private var confirmingClear = false
+    @State private var confirmingReset = false
+
+    var body: some View {
+        Section {
+            LabeledContent("Recently played") {
+                HStack {
+                    Text(Self.tunes(library.recent?.count))
+                        .foregroundStyle(.secondary)
+                    Button("Clear…") { confirmingClear = true }
+                }
+            }
+        } footer: {
+            Text("The last 100 different tunes you played.")
+        }
+
+        Section {
+            LabeledContent("Heard") {
+                HStack {
+                    Text(Self.tunes(library.heardCount))
+                        .foregroundStyle(.secondary)
+                    Button("Reset…") { confirmingReset = true }
+                }
+            }
+        } footer: {
+            Text("Every tune you've ever played, for the SIDs heard count in Recently Played. Phosphor shares both lists, so clearing them here clears them there too.")
+        }
+        .confirmationDialog("Clear recently played?", isPresented: $confirmingClear) {
+            Button("Clear") { Task { await library.clearRecent() } }
+        } message: {
+            Text("Removes every tune from Recently Played, in Resonance and in Phosphor.")
+        }
+        .confirmationDialog("Reset heard tunes?", isPresented: $confirmingReset) {
+            Button("Reset") { Task { await library.resetHeard() } }
+        } message: {
+            Text("Forgets every tune you've heard, so the SIDs heard count starts from zero, in Resonance and in Phosphor.")
+        }
+        .task { await library.loadRecent() }
+    }
+
+    private static func tunes(_ count: Int?) -> String {
+        guard let count else { return "…" }
+        return count == 1 ? "1 tune" : "\(count.formatted()) tunes"
+    }
+}
+
+/// Importing Phosphor's settings, and where both apps keep their files.
+private struct AdvancedSettings: View {
+    @Environment(PlayerStore.self) private var store
+    @State private var sizes: [URL: Int64] = [:]
+
+    private static let folders = [
+        ("Resonance", AppPaths.supportDirectory),
+        ("Phosphor", AppPaths.phosphorDirectory),
+    ]
+
+    var body: some View {
+        Section {
+            Button("Import Settings from Phosphor") { store.importPhosphorSettings() }
+        } footer: {
+            Text("Song lengths and your HVSC collection are read from Phosphor's data folder, so both apps share them.")
+        }
+
+        Section {
+            ForEach(Self.folders, id: \.1) { name, url in
+                LabeledContent(name) {
+                    HStack {
+                        Text(sizes[url].map { $0.formatted(.byteCount(style: .file)) } ?? "Measuring…")
+                            .foregroundStyle(.secondary)
+                        AccentLink("Show in Finder") { NSWorkspace.shared.open(url) }
+                    }
+                }
+            }
+        } header: {
+            Text("Data Folders")
+        } footer: {
+            Text("Resonance keeps its fingerprints and session playlist in its own folder. Play history, song lengths and, unless you chose another folder, HVSC live in Phosphor's.")
+        }
+        .task {
+            for (_, url) in Self.folders {
+                sizes[url] = await Task.detached(priority: .utility) { DiskUsage.bytes(at: url) }.value
+            }
+        }
+    }
+}
+
+/// Bytes a file or folder takes on disk.
+nonisolated enum DiskUsage {
+    static func bytes(at url: URL) -> Int64 {
+        let keys: Set<URLResourceKey> = [.totalFileAllocatedSizeKey, .isRegularFileKey]
+        let size = { (url: URL) -> Int64 in
+            guard let values = try? url.resourceValues(forKeys: keys), values.isRegularFile == true else { return 0 }
+            return Int64(values.totalFileAllocatedSize ?? 0)
+        }
+        guard let files = FileManager.default.enumerator(at: url, includingPropertiesForKeys: Array(keys)) else {
+            return size(url)
+        }
+        var total = size(url)
+        for case let file as URL in files {
+            total += size(file)
+        }
+        return total
     }
 }
 
@@ -202,5 +444,6 @@ private struct ThemeSettings: View {
 #Preview {
     SettingsView()
         .environment(PlayerStore.preview)
+        .environment(LibraryStore(player: .preview))
         .environment(FingerprintStore(player: .preview))
 }

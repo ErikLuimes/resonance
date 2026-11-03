@@ -18,6 +18,7 @@ nonisolated enum Pref {
     static let customTheme = "customTheme"
     static let themeBadge = "themeBadge"
     static let fingerprintScanPaused = "fingerprintScanPaused"
+    static let settingsTab = "settingsTab"
 }
 
 nonisolated extension PlaybackOptions {

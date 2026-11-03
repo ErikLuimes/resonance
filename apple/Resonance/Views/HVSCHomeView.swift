@@ -301,6 +301,13 @@ private struct CollectionHome: View {
                                 .padding(.vertical, 2)
                                 .background(.tint.opacity(0.18), in: .capsule)
                                 .foregroundStyle(.tint)
+                            if store.hvscUpdateAvailable, store.hvscSync?.running != true,
+                               let latest = store.latestHvsc {
+                                Button("Update to v\(latest)") { store.startHvscSync() }
+                                    .buttonStyle(.bordered)
+                                    .buttonBorderShape(.capsule)
+                                    .controlSize(.small)
+                            }
                         }
                     }
                     Text("High Voltage SID Collection")

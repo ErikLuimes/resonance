@@ -34,3 +34,18 @@ pub(crate) fn recent() -> Vec<RecentEntry> {
 pub(crate) fn heard_count() -> usize {
     HeardDb::load().heard.len()
 }
+
+/// Empty the recently played list (Phosphor's too: it's the same file).
+pub(crate) fn clear_recent() {
+    RecentlyPlayed::default().save();
+}
+
+/// Forget every tune ever heard (Phosphor's too). `HeardDb` only saves
+/// when a tune was added, so the file is emptied directly.
+pub(crate) fn reset_heard() {
+    if let Some(path) = crate::config::config_dir().map(|d| d.join("heard.txt")) {
+        if path.exists() {
+            let _ = std::fs::write(path, "");
+        }
+    }
+}

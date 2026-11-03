@@ -110,6 +110,8 @@ struct ContentView: View {
         // The HVSC Home's metadata (and the sidebar's release badge): one
         // core walk of the tree per revision change.
         .task(id: store.hvscTreeRevision) { await store.loadHvscInfo() }
+        // Once a launch, like Phosphor: is there a newer HVSC release?
+        .task { await store.checkHvscUpdate() }
         // No collection yet: the Home (its empty state) is the welcome pane.
         .task(id: store.hasCollection) {
             if !store.hasCollection {
@@ -199,9 +201,9 @@ struct ContentView: View {
                     .padding(.bottom, 12)
             }
             .overlay(alignment: .top) {
-                // The Home view is the download's status surface; other
-                // panes get the pill instead.
-                StatusBanner(showsSync: section != .hvscHome)
+                // The Home view is the first download's status surface;
+                // other panes, and an update, get the pill instead.
+                StatusBanner(showsSync: section != .hvscHome || store.hasCollection)
             }
             .inspector(isPresented: $showInspector) {
                 NowPlayingInspector()
@@ -290,6 +292,11 @@ private struct HvscCollectionRow: View {
                 Button("Download") { store.startHvscSync() }
                     .buttonStyle(.borderless)
                     .font(.callout)
+            } else if store.hvscUpdateAvailable, !running, let latest = store.latestHvsc {
+                Button("Update") { store.startHvscSync() }
+                    .buttonStyle(.borderless)
+                    .font(.callout)
+                    .help("Update to HVSC \(latest)")
             }
         }
         .tag(SidebarItem.hvscHome)

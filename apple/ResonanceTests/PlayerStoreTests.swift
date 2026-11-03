@@ -89,6 +89,8 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
 
     func recentlyPlayed() async throws -> [RecentTune] { lock.withLock { _recent } }
     func heardCount() async -> UInt32 { lock.withLock { _heard } }
+    func clearRecentlyPlayed() async {}
+    func resetHeard() async {}
     func hvscBugs(path: String) async -> [TuneBug] { [] }
 
     func hvscTunesAt(paths: [String]) async throws -> [HvscTuneItem] {
@@ -125,6 +127,7 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
 
     func hvscSyncStatus() -> HvscSyncStatus? { lock.withLock { _sync } }
     func hvscInfo() async -> HvscInfo? { lock.withLock { _hvscInfo } }
+    func checkHvscUpdate() async throws -> HvscVersionCheck { record("checkHvscUpdate"); return HvscVersionCheck(latest: 86, installed: 85) }
     func startHvscSync() throws {
         record("syncStart")
         if let error = lock.withLock({ _syncStartError }) {
@@ -134,6 +137,8 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     func cancelHvscSync() { record("syncCancel") }
 
     func startFingerprintScan() async throws { record("fingerprintScan") }
+    func retryFailedFingerprints() async throws { record("retryFingerprints") }
+    func rebuildFingerprints() async throws { record("rebuildFingerprints") }
     func stopFingerprintScan() {}
     func setFingerprintScanPaused(paused: Bool) {}
     func fingerprintScanStatus() -> FingerprintScanStatus {
@@ -357,6 +362,20 @@ struct HvscSettingsTests {
         #expect(relaunched.hvscRoot == "/Music/C64")
     }
 
+    @Test func offersANewerReleaseOnlyForACollection() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let (store, _) = makeStore(phosphor: root.path)
+        await store.checkHvscUpdate()
+        #expect(store.latestHvsc == 86)
+        #expect(!store.hvscUpdateAvailable, "no collection to update")
+
+        try FileManager.default.createDirectory(at: root.appending(path: "MUSICIANS"), withIntermediateDirectories: true)
+        let (withCollection, _) = makeStore(phosphor: root.path)
+        await withCollection.checkHvscUpdate()
+        #expect(withCollection.hvscUpdateAvailable, "86 on the mirror, 85 installed")
+    }
+
     @Test func clearingTheFolderSticksAcrossLaunches() {
         let (store, _) = makeStore(phosphor: "/HVSC")
         store.hvscRoot = nil
@@ -380,15 +399,25 @@ struct HvscSyncTests {
         PlayerStore(defaults: defaults, phosphorHvscRoot: { phosphor }) { _ in fake }
     }
 
-    @Test func startForwardsAndReportsACoresError() {
+    @Test func startForwardsAndReportsACoresError() async {
         let store = makeStore(phosphor: "/HVSC")
+        await store.checkHvscUpdate()
         store.startHvscSync()
-        #expect(fake.calls == ["syncStart"])
+        #expect(fake.calls == ["checkHvscUpdate", "syncStart"])
         #expect(store.hvscSyncError == nil)
 
         fake.set(syncStartError: HvscError.NoRoot)
         store.startHvscSync()
         #expect(store.hvscSyncError == "Choose your HVSC folder in Settings.")
+    }
+
+    @Test func aFirstDownloadAsksForTheNewestReleaseFirst() async throws {
+        let store = makeStore(phosphor: "/HVSC")
+        store.startHvscSync()
+        #expect(fake.calls.isEmpty, "waits for the check")
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(fake.calls == ["checkHvscUpdate", "syncStart"])
+        #expect(store.latestHvsc == 86)
     }
 
     @Test func aFinishedDownloadIntoAnUnseenFolderAimsTheAppAtIt() {

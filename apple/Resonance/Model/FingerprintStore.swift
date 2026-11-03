@@ -17,6 +17,9 @@ final class FingerprintStore {
     private(set) var status: FingerprintScanStatus?
     /// "Sounds like" for a tune's start song, by path; absent until loaded.
     private(set) var similar: [String: [SimilarTune]] = [:]
+    /// How long the scan should take to finish, from its rate over the
+    /// last couple of minutes; nil while paused or before it has a rate.
+    private(set) var remaining: Duration?
 
     /// Pausing holds the scan's place, also across launches.
     var paused: Bool {
@@ -38,6 +41,8 @@ final class FingerprintStore {
     @ObservationIgnored private var scannedRoot: String?
     @ObservationIgnored private var refetchedRevision: UInt64 = 0
     @ObservationIgnored private var refetchedAt = Date.distantPast
+    /// Recent (time, subtunes done) readings, for `remaining`.
+    @ObservationIgnored private var samples: [(at: Date, done: UInt32)] = []
 
     init(player: PlayerStore, defaults: UserDefaults = .standard) {
         self.player = player
@@ -77,6 +82,7 @@ final class FingerprintStore {
         }
         let s = core.fingerprintScanStatus()
         if s != status { status = s }
+        estimate(s)
         // New fingerprints: ask again for the tunes lists are waiting on,
         // at most every few seconds.
         if s.revision != refetchedRevision, !missing.isEmpty, Date.now.timeIntervalSince(refetchedAt) > 4 {
@@ -85,6 +91,43 @@ final class FingerprintStore {
             pending.formUnion(missing)
             await flush()
         }
+    }
+
+    /// Update `remaining` from the subtunes done over the last two minutes.
+    /// The rate needs half a minute of scanning; pausing starts it over.
+    private func estimate(_ s: FingerprintScanStatus) {
+        guard s.running, !s.paused, !s.finished else {
+            samples = []
+            if remaining != nil { remaining = nil }
+            return
+        }
+        let now = Date.now
+        samples.append((now, s.done))
+        samples.removeAll { now.timeIntervalSince($0.at) > 120 }
+        var estimate: Duration?
+        if let first = samples.first, now.timeIntervalSince(first.at) >= 30, s.done > first.done {
+            let rate = Double(s.done - first.done) / now.timeIntervalSince(first.at)
+            let left = Double(max(Int(s.total) - Int(s.done) - Int(s.failed), 0))
+            estimate = .seconds((left / rate).rounded())
+        }
+        if estimate != remaining { remaining = estimate }
+    }
+
+    /// Scan the tunes the scan gave up on again.
+    func retryFailed() async {
+        try? await core.retryFailedFingerprints()
+        status = core.fingerprintScanStatus()
+    }
+
+    /// Forget every fingerprint and scan the collection from the start.
+    func rebuild() async {
+        fingerprints = [:]
+        similar = [:]
+        missing = []
+        samples = []
+        remaining = nil
+        try? await core.rebuildFingerprints()
+        status = core.fingerprintScanStatus()
     }
 
     /// Whether the scan hasn't got everywhere yet.

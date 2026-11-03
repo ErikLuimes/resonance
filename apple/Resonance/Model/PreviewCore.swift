@@ -160,6 +160,8 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
     }
 
     func heardCount() async -> UInt32 { 2_431 }
+    func clearRecentlyPlayed() async {}
+    func resetHeard() async {}
 
     func hvscBugs(path: String) async -> [TuneBug] {
         guard path == items.first?.path else { return [] }
@@ -190,7 +192,10 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
     func startHvscSync() throws {}
     func cancelHvscSync() {}
     func hvscInfo() async -> HvscInfo? { nil }
+    func checkHvscUpdate() async throws -> HvscVersionCheck { HvscVersionCheck(latest: 86, installed: 85) }
     func startFingerprintScan() async throws {}
+    func retryFailedFingerprints() async throws {}
+    func rebuildFingerprints() async throws {}
     func stopFingerprintScan() {}
     func setFingerprintScanPaused(paused: Bool) {}
     func fingerprintScanStatus() -> FingerprintScanStatus {

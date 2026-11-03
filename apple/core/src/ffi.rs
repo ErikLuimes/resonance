@@ -174,6 +174,14 @@ pub struct Snapshot {
 /// is ready to show; the byte and file counters fill a progress bar (bytes
 /// while the archive streams, files while it extracts — zero before their
 /// phase).
+/// The newest HVSC release on the mirror, and the one installed.
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct HvscVersionCheck {
+    pub latest: u32,
+    /// From the collection's STIL; nil when there's none yet.
+    pub installed: Option<u32>,
+}
+
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
 pub struct HvscSyncStatus {
     /// Where the collection is being downloaded.
@@ -486,6 +494,10 @@ pub struct PlayerCore {
     /// The HVSC Home's parsed metadata, keyed by the tree revision the sync
     /// and root changes bump; one collection walk per revision.
     hvsc_info_cache: Mutex<Option<HvscInfoCache>>,
+    /// The newest release `check_hvsc_update` found on the mirror, which
+    /// the download fetches. Kept here rather than in Phosphor's config,
+    /// which Resonance only reads.
+    latest_hvsc: Mutex<Option<u32>>,
     /// The sound fingerprints, in `fingerprints.sqlite` next to the session.
     fingerprints: Arc<Fingerprints>,
 }
@@ -525,6 +537,7 @@ impl PlayerCore {
             sync: Mutex::new(None),
             sync_state: Mutex::new(None),
             hvsc_info_cache: Mutex::new(None),
+            latest_hvsc: Mutex::new(None),
             fingerprints,
         })
     }
@@ -698,7 +711,7 @@ impl PlayerCore {
             .root()
             .or_else(hvsc_sync::default_hvsc_root)
             .ok_or(HvscError::NoRoot)?;
-        let url = sync_archive_url();
+        let url = sync_archive_url(*self.latest_hvsc.lock().unwrap());
         let handle = hvsc_sync::HvscSyncHandle::start_from_zip(&url, &root)
             .map_err(|message| HvscError::Io { message })?;
         *self.sync.lock().unwrap() = Some(handle);
@@ -987,6 +1000,17 @@ impl PlayerCore {
             .unwrap_or(0) as u32
     }
 
+    /// Empty the play history shared with Phosphor.
+    pub async fn clear_recently_played(&self) {
+        let _ = tokio::task::spawn_blocking(crate::history::clear_recent).await;
+    }
+
+    /// Forget every tune Phosphor and Resonance have played, for the heard
+    /// count.
+    pub async fn reset_heard(&self) {
+        let _ = tokio::task::spawn_blocking(crate::history::reset_heard).await;
+    }
+
     /// Surprise Me: an endless stream of random tunes from all of HVSC, one
     /// subtune each, never one played since launch. Next picks a new tune,
     /// Previous goes back; playing anything else ends it. Returns once the
@@ -1039,6 +1063,19 @@ impl PlayerCore {
             .collect();
         self.fingerprints.scanner().start(tunes, songs, db);
         Ok(())
+    }
+
+    /// Scan the tunes the scan gave up on again: forgets them and restarts
+    /// the scan.
+    pub async fn retry_failed_fingerprints(&self) -> Result<(), HvscError> {
+        self.forget_fingerprints(true).await?;
+        self.start_fingerprint_scan().await
+    }
+
+    /// Throw every fingerprint away and scan the collection from the start.
+    pub async fn rebuild_fingerprints(&self) -> Result<(), HvscError> {
+        self.forget_fingerprints(false).await?;
+        self.start_fingerprint_scan().await
     }
 
     /// Fingerprints for the tunes at `paths` (files in the collection),
@@ -1145,6 +1182,20 @@ impl PlayerCore {
             .collect())
     }
 
+    /// Ask the mirror for its newest HVSC release (the version in the
+    /// first kilobyte of its STIL.txt, as Phosphor checks), and remember it
+    /// for the next download.
+    pub async fn check_hvsc_update(&self) -> Result<HvscVersionCheck, HvscError> {
+        let mirror = crate::config::Config::load().hvsc_mirror_url;
+        let latest = crate::stil::check_hvsc_update(&mirror)
+            .await
+            .map_err(|message| HvscError::Io { message })?
+            .remote_version;
+        *self.latest_hvsc.lock().unwrap() = Some(latest);
+        let installed = databases::loaded(&self.databases).await.hvsc_version;
+        Ok(HvscVersionCheck { latest, installed })
+    }
+
     /// The parsed metadata for the HVSC Home view: the release, the latest
     /// update announcement, the tune and document counts, the disk images
     /// and Phosphor's published playlists. `None` when the current folder
@@ -1180,13 +1231,21 @@ impl PlayerCore {
     /// databases (the sync brings in STIL.txt and Songlengths.md5 a fresh
     /// install has no remembered path for). Like Phosphor's
     /// `apply_post_hvsc_sync`, minus the writes to its config.
+    async fn forget_fingerprints(&self, failed_only: bool) -> Result<(), HvscError> {
+        let fps = self.fingerprints.clone();
+        tokio::task::spawn_blocking(move || fps.forget(failed_only))
+            .await
+            .map_err(|e| HvscError::Io { message: e.to_string() })?
+            .map_err(|e| HvscError::Io { message: e.to_string() })
+    }
+
     fn apply_post_sync(&self, root: &Path) {
         crate::hvsc_index_cache::clear_all();
         self.library.refresh();
         let config = crate::config::Config::load();
         databases::install(
             &self.databases,
-            databases::Databases::load_after_sync(&config, Some(root)),
+            databases::Databases::load_with_tree(&config, Some(root)),
         );
     }
 
@@ -1238,13 +1297,15 @@ fn to_usize(v: Vec<u32>) -> Vec<usize> {
 }
 
 /// The archive to download: an explicit `hvsc_zip_url` in Phosphor's
-/// config wins, else the mirror's `<N>-all-of-them` archive at the tree's
-/// known release. Mirrors upstream's `HvscZipSyncStart` resolution;
+/// config wins, else the mirror's `<N>-all-of-them` archive at `latest`
+/// (the release the update check found), else at the tree's known
+/// release. Mirrors upstream's `HvscZipSyncStart` resolution;
 /// unlike it, an unrecognised mirror host falls back to brona.dk's, the
 /// canonical mirror, rather than dead-ending (Resonance has no field to
 /// paste an archive URL into).
-fn sync_archive_url() -> String {
+fn sync_archive_url(latest: Option<u32>) -> String {
     let config = crate::config::Config::load();
+    let latest = latest.map(|v| format!("v{v}"));
     config
         .hvsc_zip_url
         .as_deref()
@@ -1252,7 +1313,10 @@ fn sync_archive_url() -> String {
         .filter(|s| !s.is_empty())
         .map(str::to_string)
         .or_else(|| {
-            hvsc_sync::default_hvsc_zip_url(&config.hvsc_mirror_url, config.hvsc_known_version.as_deref())
+            hvsc_sync::default_hvsc_zip_url(
+                &config.hvsc_mirror_url,
+                latest.as_deref().or(config.hvsc_known_version.as_deref()),
+            )
         })
         .unwrap_or_else(|| {
             hvsc_sync::default_hvsc_zip_url(crate::config::DEFAULT_HVSC_MIRROR_URL, None)

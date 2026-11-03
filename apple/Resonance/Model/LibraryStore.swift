@@ -167,6 +167,18 @@ final class LibraryStore {
         if Int(heard) != heardCount { heardCount = Int(heard) }
     }
 
+    /// Empty the play history (Phosphor's too: the apps share it).
+    func clearRecent() async {
+        await core.clearRecentlyPlayed()
+        await loadRecent()
+    }
+
+    /// Forget every tune ever heard, in both apps.
+    func resetHeard() async {
+        await core.resetHeard()
+        await loadRecent()
+    }
+
     /// Fuzzy search; `nil` scope searches all of HVSC. Throws on failure or
     /// cancellation.
     func search(_ query: String, scope: HvscCategory?) async throws -> HvscSearchResult {

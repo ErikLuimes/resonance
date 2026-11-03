@@ -245,6 +245,18 @@ impl Store {
         rows.collect()
     }
 
+    /// Forget the subtunes given up on, so the next scan tries them again.
+    pub fn forget_failed(&self) -> rusqlite::Result<()> {
+        self.conn.execute("DELETE FROM fingerprints WHERE status = 2", [])?;
+        Ok(())
+    }
+
+    /// Forget every fingerprint, so the next scan starts over.
+    pub fn clear(&self) -> rusqlite::Result<()> {
+        self.conn.execute("DELETE FROM fingerprints", [])?;
+        Ok(())
+    }
+
     /// Subtunes scanned and given up on, under the current extractor.
     pub fn counts(&self) -> rusqlite::Result<(u32, u32)> {
         self.conn.query_row(

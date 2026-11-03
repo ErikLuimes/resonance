@@ -210,7 +210,8 @@ fn spawn_loader(progress: LoadingProgress, library: Library) -> (Sender<Job>, Re
                 let result = match job {
                     Job::Databases => {
                         // Read-only: Resonance never writes Phosphor's config.json.
-                        Loaded::Databases(Box::new(Databases::load(&config::Config::load())))
+                        let config = config::Config::load();
+                        Loaded::Databases(Box::new(Databases::load_with_tree(&config, library.root().as_deref())))
                     }
                     Job::RestoreSession(path) => {
                         set_progress(&progress, "Restoring playlist…");

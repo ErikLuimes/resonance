@@ -36,6 +36,7 @@ struct ResonanceApp: App {
         Settings {
             SettingsView()
                 .environment(appDelegate.store)
+                .environment(appDelegate.library)
                 .environment(appDelegate.fingerprints)
                 .voiceThemed()
         }

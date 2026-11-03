@@ -73,33 +73,41 @@ impl Databases {
         }
     }
 
-    /// `load`, rerun after the collection has been downloaded.
+    /// `load`, then the collection's own DOCUMENTS where they have more:
+    /// at launch and after a download.
     ///
     /// A fresh install remembers no STIL or Songlengths path yet, and the
     /// tree the sync brings in keeps both in its DOCUMENTS folder (the
     /// layout Phosphor's `apply_post_hvsc_sync` adopts), so look there when
-    /// the remembered paths have nothing.
-    pub fn load_after_sync(config: &Config, hvsc_root: Option<&Path>) -> Self {
+    /// the remembered paths have nothing. After an update the tree's copies
+    /// are a newer release than the remembered ones, and win, as at
+    /// Phosphor's launch (main.rs `tree_db_is_newer`).
+    pub fn load_with_tree(config: &Config, hvsc_root: Option<&Path>) -> Self {
         let mut db = Self::load(config);
         db.fill_from_documents(hvsc_root);
         db
     }
 
-    /// The part `load_after_sync` adds: the sync puts STIL.txt and
+    /// The part `load_with_tree` adds: the sync puts STIL.txt and
     /// Songlengths.md5 in the tree's DOCUMENTS folder, where a fresh
-    /// install's remembered paths point at nothing, so adopt them — but
-    /// only what the normal lookup didn't already find.
+    /// install's remembered paths point at nothing, so adopt them: what the
+    /// normal lookup didn't find, or both when the tree is a newer release.
     pub(crate) fn fill_from_documents(&mut self, hvsc_root: Option<&Path>) {
         let Some(documents) = hvsc_root.map(|root| root.join("DOCUMENTS")) else {
             return
         };
-        if self.stil.is_none() {
+        let tree_version = stil::peek_stil_version(&documents.join("STIL.txt"));
+        let newer = stil::tree_db_is_newer(self.hvsc_version, tree_version);
+        if newer {
+            self.hvsc_version = tree_version;
+        }
+        if self.stil.is_none() || newer {
             let (stil, stil_text) =
                 load_stil_pair(Some(documents.join("STIL.txt")).filter(|p| p.exists()));
             self.stil = stil;
             self.stil_text = stil_text;
         }
-        if self.songlengths.is_none() {
+        if self.songlengths.is_none() || newer {
             let path = documents.join("Songlengths.md5");
             self.songlengths = path
                 .exists()
@@ -337,11 +345,20 @@ mod tests {
         assert!(db.songlengths.is_some());
         assert_eq!(db.hvsc_version, Some(85));
 
-        // What the normal lookup found keeps precedence.
+        // What the normal lookup found keeps precedence over an older or
+        // the same release...
         let mut db = super::Databases::default();
-        db.hvsc_version = Some(77);
+        db.hvsc_version = Some(90);
         db.fill_from_documents(Some(&dir));
-        assert_eq!(db.hvsc_version, Some(77));
+        assert_eq!(db.hvsc_version, Some(90));
+        assert!(db.stil.is_some());
+
+        // ...but an updated tree wins.
+        let mut db = super::Databases::default();
+        db.hvsc_version = Some(84);
+        db.fill_from_documents(Some(&dir));
+        assert_eq!(db.hvsc_version, Some(85));
+        assert!(db.songlengths.is_some());
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

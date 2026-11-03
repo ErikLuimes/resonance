@@ -285,6 +285,24 @@ fn an_interrupted_scan_is_retried_then_given_up_on() {
 }
 
 #[test]
+fn forgetting_failed_keeps_the_rest_and_clear_forgets_all() {
+    let store = Store::in_memory().unwrap();
+    let fp = scan_tune(&psid(1, 1), 1, 4.0, &|| false).unwrap().unwrap();
+    store.mark_scanning("good", 1).unwrap();
+    store.save("good", 1, &fp).unwrap();
+    store.mark_scanning("bad", 1).unwrap();
+    store.mark_failed("bad", 1, "crashed").unwrap();
+    assert_eq!(store.counts().unwrap(), (1, 1));
+
+    store.forget_failed().unwrap();
+    assert_eq!(store.counts().unwrap(), (1, 0));
+    assert_eq!(store.status("bad", 1).unwrap(), None);
+
+    store.clear().unwrap();
+    assert_eq!(store.counts().unwrap(), (0, 0));
+}
+
+#[test]
 fn scans_a_collection_and_resumes_without_rescanning() {
     let dir = temp_dir("scan");
     let root = dir.join("HVSC");

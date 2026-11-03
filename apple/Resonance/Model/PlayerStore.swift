@@ -55,6 +55,15 @@ final class PlayerStore {
     private(set) var hvscInfo: HvscInfo?
     /// The tree revision `hvscInfo` was read at.
     @ObservationIgnored private var hvscInfoRevision: UInt64?
+    /// The newest release on the mirror; nil until checked.
+    private(set) var latestHvsc: UInt32?
+    private(set) var isCheckingHvscUpdate = false
+    /// Why the last update check failed.
+    private(set) var hvscUpdateError: String?
+    /// The installed release, as checked against the mirror.
+    @ObservationIgnored private var checkedHvsc: UInt32?
+    /// The check in flight, which later callers wait for.
+    @ObservationIgnored private var updateCheck: Task<Void, Never>?
 
     // MARK: Settings (persisted, pushed to the core)
 
@@ -314,11 +323,20 @@ final class PlayerStore {
 
     // MARK: HVSC collection download
 
-    /// Begin downloading the collection into the current HVSC folder, or
-    /// Phosphor's default folder when none is set. Progress arrives through
-    /// `hvscSync` at the snapshot rate.
+    /// Begin downloading the newest release into the current HVSC folder,
+    /// or Phosphor's default folder when none is set. Progress arrives
+    /// through `hvscSync` at the snapshot rate. Before the mirror has been
+    /// asked for its newest release, it's asked first; if it can't say, the
+    /// core falls back to the release it knows.
     func startHvscSync() {
         guard hvscSync?.running != true else { return }
+        if latestHvsc == nil, hvscUpdateError == nil {
+            Task {
+                await checkHvscUpdate()
+                startHvscSync()
+            }
+            return
+        }
         do {
             try core.startHvscSync()
             hvscSyncError = nil
@@ -331,6 +349,41 @@ final class PlayerStore {
     /// (files already on disk are skipped).
     func cancelHvscSync() {
         core.cancelHvscSync()
+    }
+
+    /// Ask the mirror for its newest release; `startHvscSync()` then
+    /// downloads that one.
+    func checkHvscUpdate() async {
+        if let updateCheck { return await updateCheck.value }
+        let check = Task { await runHvscUpdateCheck() }
+        updateCheck = check
+        isCheckingHvscUpdate = true
+        await check.value
+        updateCheck = nil
+        isCheckingHvscUpdate = false
+    }
+
+    private func runHvscUpdateCheck() async {
+        do {
+            let check = try await core.checkHvscUpdate()
+            latestHvsc = check.latest
+            checkedHvsc = check.installed
+            hvscUpdateError = nil
+        } catch {
+            hvscUpdateError = LibraryStore.message(for: error)
+        }
+    }
+
+    /// The installed release: the collection's HVSC.txt, else what the
+    /// core's STIL says.
+    var installedHvsc: UInt32? {
+        hvscInfo?.version.flatMap { UInt32($0) } ?? checkedHvsc
+    }
+
+    /// A newer release than the installed one is on the mirror.
+    var hvscUpdateAvailable: Bool {
+        guard hasCollection, let latestHvsc, let installedHvsc else { return false }
+        return latestHvsc > installedHvsc
     }
 
     /// The HVSC Home's metadata: the collection's own DOCUMENTS, parsed by
@@ -409,6 +462,16 @@ nonisolated enum AppPaths {
 
     static var sessionPlaylist: URL {
         supportDirectory.appending(path: "session.m3u")
+    }
+
+    static var fingerprintDatabase: URL {
+        supportDirectory.appending(path: "fingerprints.sqlite")
+    }
+
+    /// Phosphor's own folder: its config, play history, Songlengths and
+    /// (by default) HVSC.
+    static var phosphorDirectory: URL {
+        URL.applicationSupportDirectory.appending(path: "phosphor", directoryHint: .isDirectory)
     }
 }
 

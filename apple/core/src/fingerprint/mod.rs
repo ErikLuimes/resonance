@@ -40,6 +40,21 @@ impl Fingerprints {
         &self.scanner
     }
 
+    /// Stop the scan and forget fingerprints: the ones given up on, or
+    /// all of them. The next `start` scans what's missing. Blocking: waits
+    /// for the scan's workers.
+    pub fn forget(&self, failed_only: bool) -> rusqlite::Result<()> {
+        self.scanner.cancel();
+        let store = Store::open(self.scanner.db_path())?;
+        if failed_only {
+            store.forget_failed()?;
+        } else {
+            store.clear()?;
+        }
+        *self.index.lock().unwrap_or_else(|p| p.into_inner()) = None;
+        Ok(())
+    }
+
     /// Run `f` on the read connection, opening it on first use.
     fn read<T>(&self, f: impl FnOnce(&Store) -> rusqlite::Result<T>) -> Option<T> {
         let mut slot = self.reader.lock().unwrap_or_else(|p| p.into_inner());
