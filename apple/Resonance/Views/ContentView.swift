@@ -174,9 +174,11 @@ struct ContentView: View {
             Section {
                 SidebarLabel("Favourites", systemImage: "heart", playing: playing(.favourites),
                              count: playlists.favourites?.count)
+                    .modifier(PlaylistDrop(target: .favourites))
                     .tag(SidebarItem.favourites)
                 SidebarLabel("My Playlist", systemImage: "music.note.list", playing: playing(.playlist),
                              count: store.rows.count)
+                    .modifier(PlaylistDrop(target: .myPlaylist))
                     .tag(SidebarItem.playlist)
                 ForEach(playlists.playlists) { playlist in
                     UserPlaylistRow(playlist: playlist, playing: playing(.userPlaylist(playlist.id)),
@@ -579,6 +581,7 @@ private struct UserPlaylistRow: View {
                              count: playlists.paths[playlist.id]?.count)
             }
         }
+        .modifier(PlaylistDrop(target: .playlist(playlist.id)))
         .contextMenu {
             Button("Play") { play() }
             Divider()
@@ -615,5 +618,33 @@ private struct UserPlaylistRow: View {
             .filter { FileManager.default.fileExists(atPath: $0.path) }
         guard let first = urls.first else { return }
         library.player.playQueue(urls, startAt: first, from: .playlist(id: playlist.id, name: playlist.name))
+    }
+}
+
+/// Tunes dragged from a list onto a sidebar playlist (or Favourites, or My
+/// Playlist) are added to it; the row is outlined while they hover.
+private struct PlaylistDrop: ViewModifier {
+    let target: AddTarget
+
+    @Environment(PlaylistsStore.self) private var playlists
+    @State private var targeted = false
+
+    func body(content: Content) -> some View {
+        content
+            .dropDestination(for: PlaylistRowDrag.self) { drags, _ in
+                let files = drags.flatMap(\.paths)
+                guard !files.isEmpty else { return false }
+                Task { await playlists.add(files, to: target) }
+                return true
+            } isTargeted: { targeted = $0 }
+            .overlay {
+                if targeted {
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(.tint, lineWidth: 2)
+                        .padding(.horizontal, -6)
+                        .padding(.vertical, -3)
+                        .allowsHitTesting(false)
+                }
+            }
     }
 }

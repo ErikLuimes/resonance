@@ -50,7 +50,11 @@ struct UserPlaylistView: View {
             } else {
                 let shown = filtered(rows)
                 LibraryTable(rows: shown, source: source, onRemove: remove,
-                             removeTitle: playlist == nil ? "Remove from Favourites" : "Remove from Playlist")
+                             removeTitle: playlist == nil ? "Remove from Favourites" : "Remove from Playlist",
+                             // Favourites keep the order they were hearted in.
+                             onPlace: playlist == nil || !query.isEmpty ? nil : { files, offset in
+                                 place(files, at: offset, among: shown)
+                             })
                     .overlay {
                         if !query.isEmpty && shown.isEmpty {
                             ContentUnavailableView.search(text: query)
@@ -105,6 +109,13 @@ struct UserPlaylistView: View {
         let count = playlists.rows[id]?.count
         let tunes = count.map { $0 == 1 ? "1 tune" : "\($0.formatted()) tunes" } ?? "…"
         return playlist == nil ? "\(tunes), shared with Phosphor" : tunes
+    }
+
+    /// Dropped at `offset` of the rows shown: before that row's file, or
+    /// at the end (rows skip files no longer on disk, so it goes by file).
+    private func place(_ files: [String], at offset: Int, among rows: [LibraryRow]) {
+        guard let playlist else { return }
+        playlists.place(files, before: rows.indices.contains(offset) ? rows[offset].id : nil, in: playlist)
     }
 
     private func remove(_ ids: Set<LibraryRow.ID>) {

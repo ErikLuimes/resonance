@@ -170,6 +170,17 @@ final class PlaylistsStore {
         return true
     }
 
+    /// Put `files` in `playlist` before `target` (a file in it), or at the
+    /// end: moving those already in it, adding the others.
+    func place(_ files: [String], before target: String?, in playlist: UserPlaylist) {
+        let moving = files.reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
+        var rest = read(playlist).filter { !moving.contains($0) }
+        let at = target.flatMap { rest.firstIndex(of: $0) } ?? rest.count
+        rest.insert(contentsOf: moving, at: at)
+        write(rest, to: playlist)
+        touch(playlist.id)
+    }
+
     /// Take the rows of `playlist` at `ids` out of it.
     func remove(_ ids: Set<String>, from playlist: UserPlaylist) {
         write(read(playlist).filter { !ids.contains($0) }, to: playlist)
@@ -203,7 +214,9 @@ final class PlaylistsStore {
         guard !files.isEmpty else { return }
         switch target {
         case .myPlaylist:
-            player.add(files.map { URL(filePath: $0) })
+            let present = Set(player.rows.map(\.id))
+            let new = files.filter { !present.contains($0) }
+            if !new.isEmpty { player.add(new.map { URL(filePath: $0) }) }
         case .favourites:
             for file in files where !isFavourite(file) {
                 try? await core.setFavorite(path: file, favorite: true)

@@ -107,3 +107,29 @@ struct PlaybackSourceTests {
         #expect(store.source == .surprise)
     }
 }
+
+@MainActor
+struct PlaylistPlacingTests {
+    let fake = FakeCore()
+    let folder = FileManager.default.temporaryDirectory.appending(path: "ResonancePlaylists-\(UUID().uuidString)")
+
+    @Test func movesAndInsertsBeforeATargetOrAtTheEnd() async throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let suite = "ResonanceTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let player = PlayerStore(defaults: defaults, phosphorHvscRoot: { nil }) { _ in fake }
+        let store = PlaylistsStore(player: player, folder: folder, defaults: defaults)
+        let mix = try #require(store.create(named: "Mix"))
+        await store.add(["/a.sid", "/b.sid", "/c.sid", "/d.sid"], to: .playlist(mix.id))
+
+        store.place(["/d.sid"], before: "/b.sid", in: mix)
+        #expect(store.read(mix) == ["/a.sid", "/d.sid", "/b.sid", "/c.sid"])
+
+        store.place(["/a.sid", "/b.sid"], before: nil, in: mix)
+        #expect(store.read(mix) == ["/d.sid", "/c.sid", "/a.sid", "/b.sid"])
+
+        store.place(["/new.sid", "/new.sid"], before: "/c.sid", in: mix)
+        #expect(store.read(mix) == ["/d.sid", "/new.sid", "/c.sid", "/a.sid", "/b.sid"], "added once, where dropped")
+    }
+}

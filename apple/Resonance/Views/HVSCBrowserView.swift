@@ -702,6 +702,10 @@ struct LibraryTable: View {
     var removeTitle = "Remove from Playlist"
     /// Every row is by one composer, who the header above names.
     var hidesAuthor = false
+    /// Puts dragged tunes (moved within the list, or from another) before
+    /// the row at an index of the rows shown, or at the end: one of your
+    /// playlists. Only while the list is in its own order.
+    var onPlace: (([String], Int) -> Void)? = nil
     /// When each row last played, for a Played column (the history).
     var played: [LibraryRow.ID: String]? = nil
 
@@ -849,7 +853,7 @@ struct LibraryTable: View {
     }
 
     private var table: some View {
-        Table(shownRows, selection: $selection, sortOrder: $sortOrder, columnCustomization: $columns) {
+        Table(of: LibraryRow.self, selection: $selection, sortOrder: $sortOrder, columnCustomization: $columns) {
             TableColumn("") { row in
                 if isCurrent(row) {
                     Image(systemName: player.isPlaying ? "speaker.wave.2.fill" : "speaker.fill")
@@ -862,6 +866,11 @@ struct LibraryTable: View {
             TableColumn("Title", value: \.title) { row in
                 TuneTitleCell(library: library, path: row.id, title: row.title, author: row.author,
                               isCurrent: isCurrent(row), mayHaveStil: row.item.hasStil)
+                    // A row has no drag image of its own: the title shows
+                    // what's being dragged, the selection when it's in it.
+                    .draggable(PlaylistRowDrag(paths: dragged(row).map(\.id))) {
+                        TuneDragPreview(rows: dragged(row))
+                    }
             }
             .width(min: 160, ideal: 320)
             .customizationID("title")
@@ -894,6 +903,24 @@ struct LibraryTable: View {
                 .customizationID("match")
             }
             trailingColumns
+        } rows: {
+            // Every row drags, onto a playlist in the sidebar. Reordering
+            // only in the list's own order: sorted or filtered, a drop
+            // position doesn't map to a place in the playlist.
+            if let onPlace, isInOwnOrder {
+                ForEach(shownRows) { row in
+                    TableRow(row)
+                        .draggable(PlaylistRowDrag(path: row.id))
+                }
+                .dropDestination(for: PlaylistRowDrag.self) { offset, drags in
+                    onPlace(drags.flatMap(\.paths), offset)
+                }
+            } else {
+                ForEach(shownRows) { row in
+                    TableRow(row)
+                        .draggable(PlaylistRowDrag(path: row.id))
+                }
+            }
         }
         .contextMenu(forSelectionType: LibraryRow.ID.self) { ids in
             if !ids.isEmpty {
@@ -941,14 +968,47 @@ struct LibraryTable: View {
         return sortOrder.isEmpty ? filtered : filtered.sorted(using: sortOrder)
     }
 
+    /// No sort, Sound filter or Find Similar: the rows as the list has them.
+    private var isInOwnOrder: Bool {
+        sortOrder.isEmpty && soundFilter.isEmpty && similarTo == nil
+    }
+
     /// Played from here or from the playlist, the core reports the same path.
     private func isCurrent(_ row: LibraryRow) -> Bool {
         row.id == player.nowPlaying?.path
     }
 
+    /// What dragging `row` drags: the selection when it's part of it.
+    private func dragged(_ row: LibraryRow) -> [LibraryRow] {
+        selection.contains(row.id) ? chosen(selection) : [row]
+    }
+
     /// Selected rows, in the order shown.
     private func chosen(_ ids: Set<LibraryRow.ID>) -> [LibraryRow] {
         shownRows.filter { ids.contains($0.id) }
+    }
+}
+
+/// The drag image for tunes: the title (and composer) of one, or how many.
+private struct TuneDragPreview: View {
+    let rows: [LibraryRow]
+
+    var body: some View {
+        Label {
+            if rows.count == 1, let row = rows.first {
+                Text(row.title).fontWeight(.semibold) + Text("  \(row.author)").foregroundStyle(.secondary)
+            } else {
+                Text("\(rows.count) tunes").fontWeight(.semibold)
+            }
+        } icon: {
+            Image(systemName: rows.count == 1 ? "music.note" : "music.note.list")
+                .foregroundStyle(.tint)
+        }
+        .lineLimit(1)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(.regularMaterial, in: .capsule)
+        .frame(maxWidth: 320)
     }
 }
 

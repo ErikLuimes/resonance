@@ -176,7 +176,7 @@ struct PlaylistView: View {
 
     private func reorder(_ drags: [PlaylistRowDrag], to offset: Int) {
         guard isInPlaylistOrder else { return }
-        let paths = Set(drags.map(\.path))
+        let paths = Set(drags.flatMap(\.paths))
         let moving = IndexSet(store.rows.filter { paths.contains($0.id) }.map(\.index))
         guard !moving.isEmpty else { return }
         store.move(fromOffsets: moving, toOffset: offset)
