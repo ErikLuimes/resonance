@@ -30,6 +30,9 @@ struct RecentlyPlayedView: View {
                 } description: {
                     Text("Tunes you play here or in Phosphor show up here, newest first.")
                 }
+                // The whole pane, so the header stays on top and the play bar at
+                // the bottom.
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 let rows = filtered(recent.map(\.row))
                 LibraryTable(

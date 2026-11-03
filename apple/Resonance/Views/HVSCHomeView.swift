@@ -18,6 +18,9 @@ struct HVSCHomeView: View {
         Group {
             if store.hasCollection, let info = store.hvscInfo {
                 CollectionHome(info: info, openCategory: openCategory)
+                    // A new release starts fresh, so the first frame can
+                    // show the previous release's counts to animate from.
+                    .id(info.version)
             } else if store.hasCollection {
                 ProgressView("Reading the collection…")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -194,6 +197,31 @@ private struct CollectionHome: View {
 
     @State private var showAllPlaylists = false
     @State private var showAnnouncement = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The release seen before this one, while its update animates; nil
+    /// otherwise.
+    @State private var previous: ReleaseCounts?
+    /// The hero has switched to the new release.
+    @State private var heroSettled = true
+    /// The Browse tiles have rolled to the new counts.
+    @State private var tilesSettled = true
+    /// The tiles' bars drain to 0 and refill.
+    @State private var barScale = 1.0
+    /// How far the light has crossed the hero, -1 to 1.
+    @State private var sweep = -1.0
+    @State private var showsDeltas = false
+
+    init(info: HvscInfo, openCategory: @escaping (HvscCategory) -> Void) {
+        self.info = info
+        self.openCategory = openCategory
+        // Decided before the first frame, which then shows the old counts.
+        let seen = ReleaseCounts.seen()
+        if let seen, let now = ReleaseCounts(info), now.version > seen.version {
+            _previous = State(initialValue: seen)
+            _heroSettled = State(initialValue: false)
+            _tilesSettled = State(initialValue: false)
+        }
+    }
     /// The content's width, which picks the column counts below. The
     /// detail column's minimum is pinned elsewhere, so this only ever
     /// rearranges the content inside it.
@@ -231,6 +259,7 @@ private struct CollectionHome: View {
         }
         // The history gains each play before the core reports the track.
         .task(id: store.trackRevision) { await library.loadRecent() }
+        .task { await playUpdate() }
         .sheet(isPresented: $showAllPlaylists) {
             PlaylistsSheet(playlists: info.playlists)
         }
@@ -242,6 +271,54 @@ private struct CollectionHome: View {
     }
 
     private var wide: Bool { width >= 820 }
+
+    // ── After an update ──
+
+    private var current: ReleaseCounts { ReleaseCounts(info) ?? ReleaseCounts(version: 0, info: info) }
+
+    /// The release the hero shows: the previous one until the light
+    /// crosses it.
+    private var heroVersion: String? {
+        if !heroSettled, let previous { return String(previous.version) }
+        return info.version
+    }
+
+    private var heroCounts: ReleaseCounts { !heroSettled ? previous ?? current : current }
+    private var tileCounts: ReleaseCounts { !tilesSettled ? previous ?? current : current }
+
+    /// How much `count` changed in the update; 0 when there wasn't one.
+    private func delta(_ count: KeyPath<ReleaseCounts, UInt32>) -> Int {
+        guard let previous else { return 0 }
+        return Int(current[keyPath: count]) - Int(previous[keyPath: count])
+    }
+
+    /// After an update, once: the light crosses the hero as it switches to
+    /// the new release, which shows how each count changed; the Browse
+    /// tiles roll to their new counts (up or down) and refill their bars.
+    /// Then this release is remembered as seen.
+    private func playUpdate() async {
+        defer { current.remember() }
+        guard previous != nil else { return }
+        if reduceMotion {
+            heroSettled = true
+            tilesSettled = true
+            withAnimation(.easeIn(duration: 0.3)) { showsDeltas = true }
+        } else {
+            try? await Task.sleep(for: .milliseconds(400))
+            withAnimation(.easeInOut(duration: 0.9)) { sweep = 1 }
+            try? await Task.sleep(for: .milliseconds(350))
+            withAnimation(.easeInOut(duration: 0.3)) {
+                heroSettled = true
+                showsDeltas = true
+            }
+            withAnimation(.easeOut(duration: 1.4)) { tilesSettled = true }
+            withAnimation(.easeIn(duration: 0.4)) { barScale = 0 }
+            try? await Task.sleep(for: .milliseconds(400))
+            withAnimation(.easeOut(duration: 1.0)) { barScale = 1 }
+        }
+        try? await Task.sleep(for: .seconds(4))
+        withAnimation(.easeOut(duration: 1)) { showsDeltas = false }
+    }
 
     // ── Hero ──
 
@@ -275,6 +352,20 @@ private struct CollectionHome: View {
             }
             .allowsHitTesting(false)
         }
+        .overlay {
+            // The light that crosses the hero after an update.
+            GeometryReader { proxy in
+                LinearGradient(
+                    colors: [.clear, .white.opacity(0.16), .clear],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(width: proxy.size.width * 0.5)
+                .offset(x: proxy.size.width * (0.25 + 0.75 * sweep))
+            }
+            // Starts and ends outside the hero, which clips it.
+            .allowsHitTesting(false)
+        }
         .clipShape(.rect(cornerRadius: 22))
         .overlay {
             RoundedRectangle(cornerRadius: 22)
@@ -288,14 +379,16 @@ private struct CollectionHome: View {
                 Tile(size: 84, symbol: "waveform")
                     .shadow(color: Palette.purple.opacity(0.35), radius: 14, y: 8)
                 VStack(alignment: .leading, spacing: 4) {
-                    if let version = info.version {
+                    if let version = heroVersion {
                         HStack(spacing: 8) {
                             Text("Release \(version)")
+                                .contentTransition(.opacity)
                                 .font(.caption.weight(.semibold))
                                 .textCase(.uppercase)
                                 .kerning(0.6)
                                 .foregroundStyle(.secondary)
                             Text("v\(version)")
+                                .contentTransition(.opacity)
                                 .font(.caption.monospaced().weight(.semibold))
                                 .padding(.horizontal, 7)
                                 .padding(.vertical, 2)
@@ -346,9 +439,9 @@ private struct CollectionHome: View {
 
     private var stats: some View {
         HStack(spacing: 28) {
-            stat(info.totalTunes.formatted(), "tunes")
-            stat(info.composers.formatted(), "composers")
-            stat(info.stilEntries.formatted(), "STIL notes")
+            stat(heroCounts.tunes, "tunes", delta: delta(\.tunes))
+            stat(heroCounts.composers, "composers", delta: delta(\.composers))
+            stat(heroCounts.stilNotes, "STIL notes", delta: delta(\.stilNotes))
             stat(songLengthCoverage, "song lengths")
         }
         .padding(.horizontal, 18)
@@ -362,11 +455,29 @@ private struct CollectionHome: View {
         }
     }
 
-    private func stat(_ value: String, _ label: String) -> some View {
+    private func stat(_ count: UInt32, _ label: String, delta: Int) -> some View {
+        stat(count.formatted(), label, value: Double(count))
+            // Above the number, in the box's padding, so the hero's layout
+            // never changes for it.
+            .overlay(alignment: .topTrailing) {
+                if showsDeltas, delta != 0 {
+                    Text(delta > 0 ? "+\(delta.formatted())" : "−\(abs(delta).formatted())")
+                        .font(.caption2.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(delta > 0 ? Color.green : Color.red)
+                        .fixedSize()
+                        .offset(y: -13)
+                        .transition(.opacity)
+                }
+            }
+    }
+
+    private func stat(_ text: String, _ label: String, value: Double? = nil) -> some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(value)
+            Text(text)
                 .font(.system(size: 22, weight: .semibold))
                 .monospacedDigit()
+                .contentTransition(.numericText(value: value ?? 0))
                 .fixedSize()
             Text(label)
                 .font(.caption)
@@ -403,20 +514,22 @@ private struct CollectionHome: View {
                 ? AnyLayout(HStackLayout(spacing: 14))
                 : AnyLayout(VStackLayout(spacing: 14))
             layout {
-                browseTile(.musicians, info.musicianTunes, Palette.teal)
-                browseTile(.demos, info.demoTunes, Palette.orange)
-                browseTile(.games, info.gameTunes, Palette.purple)
+                let counts = tileCounts
+                browseTile(.musicians, counts.musicians, counts.total, Palette.teal)
+                browseTile(.demos, counts.demos, counts.total, Palette.orange)
+                browseTile(.games, counts.games, counts.total, Palette.purple)
             }
         }
     }
 
-    private func browseTile(_ category: HvscCategory, _ count: UInt32, _ color: Color) -> some View {
-        let share = info.totalTunes > 0 ? Double(count) / Double(info.totalTunes) : 0
+    private func browseTile(_ category: HvscCategory, _ count: UInt32, _ total: UInt32, _ color: Color) -> some View {
+        let share = total > 0 ? Double(count) / Double(total) : 0
         return BrowseTile(
             title: category.displayName,
             symbol: category.symbolName,
             count: count,
             share: share,
+            barScale: barScale,
             color: color
         ) {
             openCategory(category)
@@ -705,6 +818,8 @@ private struct BrowseTile: View {
     let symbol: String
     let count: UInt32
     let share: Double
+    /// The bar's fill as a part of `share`, for the update's refill.
+    var barScale = 1.0
     let color: Color
     let action: () -> Void
 
@@ -729,11 +844,13 @@ private struct BrowseTile: View {
                 Text(count.formatted())
                     .font(.system(size: 26, weight: .bold))
                     .monospacedDigit()
+                    .contentTransition(.numericText(value: Double(count)))
                 HStack(spacing: 8) {
-                    Meter(fraction: share, color: color)
+                    Meter(fraction: share * barScale, color: color)
                     Text(share.formatted(.percent.precision(.fractionLength(0))))
                         .font(.caption)
                         .monospacedDigit()
+                        .contentTransition(.numericText(value: share))
                         .foregroundStyle(.tertiary)
                 }
             }
@@ -1202,6 +1319,45 @@ private struct Tile: View {
 
 /// The voice palette the visualizers use; the collection's tile and the
 /// card accents borrow from it.
+/// A release's counts, remembered to show how the next one changed them.
+private struct ReleaseCounts: Codable, Equatable {
+    var version: UInt32
+    var tunes: UInt32
+    var composers: UInt32
+    var stilNotes: UInt32
+    var musicians: UInt32
+    var demos: UInt32
+    var games: UInt32
+
+    var total: UInt32 { musicians + demos + games }
+
+    init(version: UInt32, info: HvscInfo) {
+        self.version = version
+        tunes = info.totalTunes
+        composers = info.composers
+        stilNotes = info.stilEntries
+        musicians = info.musicianTunes
+        demos = info.demoTunes
+        games = info.gameTunes
+    }
+
+    /// Nil when the collection names no release.
+    init?(_ info: HvscInfo) {
+        guard let version = info.version.flatMap(UInt32.init) else { return nil }
+        self.init(version: version, info: info)
+    }
+
+    /// The release the Home last showed.
+    static func seen(in defaults: UserDefaults = .standard) -> ReleaseCounts? {
+        defaults.data(forKey: Pref.homeSeenRelease).flatMap { try? JSONDecoder().decode(Self.self, from: $0) }
+    }
+
+    func remember(in defaults: UserDefaults = .standard) {
+        guard version > 0, let data = try? JSONEncoder().encode(self) else { return }
+        defaults.set(data, forKey: Pref.homeSeenRelease)
+    }
+}
+
 private enum Palette {
     static let teal = Color(red: 63 / 255, green: 208 / 255, blue: 232 / 255)
     static let purple = Color(red: 155 / 255, green: 107 / 255, blue: 1.0)

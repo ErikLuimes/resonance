@@ -236,6 +236,7 @@ private struct AuthorList: View {
                 } actions: {
                     SettingsLink { Text("Open Settings…") }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let authors = library.authors[category] {
                 let shown = groups(authors)
                 ScrollViewReader { proxy in

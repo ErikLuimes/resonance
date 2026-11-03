@@ -1282,7 +1282,12 @@ pub fn shared_defaults() -> SharedDefaults {
                 .pseudo_stereo_enabled
                 .then(|| DetuneStrength::from_config_str(&c.pseudo_stereo_strength).into()),
         },
-        hvsc_root: c.hvsc_root,
+        // No folder in Phosphor's config (a fresh install): the default
+        // one, where Phosphor and the download put the collection.
+        hvsc_root: c
+            .hvsc_root
+            .filter(|r| !r.trim().is_empty())
+            .or_else(|| hvsc_sync::default_hvsc_root().map(|p| p.to_string_lossy().into_owned())),
     }
 }
 

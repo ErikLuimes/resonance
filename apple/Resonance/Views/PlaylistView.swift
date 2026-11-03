@@ -132,6 +132,9 @@ struct PlaylistView: View {
             Button("Add Files…") { store.isImporting = true }
                 .buttonStyle(.glassProminent)
         }
+        // The whole pane, so the header stays on top and the play bar at
+        // the bottom.
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: Rows

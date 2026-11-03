@@ -21,6 +21,8 @@ struct ContentView: View {
     @State private var showInspector = true
     @State private var isDropTargeted = false
     @AppStorage("sidebar.curatedExpanded") private var curatedExpanded = true
+    /// The collection folder the Home was last opened for on its own.
+    @AppStorage(Pref.homeShownForRoot) private var homeShownForRoot = ""
     /// Each sidebar section keeps its own search text.
     @State private var searches: [SidebarItem: String] = [:]
 
@@ -113,8 +115,13 @@ struct ContentView: View {
         // Once a launch, like Phosphor: is there a newer HVSC release?
         .task { await store.checkHvscUpdate() }
         // No collection yet: the Home (its empty state) is the welcome pane.
-        .task(id: store.hasCollection) {
+        // A collection seen for the first time (downloaded, put in place by
+        // hand, or another folder chosen) opens on its Home once.
+        .task(id: "\(store.hasCollection) \(store.hvscRoot ?? "")") {
             if !store.hasCollection {
+                sidebarSelection = .hvscHome
+            } else if let root = store.hvscRoot, root != homeShownForRoot {
+                homeShownForRoot = root
                 sidebarSelection = .hvscHome
             }
         }
@@ -159,7 +166,7 @@ struct ContentView: View {
                     .tag(SidebarItem.recent)
             }
             Section("HVSC") {
-                HvscCollectionRow()
+                HvscCollectionRow(isSelected: sidebarSelection == .hvscHome)
                 if store.hasCollection {
                     ForEach(HvscCategory.allCases, id: \.self) { category in
                         Label(category.displayName, systemImage: category.symbolName)
@@ -240,16 +247,20 @@ struct ContentView: View {
 }
 
 /// The sidebar's collection row: it offers the download before the folder
-/// holds a tree, shows its percentage and a slim bar while one runs, and
-/// becomes the collection's header (name, release badge) afterwards.
+/// holds a tree, shows its percentage while one runs, and carries the
+/// release badge (and an update, when there is one) afterwards.
 /// Selecting it shows the HVSC Home.
 private struct HvscCollectionRow: View {
     @Environment(PlayerStore.self) private var store
+    /// On the selection highlight, where the tint would vanish. (The
+    /// sidebar doesn't report it through `backgroundProminence`.)
+    var isSelected = false
 
     var body: some View {
         let sync = store.hvscSync
         let running = sync?.running == true
         let version = store.hasCollection ? store.hvscInfo?.version : nil
+        let showsUpdate = store.hvscUpdateAvailable && !running
 
         HStack(spacing: 8) {
             Image(systemName: "waveform")
@@ -268,7 +279,10 @@ private struct HvscCollectionRow: View {
                     in: .rect(cornerRadius: 6)
                 )
 
-            Text(store.hasCollection ? "High Voltage SID Collection" : "Collection")
+            // Short, so the release badge and what's on the right (Download,
+            // Update, a download's percentage) always fit; the section is
+            // already headed HVSC, and the Home has the full name.
+            Text("Collection")
                 .lineLimit(1)
 
             if let version {
@@ -277,8 +291,10 @@ private struct HvscCollectionRow: View {
                     .monospacedDigit()
                     .padding(.horizontal, 7)
                     .padding(.vertical, 2)
-                    .background(.tint.opacity(0.18), in: .capsule)
-                    .foregroundStyle(.tint)
+                    // White on the selection highlight, where the tint
+                    // would vanish into it.
+                    .background(isSelected ? AnyShapeStyle(.white.opacity(0.25)) : AnyShapeStyle(.tint.opacity(0.18)), in: .capsule)
+                    .foregroundStyle(isSelected ? AnyShapeStyle(.white) : AnyShapeStyle(.tint))
             }
 
             Spacer(minLength: 4)
@@ -292,7 +308,7 @@ private struct HvscCollectionRow: View {
                 Button("Download") { store.startHvscSync() }
                     .buttonStyle(.borderless)
                     .font(.callout)
-            } else if store.hvscUpdateAvailable, !running, let latest = store.latestHvsc {
+            } else if showsUpdate, let latest = store.latestHvsc {
                 Button("Update") { store.startHvscSync() }
                     .buttonStyle(.borderless)
                     .font(.callout)
@@ -300,14 +316,6 @@ private struct HvscCollectionRow: View {
             }
         }
         .tag(SidebarItem.hvscHome)
-        .overlay(alignment: .bottom) {
-            if running, let fraction = sync?.fraction {
-                ProgressView(value: fraction)
-                    .tint(.accentColor)
-                    .padding(.horizontal, 10)
-                    .padding(.bottom, 2)
-            }
-        }
         .animation(.default, value: store.hasCollection)
     }
 }
@@ -320,6 +328,13 @@ private struct StatusBanner: View {
     @State private var dismissedError: String?
     var showsSync: Bool = true
 
+    /// "Downloading HVSC 85…", then "Extracting HVSC 85…" once the
+    /// archive's files are counted.
+    static func phase(of sync: HvscSyncStatus, release: UInt32?) -> String {
+        let name = release.map { "HVSC \($0)" } ?? "HVSC"
+        return sync.filesTotal > 0 ? "Extracting \(name)…" : "Downloading \(name)…"
+    }
+
     var body: some View {
         VStack(spacing: 8) {
             if let sync = store.hvscSync, sync.running, showsSync {
@@ -331,7 +346,8 @@ private struct StatusBanner: View {
                         ProgressView()
                             .controlSize(.small)
                     }
-                    Text(sync.current)
+                    // What's happening, not which file: Settings has those.
+                    Text(Self.phase(of: sync, release: store.latestHvsc))
                         .lineLimit(1)
                     Button("Cancel") { store.cancelHvscSync() }
                         .buttonStyle(.borderless)

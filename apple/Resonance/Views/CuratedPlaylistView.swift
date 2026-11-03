@@ -33,6 +33,7 @@ struct CuratedPlaylistView: View {
             } description: {
                 Text("None of this playlist's tunes are in the collection folder.")
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .some(let rows?):
             LibraryTable(rows: filtered(rows), playlist: playlist)
                 .overlay {
