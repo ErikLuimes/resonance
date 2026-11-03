@@ -437,6 +437,14 @@ def _split_opening_quote(p: str, rest: list[str]) -> Optional[tuple[str, str]]:
     return None
 
 
+def _is_label(head: str) -> bool:
+    """A lead-in that names the tool a tune was made with rather than saying
+    something: a few words, no sentence end, no tune path ("SW1.8",
+    "GMC1.6 + SW1.9-EMU", "SID Factory 2")."""
+    return (0 < len(head.split()) <= 3 and "/" not in head
+            and not head.endswith((".", "!", "?", ":", ",")))
+
+
 # A byline that is a name or initials: every word capitalised (or a digit,
 # or a name particle), so "(German children's song)" isn't one.
 BYLINE_PARTICLES = {"van", "de", "der", "den", "von", "of", "the", "la", "le", "di", "da", "and", "&"}
@@ -460,12 +468,17 @@ def split_blocks(paras: list[str]) -> list[dict]:
     it opens with one, else up to the next question or the comment's end.
     Initials other than "A" sign an answer that has no (byline)."""
     work: list[str] = []
+    labels: dict[int, str] = {}                       # work index of a quote → its tool label
     for n, p in enumerate(paras):                     # split "Note. "Quote" (X)" first
         # (not an interview line: its "A: " isn't a note)
         sp = None
         if not p.startswith('"') and not QA_RE.match(p):
             sp = _split_inline_quote(p) or _split_opening_quote(p, paras[n + 1:])
-        work.extend(sp if sp else [p])
+        if sp and _is_label(sp[0]):
+            labels[len(work)] = sp[0]                 # "SW1.8 "…": the quote's label, not a note
+            work.append(sp[1])
+        else:
+            work.extend(sp if sp else [p])
 
     def is_question(p: str) -> bool:
         m = QA_RE.match(p)
@@ -517,8 +530,11 @@ def split_blocks(paras: list[str]) -> list[dict]:
                         by, nxt = a.group("by"), nxt + 1
                 by = by or answer_by
                 answer_by = None
-                blocks.append({"kind": "quote", "by": by.strip() if by else None,
-                               "paragraphs": [b.strip() for b in body if b.strip()]})
+                block = {"kind": "quote", "by": by.strip() if by else None,
+                         "paragraphs": [b.strip() for b in body if b.strip()]}
+                if i in labels:
+                    block["label"] = labels[i]
+                blocks.append(block)
                 i = nxt
                 continue
         answer_by = None
@@ -539,8 +555,10 @@ def enrich_comment(lines: list[str], composer: Optional[dict], sid_author: Optio
         byline = resolve_byline(b["by"], composer, sid_author, initials)
         runs = [to_runs(p) for p in b["paragraphs"]]
         links |= {r["link"] for p in runs for r in p if "link" in r}
-        out_blocks.append({"kind": b["kind"], "by": byline["by"], "role": byline["role"],
-                           "paragraphs": runs})
+        out = {"kind": b["kind"], "by": byline["by"], "role": byline["role"], "paragraphs": runs}
+        if "label" in b:
+            out["label"] = b["label"]                 # only when there is one
+        out_blocks.append(out)
     first = blocks[0]["paragraphs"][0] if blocks and blocks[0]["paragraphs"] else ""
     return {
         "blocks": out_blocks,

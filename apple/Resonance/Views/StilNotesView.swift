@@ -429,6 +429,12 @@ private struct StilBlockView: View {
                     Spacer()
                     if folds { foldLink }
                 }
+                // The tracker the lead-in names ("SW1.8 "…" (NP)").
+                if let label = block.label {
+                    Text("Made with \(label)")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
             }
         }
     }

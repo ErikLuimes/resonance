@@ -67,7 +67,7 @@
   {
     "name": "lead_in_long_quote",
     "entry": "/MUSICIANS/N/NecroPolo/Snowpiercer.sid",
-    "exercises": "'X-SID \"…' opens a quote after a tracker name that closes, signed (NP), paragraphs later"
+    "exercises": "'X-SID \"…' opens a quote after a tracker name and closes, signed (NP), paragraphs later; the tracker becomes the quote's label, not a note"
   },
   {
     "name": "emphasis",

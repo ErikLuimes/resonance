@@ -150,6 +150,10 @@ composer's quote.
   (≤ 3 words, or ending in a `.sid` path) and closes, signed with a byline, in a **later**
   paragraph is split the same way. ~150 more quotes on v85; short inline quotes inside a sentence
   ("used "for a fee." (GT)") stay notes.
+- A lead-in that is only a **tool label** (≤ 3 words, no sentence end, no path: NecroPolo's 138
+  "GMC1.6", "SW1.9-EMU", "NT2.03" … trackers) is not a note: it becomes the quote block's `label`
+  (absent from the JSON when there is none), so the comment's teaser starts with the quote. The
+  app shows it as "Made with LABEL" under the byline.
 - The outer quote marks are removed from the text; the UI draws them.
 - An unclosed leading quote (`"Remix" of …`) is just a note.
 - **Interviews** (3 entries in v85): a paragraph starting `Q: ` is a `question` block (prefix

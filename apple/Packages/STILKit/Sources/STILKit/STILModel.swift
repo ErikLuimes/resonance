@@ -60,6 +60,9 @@ public struct STILBlock: Codable, Equatable, Sendable {
     /// .composer only when confirmed. nil means "unknown", never "someone else".
     public var role: Role?
     public var paragraphs: [[STILRun]]
+    /// The tool a quote's tune was made with, when its lead-in names one
+    /// ("SW1.8 "…" (NP)": "SW1.8"). Absent from the JSON when nil.
+    public var label: String? = nil
 }
 
 /// One styled stretch of text inside a paragraph.

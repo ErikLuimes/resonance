@@ -45,7 +45,7 @@ FIXTURES = [
     ("lead_in_quote", "/MUSICIANS/K/Kriwanek_Mario/U-96.sid", [],
      "Song 1: 'Same as /…/Remoteness.sid \"…\" (Geir Tjelta)': no sentence break before the quote, yet it splits into a note and someone else's quote"),
     ("lead_in_long_quote", "/MUSICIANS/N/NecroPolo/Snowpiercer.sid", ["/MUSICIANS/N/NecroPolo/"],
-     "'X-SID \"…' opens a quote after a tracker name that closes, signed (NP), paragraphs later"),
+     "'X-SID \"…' opens a quote after a tracker name and closes, signed (NP), paragraphs later; the tracker becomes the quote's label, not a note"),
     ("emphasis", "/MUSICIANS/C/CreaMD/Black_Sistah.sid", [],
      "*word* becomes an em run"),
     ("url", "/GAMES/A-F/Catalypse.sid", [],

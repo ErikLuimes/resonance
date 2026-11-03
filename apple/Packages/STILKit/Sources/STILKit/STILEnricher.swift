@@ -250,6 +250,15 @@ public enum STILEnricher {
         return nil
     }
 
+    /// A lead-in that names the tool a tune was made with rather than
+    /// saying something: a few words, no sentence end, no tune path
+    /// ("SW1.8", "GMC1.6 + SW1.9-EMU", "SID Factory 2").
+    static func isLabel(_ head: String) -> Bool {
+        let n = words(head)
+        guard n > 0, n <= 3, !head.contains("/"), let last = head.last else { return false }
+        return !".!?:,".contains(last)
+    }
+
     static func words(_ s: String) -> Int { s.split(whereSeparator: \.isWhitespace).count }
 
     static let bylineParticles: Set<String> = ["van", "de", "der", "den", "von", "of", "the", "la", "le", "di", "da", "and", "&"]
@@ -263,7 +272,12 @@ public enum STILEnricher {
         }
     }
 
-    struct RawBlock { var kind: STILBlock.Kind; var by: String?; var paragraphs: [String] }
+    struct RawBlock {
+        var kind: STILBlock.Kind
+        var by: String?
+        var paragraphs: [String]
+        var label: String? = nil
+    }
 
     /// "Q: Is this a cover?" / "A: …" / "JT: …": an interview line.
     static let qaRx = Rx(#"^(?<who>[A-Z]{1,3}): (?<rest>.*)$"#, [.dotMatchesLineSeparators])
@@ -277,11 +291,18 @@ public enum STILEnricher {
     /// "A" sign an answer that has no (byline).
     static func splitBlocks(_ paras: [String]) -> [RawBlock] {
         var work: [String] = []
+        var labels: [Int: String] = [:]   // work index of a quote → its tool label
         for (n, p) in paras.enumerated() {
             // (not an interview line: its "A: " isn't a note)
             if !p.hasPrefix("\""), qaRx.matchPrefix(p) == nil,
                let pair = splitInlineQuote(p) ?? splitOpeningQuote(p, rest: paras[(n + 1)...]) {
-                work += [pair.0, pair.1]
+                if isLabel(pair.0) {
+                    // "SW1.8 "…": the quote's label, not a note.
+                    labels[work.count] = pair.0
+                    work.append(pair.1)
+                } else {
+                    work += [pair.0, pair.1]
+                }
             } else {
                 work.append(p)
             }
@@ -336,7 +357,8 @@ public enum STILEnricher {
                     by = by ?? answerBy
                     answerBy = nil
                     blocks.append(RawBlock(kind: .quote, by: by?.stripped,
-                                           paragraphs: body.map { $0.stripped }.filter { !$0.isEmpty }))
+                                           paragraphs: body.map { $0.stripped }.filter { !$0.isEmpty },
+                                           label: labels[i]))
                     i = next
                     continue
                 }
@@ -375,7 +397,7 @@ public enum STILEnricher {
             let byline = resolveByline(b.by, composer: composer, sidAuthor: sidAuthor, initials: initials)
             let ps = b.paragraphs.map(runs)
             for p in ps { for r in p { if let l = r.link { links.insert(l) } } }
-            return STILBlock(kind: b.kind, by: byline.by, role: byline.role, paragraphs: ps)
+            return STILBlock(kind: b.kind, by: byline.by, role: byline.role, paragraphs: ps, label: b.label)
         }
         let first = raw.first?.paragraphs.first ?? ""
         return STILComment(

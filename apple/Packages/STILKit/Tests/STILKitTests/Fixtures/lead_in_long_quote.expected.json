@@ -27,18 +27,6 @@
         {
           "blocks": [
             {
-              "kind": "note",
-              "by": null,
-              "role": null,
-              "paragraphs": [
-                [
-                  {
-                    "t": "X-SID"
-                  }
-                ]
-              ]
-            },
-            {
               "kind": "quote",
               "by": "NecroPolo",
               "role": "composer",
@@ -53,11 +41,12 @@
                     "t": "So, the SID became released first."
                   }
                 ]
-              ]
+              ],
+              "label": "X-SID"
             }
           ],
           "memoriam": false,
-          "teaser": "X-SID",
+          "teaser": "I’m still sort of pissed about the fact that X-SID was stolen from Jeff and became spread, therefore became never finished.",
           "links": []
         }
       ]
