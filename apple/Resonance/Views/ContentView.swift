@@ -100,6 +100,7 @@ struct ContentView: View {
         // so the toolbar changed on every sidebar click — which made SwiftUI
         // re-run the window layout until AppKit aborted the app.
         .searchable(text: searchText, placement: .toolbar, prompt: "Search")
+        .onSubmit(of: .search) { submitSearch() }
         .fileImporter(
             isPresented: $store.isImporting,
             allowedContentTypes: [.sidTune, .m3uPlaylist, .folder],
@@ -221,6 +222,36 @@ struct ContentView: View {
 
     private var section: SidebarItem { sidebarSelection ?? .playlist }
 
+    /// The search typed in a list outside HVSC, which it can take to all of
+    /// HVSC; nil in the HVSC sections, which search it themselves.
+    private var searchAllQuery: String? {
+        if case .hvsc = section { return nil }
+        let query = searchText.wrappedValue.trimmingCharacters(in: .whitespaces)
+        return query.isEmpty || !store.hasCollection ? nil : query
+    }
+
+    /// Search all of HVSC for `query`, in Musicians' results.
+    private func searchAllHvsc(_ query: String) {
+        searches[section] = ""
+        searches[.hvsc(.musicians)] = query
+        library.searchesAllHvsc = true
+        sidebarSelection = .hvsc(.musicians)
+    }
+
+    /// Return in the search field: in an HVSC section, open the composer
+    /// it names first; elsewhere, search all of HVSC.
+    private func submitSearch() {
+        let query = searchText.wrappedValue.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return }
+        if case .hvsc(let category) = section {
+            if let first = library.composers(matching: query, in: category, limit: 1).first {
+                library.showComposer(first.path, in: category)
+            }
+        } else if store.hasCollection {
+            searchAllHvsc(query)
+        }
+    }
+
     /// Whether `item` is the list that's playing, for the sidebar's speaker.
     private func playing(_ item: SidebarItem) -> Bool {
         store.isPlaying && store.source?.section == item
@@ -238,6 +269,24 @@ struct ContentView: View {
     @ViewBuilder
     private var detail: some View {
         detailContent
+            // Outside HVSC the search only filters the list shown; this
+            // takes it to all of HVSC.
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if let query = searchAllQuery {
+                    Button {
+                        searchAllHvsc(query)
+                    } label: {
+                        Label("Search all of HVSC for “\(query)”", systemImage: "magnifyingglass")
+                            .lineLimit(1)
+                    }
+                    .buttonStyle(.borderless)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .frame(maxWidth: .infinity)
+                    .background(.bar)
+                    .help("Return does this too")
+                }
+            }
             // The column's minimum width must not follow its content
             // (see NowPlayingBar): pin it, and let content adapt.
             .frame(minWidth: 0, maxWidth: .infinity)

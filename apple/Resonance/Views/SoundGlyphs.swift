@@ -92,6 +92,8 @@ struct SoundBarcode: View {
 struct MorphSphere: View {
     let fingerprint: TuneFingerprint
     var animated = true
+    /// Above 1 fills more of the frame, clipping what turns past it.
+    var zoom = 1.0
 
     @Environment(\.voiceTheme) private var theme
 
@@ -109,11 +111,12 @@ struct MorphSphere: View {
         // On the visualizers' backdrop, dark in either appearance.
         .padding(4)
         .background(theme.background.color, in: .rect(cornerRadius: 8))
+        .clipShape(.rect(cornerRadius: 8))
     }
 
     private func canvas(_ shape: MorphSphereShape, angle: Double) -> some View {
         Canvas { context, size in
-            shape.draw(in: &context, size: size, angle: angle)
+            shape.draw(in: &context, size: size, angle: angle, zoom: zoom)
         }
         .accessibilityLabel(SoundBarcode.description(fingerprint.traits))
     }
@@ -179,14 +182,14 @@ nonisolated struct MorphSphereShape {
         return 2
     }
 
-    func draw(in context: inout GraphicsContext, size: CGSize, angle: Double) {
+    func draw(in context: inout GraphicsContext, size: CGSize, angle: Double, zoom: Double = 1) {
         let (cy, sy) = (cos(angle), sin(angle))
         let tilt = 0.3
         let (cx, sx) = (cos(tilt), sin(tilt))
         // Fit the shape: its farthest point fills the frame when it's side
         // on, and stays about inside it when it turns towards you.
         let camera = 3.2
-        let scale = min(size.width, size.height) * 0.44 * (camera - extent / 2) / max(extent, 0.1)
+        let scale = min(size.width, size.height) * 0.44 * zoom * (camera - extent / 2) / max(extent, 0.1)
         var projected: [(z: Double, x: Double, y: Double, color: Int)] = points.map { p in
             let x = p.x * cy + p.z * sy
             let z0 = -p.x * sy + p.z * cy

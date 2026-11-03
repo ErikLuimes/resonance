@@ -518,3 +518,24 @@ async fn tunes_at_keeps_the_playlists_order_and_skips_strangers() {
         ]
     );
 }
+
+#[test]
+fn searches_try_number_words_both_ways() {
+    use super::spellings;
+    assert_eq!(spellings("second reality"), ["second reality", "2nd reality"]);
+    assert_eq!(spellings("2nd Reality"), ["2nd Reality", "second Reality"]);
+    assert_eq!(spellings("Tom and Jerry 2"), ["Tom and Jerry 2", "Tom & Jerry 2", "Tom and Jerry two"]);
+    assert_eq!(spellings("commando"), ["commando"]);
+}
+
+#[test]
+fn composer_names_come_from_headers_unless_they_repeat_the_folder() {
+    use super::{real_name, release_year, same_name};
+    assert_eq!(real_name("Ari Yliaho (Agemixer)").as_deref(), Some("Ari Yliaho"));
+    assert_eq!(real_name("<?>"), None);
+    assert_eq!(real_name("Rob Hubbard & Ben Daglish"), None);
+    assert!(same_name("Rob Hubbard", "Hubbard, Rob"));
+    assert!(!same_name("Ari Yliaho", "Agemixer"));
+    assert_eq!(release_year("1987 Ocean"), Some(1987));
+    assert_eq!(release_year("19?? Unknown"), None);
+}

@@ -28,8 +28,10 @@ struct SoundsLikeSection: View {
             VStack(alignment: .leading, spacing: 10) {
                 if let fp {
                     HStack(alignment: .center, spacing: 10) {
-                        MorphSphere(fingerprint: fp)
-                            .frame(width: 64, height: 64)
+                        // Closer in than the fit-anything default, like the
+                        // hover card's.
+                        MorphSphere(fingerprint: fp, zoom: 1.2)
+                            .frame(width: 76, height: 76)
                         Text(fp.summary)
                             .fixedSize(horizontal: false, vertical: true)
                     }

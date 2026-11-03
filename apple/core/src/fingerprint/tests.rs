@@ -409,3 +409,29 @@ fn similarity_survives_constant_features() {
     assert_eq!(hits.len(), 1);
     assert!(hits[0].score.is_finite());
 }
+
+#[test]
+fn composers_are_compared_by_the_average_of_their_tunes() {
+    let mut a = [0.0; FEATURES];
+    a[0] = 1.0;
+    let mut b = [0.0; FEATURES];
+    b[5] = 1.0;
+    let index = Index::build(vec![
+        row("MUSICIANS/A/Alike/one.sid", a),
+        row("MUSICIANS/A/Alike/two.sid", a),
+        row("MUSICIANS/A/Alike/sub/three.sid", a),
+        row("MUSICIANS/S/Same/one.sid", a),
+        row("MUSICIANS/S/Same/two.sid", a),
+        row("MUSICIANS/S/Same/three.sid", a),
+        row("MUSICIANS/O/Other/one.sid", b),
+        row("MUSICIANS/O/Other/two.sid", b),
+        row("MUSICIANS/O/Other/three.sid", b),
+        row("MUSICIANS/F/Few/one.sid", a),
+        row("GAMES/A/Arkanoid.sid", a),
+    ]);
+    let similar = index.similar_composers("MUSICIANS/A/Alike", 3, 5);
+    let names: Vec<&str> = similar.iter().map(|(f, _)| f.as_str()).collect();
+    // Few has too few tunes; GAMES isn't a composer.
+    assert_eq!(names, ["MUSICIANS/S/Same", "MUSICIANS/O/Other"]);
+    assert!(similar[0].1 > similar[1].1);
+}

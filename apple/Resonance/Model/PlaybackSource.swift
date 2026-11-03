@@ -40,6 +40,13 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         }
     }
 
+    /// The name after its kind ("Sounds like: Commando"), where the kind
+    /// already says what `name` would repeat.
+    var shortName: String {
+        if case .soundsLike(let title) = self { return title }
+        return name
+    }
+
     /// What kind of list it is, for the inspector: "Composer".
     var kind: String {
         switch self {
@@ -49,7 +56,7 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .folder(_, let category): category == .musicians ? "Composer" : category.displayName
         case .search: "Search"
         case .recentlyPlayed: "History"
-        case .soundsLike: "Sounds Like"
+        case .soundsLike: "Sounds like"
         case .surprise: "Random tunes from HVSC"
         case .shuffleCollection: "All of HVSC, shuffled"
         case .files: "Added files"

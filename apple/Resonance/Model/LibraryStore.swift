@@ -23,6 +23,15 @@ final class LibraryStore {
     /// absent until loaded.
     private(set) var linkedTunes: [String: LinkedTune?] = [:]
     private(set) var errors: [HvscCategory: String] = [:]
+    /// Each author folder's tune count, years and real name, by category
+    /// and folder path; absent until loaded.
+    private(set) var composers: [HvscCategory: [String: HvscComposer]] = [:]
+    /// The composers who sound like one, by folder path; absent until
+    /// loaded.
+    private(set) var similarComposers: [String: [SimilarComposer]] = [:]
+    /// Search all of HVSC: the browser switches its scope to all of it
+    /// once it shows, then clears this.
+    var searchesAllHvsc = false
     /// An author the browser should show (the composer card's link, or a
     /// tune STIL links to). The window switches to its category and the
     /// browser selects the author, then hands the tune on to
@@ -197,6 +206,8 @@ final class LibraryStore {
         stil = [:]
         credited = [:]
         errors = [:]
+        composers = [:]
+        similarComposers = [:]
         composersByWords = [:]
         linkedTunes = [:]
         playlistTunes = [:]
@@ -312,6 +323,56 @@ final class LibraryStore {
             tunePath: tunePath,
             category: category
         )
+    }
+
+    /// Read `category`'s composer summaries (the first time, every tune's
+    /// header: a second or so).
+    func loadComposers(_ category: HvscCategory) async {
+        dropCachesIfStale()
+        guard composers[category] == nil, let found = try? await core.hvscComposers(category: category) else { return }
+        dropCachesIfStale()
+        composers[category] = Dictionary(found.map { ($0.path, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    func loadSimilarComposers(_ path: String) async {
+        let found = await core.similarComposers(authorPath: path, limit: 3)
+        similarComposers[path] = found
+    }
+
+    /// Composers in `category` named by `query`: each word typed starts a
+    /// word of their folder or real name, in any order ("jeroen tel" finds
+    /// "Tel, Jeroen"). Whole words before word starts, then the composers
+    /// with the most tunes, so the well-known ones come first.
+    func composers(matching query: String, in category: HvscCategory, limit: Int = 5) -> [HvscAuthorItem] {
+        let typed = Self.nameWords(query)
+        guard !typed.isEmpty, let list = authors[category] else { return [] }
+        let summaries = composers[category] ?? [:]
+        let ranked: [(rank: Int, tunes: UInt32, author: HvscAuthorItem)] = list.compactMap { author in
+            let summary = summaries[author.path]
+            let words = Set([author.displayName, author.name, summary?.realName].compactMap(\.self).flatMap(Self.nameWords))
+            guard typed.allSatisfy({ t in words.contains { $0.hasPrefix(t) } }) else { return nil }
+            let whole = typed.allSatisfy(words.contains)
+            return (whole ? 0 : 1, summary?.tunes ?? 0, author)
+        }
+        return ranked
+            .sorted { $0.rank != $1.rank ? $0.rank < $1.rank : $0.tunes > $1.tunes }
+            .prefix(limit)
+            .map(\.author)
+    }
+
+    /// A name's words, folded for matching: "Hülsbeck, Chris" gives
+    /// ["hulsbeck", "chris"].
+    nonisolated static func nameWords(_ name: String) -> [String] {
+        name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            .map(String.init)
+    }
+
+    /// Open a composer's (or section's) tunes in the browser, leaving any
+    /// search.
+    func showComposer(_ path: String, in category: HvscCategory) {
+        reveal = LibraryReveal(authorPath: path, tunePath: "", category: category)
+        shownSection = .hvsc(category)
     }
 
     /// Show where the playing tune comes from: `source`'s sidebar section,
@@ -518,6 +579,11 @@ nonisolated struct LibraryRow: Identifiable, Hashable, Sendable {
     var title: String { item.title }
     var author: String { item.author }
     var released: String { item.released }
+    /// "1987" from "1987 Ocean"; empty when the year isn't known.
+    var year: String {
+        let digits = item.released.prefix(4)
+        return digits.count == 4 && digits.allSatisfy(\.isNumber) ? String(digits) : ""
+    }
     var songs: Int { Int(item.songs) }
     /// Unknown lengths sort last.
     var length: Int { item.durationSecs.map(Int.init) ?? .max }

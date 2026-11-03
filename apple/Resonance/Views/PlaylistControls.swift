@@ -18,7 +18,9 @@ struct PlayingFrom: View {
                 HStack(spacing: 4) {
                     Text(showsKind ? "\(source.kind):" : "Playing from")
                         .foregroundStyle(.secondary)
-                    AccentLink(source.name) { library.open(source, playing: store.nowPlaying?.path) }
+                    AccentLink(showsKind ? source.shortName : source.name) {
+                        library.open(source, playing: store.nowPlaying?.path)
+                    }
                         .lineLimit(1)
                         .help(source.section == nil ? "Show the tune in the library" : "Show \(source.name)")
                 }

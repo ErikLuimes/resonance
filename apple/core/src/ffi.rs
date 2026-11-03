@@ -307,6 +307,27 @@ pub struct HvscAuthorItem {
     pub path: String,
 }
 
+/// An author folder at a glance, for the author list and composer card.
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct HvscComposer {
+    pub path: String,
+    /// "Ari Yliaho" for Agemixer; nil when the headers only repeat the
+    /// folder's name, or outside MUSICIANS.
+    pub real_name: Option<String>,
+    pub tunes: u32,
+    pub first_year: Option<u16>,
+    pub last_year: Option<u16>,
+}
+
+/// A composer who sounds like another, by the average of their tunes.
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct SimilarComposer {
+    /// The MUSICIANS folder.
+    pub path: String,
+    /// Cosine similarity, −1…1.
+    pub score: f32,
+}
+
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct HvscTuneItem {
     pub path: String,
@@ -876,6 +897,41 @@ impl PlayerCore {
     ) -> Result<Vec<HvscAuthorItem>, HvscError> {
         let authors = self.library.authors(category.into()).await?;
         Ok(authors.iter().map(HvscAuthorItem::from).collect())
+    }
+
+    /// Every author folder (or section) of `category` at a glance: tune
+    /// count, years, and the composer's real name. The first call reads
+    /// every tune's header (a second or so), later ones reuse it.
+    pub async fn hvsc_composers(&self, category: HvscCategory) -> Result<Vec<HvscComposer>, HvscError> {
+        let found = self.library.composers(category.into()).await?;
+        Ok(found
+            .into_iter()
+            .map(|c| HvscComposer {
+                path: c.path.to_string_lossy().into_owned(),
+                real_name: c.real_name,
+                tunes: c.tunes,
+                first_year: c.first_year,
+                last_year: c.last_year,
+            })
+            .collect())
+    }
+
+    /// The composers who sound most like the one in MUSICIANS folder
+    /// `author_path`, best first; empty until enough of their tunes are
+    /// fingerprinted.
+    pub async fn similar_composers(&self, author_path: String, limit: u32) -> Vec<SimilarComposer> {
+        let Some(root) = self.library.root() else { return Vec::new() };
+        let Some(folder) = collection_path(&root, Path::new(&author_path)) else { return Vec::new() };
+        let fps = self.fingerprints.clone();
+        tokio::task::spawn_blocking(move || {
+            fps.index_for(None)
+                .similar_composers(&folder, 3, limit as usize)
+                .into_iter()
+                .map(|(f, score)| SimilarComposer { path: root.join(f).to_string_lossy().into_owned(), score })
+                .collect()
+        })
+        .await
+        .unwrap_or_default()
     }
 
     /// The tunes in one author folder or section.

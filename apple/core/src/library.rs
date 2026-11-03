@@ -75,6 +75,17 @@ pub(crate) struct Library {
     credits: Arc<Mutex<Option<Credits>>>,
 }
 
+/// An author folder's tunes at a glance, for the author list.
+#[derive(Debug, Clone, Default)]
+pub struct ComposerSummary {
+    pub path: PathBuf,
+    /// "Ari Yliaho" for Agemixer: the person their tunes' headers name.
+    pub real_name: Option<String>,
+    pub tunes: u32,
+    pub first_year: Option<u16>,
+    pub last_year: Option<u16>,
+}
+
 /// The SID header's author of every tune in the indexes, which keep only
 /// the folder name. Read on first use; stale once an index changes.
 struct Credits {
@@ -290,15 +301,19 @@ impl Library {
                     indexed,
                 };
             }
-            let parsed = HvscQuery::parse(query);
+            // "second reality" finds "2nd Reality": each spelling is tried,
+            // and an entry scores its best.
+            let parsed: Vec<HvscQuery> = spellings(query).iter().map(|q| HvscQuery::parse(q)).collect();
             let mut matcher = Matcher::new(Config::DEFAULT);
             let mut buf = Vec::new();
             let mut scored = Vec::new();
             for &category in &categories {
                 for (i, entry) in inner.index(category).iter().enumerate() {
-                    if let Some(score) =
-                        hvsc_browser::score_entry(&parsed, entry, &mut matcher, &mut buf)
-                    {
+                    let best = parsed
+                        .iter()
+                        .filter_map(|q| hvsc_browser::score_entry(q, entry, &mut matcher, &mut buf))
+                        .max();
+                    if let Some(score) = best {
                         scored.push((score, category, i));
                     }
                 }
@@ -333,17 +348,8 @@ impl Library {
         .await
     }
 
-    /// Tunes in all of HVSC whose header's author contains one of `names`,
-    /// ignoring case and accents. The caller narrows them to exact credits
-    /// ("Exos" in "Exos & Jeff", not in "Exoskeleton").
-    ///
-    /// The indexes have no header author, so the first call reads every
-    /// tune's header (about a second for 60,000 when the disk cache is
-    /// warm), and later ones reuse them until an index changes.
-    pub async fn crediting(
-        &self,
-        names: Vec<String>,
-    ) -> Result<Vec<(HvscCategory, HvscIndexEntry, String)>, LibraryError> {
+    /// Read every tune's header author (`Credits`) unless it's current.
+    async fn ensure_credits(&self) -> Result<(), LibraryError> {
         for &category in &CATEGORIES {
             self.ensure_index(category).await?;
         }
@@ -372,7 +378,78 @@ impl Library {
                 authors,
             });
         }
+        Ok(())
+    }
 
+    /// Each author folder (or section) of `category`, in the author list's
+    /// order, with how many tunes it holds, the years they came out, and
+    /// (in MUSICIANS) the composer's name as their tunes' headers give it.
+    pub async fn composers(&self, category: HvscCategory) -> Result<Vec<ComposerSummary>, LibraryError> {
+        self.ensure_credits().await?;
+        let authors = self.authors(category).await?;
+        let inner = self.inner.clone();
+        let credits = self.credits.clone();
+        blocking(move || {
+            let inner = lock(&inner);
+            let credits = lock_credits(&credits);
+            let headers = credits.as_ref().map(|c| &c.authors[slot(category)]);
+            let folders: std::collections::HashMap<&Path, usize> =
+                authors.iter().enumerate().map(|(i, a)| (a.path.as_path(), i)).collect();
+            let mut out: Vec<ComposerSummary> = authors
+                .iter()
+                .map(|a| ComposerSummary { path: a.path.clone(), ..Default::default() })
+                .collect();
+            let mut names: Vec<std::collections::HashMap<String, u32>> = vec![Default::default(); authors.len()];
+            for (k, entry) in inner.index(category).iter().enumerate() {
+                let mut dir = entry.path.parent();
+                let owner = loop {
+                    match dir {
+                        Some(d) => match folders.get(d) {
+                            Some(&i) => break Some(i),
+                            None => dir = d.parent(),
+                        },
+                        None => break None,
+                    }
+                };
+                let Some(i) = owner else { continue };
+                let summary = &mut out[i];
+                summary.tunes += 1;
+                if let Some(year) = release_year(&entry.released) {
+                    summary.first_year = Some(summary.first_year.map_or(year, |y| y.min(year)));
+                    summary.last_year = Some(summary.last_year.map_or(year, |y| y.max(year)));
+                }
+                if category == HvscCategory::Musicians {
+                    if let Some(name) = headers.and_then(|h| h.get(k)).and_then(|a| real_name(a)) {
+                        *names[i].entry(name).or_default() += 1;
+                    }
+                }
+            }
+            for ((summary, names), author) in out.iter_mut().zip(names).zip(&authors) {
+                // The name most of their tunes give, unless it's just the
+                // folder's.
+                summary.real_name = names
+                    .into_iter()
+                    .max_by(|a, b| a.1.cmp(&b.1).then_with(|| b.0.cmp(&a.0)))
+                    .map(|(name, _)| name)
+                    .filter(|name| !same_name(name, &author.display_name));
+            }
+            out
+        })
+        .await
+    }
+
+    /// Tunes in all of HVSC whose header's author contains one of `names`,
+    /// ignoring case and accents. The caller narrows them to exact credits
+    /// ("Exos" in "Exos & Jeff", not in "Exoskeleton").
+    ///
+    /// The indexes have no header author, so the first call reads every
+    /// tune's header (about a second for 60,000 when the disk cache is
+    /// warm), and later ones reuse them until an index changes.
+    pub async fn crediting(
+        &self,
+        names: Vec<String>,
+    ) -> Result<Vec<(HvscCategory, HvscIndexEntry, String)>, LibraryError> {
+        self.ensure_credits().await?;
         let inner = self.inner.clone();
         let credits = self.credits.clone();
         blocking(move || {
@@ -750,6 +827,77 @@ fn read_file(
     let has_stil = db.stil.as_ref().is_some_and(|s| s.lookup(&entry.path, root).is_some());
     let category = root.and_then(|r| category_of(r, &entry.path));
     Some((category, entry, has_stil))
+}
+
+
+/// Words a title may spell either way: "second" or "2nd", "two" or "2",
+/// "and" or "&".
+const SPELLINGS: &[(&str, &str)] = &[
+    ("first", "1st"), ("second", "2nd"), ("third", "3rd"), ("fourth", "4th"), ("fifth", "5th"),
+    ("sixth", "6th"), ("seventh", "7th"), ("eighth", "8th"), ("ninth", "9th"), ("tenth", "10th"),
+    ("one", "1"), ("two", "2"), ("three", "3"), ("four", "4"), ("five", "5"), ("six", "6"),
+    ("seven", "7"), ("eight", "8"), ("nine", "9"), ("ten", "10"), ("and", "&"),
+];
+
+/// `query` as typed, with its number words written as digits, and with its
+/// digits written as words: the spellings a search tries.
+pub(crate) fn spellings(query: &str) -> Vec<String> {
+    let respell = |to_digits: bool| -> String {
+        query
+            .split_whitespace()
+            .map(|word| {
+                let lower = word.to_lowercase();
+                SPELLINGS
+                    .iter()
+                    .find_map(|&(words, digits)| {
+                        let (from, to) = if to_digits { (words, digits) } else { (digits, words) };
+                        (lower == from).then(|| to.to_string())
+                    })
+                    .unwrap_or_else(|| word.to_string())
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    let mut out = vec![query.to_string()];
+    for spelled in [respell(true), respell(false)] {
+        if !out.contains(&spelled) {
+            out.push(spelled);
+        }
+    }
+    out
+}
+
+
+/// The year a SID's released field starts with ("1987 Ocean"); None for
+/// "19??" and the like.
+fn release_year(released: &str) -> Option<u16> {
+    let digits: String = released.trim().chars().take(4).collect();
+    let year: u16 = digits.parse().ok()?;
+    (1980..=2100).contains(&year).then_some(year)
+}
+
+/// The person a header's author names: "Ari Yliaho (Agemixer)" gives
+/// "Ari Yliaho". None for unknowns ("<?>") and for groups of people.
+fn real_name(author: &str) -> Option<String> {
+    let name = author.split(" (").next()?.trim();
+    let unknown = name.is_empty() || name.contains('?') || name.contains('<');
+    let several = name.contains('&') || name.contains(',') || name.contains(" and ");
+    (!unknown && !several).then(|| name.to_string())
+}
+
+/// Whether a real name only repeats the folder's ("Hubbard, Rob" and
+/// "Rob Hubbard").
+fn same_name(name: &str, display: &str) -> bool {
+    let words = |s: &str| {
+        let mut w: Vec<String> = s
+            .split(|c: char| !c.is_alphanumeric())
+            .filter(|w| !w.is_empty())
+            .map(str::to_lowercase)
+            .collect();
+        w.sort();
+        w
+    };
+    words(name) == words(display)
 }
 
 #[cfg(test)]

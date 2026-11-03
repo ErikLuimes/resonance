@@ -129,6 +129,10 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     func hvscInfo() async -> HvscInfo? { lock.withLock { _hvscInfo } }
     func syncPublishedPlaylists() async throws -> UInt32 { record("syncPlaylists"); return 0 }
     func tunesFromFiles(paths: [String]) async -> [HvscTuneItem] { [] }
+    private var _composers: [HvscComposer] = []
+    func set(composers: [HvscComposer]) { lock.withLock { _composers = composers } }
+    func hvscComposers(category: HvscCategory) async throws -> [HvscComposer] { lock.withLock { _composers } }
+    func similarComposers(authorPath: String, limit: UInt32) async -> [SimilarComposer] { [] }
     private var _favourites: [String] = []
     func favoritePaths() async -> [String] { lock.withLock { _favourites } }
     func setFavorite(path: String, favorite: Bool) async throws {
@@ -475,6 +479,26 @@ struct LibraryStoreTests {
         defaults.removePersistentDomain(forName: suite)
         let player = PlayerStore(defaults: defaults, phosphorHvscRoot: { root }) { _ in fake }
         return (LibraryStore(player: player), player)
+    }
+
+    @Test func findsComposersByAnyWordsTheMostProlificFirst() async {
+        let (library, _) = makeLibrary()
+        let tel = author("Tel_Jeroen", displayName: "Tel, Jeroen")
+        let kimmel = author("Kimmel_Jeroen", displayName: "Kimmel, Jeroen")
+        let metal = author("Metal")
+        fake.set(authors: [kimmel, metal, tel])
+        fake.set(composers: [
+            HvscComposer(path: tel.path, realName: nil, tunes: 180, firstYear: 1986, lastYear: 2018),
+            HvscComposer(path: kimmel.path, realName: nil, tunes: 3, firstYear: nil, lastYear: nil),
+            HvscComposer(path: metal.path, realName: "Torben Hansen", tunes: 137, firstYear: nil, lastYear: nil),
+        ])
+        await library.loadAuthors(.musicians)
+        await library.loadComposers(.musicians)
+
+        #expect(library.composers(matching: "jeroen tel", in: .musicians).map(\.name) == ["Tel_Jeroen"])
+        #expect(library.composers(matching: "jeroen", in: .musicians).map(\.name) == ["Tel_Jeroen", "Kimmel_Jeroen"])
+        #expect(library.composers(matching: "torben", in: .musicians).map(\.name) == ["Metal"], "by real name")
+        #expect(library.composers(matching: "jer", in: .musicians).first?.name == "Tel_Jeroen", "a word's start")
     }
 
     private func author(_ name: String, displayName: String? = nil) -> HvscAuthorItem {

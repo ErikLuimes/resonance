@@ -89,7 +89,7 @@ struct SoundHoverCard: View {
                 }
             }
             HStack(alignment: .center, spacing: 12) {
-                MorphSphere(fingerprint: fingerprint)
+                MorphSphere(fingerprint: fingerprint, zoom: 1.2)
                     .frame(width: 104, height: 104)
                 VStack(alignment: .leading, spacing: 8) {
                     Text(fingerprint.summary)

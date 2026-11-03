@@ -100,6 +100,44 @@ impl Index {
         v
     }
 
+    /// The composers who sound most like the one whose MUSICIANS folder is
+    /// `folder` (collection-relative, "MUSICIANS/H/Hubbard_Rob"), best
+    /// first: each composer is the average of their tunes' start songs,
+    /// and needs at least `min_tunes` of them scanned.
+    pub fn similar_composers(&self, folder: &str, min_tunes: usize, limit: usize) -> Vec<(String, f32)> {
+        let mut sums: HashMap<&str, ([f32; FEATURES], usize)> = HashMap::new();
+        for &i in self.by_path.values() {
+            let Some(composer) = composer_folder(&self.rows[i].path) else { continue };
+            let slot = sums.entry(composer).or_insert(([0.0; FEATURES], 0));
+            for (s, x) in slot.0.iter_mut().zip(&self.vectors[i]) {
+                *s += x;
+            }
+            slot.1 += 1;
+        }
+        let unit = |(mut v, n): ([f32; FEATURES], usize)| -> Option<[f32; FEATURES]> {
+            if n < min_tunes {
+                return None;
+            }
+            let len = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+            (len > 1e-6).then(|| {
+                v.iter_mut().for_each(|x| *x /= len);
+                v
+            })
+        };
+        let Some(target) = sums.get(folder).copied().and_then(unit) else { return Vec::new() };
+        let mut scored: Vec<(String, f32)> = sums
+            .into_iter()
+            .filter(|(f, _)| *f != folder)
+            .filter_map(|(f, sum)| {
+                let v = unit(sum)?;
+                Some((f.to_string(), v.iter().zip(&target).map(|(a, b)| a * b).sum()))
+            })
+            .collect();
+        scored.sort_by(|a, b| b.1.total_cmp(&a.1));
+        scored.truncate(limit);
+        scored
+    }
+
     /// How alike two files sound (their start songs), −1…1; None when
     /// either hasn't been scanned.
     pub fn score(&self, a: &str, b: &str) -> Option<f32> {
@@ -141,4 +179,16 @@ impl Index {
         matches.truncate(limit);
         matches
     }
+}
+
+/// The composer folder a collection path is in: "MUSICIANS/H/Hubbard_Rob"
+/// for any tune under it (some composers have subfolders). None outside
+/// MUSICIANS.
+pub(crate) fn composer_folder(path: &str) -> Option<&str> {
+    let mut slashes = path.match_indices('/').map(|(i, _)| i);
+    if !path.starts_with("MUSICIANS/") {
+        return None;
+    }
+    let end = slashes.nth(2)?;
+    Some(&path[..end])
 }
