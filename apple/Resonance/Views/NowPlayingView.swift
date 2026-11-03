@@ -3,7 +3,7 @@ import SwiftUI
 import PhosphorCore
 
 /// Now Playing: the main window's second mode, sliding up over the library
-/// like Music's player. A big visualizer (Halo, Particles or Radial, picked
+/// like Music's player. A big visualizer (Halo, Particles, Radial or Sound Map, picked
 /// at the top and remembered), with the playing tune, its voices and the
 /// transport over it (design/visualizers/reference/AppNowPlaying.dc.html).
 /// Full screen when the window is.
@@ -112,6 +112,7 @@ struct NowPlayingView: View {
         case .halo: HaloView(isActive: isShowing)
         case .particles: ParticlesView(isActive: isShowing)
         case .radial: RadialView(isActive: isShowing)
+        case .soundMap: SoundMapView(isActive: isShowing)
         }
     }
 
@@ -335,6 +336,7 @@ nonisolated enum NowPlayingVisual: String, CaseIterable, Identifiable {
     case halo
     case particles
     case radial
+    case soundMap
 
     var id: Self { self }
 
@@ -343,6 +345,7 @@ nonisolated enum NowPlayingVisual: String, CaseIterable, Identifiable {
         case .halo: "Halo"
         case .particles: "Particles"
         case .radial: "Radial"
+        case .soundMap: "Sound Map"
         }
     }
 }
