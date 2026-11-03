@@ -207,10 +207,10 @@ final class LibraryStore {
 
     /// Play `rows` as a temporary list from `start` (else the first). The
     /// playlist is left alone: playing from the library never adds to it.
-    /// `playlist` is the published playlist the rows come from.
-    func play(_ rows: [LibraryRow], startAt start: LibraryRow? = nil, from playlist: HvscPlaylist? = nil) {
+    /// `source` is where the rows come from, which "Playing from" names.
+    func play(_ rows: [LibraryRow], startAt start: LibraryRow? = nil, from source: PlaybackSource) {
         guard let first = rows.first else { return }
-        player.playQueue(rows.map(\.url), startAt: (start ?? first).url, from: playlist)
+        player.playQueue(rows.map(\.url), startAt: (start ?? first).url, from: source)
     }
 
     func addToPlaylist(_ rows: [LibraryRow]) {
@@ -312,6 +312,17 @@ final class LibraryStore {
             tunePath: tunePath,
             category: category
         )
+    }
+
+    /// Show where the playing tune comes from: `source`'s sidebar section,
+    /// or (a composer, a search, Surprise Me) the tune at `path` in the
+    /// library.
+    func open(_ source: PlaybackSource, playing path: String?) {
+        if let section = source.section {
+            shownSection = section
+        } else if let path {
+            reveal(tunePath: path)
+        }
     }
 
     /// Which part of HVSC `path` is in, if any.

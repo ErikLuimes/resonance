@@ -37,6 +37,7 @@ struct RecentlyPlayedView: View {
                 let rows = filtered(recent.map(\.row))
                 LibraryTable(
                     rows: rows,
+                    source: .recentlyPlayed,
                     played: Dictionary(recent.map { ($0.row.id, $0.playedText) }, uniquingKeysWith: { first, _ in first })
                 )
                 .overlay {
@@ -81,7 +82,7 @@ struct RecentlyPlayedView: View {
             }
             Spacer(minLength: 12)
             Button {
-                library.play(rows)
+                library.play(rows, from: .recentlyPlayed)
             } label: {
                 Label("Play", systemImage: "play.fill")
             }

@@ -25,9 +25,9 @@ final class PlayerStore {
     private(set) var surpriseActive = false
     /// That list is Shuffle Collection's walk through all of HVSC.
     private(set) var shuffleCollectionActive = false
-    /// The published playlist the playing queue came from; nil for the
-    /// playlist, Surprise Me and any other queue (a selection, a search).
-    private(set) var queuePlaylist: HvscPlaylist?
+    /// Where the playing temporary list came from (whatever started it
+    /// says); nil while none plays.
+    private(set) var queueSource: PlaybackSource?
     private(set) var nowPlaying: TrackDetails?
     private(set) var elapsed: TimeInterval = 0
     private(set) var duration: TimeInterval?
@@ -228,7 +228,7 @@ final class PlayerStore {
         // published playlist that plays. (Not on a still-inactive queue: a
         // queue just started shows up a snapshot later.)
         if (queueActive && !s.queueActive) || s.surpriseActive || s.shuffleCollectionActive {
-            update(\.queuePlaylist, nil)
+            update(\.queueSource, nil)
         }
         update(\.queueActive, s.queueActive)
         update(\.surpriseActive, s.surpriseActive)
@@ -270,12 +270,20 @@ final class PlayerStore {
     }
 
     /// Play `urls` as a temporary list from `start`, leaving the playlist
-    /// alone; Next and Previous stay inside the list. `playlist` names the
-    /// published playlist the list is (part of), for the inspector.
-    func playQueue(_ urls: [URL], startAt start: URL, from playlist: HvscPlaylist? = nil) {
+    /// alone; Next and Previous stay inside the list. `source` is where
+    /// the list comes from, which "Playing from" names.
+    func playQueue(_ urls: [URL], startAt start: URL, from source: PlaybackSource) {
         guard !urls.isEmpty else { return }
         core.playQueue(paths: urls.map(\.path), start: start.path)
-        update(\.queuePlaylist, playlist)
+        update(\.queueSource, source)
+    }
+
+    /// Where what's playing comes from; nil when nothing does.
+    var source: PlaybackSource? {
+        if surpriseActive { return .surprise }
+        if shuffleCollectionActive { return .shuffleCollection }
+        if queueActive { return queueSource }
+        return currentIndex != nil ? .myPlaylist : nil
     }
 
     /// Pause / resume; when stopped, start `fallback` (the selection).
@@ -410,7 +418,7 @@ final class PlayerStore {
     func playPublishedPlaylist(_ playlist: HvscPlaylist) {
         let tunes = publishedPlaylistTunes(playlist)
         guard let first = tunes.first else { return }
-        playQueue(tunes, startAt: first, from: playlist)
+        playQueue(tunes, startAt: first, from: .curated(playlist))
     }
 
     /// The files of one of Phosphor's published playlists (its entries are

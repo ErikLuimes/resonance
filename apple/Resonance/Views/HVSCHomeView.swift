@@ -599,7 +599,7 @@ private struct CollectionHome: View {
                         GridRow {
                             ForEach(start..<min(start + columns, shown.count), id: \.self) { index in
                                 RecentTuneRow(number: index + 1, play: shown[index]) {
-                                    library.play(recent.map(\.row), startAt: shown[index].row)
+                                    library.play(recent.map(\.row), startAt: shown[index].row, from: .recentlyPlayed)
                                 }
                             }
                             if start + columns > shown.count {
@@ -974,7 +974,7 @@ private struct PlaylistCard: View {
     @State private var hovering = false
 
     var body: some View {
-        let playing = store.queuePlaylist == playlist
+        let playing = store.source == .curated(playlist)
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
                 PlaylistArtwork(name: playlist.name, size: 48)

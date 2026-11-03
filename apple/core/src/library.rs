@@ -468,23 +468,26 @@ impl Library {
             crate::history::recent()
                 .into_iter()
                 .filter_map(|recent| {
-                    let mut entry = PlaylistEntry::from_path(&recent.path).ok()?;
-                    if entry.duration_secs.is_none() {
-                        entry.duration_secs = entry.md5.as_deref().and_then(|md5| {
-                            let song = entry.selected_song.saturating_sub(1) as usize;
-                            db.songlengths.as_ref()?.lookup(md5, song)
-                        });
-                    }
-                    let has_stil = db
-                        .stil
-                        .as_ref()
-                        .is_some_and(|s| s.lookup(&entry.path, root.as_deref()).is_some());
-                    let category = root.as_deref().and_then(|r| category_of(r, &entry.path));
+                    let (category, entry, has_stil) = read_file(&recent.path, root.as_deref(), &db)?;
                     Some((category, entry, has_stil, recent.played_at))
                 })
                 .collect()
         })
         .await
+    }
+
+    /// The tunes at `paths`, in that order, read from their headers like
+    /// `recent`: inside the collection or not. Files no longer on disk are
+    /// left out.
+    pub async fn files(
+        &self,
+        paths: Vec<PathBuf>,
+    ) -> Vec<(Option<HvscCategory>, PlaylistEntry, bool)> {
+        let root = self.root();
+        let db = databases::loaded(&self.databases).await;
+        blocking(move || paths.iter().filter_map(|p| read_file(p, root.as_deref(), &db)).collect())
+            .await
+            .unwrap_or_default()
     }
 
     /// A random tune: uniformly from the loaded indexes in scope, or by
@@ -727,6 +730,26 @@ async fn blocking<T: Send + 'static>(
     tokio::task::spawn_blocking(f)
         .await
         .map_err(|e| LibraryError::Io(format!("library task failed: {e}")))
+}
+
+
+/// A tune file read from its header, with its song length and STIL flag,
+/// and its category when it's in the collection at `root`.
+fn read_file(
+    path: &Path,
+    root: Option<&Path>,
+    db: &databases::Databases,
+) -> Option<(Option<HvscCategory>, PlaylistEntry, bool)> {
+    let mut entry = PlaylistEntry::from_path(path).ok()?;
+    if entry.duration_secs.is_none() {
+        entry.duration_secs = entry.md5.as_deref().and_then(|md5| {
+            let song = entry.selected_song.saturating_sub(1) as usize;
+            db.songlengths.as_ref()?.lookup(md5, song)
+        });
+    }
+    let has_stil = db.stil.as_ref().is_some_and(|s| s.lookup(&entry.path, root).is_some());
+    let category = root.and_then(|r| category_of(r, &entry.path));
+    Some((category, entry, has_stil))
 }
 
 #[cfg(test)]

@@ -21,6 +21,7 @@ nonisolated enum Pref {
     static let settingsTab = "settingsTab"
     static let homeShownForRoot = "homeShownForRoot"
     static let homeSeenRelease = "homeSeenRelease"
+    static let playlistsRecent = "playlistsRecent"
 }
 
 nonisolated extension PlaybackOptions {

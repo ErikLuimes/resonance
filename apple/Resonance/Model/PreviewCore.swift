@@ -193,6 +193,9 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
     func cancelHvscSync() {}
     func hvscInfo() async -> HvscInfo? { nil }
     func syncPublishedPlaylists() async throws -> UInt32 { 0 }
+    func tunesFromFiles(paths: [String]) async -> [HvscTuneItem] { [] }
+    func favoritePaths() async -> [String] { [] }
+    func setFavorite(path: String, favorite: Bool) async throws {}
     func checkHvscUpdate() async throws -> HvscVersionCheck { HvscVersionCheck(latest: 86, installed: 85) }
     func startFingerprintScan() async throws {}
     func retryFailedFingerprints() async throws {}

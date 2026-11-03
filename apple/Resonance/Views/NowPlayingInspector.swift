@@ -142,53 +142,17 @@ struct NowPlayingInspector: View {
         return (year, by)
     }
 
-    /// Which list Next and Previous walk.
-    @ViewBuilder
+    /// Which list Next and Previous walk: "Composer: Rob Hubbard".
     private var source: some View {
-        if store.surpriseActive {
-            Label("Surprise Me", systemImage: "dice.fill")
-                .foregroundStyle(.tint)
-                .help("Next plays another random tune from HVSC. Play anything else to stop.")
-        } else if store.shuffleCollectionActive {
-            Label("Shuffle Collection", systemImage: "shuffle")
-                .foregroundStyle(.tint)
-                .help("Every tune in HVSC in a random order. Previous goes back; play anything else to stop.")
-        } else if let playlist = store.queuePlaylist {
-            // The published playlist it's playing from, which opens it.
-            Label {
-                AccentLink(playlist.name) {
-                    library.shownSection = .curated(playlist.file)
-                }
-                .lineLimit(1)
-                .help("Show the playlist")
-            } icon: {
-                Image(systemName: "music.note.list")
-            }
-        } else if store.queueActive {
-            Label("From Queue", systemImage: "list.bullet")
-                .help("A selection, search or folder from HVSC")
-        } else {
-            Label("From Playlist", systemImage: "music.note.list")
-        }
+        PlayingFrom(showsKind: true)
     }
 
-    /// Keep what's playing — a surprise, or any tune played from the
-    /// library. Once it's kept, a label says so (a disabled button would
-    /// show no tooltip); nothing at all when it's playing from the playlist.
-    @ViewBuilder
+    /// Keep what's playing: a favourite, or into a playlist.
     private func playlistStatus(_ track: TrackDetails) -> some View {
-        if !store.rows.contains(where: { $0.id == track.path }) {
-            Button("Add to Playlist", systemImage: "plus") {
-                store.add([URL(filePath: track.path)])
-            }
-            .controlSize(.small)
-            .help("Add this tune to your playlist")
-        } else if store.queueActive || store.surpriseActive || store.shuffleCollectionActive {
-            Label("In Playlist", systemImage: "checkmark")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize()
-                .help("This tune is already in your playlist")
+        HStack(spacing: 8) {
+            FavouriteButton(path: track.path)
+            AddToButton(files: [track.path])
+                .controlSize(.small)
         }
     }
 
@@ -408,5 +372,6 @@ private struct ComposerCard: View {
         .environment(PlayerStore.preview)
         .environment(LibraryStore(player: .preview))
         .environment(FingerprintStore(player: .preview))
+        .environment(PlaylistsStore(player: .preview))
         .frame(width: 300, height: 700)
 }

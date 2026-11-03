@@ -12,11 +12,15 @@ enum SidebarItem: Hashable {
     case hvsc(HvscCategory)
     /// One of Phosphor's published playlists, by its file name.
     case curated(String)
+    case favourites
+    /// One of your playlists, by its file name.
+    case userPlaylist(String)
 }
 
 struct ContentView: View {
     @Environment(PlayerStore.self) private var store
     @Environment(LibraryStore.self) private var library
+    @Environment(PlaylistsStore.self) private var playlists
     @State private var sidebarSelection: SidebarItem? = .playlist
     @State private var showInspector = true
     @State private var isDropTargeted = false
@@ -116,6 +120,8 @@ struct ContentView: View {
         // are the published playlists current?
         .task { await store.checkHvscUpdate() }
         .task { await store.syncPublishedPlaylists() }
+        // The hearts, and Favourites' count.
+        .task(id: store.hvscRoot) { await playlists.loadFavourites() }
         // No collection yet: the Home (its empty state) is the welcome pane.
         // A collection seen for the first time (downloaded, put in place by
         // hand, or another folder chosen) opens on its Home once.
@@ -161,11 +167,37 @@ struct ContentView: View {
     private var sidebar: some View {
         List(selection: $sidebarSelection) {
             Section("Library") {
-                Label("Playlist", systemImage: "music.note.list")
-                    .badge(store.rows.count)
-                    .tag(SidebarItem.playlist)
-                Label("Recently Played", systemImage: "clock")
+                SidebarLabel("Recently Played", systemImage: "clock", playing: playing(.recent))
                     .tag(SidebarItem.recent)
+            }
+            Section {
+                SidebarLabel("Favourites", systemImage: "heart", playing: playing(.favourites),
+                             count: playlists.favourites?.count)
+                    .tag(SidebarItem.favourites)
+                SidebarLabel("My Playlist", systemImage: "music.note.list", playing: playing(.playlist),
+                             count: store.rows.count)
+                    .tag(SidebarItem.playlist)
+                ForEach(playlists.playlists) { playlist in
+                    UserPlaylistRow(playlist: playlist, playing: playing(.userPlaylist(playlist.id)),
+                                    selection: $sidebarSelection)
+                        .tag(SidebarItem.userPlaylist(playlist.id))
+                }
+            } header: {
+                HStack {
+                    Text("Playlists")
+                    Spacer()
+                    Button {
+                        if let made = playlists.create() {
+                            sidebarSelection = .userPlaylist(made.id)
+                            playlists.renaming = made.id
+                        }
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("New Playlist")
+                    .accessibilityLabel("New Playlist")
+                }
             }
             Section("HVSC") {
                 HvscCollectionRow(isSelected: sidebarSelection == .hvscHome)
@@ -176,9 +208,9 @@ struct ContentView: View {
                     }
                 }
             }
-            if store.hasCollection, let playlists = store.hvscInfo?.playlists, !playlists.isEmpty {
+            if store.hasCollection, let curated = store.hvscInfo?.playlists, !curated.isEmpty {
                 Section("Curated Playlists", isExpanded: $curatedExpanded) {
-                    ForEach(playlists, id: \.file) { playlist in
+                    ForEach(curated, id: \.file) { playlist in
                         CuratedPlaylistRow(playlist: playlist)
                             .tag(SidebarItem.curated(playlist.file))
                     }
@@ -188,6 +220,11 @@ struct ContentView: View {
     }
 
     private var section: SidebarItem { sidebarSelection ?? .playlist }
+
+    /// Whether `item` is the list that's playing, for the sidebar's speaker.
+    private func playing(_ item: SidebarItem) -> Bool {
+        store.isPlaying && store.source?.section == item
+    }
 
     private var searchText: Binding<String> {
         Binding(
@@ -237,6 +274,15 @@ struct ContentView: View {
             // A fresh view (and selection) per category.
             HVSCBrowserView(category: category, search: searchText.wrappedValue)
                 .id(category)
+        case .favourites:
+            UserPlaylistView(playlist: nil, search: searchText.wrappedValue)
+        case .userPlaylist(let id):
+            if let playlist = playlists.playlist(id) {
+                UserPlaylistView(playlist: playlist, search: searchText.wrappedValue)
+                    .id(id)
+            } else {
+                ContentUnavailableView("Playlist Not Found", systemImage: "music.note.list")
+            }
         case .curated(let file):
             if let playlist = store.hvscInfo?.playlists.first(where: { $0.file == file }) {
                 CuratedPlaylistView(playlist: playlist, search: searchText.wrappedValue)
@@ -406,6 +452,119 @@ private struct StatusBanner: View {
         .environment(PlayerStore.preview)
         .environment(LibraryStore(player: .preview))
         .environment(FingerprintStore(player: .preview))
+        .environment(PlaylistsStore(player: .preview))
         .frame(width: 1100, height: 680)
 }
 
+
+/// A sidebar row: its label, then a speaker while it's the list playing,
+/// else its count.
+private struct SidebarLabel: View {
+    let title: String
+    let systemImage: String
+    let playing: Bool
+    var count: Int? = nil
+
+    init(_ title: String, systemImage: String, playing: Bool, count: Int? = nil) {
+        self.title = title
+        self.systemImage = systemImage
+        self.playing = playing
+        self.count = count
+    }
+
+    var body: some View {
+        Label {
+            HStack {
+                Text(title)
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                if playing {
+                    Image(systemName: "speaker.wave.2.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .help("Playing")
+                } else if let count, count > 0 {
+                    Text(count.formatted())
+                        .font(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } icon: {
+            Image(systemName: systemImage)
+        }
+    }
+}
+
+/// One of your playlists in the sidebar: its name (edited in place right
+/// after it's made, or on Rename), and a menu to play, rename, duplicate,
+/// show or delete it.
+private struct UserPlaylistRow: View {
+    let playlist: UserPlaylist
+    let playing: Bool
+    @Binding var selection: SidebarItem?
+
+    @Environment(PlaylistsStore.self) private var playlists
+    @Environment(LibraryStore.self) private var library
+    @State private var name = ""
+    @State private var confirmingDelete = false
+    @FocusState private var editing: Bool
+
+    var body: some View {
+        Group {
+            if playlists.renaming == playlist.id {
+                Label {
+                    TextField("Name", text: $name)
+                        .focused($editing)
+                        .onSubmit(commit)
+                        .onAppear {
+                            name = playlist.name
+                            editing = true
+                        }
+                        .onChange(of: editing) { if !editing { commit() } }
+                } icon: {
+                    Image(systemName: "music.note.list")
+                }
+            } else {
+                SidebarLabel(playlist.name, systemImage: "music.note.list", playing: playing,
+                             count: playlists.paths[playlist.id]?.count)
+            }
+        }
+        .contextMenu {
+            Button("Play") { play() }
+            Divider()
+            Button("Rename") { playlists.renaming = playlist.id }
+            Button("Duplicate") {
+                if let copy = playlists.duplicate(playlist) { selection = .userPlaylist(copy.id) }
+            }
+            Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([playlist.url]) }
+            Divider()
+            Button("Delete…", role: .destructive) { confirmingDelete = true }
+        }
+        .confirmationDialog("Delete “\(playlist.name)”?", isPresented: $confirmingDelete) {
+            Button("Delete", role: .destructive) {
+                if selection == .userPlaylist(playlist.id) { selection = .favourites }
+                playlists.delete(playlist)
+            }
+        } message: {
+            Text("The playlist moves to the Trash. Its tunes stay where they are.")
+        }
+        // The count, without reading every playlist's tunes.
+        .task { _ = playlists.read(playlist) }
+    }
+
+    private func commit() {
+        guard playlists.renaming == playlist.id else { return }
+        if let renamed = playlists.rename(playlist, to: name), selection == .userPlaylist(playlist.id) {
+            selection = .userPlaylist(renamed.id)
+        }
+        playlists.renaming = nil
+    }
+
+    private func play() {
+        let urls = playlists.read(playlist).map { URL(filePath: $0) }
+            .filter { FileManager.default.fileExists(atPath: $0.path) }
+        guard let first = urls.first else { return }
+        library.player.playQueue(urls, startAt: first, from: .playlist(id: playlist.id, name: playlist.name))
+    }
+}

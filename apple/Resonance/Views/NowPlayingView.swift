@@ -177,16 +177,13 @@ struct NowPlayingView: View {
         }
     }
 
-    /// Which list is playing, and where in it.
+    /// Which list is playing, and where in My Playlist.
     private var source: String {
-        if store.surpriseActive { return "Now playing · Surprise Me" }
-        if store.shuffleCollectionActive { return "Now playing · Shuffle Collection" }
-        if let playlist = store.queuePlaylist { return "Now playing · \(playlist.name)" }
-        if store.queueActive { return "Now playing · Queue" }
-        if let index = store.currentIndex, store.nowPlaying != nil {
-            return "Now playing · Playlist \(index + 1) / \(store.rows.count)"
+        guard let source = store.source else { return "Now playing" }
+        if source == .myPlaylist, let index = store.currentIndex {
+            return "Playing from My Playlist · \(index + 1) / \(store.rows.count)"
         }
-        return "Now playing"
+        return "Playing from \(source.name)"
     }
 
     private func tag(_ text: String) -> some View {
@@ -199,34 +196,18 @@ struct NowPlayingView: View {
 
     // MARK: Controls
 
-    /// Add to Playlist for any tune not in it, a small "In Playlist"
-    /// otherwise. Both are always laid out, one hidden, so switching
-    /// between them never moves the text above.
+    /// Keep what's playing: a heart for Favourites, and Add to… for a
+    /// playlist.
     private func playlistStatus(_ track: TrackDetails) -> some View {
-        let inPlaylist = store.rows.contains(where: { $0.id == track.path })
-        return ZStack(alignment: .leading) {
-            Button {
-                store.add([URL(filePath: track.path)])
-            } label: {
-                Label("Add to Playlist", systemImage: "plus")
-                    .font(.callout.weight(.semibold))
-                    .padding(.horizontal, 12)
-                    .frame(height: 28)
-                    .background(.white.opacity(0.1), in: .capsule)
-                    .contentShape(.capsule)
-            }
-            .buttonStyle(.plain)
-            .help("Add this tune to your playlist")
-            .opacity(inPlaylist ? 0 : 1)
-            .allowsHitTesting(!inPlaylist)
-            .accessibilityHidden(inPlaylist)
-
-            Label("In Playlist", systemImage: "checkmark")
-                .font(.callout)
-                .foregroundStyle(Self.dim)
-                .help("This tune is in your playlist")
-                .opacity(inPlaylist ? 1 : 0)
-                .accessibilityHidden(!inPlaylist)
+        HStack(spacing: 10) {
+            FavouriteButton(path: track.path)
+                .font(.title3)
+            AddToButton(files: [track.path])
+                .buttonStyle(.plain)
+                .font(.callout.weight(.semibold))
+                .padding(.horizontal, 12)
+                .frame(height: 28)
+                .background(.white.opacity(0.1), in: .capsule)
         }
     }
 

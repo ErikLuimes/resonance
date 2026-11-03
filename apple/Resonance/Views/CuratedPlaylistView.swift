@@ -35,7 +35,7 @@ struct CuratedPlaylistView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .some(let rows?):
-            LibraryTable(rows: filtered(rows), playlist: playlist)
+            LibraryTable(rows: filtered(rows), source: .curated(playlist))
                 .overlay {
                     if !query.isEmpty && filtered(rows).isEmpty {
                         ContentUnavailableView.search(text: query)
@@ -121,13 +121,13 @@ struct CuratedPlaylistView: View {
         }
     }
 
-    private var isPlaying: Bool { store.queuePlaylist == playlist }
+    private var isPlaying: Bool { store.source == .curated(playlist) }
 
     /// From the top, or with shuffle on from a random tune (the core then
     /// plays the rest in shuffled order).
     private func play() {
         let start = store.shuffle ? rows.randomElement() : rows.first
-        library.play(rows, startAt: start, from: playlist)
+        library.play(rows, startAt: start, from: .curated(playlist))
     }
 }
 
@@ -142,7 +142,7 @@ struct CuratedPlaylistRow: View {
                 Text(playlist.name)
                     .lineLimit(1)
                 Spacer(minLength: 4)
-                if store.queuePlaylist == playlist {
+                if store.source == .curated(playlist) {
                     Image(systemName: store.isPlaying ? "speaker.wave.2.fill" : "speaker.fill")
                         .font(.caption)
                         .foregroundStyle(.tint)

@@ -974,23 +974,62 @@ impl PlayerCore {
         Ok(hits
             .into_iter()
             .map(|(category, e, has_stil, played_at)| RecentTune {
-                item: HvscTuneItem {
-                    path: e.path.to_string_lossy().into_owned(),
-                    title: e.title,
-                    author: e.author,
-                    released: e.released,
-                    songs: e.songs,
-                    start_song: e.selected_song,
-                    duration_secs: e.duration_secs,
-                    has_stil,
-                    is_rsid: Some(e.is_rsid),
-                    // Outside the collection: filed with the musicians,
-                    // where the inspector looks for a composer anyway.
-                    category: category.unwrap_or(hvsc_browser::HvscCategory::Musicians).into(),
-                },
+                item: HvscTuneItem::from_file(category, e, has_stil),
                 played_at,
             })
             .collect())
+    }
+
+    /// The tunes at `paths` (a playlist's files), in that order, inside
+    /// the collection or not; files no longer on disk are left out.
+    pub async fn tunes_from_files(&self, paths: Vec<String>) -> Vec<HvscTuneItem> {
+        self.library
+            .files(paths.into_iter().map(PathBuf::from).collect())
+            .await
+            .into_iter()
+            .map(|(category, e, has_stil)| HvscTuneItem::from_file(category, e, has_stil))
+            .collect()
+    }
+
+    // ── Favourites, shared with Phosphor (its favorites.json) ──
+
+    /// The favourite tunes' files, newest first. A file that moved is
+    /// found again by its MD5 in the collection (Phosphor's fallback), and
+    /// the healed path saved; favourites found nowhere are left out.
+    pub async fn favorite_paths(&self) -> Vec<String> {
+        let db = databases::loaded(&self.databases).await;
+        let root = self.library.root();
+        tokio::task::spawn_blocking(move || {
+            let mut favorites = crate::favorites::FavoritesDb::load();
+            let before: Vec<_> = favorites.entries.iter().map(|e| e.path.clone()).collect();
+            let paths: Vec<String> = (0..favorites.entries.len())
+                .filter_map(|i| favorites.resolve(i, db.songlengths.as_ref(), root.as_deref()))
+                .map(|p| p.to_string_lossy().into_owned())
+                .collect();
+            if favorites.entries.iter().map(|e| &e.path).ne(before.iter()) {
+                favorites.save();
+            }
+            paths
+        })
+        .await
+        .unwrap_or_default()
+    }
+
+    /// Make the tune at `path` a favourite, or not.
+    pub async fn set_favorite(&self, path: String, favorite: bool) -> Result<(), HvscError> {
+        tokio::task::spawn_blocking(move || {
+            let entry = PlaylistEntry::from_path(Path::new(&path)).map_err(|message| HvscError::Io { message })?;
+            let mut favorites = crate::favorites::FavoritesDb::load();
+            if favorite {
+                favorites.upsert(&entry);
+            } else if let Some(md5) = entry.md5.as_deref() {
+                favorites.remove(&md5.to_lowercase());
+            }
+            favorites.save();
+            Ok(())
+        })
+        .await
+        .map_err(|e| HvscError::Io { message: e.to_string() })?
     }
 
     /// How many different tunes Phosphor and Resonance have ever played.
@@ -1445,6 +1484,24 @@ impl From<&HvscAuthor> for HvscAuthorItem {
 }
 
 impl HvscTuneItem {
+    /// A tune read from its file (`Library::files`, the history).
+    fn from_file(category: Option<hvsc_browser::HvscCategory>, e: PlaylistEntry, has_stil: bool) -> Self {
+        HvscTuneItem {
+            path: e.path.to_string_lossy().into_owned(),
+            title: e.title,
+            author: e.author,
+            released: e.released,
+            songs: e.songs,
+            start_song: e.selected_song,
+            duration_secs: e.duration_secs,
+            has_stil,
+            is_rsid: Some(e.is_rsid),
+            // Outside the collection: filed with the musicians, where the
+            // inspector looks for a composer anyway.
+            category: category.unwrap_or(hvsc_browser::HvscCategory::Musicians).into(),
+        }
+    }
+
     fn from_tune(t: &HvscTune, root: Option<&std::path::Path>) -> Self {
         let e = &t.entry;
         let category = root

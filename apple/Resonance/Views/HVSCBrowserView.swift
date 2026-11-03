@@ -85,7 +85,7 @@ struct HVSCBrowserView: View {
             CreditedTunes(name: name)
                 .id(name)
         } else if let path = selectedAuthor {
-            AuthorTunes(authorPath: path, authorName: authorName(path))
+            AuthorTunes(authorPath: path, authorName: authorName(path), category: category)
                 .id(path)
         } else {
             ContentUnavailableView(
@@ -165,7 +165,7 @@ struct HVSCBrowserView: View {
             if results.items.isEmpty {
                 ContentUnavailableView.search(text: query)
             } else {
-                LibraryTable(rows: results.items.map(LibraryRow.init))
+                LibraryTable(rows: results.items.map(LibraryRow.init), source: .search(query: query))
             }
         } else {
             VStack(spacing: 10) {
@@ -379,13 +379,14 @@ struct HvscDownloadView: View {
 private struct AuthorTunes: View {
     let authorPath: String
     let authorName: String
+    let category: HvscCategory
 
     @Environment(LibraryStore.self) private var library
 
     var body: some View {
         Group {
             if let rows = library.tunes[authorPath] {
-                LibraryTable(rows: rows)
+                LibraryTable(rows: rows, source: .folder(name: authorName, category: category))
                     .safeAreaInset(edge: .top, spacing: 0) { header(count: rows.count) }
             } else {
                 ProgressView()
@@ -404,7 +405,7 @@ private struct AuthorTunes: View {
                 .foregroundStyle(.secondary)
             Spacer(minLength: 8)
             Button("Add All", systemImage: "text.badge.plus") { library.addAll(authorPath: authorPath) }
-                .help("Add every tune here to the playlist")
+                .help("Add every tune here to My Playlist")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -431,7 +432,7 @@ private struct CreditedTunes: View {
                         description: Text("No tune in HVSC credits \(name).")
                     )
                 } else {
-                    LibraryTable(rows: rows)
+                    LibraryTable(rows: rows, source: .folder(name: name, category: .musicians))
                         .safeAreaInset(edge: .top, spacing: 0) { header(rows) }
                 }
             } else {
@@ -457,7 +458,7 @@ private struct CreditedTunes: View {
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 8)
                 Button("Add All", systemImage: "text.badge.plus") { library.addToPlaylist(rows) }
-                    .help("Add every tune here to the playlist")
+                    .help("Add every tune here to My Playlist")
             }
             Text("\(name) has no folder in MUSICIANS. These are the tunes whose header credits them.")
                 .font(.callout)
@@ -481,9 +482,12 @@ private struct CreditedTunes: View {
 /// player walks that list, not the playlist.
 struct LibraryTable: View {
     let rows: [LibraryRow]
-    /// The published playlist the rows are, which the inspector names
-    /// while they play.
-    var playlist: HvscPlaylist? = nil
+    /// Where the rows come from, which "Playing from" names while they
+    /// play.
+    let source: PlaybackSource
+    /// Removes rows from the list shown (one of your playlists).
+    var onRemove: ((Set<LibraryRow.ID>) -> Void)? = nil
+    var removeTitle = "Remove from Playlist"
     /// When each row last played, for a Played column (the history).
     var played: [LibraryRow.ID: String]? = nil
 
@@ -667,7 +671,10 @@ struct LibraryTable: View {
         .contextMenu(forSelectionType: LibraryRow.ID.self) { ids in
             if !ids.isEmpty {
                 Button("Play") { play(ids) }
-                Button("Add to Playlist") { library.addToPlaylist(chosen(ids)) }
+                AddToMenu(files: chosen(ids).map(\.id))
+                if let onRemove {
+                    Button(removeTitle) { onRemove(ids) }
+                }
                 if ids.count == 1, let row = chosen(ids).first, fingerprints.fingerprint(row.id) != nil {
                     Button("Find Similar") { findSimilar(row) }
                 }
@@ -684,9 +691,9 @@ struct LibraryTable: View {
     private func play(_ ids: Set<LibraryRow.ID>) {
         let picked = chosen(ids)
         if picked.count == 1 {
-            library.play(shownRows, startAt: picked[0], from: playlist)
+            library.play(shownRows, startAt: picked[0], from: source)
         } else {
-            library.play(picked)
+            library.play(picked, from: source)
         }
     }
 

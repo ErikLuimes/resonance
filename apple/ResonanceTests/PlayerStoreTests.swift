@@ -128,6 +128,12 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     func hvscSyncStatus() -> HvscSyncStatus? { lock.withLock { _sync } }
     func hvscInfo() async -> HvscInfo? { lock.withLock { _hvscInfo } }
     func syncPublishedPlaylists() async throws -> UInt32 { record("syncPlaylists"); return 0 }
+    func tunesFromFiles(paths: [String]) async -> [HvscTuneItem] { [] }
+    private var _favourites: [String] = []
+    func favoritePaths() async -> [String] { lock.withLock { _favourites } }
+    func setFavorite(path: String, favorite: Bool) async throws {
+        lock.withLock { favorite ? _favourites.insert(path, at: 0) : _favourites.removeAll { $0 == path } }
+    }
     func checkHvscUpdate() async throws -> HvscVersionCheck { record("checkHvscUpdate"); return HvscVersionCheck(latest: 86, installed: 85) }
     func startHvscSync() throws {
         record("syncStart")
@@ -321,8 +327,8 @@ struct PlayerStoreTests {
 
     @Test func playQueueForwardsPathsAndStart() {
         let (store, _) = makeStore()
-        store.playQueue([URL(filePath: "/a.sid"), URL(filePath: "/b.sid")], startAt: URL(filePath: "/b.sid"))
-        store.playQueue([], startAt: URL(filePath: "/a.sid"))
+        store.playQueue([URL(filePath: "/a.sid"), URL(filePath: "/b.sid")], startAt: URL(filePath: "/b.sid"), from: .files)
+        store.playQueue([], startAt: URL(filePath: "/a.sid"), from: .files)
 
         #expect(fake.calls == ["queue [\"/a.sid\", \"/b.sid\"] from /b.sid"])
     }

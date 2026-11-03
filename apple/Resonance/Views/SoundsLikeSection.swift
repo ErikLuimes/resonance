@@ -10,6 +10,13 @@ struct SoundsLikeSection: View {
 
     @Environment(FingerprintStore.self) private var fingerprints
     @Environment(LibraryStore.self) private var library
+    @Environment(PlayerStore.self) private var player
+
+    /// The tune these sound like, for "Playing from Sounds like …".
+    private var seedTitle: String {
+        if let track = player.nowPlaying, track.path == path, !track.title.isEmpty { return track.title }
+        return URL(filePath: path).deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
+    }
 
     var body: some View {
         let fp = fingerprints.fingerprint(path)
@@ -65,7 +72,7 @@ struct SoundsLikeSection: View {
                     }
                 }
                 Button("Play These") {
-                    library.play(similar.map { LibraryRow(item: $0.item) })
+                    library.play(similar.map { LibraryRow(item: $0.item) }, from: .soundsLike(title: seedTitle))
                 }
                 .controlSize(.small)
                 .help("Play these tunes, most alike first")

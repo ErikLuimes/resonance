@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let store: PlayerStore
     let library: LibraryStore
     let fingerprints: FingerprintStore
+    let playlists: PlaylistsStore
     private var nowPlaying: NowPlayingController?
     private var activity: PlaybackActivity?
     private var outputLatency: OutputLatencyMonitor?
@@ -17,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             : .live()
         library = LibraryStore(player: store)
         fingerprints = FingerprintStore(player: store)
+        playlists = PlaylistsStore(player: store)
         super.init()
     }
 
