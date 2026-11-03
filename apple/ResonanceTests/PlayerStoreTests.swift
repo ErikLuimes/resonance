@@ -127,6 +127,7 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
 
     func hvscSyncStatus() -> HvscSyncStatus? { lock.withLock { _sync } }
     func hvscInfo() async -> HvscInfo? { lock.withLock { _hvscInfo } }
+    func syncPublishedPlaylists() async throws -> UInt32 { record("syncPlaylists"); return 0 }
     func checkHvscUpdate() async throws -> HvscVersionCheck { record("checkHvscUpdate"); return HvscVersionCheck(latest: 86, installed: 85) }
     func startHvscSync() throws {
         record("syncStart")

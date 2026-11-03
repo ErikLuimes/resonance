@@ -112,8 +112,10 @@ struct ContentView: View {
         // The HVSC Home's metadata (and the sidebar's release badge): one
         // core walk of the tree per revision change.
         .task(id: store.hvscTreeRevision) { await store.loadHvscInfo() }
-        // Once a launch, like Phosphor: is there a newer HVSC release?
+        // Once a launch, like Phosphor: is there a newer HVSC release, and
+        // are the published playlists current?
         .task { await store.checkHvscUpdate() }
+        .task { await store.syncPublishedPlaylists() }
         // No collection yet: the Home (its empty state) is the welcome pane.
         // A collection seen for the first time (downloaded, put in place by
         // hand, or another folder chosen) opens on its Home once.

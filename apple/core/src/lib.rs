@@ -53,6 +53,9 @@ pub(crate) mod player;
 #[path = "../../../src/playlist.rs"]
 pub(crate) mod playlist;
 #[allow(dead_code, unused, clippy::all)]
+#[path = "../../../src/published_playlists.rs"]
+pub(crate) mod published_playlists;
+#[allow(dead_code, unused, clippy::all)]
 #[path = "../../../src/recently_played.rs"]
 pub(crate) mod recently_played;
 #[allow(dead_code, unused, clippy::all)]

@@ -1196,6 +1196,40 @@ impl PlayerCore {
         Ok(HvscVersionCheck { latest, installed })
     }
 
+    /// Fetch Phosphor's published playlists (its GitHub repo's index and
+    /// the M3U files that are new or changed since the last sync) into the
+    /// cache both apps read, as Phosphor does at every launch. The index is
+    /// written last, so an interrupted sync is redone next time. Returns
+    /// how many playlists were downloaded.
+    pub async fn sync_published_playlists(&self) -> Result<u32, HvscError> {
+        use crate::published_playlists::{cache_dir, Manifest, PublishedPlaylistsClient};
+        let io = |message: String| HvscError::Io { message };
+        let dir = cache_dir().ok_or_else(|| io("No config folder.".to_string()))?;
+        let client = PublishedPlaylistsClient::new();
+        let manifest = client.fetch_index().await.map_err(io)?;
+        let index = dir.join("index.json");
+        let previous: std::collections::HashMap<String, String> = std::fs::read_to_string(&index)
+            .ok()
+            .and_then(|s| serde_json::from_str::<Manifest>(&s).ok())
+            .map(|m| m.playlists.into_iter().map(|p| (p.file, p.sha256)).collect())
+            .unwrap_or_default();
+        let mut downloaded = 0;
+        for entry in &manifest.playlists {
+            let current = dir.join(&entry.file).exists()
+                && previous.get(&entry.file) == Some(&entry.sha256);
+            if !current {
+                client.download_playlist(&entry.file, dir.clone()).await.map_err(io)?;
+                downloaded += 1;
+            }
+        }
+        let json = serde_json::to_string_pretty(&manifest).map_err(|e| io(e.to_string()))?;
+        std::fs::create_dir_all(&dir).map_err(|e| io(e.to_string()))?;
+        std::fs::write(&index, json).map_err(|e| io(e.to_string()))?;
+        // The Home's metadata lists them.
+        *self.hvsc_info_cache.lock().unwrap() = None;
+        Ok(downloaded)
+    }
+
     /// The parsed metadata for the HVSC Home view: the release, the latest
     /// update announcement, the tune and document counts, the disk images
     /// and Phosphor's published playlists. `None` when the current folder

@@ -386,6 +386,15 @@ final class PlayerStore {
         return latestHvsc > installedHvsc
     }
 
+    /// Fetch Phosphor's published playlists into the cache both apps read
+    /// (Phosphor does this at launch; without it, a fresh install has
+    /// none), then re-read the Home's metadata, which lists them.
+    func syncPublishedPlaylists() async {
+        guard (try? await core.syncPublishedPlaylists()) != nil else { return }
+        hvscInfoRevision = nil
+        await loadHvscInfo()
+    }
+
     /// The HVSC Home's metadata: the collection's own DOCUMENTS, parsed by
     /// the core (which caches by tree revision), plus Phosphor's published
     /// playlists. One walk of the tree per revision.
