@@ -201,6 +201,8 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
     func checkHvscUpdate() async throws -> HvscVersionCheck { HvscVersionCheck(latest: 86, installed: 85) }
     func startFingerprintScan() async throws {}
     func retryFailedFingerprints() async throws {}
+    func importFingerprints(path: String) async throws -> UInt32 { 0 }
+    func downloadFingerprints() async throws -> UInt32 { 0 }
     func rebuildFingerprints() async throws {}
     func stopFingerprintScan() {}
     func setFingerprintScanPaused(paused: Bool) {}

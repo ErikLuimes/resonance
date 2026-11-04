@@ -241,10 +241,30 @@ private struct FingerprintSettings: View {
                     Button("Rebuild All…") { confirmingRebuild = true }
                 }
             }
+            LabeledContent("Published set") {
+                HStack {
+                    switch fingerprints.setDownload {
+                    case .downloading:
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Downloading…")
+                            .foregroundStyle(.secondary)
+                    case .added(let count):
+                        Text(count == 0 ? "Nothing new" : "\(count.formatted()) added")
+                            .foregroundStyle(.secondary)
+                    default:
+                        Button("Download") { Task { await fingerprints.downloadSet() } }
+                    }
+                }
+            }
+            if case .failed(let message) = fingerprints.setDownload {
+                Text(message)
+                    .foregroundStyle(.red)
+            }
         } header: {
             Text("Sound Fingerprints")
         } footer: {
-            Text("Resonance plays every tune silently in the background to learn how it sounds, for the Sound column and Sounds Like. It picks up where it left off, and takes a few hours for all of HVSC.")
+            Text("Resonance plays every tune silently in the background to learn how it sounds, for the Sound column and Sounds Like. It picks up where it left off, and takes a few hours for all of HVSC. The published set (about 37 MB) has the fingerprints of all of HVSC already; Resonance downloads it the first time, and the scan fills in the rest.")
         }
         .confirmationDialog("Rebuild all fingerprints?", isPresented: $confirmingRebuild) {
             Button("Rebuild") { Task { await fingerprints.rebuild() } }

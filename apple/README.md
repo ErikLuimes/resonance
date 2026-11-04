@@ -175,6 +175,18 @@ python3 -m http.server 8642 --directory apple/site
 
 ## Notes
 
+- The fingerprint set: so Sounds Like works without hours of scanning,
+  Resonance downloads the published fingerprints the first time it has a
+  mostly unscanned collection (Settings → Collection has a Download button
+  too) and merges them in; the scan fills in the rest. They're keyed by
+  MD5, so one set serves every HVSC release. To publish a new one, after a
+  finished scan:
+  `scripts/fingerprint-set.sh` (writes `build/fingerprints-x<N>.zip`, N the
+  extractor version), then upload it to the GitHub release tagged
+  `fingerprints`, replacing the old file. Bumping `EXTRACTOR_VERSION` means
+  publishing a new set: the app asks for the file of its own version.
+  Check a set end to end with
+  `FINGERPRINT_SET=$PWD/build/fingerprints-x1.zip cargo test -p phosphor-apple published_set -- --ignored`.
 - `Cargo.toml` turns off overflow checks for `resid-rs` in debug builds: its
   resampler overflows an `i32` multiply (`sampler.rs:297`), which release
   builds wrap silently but debug builds turn into a panic on the reSID

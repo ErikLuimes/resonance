@@ -435,3 +435,57 @@ fn composers_are_compared_by_the_average_of_their_tunes() {
     assert_eq!(names, ["MUSICIANS/S/Same", "MUSICIANS/O/Other"]);
     assert!(similar[0].1 > similar[1].1);
 }
+
+#[test]
+fn a_shipped_set_fills_gaps_but_never_replaces_finished_fingerprints() {
+    let dir = temp_dir("import");
+    let fp = scan_tune(&psid(1, 1), 1, 4.0, &|| false).unwrap().unwrap();
+    let seed_path = dir.join("seed.sqlite");
+    {
+        let seed = Store::open(&seed_path).unwrap();
+        for md5 in ["shipped", "failed-here", "done-here"] {
+            seed.mark_scanning(md5, 1).unwrap();
+            seed.save(md5, 1, &fp).unwrap();
+        }
+        seed.mark_scanning("failed-there", 1).unwrap();
+        seed.mark_failed("failed-there", 1, "crashed").unwrap();
+        seed.set_tune("MUSICIANS/A/A/shipped.sid", "shipped", 1, 1).unwrap();
+    }
+    let store = Store::open(&dir.join("mine.sqlite")).unwrap();
+    store.mark_scanning("failed-here", 1).unwrap();
+    store.mark_failed("failed-here", 1, "crashed").unwrap();
+    store.mark_scanning("done-here", 1).unwrap();
+    store.save("done-here", 1, &fp).unwrap();
+
+    let added = store.import(&seed_path).unwrap();
+    assert_eq!(added, 2, "shipped, and failed-here replaced; done-here kept; failed rows not shipped");
+    assert_eq!(store.status("failed-here", 1).unwrap(), Some((Status::Done, 1)));
+    assert_eq!(store.status("failed-there", 1).unwrap(), None);
+    assert!(store.by_path("MUSICIANS/A/A/shipped.sid", None).unwrap().is_some(), "path rows come too");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The published set, end to end (opt-in, it's 36 MB):
+/// `FINGERPRINT_SET=$PWD/build/fingerprints-x1.zip cargo test -p phosphor-apple published_set -- --ignored`
+#[test]
+#[ignore]
+fn imports_the_published_set() {
+    let Ok(zip_path) = std::env::var("FINGERPRINT_SET") else {
+        panic!("set FINGERPRINT_SET to the zip apple/scripts/fingerprint-set.sh made");
+    };
+    let dir = temp_dir("published");
+    let seed = dir.join("seed.sqlite");
+    let mut archive = zip::ZipArchive::new(std::fs::File::open(zip_path).unwrap()).unwrap();
+    let mut entry = archive.by_name("fingerprints.sqlite").unwrap();
+    std::io::copy(&mut entry, &mut std::fs::File::create(&seed).unwrap()).unwrap();
+
+    let store = Store::open(&dir.join("mine.sqlite")).unwrap();
+    let added = store.import(&seed).unwrap();
+    let (done, failed) = store.counts().unwrap();
+    eprintln!("imported {added} fingerprints");
+    assert!(added > 1000);
+    assert_eq!((done as usize, failed), (added, 0));
+    // A second import adds nothing.
+    assert_eq!(store.import(&seed).unwrap(), 0);
+    let _ = std::fs::remove_dir_all(&dir);
+}

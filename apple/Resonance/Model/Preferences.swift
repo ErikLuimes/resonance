@@ -22,6 +22,7 @@ nonisolated enum Pref {
     static let homeShownForRoot = "homeShownForRoot"
     static let homeSeenRelease = "homeSeenRelease"
     static let playlistsRecent = "playlistsRecent"
+    static let fingerprintSetImported = "fingerprintSetImported"
 }
 
 nonisolated extension PlaybackOptions {

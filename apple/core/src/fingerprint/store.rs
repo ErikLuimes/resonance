@@ -245,6 +245,60 @@ impl Store {
         rows.collect()
     }
 
+    /// Merge the finished fingerprints of another store file (the set
+    /// Resonance publishes) into this one: those made by this extractor,
+    /// over rows here that are unfinished, failed or from another
+    /// extractor, never over finished ones. Its path → MD5 rows come too,
+    /// so lookups work before the next scan walks the collection (which
+    /// corrects them for another HVSC release). Returns how many
+    /// fingerprints were added.
+    pub fn import(&self, seed: &Path) -> Result<usize, String> {
+        let err = |e: rusqlite::Error| e.to_string();
+        self.conn
+            .execute("ATTACH DATABASE ?1 AS seed", params![seed.to_string_lossy()])
+            .map_err(err)?;
+        let merged = (|| {
+            let schema: i64 = self
+                .conn
+                .query_row("PRAGMA seed.user_version", [], |r| r.get(0))
+                .map_err(err)?;
+            if schema != SCHEMA {
+                return Err("The fingerprint set is for another version of Resonance.".to_string());
+            }
+            let tx = self.conn.unchecked_transaction().map_err(err)?;
+            tx.execute(
+                "DELETE FROM main.fingerprints
+                 WHERE (status != 1 OR version != ?1)
+                   AND EXISTS (SELECT 1 FROM seed.fingerprints s
+                               WHERE s.md5 = main.fingerprints.md5
+                                 AND s.subtune = main.fingerprints.subtune
+                                 AND s.status = 1 AND s.version = ?1)",
+                params![EXTRACTOR_VERSION],
+            )
+            .map_err(err)?;
+            let columns = format!("md5, subtune, status, attempts, version, error, {FP_COLUMNS}");
+            let added = tx
+                .execute(
+                    &format!(
+                        "INSERT OR IGNORE INTO main.fingerprints ({columns})
+                         SELECT {columns} FROM seed.fingerprints WHERE status = 1 AND version = ?1"
+                    ),
+                    params![EXTRACTOR_VERSION],
+                )
+                .map_err(err)?;
+            tx.execute(
+                "INSERT OR IGNORE INTO main.tunes (path, md5, start_song, songs)
+                 SELECT path, md5, start_song, songs FROM seed.tunes",
+                [],
+            )
+            .map_err(err)?;
+            tx.commit().map_err(err)?;
+            Ok(added)
+        })();
+        let _ = self.conn.execute("DETACH DATABASE seed", []);
+        merged
+    }
+
     /// Forget the subtunes given up on, so the next scan tries them again.
     pub fn forget_failed(&self) -> rusqlite::Result<()> {
         self.conn.execute("DELETE FROM fingerprints WHERE status = 2", [])?;

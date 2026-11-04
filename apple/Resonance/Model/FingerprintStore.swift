@@ -17,6 +17,17 @@ final class FingerprintStore {
     private(set) var status: FingerprintScanStatus?
     /// "Sounds like" for a tune's start song, by path; absent until loaded.
     private(set) var similar: [String: [SimilarTune]] = [:]
+    /// Downloading the published fingerprint set: whether it's under way,
+    /// how many fingerprints it added, or why it failed.
+    private(set) var setDownload = SetDownload.idle
+
+    enum SetDownload: Equatable {
+        case idle
+        case downloading
+        case added(Int)
+        case failed(String)
+    }
+
     /// How long the scan should take to finish, from its rate over the
     /// last couple of minutes; nil while paused or before it has a rate.
     private(set) var remaining: Duration?
@@ -41,6 +52,8 @@ final class FingerprintStore {
     @ObservationIgnored private var scannedRoot: String?
     @ObservationIgnored private var refetchedRevision: UInt64 = 0
     @ObservationIgnored private var refetchedAt = Date.distantPast
+    /// Whether this launch has looked at downloading the published set.
+    @ObservationIgnored private var setChecked = false
     /// Recent (time, subtunes done) readings, for `remaining`.
     @ObservationIgnored private var samples: [(at: Date, done: UInt32)] = []
 
@@ -83,6 +96,15 @@ final class FingerprintStore {
         let s = core.fingerprintScanStatus()
         if s != status { status = s }
         estimate(s)
+        // Once, with a collection that's mostly unscanned: fetch the
+        // published set instead of hours of scanning. Quietly: if it can't
+        // be had, the scan goes on as before.
+        if !setChecked, player.hasCollection, s.total > 0 {
+            setChecked = true
+            if !defaults.bool(forKey: Pref.fingerprintSetImported), s.done * 2 < s.total {
+                Task { await downloadSet(quietly: true) }
+            }
+        }
         // New fingerprints: ask again for the tunes lists are waiting on,
         // at most every few seconds.
         if s.revision != refetchedRevision, !missing.isEmpty, Date.now.timeIntervalSince(refetchedAt) > 4 {
@@ -128,6 +150,27 @@ final class FingerprintStore {
         remaining = nil
         try? await core.rebuildFingerprints()
         status = core.fingerprintScanStatus()
+    }
+
+    /// Download the published fingerprint set and merge it in; the scan
+    /// fills in what it doesn't have. `quietly` (at launch) leaves no error
+    /// behind if it fails.
+    func downloadSet(quietly: Bool = false) async {
+        guard setDownload != .downloading else { return }
+        setDownload = .downloading
+        do {
+            let added = try await core.downloadFingerprints()
+            defaults.set(true, forKey: Pref.fingerprintSetImported)
+            fingerprints = [:]
+            similar = [:]
+            missing = []
+            samples = []
+            remaining = nil
+            status = core.fingerprintScanStatus()
+            setDownload = .added(Int(added))
+        } catch {
+            setDownload = quietly ? .idle : .failed(LibraryStore.message(for: error))
+        }
     }
 
     /// Whether the scan hasn't got everywhere yet.

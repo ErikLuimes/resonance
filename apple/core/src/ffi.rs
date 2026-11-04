@@ -1173,6 +1173,64 @@ impl PlayerCore {
         self.start_fingerprint_scan().await
     }
 
+    /// Merge a fingerprint set (a fingerprints.sqlite, like the one
+    /// Resonance publishes) into this Mac's, then scan what's still
+    /// missing. Returns how many fingerprints were added.
+    pub async fn import_fingerprints(&self, path: String) -> Result<u32, HvscError> {
+        let fps = self.fingerprints.clone();
+        let added = tokio::task::spawn_blocking(move || fps.import(Path::new(&path)))
+            .await
+            .map_err(|e| HvscError::Io { message: e.to_string() })?
+            .map_err(|message| HvscError::Io { message })?;
+        // The fingerprints are in even if there's no collection to scan.
+        let _ = self.start_fingerprint_scan().await;
+        Ok(added as u32)
+    }
+
+    /// Download the published fingerprint set for this extractor (a zip
+    /// holding fingerprints.sqlite, about 37 MB) and merge it in, so Sounds
+    /// Like works without hours of scanning; the scan then fills in the
+    /// rest. Returns how many fingerprints were added.
+    pub async fn download_fingerprints(&self) -> Result<u32, HvscError> {
+        let io = |message: String| HvscError::Io { message };
+        let url = format!(
+            "https://github.com/ErikLuimes/resonance/releases/download/fingerprints/fingerprints-x{}.zip",
+            fingerprint::EXTRACTOR_VERSION
+        );
+        let dir = self
+            .fingerprints
+            .scanner()
+            .db_path()
+            .parent()
+            .map(Path::to_path_buf)
+            .ok_or_else(|| io("No folder for the fingerprints.".to_string()))?;
+        let builder = reqwest::Client::builder().user_agent("Resonance").timeout(Duration::from_secs(300));
+        let client = crate::config::apply_proxy(builder).build().map_err(|e| io(e.to_string()))?;
+        let response = client.get(&url).send().await.map_err(|e| io(format!("Couldn't reach GitHub: {e}")))?;
+        if !response.status().is_success() {
+            return Err(io(format!("The fingerprint set isn't available ({}).", response.status())));
+        }
+        let zip = response.bytes().await.map_err(|e| io(format!("The download stopped: {e}")))?;
+        let seed = dir.join("fingerprints-download.sqlite");
+        let unpacked = seed.clone();
+        tokio::task::spawn_blocking(move || -> Result<(), String> {
+            // The zip checks each file's CRC as it's read.
+            let mut archive = zip::ZipArchive::new(std::io::Cursor::new(zip)).map_err(|e| e.to_string())?;
+            let mut entry = archive.by_name("fingerprints.sqlite").map_err(|e| e.to_string())?;
+            let mut out = std::fs::File::create(&unpacked).map_err(|e| e.to_string())?;
+            std::io::copy(&mut entry, &mut out).map_err(|e| format!("The download is damaged: {e}"))?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| io(e.to_string()))?
+        .map_err(io)?;
+        let added = self.import_fingerprints(seed.to_string_lossy().into_owned()).await;
+        for suffix in ["", "-wal", "-shm", "-journal"] {
+            let _ = std::fs::remove_file(format!("{}{suffix}", seed.display()));
+        }
+        added
+    }
+
     /// Fingerprints for the tunes at `paths` (files in the collection),
     /// in that order: each one's start song, or None where the scan hasn't
     /// reached it.

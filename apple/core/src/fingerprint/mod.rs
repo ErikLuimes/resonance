@@ -14,6 +14,7 @@ use std::time::{Duration, Instant};
 pub(crate) use extract::{tag, Fingerprint, BINS};
 pub(crate) use scan::{ScanTune, Scanner};
 pub(crate) use similar::Index;
+pub(crate) use store::EXTRACTOR_VERSION;
 use store::Store;
 
 /// While a scan runs, "Sounds like" rebuilds its index at most this often.
@@ -53,6 +54,17 @@ impl Fingerprints {
         }
         *self.index.lock().unwrap_or_else(|p| p.into_inner()) = None;
         Ok(())
+    }
+
+    /// Stop the scan and merge the fingerprint set in the store file at
+    /// `seed` (see `Store::import`); the next `start` scans what's still
+    /// missing. Blocking.
+    pub fn import(&self, seed: &std::path::Path) -> Result<usize, String> {
+        self.scanner.cancel();
+        let store = Store::open(self.scanner.db_path()).map_err(|e| e.to_string())?;
+        let added = store.import(seed)?;
+        *self.index.lock().unwrap_or_else(|p| p.into_inner()) = None;
+        Ok(added)
     }
 
     /// Run `f` on the read connection, opening it on first use.

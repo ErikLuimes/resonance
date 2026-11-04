@@ -149,6 +149,8 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
 
     func startFingerprintScan() async throws { record("fingerprintScan") }
     func retryFailedFingerprints() async throws { record("retryFingerprints") }
+    func importFingerprints(path: String) async throws -> UInt32 { record("importFingerprints"); return 0 }
+    func downloadFingerprints() async throws -> UInt32 { record("downloadFingerprints"); return 12 }
     func rebuildFingerprints() async throws { record("rebuildFingerprints") }
     func stopFingerprintScan() {}
     func setFingerprintScanPaused(paused: Bool) {}

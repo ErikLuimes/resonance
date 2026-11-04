@@ -92,6 +92,13 @@ struct FingerprintStoreTests {
         #expect(scores == ["/HVSC/a.sid": 1, "/HVSC/b.sid": 0.5])
     }
 
+    @Test func downloadingTheSetRemembersItAndCounts() async {
+        let store = makeStore()
+        await store.downloadSet()
+        #expect(store.setDownload == .added(12))
+        #expect(fake.calls.contains("downloadFingerprints"))
+    }
+
     @Test func pausingIsRemembered() {
         let store = makeStore()
         #expect(!store.paused)
