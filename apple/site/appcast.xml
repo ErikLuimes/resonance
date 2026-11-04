@@ -1,0 +1,24 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Resonance</title>
+        <item>
+            <title>0.1.0-alpha.2</title>
+            <pubDate>Wed, 04 Nov 2026 15:18:14 +0100</pubDate>
+            <sparkle:version>2</sparkle:version>
+            <sparkle:shortVersionString>0.1.0-alpha.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>27.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[## Automatic updates
+
+Resonance now keeps itself up to date.
+
+- **Check for Updates…** in the Resonance menu looks for a new version right away.
+- Resonance checks once a day by itself. Turn this off, or let it download and install updates when you quit, in Settings → Advanced → Updates.
+- Every update is checked against Resonance's signing key before it's installed. Nothing about your Mac is sent.
+
+This is the last version you need to download by hand.
+]]></description>
+            <enclosure url="https://github.com/ErikLuimes/resonance/releases/download/v0.1.0-alpha.2/Resonance-0.1.0-alpha.2-unsigned.dmg" length="11083523" type="application/octet-stream" sparkle:edSignature="Ap5leHaS5MRrZnXd5egWLkBdtrfOK0y7TN0e1aRuxL2/lLwoiUzQrJK9D7nHnKPHAxGjhoJczic8kqNJDrNFBQ=="/>
+        </item>
+    </channel>
+</rss>
