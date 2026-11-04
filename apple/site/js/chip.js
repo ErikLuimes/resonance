@@ -5,7 +5,7 @@
 // all the scopes draw from. One stand-in tune after another, as composed by
 // tune.js.
 
-import { composeTune } from './tune.js?v=20261104';
+import { composeTune } from './tune.js?v=20261104b';
 
 const FRAME_HZ = 50;
 // How long each stand-in plays before the next one starts.

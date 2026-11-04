@@ -2,9 +2,9 @@
 // scopes, keyboard shortcuts, the latest GitHub release, the app's videos,
 // and scroll effects.
 
-import { VoiceMeter, drawScope, VOICE_COLORS } from './visualizer.js?v=20261104';
-import { noteName, waveName, seedFor } from './tune.js?v=20261104';
-import { SilentChip } from './chip.js?v=20261104';
+import { VoiceMeter, drawScope, VOICE_COLORS } from './visualizer.js?v=20261104b';
+import { noteName, waveName, seedFor } from './tune.js?v=20261104b';
+import { SilentChip } from './chip.js?v=20261104b';
 
 const REPO = 'ErikLuimes/resonance';
 
@@ -179,15 +179,23 @@ function relativeDate(date) {
 async function loadRelease() {
   const status = $('[data-release-status]');
   try {
-    const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
+    // Not releases/latest: that skips pre-releases (an alpha should still be
+    // the download) and can be the "fingerprints" release, whose zip is the
+    // app's fingerprint set. The newest release with a build of the app wins.
+    const res = await fetch(`https://api.github.com/repos/${REPO}/releases?per_page=30`, {
       headers: { Accept: 'application/vnd.github+json' },
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const release = await res.json();
-    const assets = release.assets || [];
-    const asset = [/\.dmg$/i, /\.zip$/i, /\.pkg$/i].map((rx) => assets.find((a) => rx.test(a.name))).find(Boolean);
+    const appAsset = (release) => {
+      const assets = (release.assets || []).filter((a) => !/^fingerprints/i.test(a.name));
+      return [/\.dmg$/i, /\.zip$/i, /\.pkg$/i].map((rx) => assets.find((a) => rx.test(a.name))).find(Boolean);
+    };
+    const release = (await res.json()).find((r) => !r.draft && r.tag_name !== 'fingerprints' && appAsset(r));
+    if (!release) throw new Error('no build yet');
+    const asset = appAsset(release);
     const version = release.tag_name || release.name;
-    const when = release.published_at ? ` · released ${relativeDate(new Date(release.published_at))}` : '';
+    const when = (release.prerelease ? ' · pre-release' : '')
+      + (release.published_at ? ` · released ${relativeDate(new Date(release.published_at))}` : '');
     const size = asset ? ` · ${(asset.size / 1_048_576).toFixed(1)} MB` : '';
     status.innerHTML = `Version <strong>${escapeHtml(version)}</strong>${when}${size} · <a href="${escapeHtml(release.html_url)}">release notes</a>`;
     textOf('[data-release-line]', `Free and open source · ${version}`);
