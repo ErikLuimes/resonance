@@ -21,8 +21,8 @@
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <!-- ?v= changes with each site update, so a browser that cached the last
        one fetches the new files instead of mixing old and new. -->
-  <link rel="stylesheet" href="styles.css?v=20261104g">
-  <link rel="modulepreload" href="js/main.js?v=20261104g">
+  <link rel="stylesheet" href="styles.css?v=20261104h">
+  <link rel="modulepreload" href="js/main.js?v=20261104h">
   <script>
     // Sections fade in as main.js reveals them. If it never runs (a failed
     // or stale script), show everything rather than an empty page.
@@ -67,6 +67,7 @@
     <symbol id="i-rows" viewBox="0 0 24 24"><path d="M8.5 6h12M8.5 12h12M8.5 18h12M4 6h.01M4 12h.01M4 18h.01" /></symbol>
     <symbol id="i-timer" viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4.2l2.8 1.7M9.5 2.8h5"/></symbol>
     <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3.5v11M8 7.5l4-4 4 4M8.5 10.5H7a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-1.5"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2.5"/><path d="M15.5 8.5V7A2.5 2.5 0 0 0 13 4.5H6.5A2.5 2.5 0 0 0 4 7v6.5A2.5 2.5 0 0 0 6.5 16H8.5"/></symbol>
     <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
     <symbol id="i-mute" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M3.5 9.2h3.2L11.4 5v14l-4.7-4.2H3.5z"/><path d="m15 9.5 5 5M20 9.5l-5 5"/></symbol>
@@ -418,6 +419,17 @@
                  alt="The menu bar player: RoboCop by Jonathan Dunn playing, with the next four tunes from HVSC Favorite Top 100">
           </article>
 
+          <article class="tile tile-full tile-split" data-reveal>
+            <div class="tile-text">
+              <div class="tile-icon" style="--c: var(--v2)"><svg class="i"><use href="#i-share"/></svg></div>
+              <h3>Share a tune</h3>
+              <p>Share… makes a short link to any tune in HVSC. Pasted into Messages, Slack or Discord, it shows the tune's card: who made it, when, and its sound fingerprint. A click opens it in Resonance, which finds it in your collection, even an older release, and offers the update if it's missing. No Resonance yet? The link's page has the download.</p>
+              <p><a class="text-link" href="https://useresonance.app/t/bQGey6gxqfhT">See a shared tune</a></p>
+            </div>
+            <img class="tile-shot tile-card" src="media/share-card.jpg" width="800" height="420" loading="lazy"
+                 alt="The preview card of a shared link: Commando by Rob Hubbard, 1985 Elite, with its sound fingerprint as nine coloured bars">
+          </article>
+
           <article class="tile tile-wide" data-reveal>
             <div class="tile-icon" style="--c: var(--v2)"><svg class="i"><use href="#i-link"/></svg></div>
             <h3>Coming from Phosphor?</h3>
@@ -677,6 +689,6 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
     </div>
   </footer>
 
-  <script type="module" src="js/main.js?v=20261104g"></script>
+  <script type="module" src="js/main.js?v=20261104h"></script>
 </body>
 </html>

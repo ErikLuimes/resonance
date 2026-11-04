@@ -127,6 +127,8 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
 - **Milestone 2:** the HVSC library in the sidebar (browse authors and
   sections, fuzzy search per category or across HVSC, Surprise Me) and STIL
   commentary in the inspector.
+- **Sharing:** short links to HVSC tunes with a preview card, served by
+  `share-server/` at useresonance.app (see Sharing tunes below).
 
 USBSID-Pico and Ultimate 64, the DSP pedalboard and the HTTP remote are not
 wired up yet. The core only includes the modules it needs, and the `usb`
@@ -151,7 +153,9 @@ After merging upstream into this fork:
 ## Website
 
 `site/` is Resonance's GitHub Pages site: static HTML, CSS and ES modules,
-no build step. Upstream's Phosphor site stays in `../docs`.
+no build step. Upstream's Phosphor site stays in `../docs`. Shared tune
+links aren't part of it: `share-server/` serves them at useresonance.app,
+whose other addresses redirect here (see Sharing tunes).
 
 Preview it locally (the JavaScript modules need HTTP, not `file://`):
 
@@ -186,6 +190,8 @@ python3 -m http.server 8642 --directory apple/site
   first.
 - The icons in `assets/` are exported from `Resonance/AppIcon.icon` with
   `ictool` (see Notes); `og-card.png` is the 1200×630 social preview.
+  `media/share-card.jpg`, in Features, is a real shared link's card
+  (`https://useresonance.app/card/bQGey6gxqfhT.jpg`).
 
 ## Sharing tunes
 

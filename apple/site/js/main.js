@@ -2,9 +2,9 @@
 // scopes, keyboard shortcuts, the latest GitHub release, the app's videos,
 // and scroll effects.
 
-import { VoiceMeter, drawScope, VOICE_COLORS } from './visualizer.js?v=20261104g';
-import { noteName, waveName, seedFor } from './tune.js?v=20261104g';
-import { SilentChip } from './chip.js?v=20261104g';
+import { VoiceMeter, drawScope, VOICE_COLORS } from './visualizer.js?v=20261104h';
+import { noteName, waveName, seedFor } from './tune.js?v=20261104h';
+import { SilentChip } from './chip.js?v=20261104h';
 
 const REPO = 'ErikLuimes/resonance';
 

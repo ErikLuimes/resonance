@@ -471,7 +471,12 @@ h3 { margin: 0; letter-spacing: -0.02em; }
   gap: 24px 40px;
 }
 .tile-text { display: flex; flex-direction: column; gap: 12px; }
+/* A plain link in running copy: accent text, underlined on hover. */
+.text-link { color: var(--accent); text-decoration: none; font-weight: 500; }
+.text-link:hover { text-decoration: underline; }
 .tile-split .tile-shot { width: 280px; height: auto; }
+/* A shared link's preview card: wide, with a chat bubble's rounding. */
+.tile-split .tile-card { width: 400px; border-radius: 14px; }
 
 .glass-art {
   position: relative;
@@ -901,6 +906,7 @@ html.js [data-reveal].in { opacity: 1; transform: none; }
   .keys { grid-template-columns: minmax(0, 1fr); }
   .tile-split { grid-template-columns: minmax(0, 1fr); }
   .tile-split .tile-shot { justify-self: center; width: min(280px, 100%); }
+  .tile-split .tile-card { width: 100%; }
   .vis-grid { grid-template-columns: minmax(0, 1fr); }
   .tour-tab { min-width: 0; flex: 1 1 40%; }
   /* Too small to cover: the chapter buttons below name the chapter. */
