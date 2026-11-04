@@ -23,6 +23,25 @@
 	<true/>
 	<key>SUEnableSystemProfiling</key>
 	<false/>
+	<!-- Shared tune links: the share server's address (no trailing slash),
+	     from the SHARE_BASE_URL build setting: https://useresonance.app in
+	     Release builds, a share-server running on this Mac in Debug ones.
+	     Empty: no Share buttons. -->
+	<key>ResonanceShareBaseURL</key>
+	<string>$(SHARE_BASE_URL)</string>
+	<!-- resonance://tune/<md5>?s=2&amp;v=85&amp;p=/MUSICIANS/… opens a shared
+	     tune; the share server's page links there. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>nl.luimes.resonance.tune</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>resonance</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

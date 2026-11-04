@@ -144,6 +144,8 @@ struct NowPlayingInspector: View {
             FavouriteButton(path: track.path)
             AddToButton(files: [track.path])
                 .controlSize(.small)
+            ShareButton(path: track.path, subtune: Int(track.currentSong))
+                .controlSize(.small)
         }
     }
 

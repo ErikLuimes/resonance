@@ -125,6 +125,13 @@ struct ContentView: View {
         // The menu bar player's Open Resonance: SwiftUI's action reopens
         // this window after it's been closed, too.
         .onAppear { [openWindow] in MiniPlayer.openMainWindow = { openWindow(id: "main") } }
+        // A shared tune link, opened from the share page.
+        .sheet(item: Binding(get: { store.sharedTune }, set: { store.sharedTune = $0 })) { link in
+            // A new identity per link, so a second link opened while the
+            // sheet shows looks its own tune up.
+            SharedTuneSheet(link: link)
+                .id(link)
+        }
         // Constant on purpose, like the rest of the toolbar (see below).
         .navigationSubtitle("The SID, played and seen")
         // One search field for the whole window, with a fixed prompt. Each

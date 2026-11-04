@@ -38,9 +38,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Finder "Open With", double-clicked .sid files, Dock drops.
+    /// Finder "Open With", double-clicked .sid files, Dock drops, and
+    /// shared tune links (resonance://tune/…, from the share page).
     func application(_ application: NSApplication, open urls: [URL]) {
-        store.add(urls, playFirst: true)
+        let files = urls.filter(\.isFileURL)
+        if !files.isEmpty {
+            store.add(files, playFirst: true)
+        }
+        if let link = urls.last(where: { !$0.isFileURL }), store.openShared(link) {
+            NSApp.activate()
+            MiniPlayer.openMainWindow?()
+        }
     }
 
     /// Closing the window quits, unless the menu bar player is showing:

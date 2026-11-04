@@ -231,6 +231,9 @@ struct MiniPlayerView: View {
                 AddToButton(files: [path], label: "Add to…")
                     .labelStyle(.titleOnly)
                     .buttonStyle(.bordered)
+                ShareButton(path: path, subtune: store.nowPlaying.map { Int($0.currentSong) })
+                    .labelStyle(.titleOnly)
+                    .buttonStyle(.bordered)
             }
             Spacer(minLength: 8)
             Button("Open Resonance", action: openApp)

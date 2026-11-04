@@ -17,6 +17,26 @@ pub(crate) use similar::Index;
 pub(crate) use store::EXTRACTOR_VERSION;
 use store::Store;
 
+/// A subtune's look, as percentages: its nine traits and its waveform mix
+/// (triangle, saw, pulse, noise), what the app's MorphSphere is made of.
+pub(crate) type Look = ([u8; 9], [u8; 4]);
+
+/// The look of every finished subtune in the store file at `path`, by MD5
+/// and subtune: the share server's preview cards draw them.
+pub(crate) fn traits_by_md5(
+    path: &std::path::Path,
+) -> Result<std::collections::HashMap<String, std::collections::BTreeMap<u16, Look>>, String> {
+    let store = Store::open(path).map_err(|e| e.to_string())?;
+    let rows = store.traits_by_md5().map_err(|e| e.to_string())?;
+    let mut traits: std::collections::HashMap<_, std::collections::BTreeMap<_, _>> = Default::default();
+    for (md5, subtune, fp) in rows {
+        let percent = |v: f32| (v.clamp(0.0, 1.0) * 100.0).round() as u8;
+        let look = (fp.traits().map(percent), fp.mix.map(percent));
+        traits.entry(md5).or_default().insert(subtune, look);
+    }
+    Ok(traits)
+}
+
 /// While a scan runs, "Sounds like" rebuilds its index at most this often.
 const INDEX_REFRESH: Duration = Duration::from_secs(60);
 

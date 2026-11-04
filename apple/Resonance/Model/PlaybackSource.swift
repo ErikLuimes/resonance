@@ -22,6 +22,8 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
     case shuffleCollection
     /// Files dropped or opened, outside any list.
     case files
+    /// A tune someone shared a link to.
+    case shared
 
     /// "Rob Hubbard", "Search “commando”".
     var name: String {
@@ -37,6 +39,7 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .surprise: "Surprise Me"
         case .shuffleCollection: "Shuffle Collection"
         case .files: "Files"
+        case .shared: "Shared Link"
         }
     }
 
@@ -60,6 +63,7 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .surprise: "Random tunes from HVSC"
         case .shuffleCollection: "All of HVSC, shuffled"
         case .files: "Added files"
+        case .shared: "Opened from"
         }
     }
 
@@ -75,6 +79,7 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .surprise: "dice"
         case .shuffleCollection: "shuffle"
         case .files: "doc"
+        case .shared: "link"
         }
     }
 

@@ -226,6 +226,17 @@ impl Store {
             .optional()
     }
 
+    /// Every finished subtune's traits by MD5, for the share index.
+    pub fn traits_by_md5(&self) -> rusqlite::Result<Vec<(String, u16, Fingerprint)>> {
+        let mut stmt = self.conn.prepare(&format!(
+            "SELECT md5, subtune, {FP_COLUMNS} FROM fingerprints WHERE status = 1 AND version = ?1"
+        ))?;
+        let rows = stmt.query_map(params![EXTRACTOR_VERSION], |r| {
+            Ok((r.get(0)?, r.get(1)?, read_fingerprint(r, 2)?))
+        })?;
+        rows.collect()
+    }
+
     /// Every scanned subtune's feature vector, with a path that holds it.
     pub fn features(&self) -> rusqlite::Result<Vec<FeatureRow>> {
         let mut stmt = self.conn.prepare(&format!(

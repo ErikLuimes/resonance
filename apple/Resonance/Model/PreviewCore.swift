@@ -201,6 +201,12 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
     func favoritePaths() async -> [String] { [] }
     func setFavorite(path: String, favorite: Bool) async throws {}
     func checkHvscUpdate() async throws -> HvscVersionCheck { HvscVersionCheck(latest: 86, installed: 85) }
+    func shareableTune(path: String) async -> ShareableTune? {
+        ShareableTune(md5: "6d019ecba831a9f853675aac29a61c10", hvscPath: "/MUSICIANS/H/Hubbard_Rob/Commando.sid")
+    }
+    func findSharedTune(md5: String, hvscPath: String?) async -> SharedTuneMatch {
+        SharedTuneMatch(path: "/HVSC/MUSICIANS/H/Hubbard_Rob/Commando.sid", sameFile: true, installedHvsc: 85)
+    }
     func startFingerprintScan() async throws {}
     func retryFailedFingerprints() async throws {}
     func importFingerprints(path: String) async throws -> UInt32 { 0 }

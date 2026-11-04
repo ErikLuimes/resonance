@@ -519,6 +519,7 @@
 				RELEASE_STAGE = alpha.2;
 				PRODUCT_BUNDLE_IDENTIFIER = nl.luimes.resonance;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SHARE_BASE_URL = "http://localhost:8080";
 				SPARKLE_FEED_URL = "";
 				SPARKLE_PUBLIC_ED_KEY = "";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -548,6 +549,7 @@
 				RELEASE_STAGE = alpha.2;
 				PRODUCT_BUNDLE_IDENTIFIER = nl.luimes.resonance;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SHARE_BASE_URL = "https://useresonance.app";
 				SPARKLE_FEED_URL = "https://erikluimes.github.io/resonance/appcast.xml";
 				SPARKLE_PUBLIC_ED_KEY = "LavbQC73WZl/WNmTY+ucX/rsgqo0EocEorAVR5JiyLo=";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;

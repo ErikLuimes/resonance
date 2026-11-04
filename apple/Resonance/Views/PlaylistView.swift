@@ -100,6 +100,9 @@ struct PlaylistView: View {
         .contextMenu(forSelectionType: TrackRow.ID.self) { ids in
             if !ids.isEmpty {
                 Button("Play") { play(ids) }
+                if ids.count == 1, let row = rows(for: ids).first {
+                    ShareMenu(path: row.url.path)
+                }
                 Button("Show in Finder") {
                     NSWorkspace.shared.activateFileViewerSelecting(rows(for: ids).map(\.url))
                 }

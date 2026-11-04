@@ -132,7 +132,11 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     func hvscSyncStatus() -> HvscSyncStatus? { lock.withLock { _sync } }
     func hvscInfo() async -> HvscInfo? { lock.withLock { _hvscInfo } }
     func syncPublishedPlaylists(bundled: String?) async throws -> UInt32 { record("syncPlaylists"); return 0 }
-    func tunesFromFiles(paths: [String]) async -> [HvscTuneItem] { [] }
+    private var _filesTunes: [HvscTuneItem] = []
+    func set(filesTunes: [HvscTuneItem]) { lock.withLock { _filesTunes = filesTunes } }
+    func tunesFromFiles(paths: [String]) async -> [HvscTuneItem] {
+        lock.withLock { _filesTunes.filter { paths.contains($0.path) } }
+    }
     private var _composers: [HvscComposer] = []
     func set(composers: [HvscComposer]) { lock.withLock { _composers = composers } }
     func hvscComposers(category: HvscCategory) async throws -> [HvscComposer] { lock.withLock { _composers } }
@@ -143,6 +147,16 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
         lock.withLock { favorite ? _favourites.insert(path, at: 0) : _favourites.removeAll { $0 == path } }
     }
     func checkHvscUpdate() async throws -> HvscVersionCheck { record("checkHvscUpdate"); return HvscVersionCheck(latest: 86, installed: 85) }
+    /// What `findSharedTune` answers; settable per test.
+    private var _sharedMatch = SharedTuneMatch(path: nil, sameFile: false, installedHvsc: nil)
+    func set(sharedMatch: SharedTuneMatch) { lock.withLock { _sharedMatch = sharedMatch } }
+    func shareableTune(path: String) async -> ShareableTune? {
+        path.hasSuffix(".sid") ? ShareableTune(md5: "6d019ecba831a9f853675aac29a61c10", hvscPath: "/MUSICIANS/H/Hubbard_Rob/Commando.sid") : nil
+    }
+    func findSharedTune(md5: String, hvscPath: String?) async -> SharedTuneMatch {
+        record("findSharedTune \(md5) \(hvscPath ?? "-")")
+        return lock.withLock { _sharedMatch }
+    }
     func startHvscSync() throws {
         record("syncStart")
         if let error = lock.withLock({ _syncStartError }) {

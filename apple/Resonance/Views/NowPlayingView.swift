@@ -208,6 +208,12 @@ struct NowPlayingView: View {
                 .padding(.horizontal, 12)
                 .frame(height: 28)
                 .background(.white.opacity(0.1), in: .capsule)
+            ShareButton(path: track.path, subtune: Int(track.currentSong))
+                .buttonStyle(.plain)
+                .font(.callout.weight(.semibold))
+                .padding(.horizontal, 12)
+                .frame(height: 28)
+                .background(.white.opacity(0.1), in: .capsule)
         }
     }
 

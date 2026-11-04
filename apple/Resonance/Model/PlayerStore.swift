@@ -167,6 +167,10 @@ final class PlayerStore {
         isShowingNowPlaying.toggle()
     }
 
+    /// A shared tune link waiting to be opened: the main window shows it
+    /// in a sheet.
+    var sharedTune: SharedTuneLink?
+
     let core: any PlayerCoreProtocol
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -674,5 +678,63 @@ nonisolated struct QueuedTune: Equatable, Sendable, Identifiable {
         self.init(path: url.path,
                   title: url.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " "),
                   author: "")
+    }
+}
+
+// MARK: Sharing
+
+extension PlayerStore {
+    /// The link to share for the tune at `path` (`subtune` nil: its start
+    /// song), or nil when sharing is off or HVSC doesn't list the tune.
+    func prepareShare(path: String, subtune: Int? = nil) async -> PreparedShare? {
+        guard let base = SharedTuneLink.shareBase,
+              let tune = await core.shareableTune(path: path)
+        else { return nil }
+        let item = await core.tunesFromFiles(paths: [path]).first
+        // The start song needs no `s`: links stay shorter.
+        let start = item.map { Int($0.startSong) }
+        let link = SharedTuneLink(key: tune.md5, subtune: subtune == start ? nil : subtune, hvsc: installedHvsc.map(Int.init))
+        let title = item?.title ?? URL(filePath: path).deletingPathExtension().lastPathComponent
+        return PreparedShare(url: link.webURL(base: base), title: title, author: item?.author ?? "")
+    }
+
+    /// Open a shared link: the main window shows what it found. False when
+    /// the URL isn't a tune link.
+    @discardableResult
+    func openShared(_ url: URL) -> Bool {
+        guard let link = SharedTuneLink(url: url) else { return false }
+        sharedTune = link
+        return true
+    }
+
+    /// Where the shared tune is in this collection, and what to offer.
+    func resolve(_ link: SharedTuneLink) async -> (SharedTuneOutcome, SharedTuneMatch) {
+        let match = await core.findSharedTune(md5: link.key, hvscPath: link.hvscPath)
+        let outcome = SharedTuneOutcome.decide(
+            match: match,
+            hasCollection: hasCollection,
+            senderHvsc: link.hvsc,
+            latestHvsc: latestHvsc.map(Int.init)
+        )
+        return (outcome, match)
+    }
+
+    /// Play a shared tune on its own, at the subtune the link names.
+    func playShared(path: String, subtune: Int?) {
+        let url = URL(filePath: path)
+        playQueue([url], startAt: url, from: .shared)
+        guard let subtune else { return }
+        // The subtune applies to the loaded tune: wait for it to load.
+        Task {
+            for _ in 0..<100 {
+                if nowPlaying?.path == path {
+                    if Int(nowPlaying?.currentSong ?? 0) != subtune {
+                        setSubtune(subtune)
+                    }
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+        }
     }
 }

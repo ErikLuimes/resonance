@@ -16,6 +16,7 @@ use std::time::{Duration, Instant};
 use crossbeam_channel::bounded;
 
 use crate::databases;
+use crate::share::{ShareableTune, SharedTuneMatch};
 use crate::fingerprint::{self, Fingerprints, ScanTune};
 use crate::driver::{Command, Driver, Published, StartConfig};
 use crate::hvsc_browser::{self, HvscAuthor, HvscIndexEntry, HvscTune};
@@ -1374,6 +1375,31 @@ impl PlayerCore {
             })
             .take(want)
             .collect())
+    }
+
+    /// The tune at `path` as something to share (its MD5 and HVSC path),
+    /// or nil when HVSC doesn't list it.
+    pub async fn shareable_tune(&self, path: String) -> Option<ShareableTune> {
+        let db = databases::loaded(&self.databases).await;
+        let root = self.library.root();
+        tokio::task::spawn_blocking(move || crate::share::shareable(root.as_deref(), &db, Path::new(&path)))
+            .await
+            .ok()
+            .flatten()
+    }
+
+    /// Find a shared tune in this collection: by `md5` (Songlengths.md5's
+    /// key, the same file in any release, or the 12-character share code
+    /// web links carry), else by `hvsc_path` ("/MUSICIANS/…"), which the
+    /// app's link carries for older releases.
+    pub async fn find_shared_tune(&self, md5: String, hvsc_path: Option<String>) -> SharedTuneMatch {
+        let db = databases::loaded(&self.databases).await;
+        let root = self.library.root();
+        tokio::task::spawn_blocking(move || {
+            crate::share::find(root.as_deref(), &db, &md5, hvsc_path.as_deref())
+        })
+        .await
+        .unwrap_or(SharedTuneMatch { path: None, same_file: false, installed_hvsc: None })
     }
 
     /// Ask the mirror for its newest HVSC release (the version in the

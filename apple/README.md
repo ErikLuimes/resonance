@@ -187,6 +187,54 @@ python3 -m http.server 8642 --directory apple/site
 - The icons in `assets/` are exported from `Resonance/AppIcon.icon` with
   `ictool` (see Notes); `og-card.png` is the 1200×630 social preview.
 
+## Sharing tunes
+
+Share… (Now Playing, the inspector, the menu bar player) and Share in a tune
+row's context menu make a link to an HVSC tune:
+`https://useresonance.app/t/bQGey6gxqfhT?s=2&v=85`. The code is the tune's
+share code: the first 72 bits of its MD5 (the key Songlengths.md5 uses, so
+the link names the same tune in every release) in base64url, 12
+characters. It's computed, not stored: the server, the core and the app
+each derive it (`short_code` in `share-server/src/tune.rs` and
+`core/src/share.rs`, `SharedTuneLink.shortCode`; their tests share
+examples), and a code two tunes shared would name neither (odds about one
+in 10¹² for 100,000 tunes). A whole MD5 works in its place. `s` (the
+subtune) is left out for the tune's start song, `v` is the sender's HVSC
+release.
+
+- **The share server** (`share-server/`, a small Rust service in Docker)
+  answers those links with a page carrying Open Graph and Twitter tags, so
+  chat apps and social media show a preview card: an 800×420 JPEG per
+  tune, rendered once and kept on disk (title, composer, release, length,
+  the strongest sound traits and the tune's barcode, as list rows draw it:
+  it stays legible when chat apps shrink the card). The page itself shows
+  the fingerprint sphere turning, the same maths as the app's
+  `MorphSphere`, and its Open in Resonance button hands over to the app;
+  Download Resonance goes to the website. GitHub Pages can't do this: crawlers don't run
+  JavaScript, and ~60,000 pre-rendered images won't fit. Deploying it is in
+  `share-server/README.md`.
+- **The tune index** the server reads comes from a collection and a
+  fingerprint store:
+  `cargo run -p phosphor-apple --release --example share_index -- <HVSC folder> <copy of fingerprints.sqlite> > index.json`
+  (16 MB for HVSC 85). Rebuild it for each HVSC release; links to tunes
+  it doesn't know still open in the app, with a generic card.
+- **Opening a link**: the page links to `resonance://tune/<md5>?s=&v=&p=&t=&a=`
+  (`CFBundleURLTypes` in `Config/Resonance-Info.plist`); `p` is the HVSC
+  path, `t`/`a` the title and author. `PlayerCore.find_shared_tune` looks
+  the MD5 up in the collection's Songlengths.md5, then tries the path
+  (`core/src/share.rs`), and the main window's sheet (`SharedTuneSheet`)
+  offers Play / Show in Library, Update to HVSC N, Check for Update or
+  Download HVSC (`SharedTuneOutcome`). Universal links (https links opening
+  the app directly) need the Associated Domains entitlement, so they wait
+  for a Developer ID; the parser already accepts web links to the server.
+- **The server's address** is the `SHARE_BASE_URL` build setting
+  (`ResonanceShareBaseURL` in the Info.plist): `https://useresonance.app`
+  in Release builds, `http://localhost:8080` in Debug ones (run the server
+  locally with
+  `INDEX=index.json cargo run --manifest-path apple/share-server/Cargo.toml`).
+  Empty hides the Share buttons. Links live forever in chats, so keep the
+  domain answering `/t/<code>`, even if the server moves.
+
 ## Notes
 
 - The fingerprint set: so Sounds Like works without hours of scanning,

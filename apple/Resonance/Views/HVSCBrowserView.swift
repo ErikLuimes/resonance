@@ -921,6 +921,9 @@ struct LibraryTable: View {
             if !ids.isEmpty {
                 Button("Play") { play(ids) }
                 AddToMenu(files: chosen(ids).map(\.id))
+                if ids.count == 1, let row = chosen(ids).first {
+                    ShareMenu(path: row.id)
+                }
                 if let onRemove {
                     Button(removeTitle) { onRemove(ids) }
                 }
