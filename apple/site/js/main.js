@@ -2,9 +2,9 @@
 // scopes, keyboard shortcuts, the latest GitHub release, the app's videos,
 // and scroll effects.
 
-import { VoiceMeter, drawScope, VOICE_COLORS } from './visualizer.js';
-import { noteName, waveName, seedFor } from './tune.js';
-import { SilentChip } from './chip.js';
+import { VoiceMeter, drawScope, VOICE_COLORS } from './visualizer.js?v=20261104';
+import { noteName, waveName, seedFor } from './tune.js?v=20261104';
+import { SilentChip } from './chip.js?v=20261104';
 
 const REPO = 'ErikLuimes/resonance';
 
@@ -321,4 +321,7 @@ for (const button of $$('.copy')) {
 }
 
 textOf('[data-year]', String(new Date().getFullYear()));
+
+// Everything is wired up: the page's fallback can stand down.
+window.resonanceReady = true;
 

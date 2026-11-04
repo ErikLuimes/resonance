@@ -161,6 +161,12 @@ python3 -m http.server 8642 --directory apple/site
   `ErikLuimes/resonance` (`REPO` in `js/main.js`), preferring a `.dmg`,
   then `.zip` or `.pkg`. Until there's a public release, they point to the
   build instructions.
+- Scripts and the stylesheet are loaded with a `?v=` version (in
+  `index.html` and the `import`s in `js/`). Bump it with every site change
+  that touches them: GitHub Pages lets browsers cache files for ten
+  minutes, and an old cached `main.js` against a new page can leave it
+  blank. (If `main.js` doesn't run at all, `index.html` shows the content
+  after four seconds anyway.)
 - `.github/workflows/resonance-site.yml` deploys `site/` on pushes to main
   that touch it. Set the repository's Pages source to "GitHub Actions"
   first.

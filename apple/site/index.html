@@ -19,9 +19,16 @@
 
   <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon-64.png">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
-  <link rel="stylesheet" href="styles.css">
-  <link rel="modulepreload" href="js/main.js">
-  <script>document.documentElement.classList.add('js');</script>
+  <!-- ?v= changes with each site update, so a browser that cached the last
+       one fetches the new files instead of mixing old and new. -->
+  <link rel="stylesheet" href="styles.css?v=20261104">
+  <link rel="modulepreload" href="js/main.js?v=20261104">
+  <script>
+    // Sections fade in as main.js reveals them. If it never runs (a failed
+    // or stale script), show everything rather than an empty page.
+    document.documentElement.classList.add('js');
+    setTimeout(() => { if (!window.resonanceReady) document.documentElement.classList.remove('js'); }, 4000);
+  </script>
 </head>
 <body>
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -658,6 +665,6 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
     </div>
   </footer>
 
-  <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/main.js?v=20261104"></script>
 </body>
 </html>

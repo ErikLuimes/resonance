@@ -2,7 +2,7 @@
 // SIDVoice.swift: per-voice levels with fast attack and slow release, and a
 // stylised scope of each voice's waveform.
 
-import { TRI, SAW, PUL, NOI } from './tune.js';
+import { TRI, SAW, PUL, NOI } from './tune.js?v=20261104';
 
 export const VOICE_COLORS = ['#3FD0E8', '#9B6BFF', '#FF9A3C'];
 
