@@ -1,0 +1,49 @@
+name: Bug report
+description: Something in Resonance doesn't work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing Resonance. The more exact the steps, the faster it gets fixed.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a curated playlist
+        2. Drag a tune onto a playlist in the sidebar
+        3. …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Resonance version
+      description: In Resonance → About Resonance, for example "0.1.0-alpha.1".
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      description: In the Apple menu → About This Mac, for example "macOS 27.0".
+    validations:
+      required: true
+  - type: input
+    id: tune
+    attributes:
+      label: Tune
+      description: If it's about one tune, its path in HVSC, for example "MUSICIANS/H/Hubbard_Rob/Commando.sid".
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Screenshots, a screen recording, or a crash report (from Console → Crash Reports) help a lot.

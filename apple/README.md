@@ -198,8 +198,30 @@ python3 -m http.server 8642 --directory apple/site
   --platform macOS --rendition Default --width 512 --height 512 --scale 1`
   (`ictool` is in `Icon Composer.app/Contents/Executables`).
 
+## Releases
+
+`scripts/release.sh` builds one: a Release archive signed with Developer
+ID, notarized and stapled, in `build/release/Resonance-<version>.dmg`
+(the version is the project's `MARKETING_VERSION` and `RELEASE_STAGE`,
+`0.1.0-alpha.1`; About Resonance shows the same; an empty stage is a final
+release). It needs a "Developer
+ID Application" certificate and a notarytool keychain profile (the script
+explains); without the certificate it makes an unsigned image to try the
+build. Publish the `.dmg` on a GitHub release tagged `v<version>` (an alpha
+or beta as a pre-release, `v0.1.0-alpha.1`); the website's Download button
+takes the newest release with a `.dmg`.
+
+Before a release, after changing dependencies: `scripts/acknowledgements.sh`
+rewrites `Resonance/Acknowledgements.txt`, the licences About Resonance
+shows.
+
 ## License
 
 Resonance's own code — everything under `apple/` — is MIT-licensed; see
 [`LICENSE`](LICENSE). The Phosphor engine it compiles from `../src` keeps
 Phosphor's MIT license, in [`../LICENSE`](../LICENSE).
+
+The app as built also includes GPL-licensed SID emulators (reSID through
+resid-rs, SIDLite and libsidplayfp), so builds of Resonance are distributed
+under the GNU GPL, version 3, with the source here. About Resonance →
+Acknowledgements lists every library in the app and its licence.

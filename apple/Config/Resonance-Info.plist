@@ -6,6 +6,10 @@
 -->
 <plist version="1.0">
 <dict>
+	<!-- "alpha.1", "beta.2"; empty for a final release. About shows it
+	     after the version: 0.1.0-alpha.1. -->
+	<key>ResonanceReleaseStage</key>
+	<string>$(RELEASE_STAGE)</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

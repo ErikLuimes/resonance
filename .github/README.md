@@ -194,5 +194,10 @@ Resonance's own code (everything under `apple/`) is released under the
 Phosphor is © 2026 Marcin Spoczynski, also
 [MIT-licensed](https://github.com/ErikLuimes/resonance/blob/main/LICENSE).
 
-SID emulation by reSID and libsidplayfp. Tunes, song lengths and STIL come from the
+SID emulation by reSID (through resid-rs), SIDLite and libsidplayfp, which are
+GPL-licensed: the Resonance app as built and distributed is therefore covered by the
+[GNU GPL, version 3](https://www.gnu.org/licenses/gpl-3.0.html), with its full source
+here. About Resonance → Acknowledgements lists every library in the app.
+
+Tunes, song lengths and STIL come from the
 [High Voltage SID Collection](https://hvsc.c64.org); the music belongs to its composers.

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Phosphor (the engine, and USBSID-Pico or Ultimate 64 hardware)
+    url: https://github.com/sandlbn/Phosphor/issues
+    about: Problems with Phosphor itself, or with hardware Resonance doesn't support, go to Phosphor.
