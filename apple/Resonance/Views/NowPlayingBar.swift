@@ -47,7 +47,7 @@ struct NowPlayingBar: View {
     private var transport: some View {
         HStack(spacing: 10) {
             if width >= 480 {
-                shuffle
+                ShuffleButton()
             }
             HStack(spacing: 6) {
                 Button("Previous", systemImage: "backward.fill") { store.previous() }
@@ -65,7 +65,7 @@ struct NowPlayingBar: View {
             .foregroundStyle(.primary)
             .disabled(store.rows.isEmpty && !store.queueActive)
             if width >= 480 {
-                repeatMode
+                RepeatButton()
             }
         }
         .labelStyle(.iconOnly)
@@ -84,27 +84,6 @@ struct NowPlayingBar: View {
             .symbolEffect(.bounce, value: nowPlayingHovers)
             .onHover { if $0 { nowPlayingHovers += 1 } }
             .help("Show Now Playing")
-    }
-
-    private var shuffle: some View {
-        Button("Shuffle", systemImage: "shuffle") { store.shuffle.toggle() }
-            .foregroundStyle(modeStyle(on: store.shuffle))
-            .accessibilityValue(store.shuffle ? "On" : "Off")
-            .help(store.shuffle ? "Shuffle: On" : "Shuffle: Off")
-    }
-
-    private var repeatMode: some View {
-        Button("Repeat: \(store.repeatMode.displayName)", systemImage: store.repeatMode.symbolName) {
-            store.cycleRepeat()
-        }
-        .foregroundStyle(modeStyle(on: store.repeatMode != .off))
-        .contentTransition(.symbolEffect(.replace))
-        .help("Repeat: \(store.repeatMode.displayName)")
-    }
-
-    /// Both modes read the same way: accent colour when on, dimmed when off.
-    private func modeStyle(on: Bool) -> AnyShapeStyle {
-        on ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary)
     }
 
     private var trackInfo: some View {
@@ -264,6 +243,36 @@ struct NowPlayingBar: View {
 /// Marks Surprise Me's radio, so it's clear why Next plays a random tune.
 /// Just the dice when the bar is narrow. A solid pill: the bar is glass, so
 /// whatever scrolls under it shows through anything lighter.
+/// The transport's shuffle switch, in the bar and the menu bar player.
+/// Both modes read the same way: bright like the other buttons when on
+/// (the accent colour didn't read on the glass), dimmed when off.
+struct ShuffleButton: View {
+    @Environment(PlayerStore.self) private var store
+
+    var body: some View {
+        Button("Shuffle", systemImage: "shuffle") { store.shuffle.toggle() }
+            .foregroundStyle(store.shuffle ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
+            .fontWeight(.semibold)
+            .accessibilityValue(store.shuffle ? "On" : "Off")
+            .help(store.shuffle ? "Shuffle: On" : "Shuffle: Off")
+    }
+}
+
+/// The transport's repeat button (off, all, one), beside the shuffle.
+struct RepeatButton: View {
+    @Environment(PlayerStore.self) private var store
+
+    var body: some View {
+        Button("Repeat: \(store.repeatMode.displayName)", systemImage: store.repeatMode.symbolName) {
+            store.cycleRepeat()
+        }
+        .foregroundStyle(store.repeatMode != .off ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
+        .fontWeight(.semibold)
+        .contentTransition(.symbolEffect(.replace))
+        .help("Repeat: \(store.repeatMode.displayName)")
+    }
+}
+
 private struct SurpriseBadge: View {
     let compact: Bool
 

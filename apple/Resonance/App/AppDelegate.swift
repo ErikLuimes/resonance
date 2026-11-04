@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var nowPlaying: NowPlayingController?
     private var activity: PlaybackActivity?
     private var outputLatency: OutputLatencyMonitor?
+    private var miniPlayer: MiniPlayer?
 
     override init() {
         // Under unit tests the app is only a host: no audio, no saved session.
@@ -26,6 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         store.startPolling()
         guard !Self.isRunningTests else { return }
         TuneDrag.install()
+        miniPlayer = MiniPlayer(store: store, library: library, playlists: playlists)
         fingerprints.startPolling()
         nowPlaying = NowPlayingController(store: store)
         activity = PlaybackActivity(store: store)
@@ -37,6 +39,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Finder "Open With", double-clicked .sid files, Dock drops.
     func application(_ application: NSApplication, open urls: [URL]) {
         store.add(urls, playFirst: true)
+    }
+
+    /// Closing the window quits, unless the menu bar player is showing:
+    /// then the music, and the player, carry on.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        UserDefaults.standard.object(forKey: Pref.menuBarPlayer) as? Bool == false
     }
 
     func applicationWillTerminate(_ notification: Notification) {

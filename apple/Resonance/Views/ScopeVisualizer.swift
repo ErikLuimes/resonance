@@ -56,8 +56,8 @@ struct ScopeVisualizer: View {
     }
 
     /// The samples across `rect`, −1 at the bottom and 1 at the top, at
-    /// most two points per pixel.
-    private static func trace(_ samples: ArraySlice<Float>, in rect: CGRect) -> Path {
+    /// most two points per pixel. The menu bar player draws with it too.
+    static func trace(_ samples: ArraySlice<Float>, in rect: CGRect) -> Path {
         let points = min(samples.count, max(Int(rect.width * 2), 2))
         guard points > 1 else { return Path() }
         let step = Double(samples.count - 1) / Double(points - 1)

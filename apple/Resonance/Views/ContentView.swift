@@ -21,6 +21,7 @@ struct ContentView: View {
     @Environment(PlayerStore.self) private var store
     @Environment(LibraryStore.self) private var library
     @Environment(PlaylistsStore.self) private var playlists
+    @Environment(\.openWindow) private var openWindow
     @State private var sidebarSelection: SidebarItem? = .playlist
     @State private var showInspector = true
     @State private var isDropTargeted = false
@@ -121,6 +122,9 @@ struct ContentView: View {
             }
         }
         .navigationTitle("Resonance")
+        // The menu bar player's Open Resonance: SwiftUI's action reopens
+        // this window after it's been closed, too.
+        .onAppear { [openWindow] in MiniPlayer.openMainWindow = { openWindow(id: "main") } }
         // Constant on purpose, like the rest of the toolbar (see below).
         .navigationSubtitle("The SID, played and seen")
         // One search field for the whole window, with a fixed prompt. Each

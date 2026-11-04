@@ -89,6 +89,9 @@ is played.
   as you type. Drag tunes onto a playlist in the sidebar, or reorder them inside it.
 - **Always know what's playing from.** "Playing from Rob Hubbard", "Playing from Search
   'commando'": every source is named, and one click takes you back to it.
+- **A player in the menu bar.** Click the icon, or press <kbd>⌃</kbd> <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>P</kbd>
+  in any app: the tune and its voices, the heart, the controls, what's next in the list
+  it plays from, Surprise Me and Add to…. Close the window and the music plays on.
 - **A proper Mac app.** Now Playing in Control Center, your keyboard's media keys, a Playback
   menu with shortcuts, and drag and drop for SID files, folders and M3U playlists.
 
@@ -133,6 +136,7 @@ is played.
 | <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>←</kbd> / <kbd>→</kbd> | Previous / next subtune |
 | <kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>R</kbd> | Surprise Me |
 | <kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>F</kbd> | Show or hide Now Playing |
+| <kbd>⌃</kbd> <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>P</kbd> | Menu bar player, from any app |
 | <kbd>⌘</kbd> <kbd>↑</kbd> / <kbd>↓</kbd> | Volume up / down |
 | <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>S</kbd> | Shuffle |
 | <kbd>⌘</kbd> <kbd>O</kbd> | Add files or folders |

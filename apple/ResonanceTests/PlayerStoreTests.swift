@@ -337,6 +337,26 @@ struct PlayerStoreTests {
         #expect(fake.calls == ["play 2", "playPause 4", "remove [1, 3]", "move [0, 1] 3", "repeat all"])
     }
 
+    /// Turning Surprise Me off goes back to the playlist row that played.
+    @Test func endingSurpriseResumesThePlaylist() {
+        let (store, _) = makeStore()
+        var snapshot = FakeCore.stoppedSnapshot
+        snapshot.state = .playing
+        snapshot.currentIndex = 1
+        fake.set(snapshot: snapshot, items: [item("a"), item("b"), item("c")])
+        store.refresh()
+        store.noteBeforeSurprise()
+
+        snapshot.currentIndex = nil
+        snapshot.queueActive = true
+        snapshot.surpriseActive = true
+        fake.set(snapshot: snapshot)
+        store.refresh()
+        store.endSurprise()
+
+        #expect(fake.calls.last == "play 1")
+    }
+
     @Test func playQueueForwardsPathsAndStart() {
         let (store, _) = makeStore()
         store.playQueue([URL(filePath: "/a.sid"), URL(filePath: "/b.sid")], startAt: URL(filePath: "/b.sid"), from: .files)

@@ -28,6 +28,18 @@ final class PlayerStore {
     /// Where the playing temporary list came from (whatever started it
     /// says); nil while none plays.
     private(set) var queueSource: PlaybackSource?
+    /// That list's tunes in order, for the menu bar player's Up Next; kept
+    /// after it ends (check `queueActive`).
+    private(set) var queue: [QueuedTune] = []
+    /// What played before Surprise Me took over, which `endSurprise()`
+    /// goes back to.
+    @ObservationIgnored private var beforeSurprise: Resume?
+
+    /// A list to go back to, at the tune that was playing.
+    private enum Resume {
+        case playlist(index: Int)
+        case queue([QueuedTune], source: PlaybackSource, at: String)
+    }
     private(set) var nowPlaying: TrackDetails?
     private(set) var elapsed: TimeInterval = 0
     private(set) var duration: TimeInterval?
@@ -282,10 +294,50 @@ final class PlayerStore {
     /// Play `urls` as a temporary list from `start`, leaving the playlist
     /// alone; Next and Previous stay inside the list. `source` is where
     /// the list comes from, which "Playing from" names.
-    func playQueue(_ urls: [URL], startAt start: URL, from source: PlaybackSource) {
+    /// `tunes` names them for Up Next; without, their file names do.
+    func playQueue(_ urls: [URL], startAt start: URL, from source: PlaybackSource, tunes: [QueuedTune]? = nil) {
         guard !urls.isEmpty else { return }
         core.playQueue(paths: urls.map(\.path), start: start.path)
         update(\.queueSource, source)
+        queue = tunes ?? urls.map(QueuedTune.init)
+    }
+
+    /// Note what's playing, for `endSurprise()`, as Surprise Me starts.
+    /// Not while it runs already: the list to go back to is the one
+    /// before it.
+    func noteBeforeSurprise() {
+        guard !surpriseActive else { return }
+        if queueActive, !shuffleCollectionActive, let source = queueSource, let path = nowPlaying?.path {
+            beforeSurprise = .queue(queue, source: source, at: path)
+        } else if !queueActive, let index = currentIndex {
+            beforeSurprise = .playlist(index: index)
+        } else {
+            beforeSurprise = nil
+        }
+    }
+
+    /// The list `endSurprise()` goes back to; nil when there's none.
+    var beforeSurpriseSource: PlaybackSource? {
+        switch beforeSurprise {
+        case .playlist: .myPlaylist
+        case .queue(_, let source, _): source
+        case nil: nil
+        }
+    }
+
+    /// Turn Surprise Me off: back to the list that played before it, at
+    /// the tune it left; with none, just pause.
+    func endSurprise() {
+        guard surpriseActive else { return }
+        switch beforeSurprise {
+        case .playlist(let index) where index < rows.count:
+            play(index: index)
+        case .queue(let tunes, let source, let path) where !tunes.isEmpty:
+            playQueue(tunes.map { URL(filePath: $0.path) }, startAt: URL(filePath: path), from: source, tunes: tunes)
+        default:
+            if isPlaying { playPause() }
+        }
+        beforeSurprise = nil
     }
 
     /// Where what's playing comes from; nil when nothing does.
@@ -597,5 +649,27 @@ extension PhosphorCore.HvscSyncStatus {
         if filesTotal > 0 { return Double(filesDone) / Double(filesTotal) }
         if bytesTotal > 0 { return Double(bytesDone) / Double(bytesTotal) }
         return nil
+    }
+}
+
+/// A tune in a temporary list, as Up Next names it.
+nonisolated struct QueuedTune: Equatable, Sendable, Identifiable {
+    let path: String
+    let title: String
+    let author: String
+
+    var id: String { path }
+
+    init(path: String, title: String, author: String) {
+        self.path = path
+        self.title = title
+        self.author = author
+    }
+
+    /// Named by its file: "Last_Ninja_2.sid" is "Last Ninja 2".
+    init(_ url: URL) {
+        self.init(path: url.path,
+                  title: url.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " "),
+                  author: "")
     }
 }

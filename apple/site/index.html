@@ -21,8 +21,8 @@
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <!-- ?v= changes with each site update, so a browser that cached the last
        one fetches the new files instead of mixing old and new. -->
-  <link rel="stylesheet" href="styles.css?v=20261104b">
-  <link rel="modulepreload" href="js/main.js?v=20261104b">
+  <link rel="stylesheet" href="styles.css?v=20261104f">
+  <link rel="modulepreload" href="js/main.js?v=20261104f">
   <script>
     // Sections fade in as main.js reveals them. If it never runs (a failed
     // or stale script), show everything rather than an empty page.
@@ -408,6 +408,16 @@
             <p>The Songlengths database moves on at the right moment; unknown tunes get your default length. Step through subtunes with <kbd>⌥</kbd><kbd>⌘</kbd><kbd>←</kbd> <kbd>→</kbd>.</p>
           </article>
 
+          <article class="tile tile-full tile-split" data-reveal>
+            <div class="tile-text">
+              <div class="tile-icon" style="--c: var(--v1)"><svg class="i"><use href="#i-play"/></svg></div>
+              <h3>A player in the menu bar</h3>
+              <p>Click the icon, or press <kbd>⌃</kbd><kbd>⌥</kbd><kbd>⌘</kbd><kbd>P</kbd> in any app: the tune and its voices, the heart, the controls, what's next in the list it plays from, Surprise Me and Add to…. Close the window and the music plays on.</p>
+            </div>
+            <img class="tile-shot" src="media/mini-player.png" width="386" height="399" loading="lazy"
+                 alt="The menu bar player: RoboCop by Jonathan Dunn playing, with the next four tunes from HVSC Favorite Top 100">
+          </article>
+
           <article class="tile tile-wide" data-reveal>
             <div class="tile-icon" style="--c: var(--v2)"><svg class="i"><use href="#i-link"/></svg></div>
             <h3>Coming from Phosphor?</h3>
@@ -465,6 +475,7 @@
           <div class="key-row" data-shortcut="subtune"><span class="caps"><kbd>⌥</kbd><kbd>⌘</kbd><kbd>←</kbd><kbd>→</kbd></span><span>Previous / Next subtune</span></div>
           <div class="key-row" data-shortcut="surprise"><span class="caps"><kbd>⇧</kbd><kbd>⌘</kbd><kbd>R</kbd></span><span>Surprise Me</span></div>
           <div class="key-row" data-shortcut="nowplaying"><span class="caps"><kbd>⇧</kbd><kbd>⌘</kbd><kbd>F</kbd></span><span>Now Playing</span></div>
+          <div class="key-row" data-shortcut="miniplayer"><span class="caps"><kbd>⌃</kbd><kbd>⌥</kbd><kbd>⌘</kbd><kbd>P</kbd></span><span>Menu bar player <small>from any app</small></span></div>
           <div class="key-row" data-shortcut="volume"><span class="caps"><kbd>⌘</kbd><kbd>↑</kbd><kbd>↓</kbd></span><span>Volume up / down</span></div>
           <div class="key-row" data-shortcut="shuffle"><span class="caps"><kbd>⌥</kbd><kbd>⌘</kbd><kbd>S</kbd></span><span>Shuffle</span></div>
           <div class="key-row" data-shortcut="add"><span class="caps"><kbd>⌘</kbd><kbd>O</kbd></span><span>Add files or folders</span></div>
@@ -666,6 +677,6 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
     </div>
   </footer>
 
-  <script type="module" src="js/main.js?v=20261104b"></script>
+  <script type="module" src="js/main.js?v=20261104f"></script>
 </body>
 </html>

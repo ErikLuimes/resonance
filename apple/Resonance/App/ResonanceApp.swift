@@ -20,6 +20,7 @@ struct ResonanceApp: App {
         .windowResizability(.contentMinSize)
         .commands {
             AboutCommands()
+            MiniPlayerCommands()
             HelpCommands()
             PlaybackCommands(store: appDelegate.store, library: appDelegate.library)
             #if DEBUG
@@ -75,3 +76,33 @@ struct ResonanceApp: App {
         #endif
     }
 }
+
+/// The menu bar player's icon (Assets: MenuBarIcon), and the same with a
+/// slash through it, the bars cut back around the slash as in SF Symbols'
+/// slashed symbols. Drawn here: the asset compiler drops SVG clipping.
+enum MenuBarIcon {
+    static let playing: NSImage = NSImage(resource: .menuBarIcon)
+
+    static let notPlaying: NSImage = {
+        let size = playing.size
+        let image = NSImage(size: size, flipped: true) { rect in
+            playing.draw(in: rect)
+            guard let gc = NSGraphicsContext.current?.cgContext else { return true }
+            let from = CGPoint(x: rect.width * 0.06, y: rect.height * 0.06)
+            let to = CGPoint(x: rect.width * 0.94, y: rect.height * 0.94)
+            gc.setLineCap(.round)
+            // The gap: clear a wide band, then draw the slash in it.
+            gc.setBlendMode(.clear)
+            gc.setLineWidth(3.6)
+            gc.strokeLineSegments(between: [from, to])
+            gc.setBlendMode(.normal)
+            gc.setStrokeColor(NSColor.black.cgColor)
+            gc.setLineWidth(1.4)
+            gc.strokeLineSegments(between: [from, to])
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }()
+}
+

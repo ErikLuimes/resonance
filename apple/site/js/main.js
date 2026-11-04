@@ -2,9 +2,9 @@
 // scopes, keyboard shortcuts, the latest GitHub release, the app's videos,
 // and scroll effects.
 
-import { VoiceMeter, drawScope, VOICE_COLORS } from './visualizer.js?v=20261104b';
-import { noteName, waveName, seedFor } from './tune.js?v=20261104b';
-import { SilentChip } from './chip.js?v=20261104b';
+import { VoiceMeter, drawScope, VOICE_COLORS } from './visualizer.js?v=20261104f';
+import { noteName, waveName, seedFor } from './tune.js?v=20261104f';
+import { SilentChip } from './chip.js?v=20261104f';
 
 const REPO = 'ErikLuimes/resonance';
 
@@ -136,6 +136,7 @@ function shortcutFor(e) {
   const cmd = e.metaKey || e.ctrlKey;
   const { key, code, altKey: alt, shiftKey: shift } = e;
   const arrowH = key === 'ArrowLeft' || key === 'ArrowRight';
+  if (e.ctrlKey && e.metaKey && alt && code === 'KeyP') return 'miniplayer';
   if (code === 'Space' && !cmd && !alt) return 'play';
   if (cmd && !alt && key === '.') return 'stop';
   if (cmd && alt && arrowH) return 'subtune';

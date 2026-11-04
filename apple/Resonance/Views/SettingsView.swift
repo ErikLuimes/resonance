@@ -11,7 +11,10 @@ struct SettingsView: View {
                 SettingsPane { PlaybackSettings() }
             }
             Tab("Appearance", systemImage: "paintpalette", value: .appearance) {
-                SettingsPane { ThemeSettings() }
+                SettingsPane {
+                    MenuBarSettings()
+                    ThemeSettings()
+                }
             }
             Tab("Collection", systemImage: "folder", value: .collection) {
                 SettingsPane { CollectionSettings() }
@@ -514,6 +517,18 @@ nonisolated enum DiskUsage {
 
 /// The visualizers' colour theme: a preset or your own colours, and whether
 /// its badge shows.
+private struct MenuBarSettings: View {
+    @AppStorage(Pref.menuBarPlayer) private var showsMenuBarPlayer = true
+
+    var body: some View {
+        Section {
+            Toggle("Show the player in the menu bar", isOn: $showsMenuBarPlayer)
+        } footer: {
+            Text("What's playing, the controls, Favourite, Shuffle, Surprise Me and what plays next, from the menu bar, with the window closed too.")
+        }
+    }
+}
+
 private struct ThemeSettings: View {
     @Environment(\.voiceTheme) private var theme
     @AppStorage(Pref.theme) private var themeID = VoiceTheme.resonance.id

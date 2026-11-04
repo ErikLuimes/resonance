@@ -221,7 +221,8 @@ final class LibraryStore {
     /// `source` is where the rows come from, which "Playing from" names.
     func play(_ rows: [LibraryRow], startAt start: LibraryRow? = nil, from source: PlaybackSource) {
         guard let first = rows.first else { return }
-        player.playQueue(rows.map(\.url), startAt: (start ?? first).url, from: source)
+        player.playQueue(rows.map(\.url), startAt: (start ?? first).url, from: source,
+                         tunes: rows.map { QueuedTune(path: $0.id, title: $0.title, author: $0.author) })
     }
 
     func addToPlaylist(_ rows: [LibraryRow]) {
@@ -236,6 +237,7 @@ final class LibraryStore {
     /// Random tunes from all of HVSC until something else plays: Next picks
     /// another, Previous goes back (the core runs it).
     func surpriseMe() async {
+        player.noteBeforeSurprise()
         surprises += 1
         await core.surpriseMe()
     }
