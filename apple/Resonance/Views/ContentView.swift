@@ -29,6 +29,11 @@ struct ContentView: View {
     @AppStorage(Pref.homeShownForRoot) private var homeShownForRoot = ""
     /// Each sidebar section keeps its own search text.
     @State private var searches: [SidebarItem: String] = [:]
+    /// Now Playing is in the window: while it shows, and while it slides away.
+    @State private var isNowPlayingMounted = false
+    @State private var isNowPlayingLeaving = false
+
+    private static let nowPlayingSlide = Animation.spring(response: 0.45, dampingFraction: 0.85)
 
     var body: some View {
         // Now Playing slides up over the library: a sibling of it in a
@@ -40,18 +45,41 @@ struct ContentView: View {
         // crashed the window, see searchable below.)
         ZStack(alignment: .bottom) {
             libraryMode
-            if store.isShowingNowPlaying {
-                // Paused as soon as it starts sliding away: its running
-                // animation clock otherwise kept SwiftUI from ever finishing
-                // the removal, and the view stayed parked below the window.
+            if isNowPlayingMounted {
+                // Paused as soon as it starts sliding away. The slide-out is
+                // an offset rather than a removal transition: SwiftUI never
+                // finished that one, and the view stayed parked below the
+                // window, redrawing its visualizer on every resize. Once the
+                // offset lands, it's removed outright.
+                let leaving = isNowPlayingLeaving
                 NowPlayingView(isShowing: store.isShowingNowPlaying)
                     .ignoresSafeArea()
-                    .transition(.asymmetric(insertion: .move(edge: .bottom), removal: .move(edge: .bottom)))
+                    .visualEffect { content, proxy in
+                        content.offset(y: leaving ? proxy.size.height : 0)
+                    }
+                    .transition(.asymmetric(insertion: .move(edge: .bottom), removal: .identity))
                     .zIndex(2)
             }
         }
+        .onChange(of: store.isShowingNowPlaying) { _, showing in
+            if showing {
+                withAnimation(Self.nowPlayingSlide) {
+                    isNowPlayingMounted = true
+                    isNowPlayingLeaving = false
+                }
+            } else {
+                withAnimation(Self.nowPlayingSlide) {
+                    isNowPlayingLeaving = true
+                } completion: {
+                    // Unless it was opened again meanwhile.
+                    guard !store.isShowingNowPlaying else { return }
+                    isNowPlayingMounted = false
+                    isNowPlayingLeaving = false
+                }
+            }
+        }
         .toolbarVisibility(store.isShowingNowPlaying ? .hidden : .visible, for: .windowToolbar)
-        .animation(.spring(response: 0.45, dampingFraction: 0.85), value: store.isShowingNowPlaying)
+        .animation(Self.nowPlayingSlide, value: store.isShowingNowPlaying)
         // A constant for the window, not a minimum inside the split view,
         // which made AppKit re-run layout until it aborted (see
         // NowPlayingBar). Only the inspector button changes it.
