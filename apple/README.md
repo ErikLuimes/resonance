@@ -262,17 +262,34 @@ Once, before the first release with updates:
 Each release:
 
 1. Raise `CURRENT_PROJECT_VERSION` (the build number: Sparkle compares
-   it) and, as usual, `MARKETING_VERSION` / `RELEASE_STAGE`.
-2. Optionally write `release-notes/<version>.md`; the update dialog shows
-   it.
+   it, and it must go up every release) and `RELEASE_STAGE` (`alpha.2` →
+   `alpha.3`), or `MARKETING_VERSION` for a new version.
+2. Write `release-notes/<version>.md` (`release-notes/0.1.0-alpha.3.md`):
+   a few lines of Markdown on what's new. The update dialog shows it to
+   everyone being offered the update, so don't skip it.
 3. Run `scripts/release.sh`. Besides the `.dmg`, it signs the image with
-   the keychain's key and adds it to `site/appcast.xml`, linking to
-   `https://github.com/ErikLuimes/resonance/releases/download/v<version>/`.
+   the keychain's key and adds it, with the release notes, to
+   `site/appcast.xml`, linking to
+   `https://github.com/ErikLuimes/resonance/releases/download/v<version>/<name>.dmg`.
    It stops early if the key is missing or doesn't match the build
    setting, or if the build number isn't higher than the feed's newest.
-4. Publish the GitHub release with the `.dmg`, under that tag and name.
-5. Then commit and push `site/appcast.xml`: the website deploys it and
-   apps find the update within a day.
+4. Commit and push the version change and the release notes, but **not
+   `site/appcast.xml` yet**.
+5. On GitHub, draft a release tagged `v<version>` (`v0.1.0-alpha.3`) on
+   that commit, a pre-release for an alpha or beta. Attach the `.dmg`
+   from `build/release/` without renaming it (the feed links to that
+   exact name and size), and publish.
+6. Then commit and push `site/appcast.xml`. The website deploys it and
+   copies of Resonance find the update within a day, or at once with
+   Check for Updates….
+7. Check: https://erikluimes.github.io/resonance/appcast.xml lists the new
+   version, and Check for Updates… in the previous release offers it.
+
+Why this order: the tag marks the source of the release, so it goes on
+the commit with the version change. The `.dmg` isn't in git at all; it's
+a file attached to the GitHub release. And the feed is the announcement:
+pushing it tells every installed copy to download the `.dmg`, so the
+release has to be published first, or they get a failed download.
 
 The variables at the top of `release.sh` point a build at a local feed
 and a test key, to try an update end to end without touching the real
