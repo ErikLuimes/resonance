@@ -45,7 +45,8 @@ final class PlaylistsStore {
     /// Where the M3U files are.
     let folder: URL
     @ObservationIgnored private let defaults: UserDefaults
-    @ObservationIgnored private var favouriteSet = Set<String>()
+    /// Observed: the hearts read it, and must fill the moment it changes.
+    private var favouriteSet = Set<String>()
 
     static let favouritesID = ""
 

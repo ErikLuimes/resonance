@@ -175,6 +175,7 @@ struct ContentView: View {
                 SidebarLabel("Favourites", systemImage: "heart", playing: playing(.favourites),
                              count: playlists.favourites?.count)
                     .modifier(PlaylistDrop(target: .favourites))
+                    .background(SidebarDropHighlightOff())
                     .tag(SidebarItem.favourites)
                 SidebarLabel("My Playlist", systemImage: "music.note.list", playing: playing(.playlist),
                              count: store.rows.count)
@@ -622,7 +623,11 @@ private struct UserPlaylistRow: View {
 }
 
 /// Tunes dragged from a list onto a sidebar playlist (or Favourites, or My
-/// Playlist) are added to it; the row is outlined while they hover.
+/// Playlist) are added to it, under the system's drop highlight. Holding ⌘
+/// as they drop moves them instead, from one of your playlists to another,
+/// as ⌘ moves in Finder; from any other list, and into Favourites or My
+/// Playlist, they're always added. (A sidebar row only takes drops through
+/// dropDestination, so the cursor's + can't change to show a move.)
 private struct PlaylistDrop: ViewModifier {
     let target: AddTarget
 
@@ -630,21 +635,44 @@ private struct PlaylistDrop: ViewModifier {
     @State private var targeted = false
 
     func body(content: Content) -> some View {
-        content
-            .dropDestination(for: PlaylistRowDrag.self) { drags, _ in
-                let files = drags.flatMap(\.paths)
-                guard !files.isEmpty else { return false }
-                Task { await playlists.add(files, to: target) }
-                return true
-            } isTargeted: { targeted = $0 }
-            .overlay {
-                if targeted {
-                    RoundedRectangle(cornerRadius: 6)
-                        .strokeBorder(.tint, lineWidth: 2)
-                        .padding(.horizontal, -6)
-                        .padding(.vertical, -3)
-                        .allowsHitTesting(false)
+        Group {
+            if targeted {
+                content.foregroundStyle(.white)
+            } else {
+                content
+            }
+        }
+        // The whole row is the target, so the highlight shows wherever
+        // the tunes hover: over the label alone, the row's own drop
+        // highlight showed in the gaps beside it, and in the margin
+        // above and below the drop still landed but nothing lit up.
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // Lit like a selected row: the outline view's own highlight is
+        // off (SidebarDropHighlightOff), as it lit only part of a row.
+        .background {
+            if targeted {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.tint)
+                    .padding(.horizontal, -8)
+                    .padding(.vertical, -3)
+            }
+        }
+        .contentShape(.rect.inset(by: -6))
+        .dropDestination(for: PlaylistRowDrag.self) { drags, _ in
+            let files = drags.flatMap(\.paths)
+            guard !files.isEmpty else { return false }
+            if case .playlist(let id) = target, drags.allSatisfy({ $0.from == id }) { return false }
+            let moving = NSEvent.modifierFlags.contains(.command)
+            Task {
+                await playlists.add(files, to: target)
+                guard moving, case .playlist(let id) = target else { return }
+                for drag in drags {
+                    if let from = drag.from, from != id, let source = playlists.playlist(from) {
+                        playlists.remove(Set(drag.paths), from: source)
+                    }
                 }
             }
+            return true
+        } isTargeted: { targeted = $0 }
     }
 }

@@ -866,11 +866,6 @@ struct LibraryTable: View {
             TableColumn("Title", value: \.title) { row in
                 TuneTitleCell(library: library, path: row.id, title: row.title, author: row.author,
                               isCurrent: isCurrent(row), mayHaveStil: row.item.hasStil)
-                    // A row has no drag image of its own: the title shows
-                    // what's being dragged, the selection when it's in it.
-                    .draggable(PlaylistRowDrag(paths: dragged(row).map(\.id))) {
-                        TuneDragPreview(rows: dragged(row))
-                    }
             }
             .width(min: 160, ideal: 320)
             .customizationID("title")
@@ -910,7 +905,7 @@ struct LibraryTable: View {
             if let onPlace, isInOwnOrder {
                 ForEach(shownRows) { row in
                     TableRow(row)
-                        .draggable(PlaylistRowDrag(path: row.id))
+                        .draggable(TuneDrag.payload(path: row.id, title: row.title, author: row.author, from: ownPlaylist))
                 }
                 .dropDestination(for: PlaylistRowDrag.self) { offset, drags in
                     onPlace(drags.flatMap(\.paths), offset)
@@ -918,7 +913,7 @@ struct LibraryTable: View {
             } else {
                 ForEach(shownRows) { row in
                     TableRow(row)
-                        .draggable(PlaylistRowDrag(path: row.id))
+                        .draggable(TuneDrag.payload(path: row.id, title: row.title, author: row.author, from: ownPlaylist))
                 }
             }
         }
@@ -978,37 +973,14 @@ struct LibraryTable: View {
         row.id == player.nowPlaying?.path
     }
 
-    /// What dragging `row` drags: the selection when it's part of it.
-    private func dragged(_ row: LibraryRow) -> [LibraryRow] {
-        selection.contains(row.id) ? chosen(selection) : [row]
+    /// Your playlist the rows are in, which tunes can be moved out of.
+    private var ownPlaylist: String? {
+        if case .playlist(let id, _) = source { id } else { nil }
     }
 
     /// Selected rows, in the order shown.
     private func chosen(_ ids: Set<LibraryRow.ID>) -> [LibraryRow] {
         shownRows.filter { ids.contains($0.id) }
-    }
-}
-
-/// The drag image for tunes: the title (and composer) of one, or how many.
-private struct TuneDragPreview: View {
-    let rows: [LibraryRow]
-
-    var body: some View {
-        Label {
-            if rows.count == 1, let row = rows.first {
-                Text(row.title).fontWeight(.semibold) + Text("  \(row.author)").foregroundStyle(.secondary)
-            } else {
-                Text("\(rows.count) tunes").fontWeight(.semibold)
-            }
-        } icon: {
-            Image(systemName: rows.count == 1 ? "music.note" : "music.note.list")
-                .foregroundStyle(.tint)
-        }
-        .lineLimit(1)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
-        .background(.regularMaterial, in: .capsule)
-        .frame(maxWidth: 320)
     }
 }
 

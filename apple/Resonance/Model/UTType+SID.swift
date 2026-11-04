@@ -17,9 +17,19 @@ nonisolated extension UTType {
 nonisolated struct PlaylistRowDrag: Codable, Transferable {
     /// The tunes' files: one row, or a whole selection dragged as one.
     let paths: [String]
+    /// The id of your playlist they're dragged from, which ⌘ can move them
+    /// out of; nil from any other list.
+    var from: String? = nil
 
-    init(path: String) { paths = [path] }
-    init(paths: [String]) { self.paths = paths }
+    init(path: String, from: String? = nil) {
+        paths = [path]
+        self.from = from
+    }
+
+    init(paths: [String], from: String? = nil) {
+        self.paths = paths
+        self.from = from
+    }
 
     static var transferRepresentation: some TransferRepresentation {
         CodableRepresentation(contentType: .playlistRow)

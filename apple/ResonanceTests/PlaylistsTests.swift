@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import Synchronization
 import PhosphorCore
 @testable import Resonance
 
@@ -73,6 +74,19 @@ struct PlaylistsStoreTests {
         #expect(store.isFavourite("/a.sid"))
         await store.setFavourite("/a.sid", false)
         #expect(!store.isFavourite("/a.sid"))
+    }
+
+    /// A heart reading isFavourite redraws when the tune is hearted.
+    @Test func heartingNotifiesWhoeverAsked() async {
+        let store = makeStore()
+        let changed = Mutex(false)
+        withObservationTracking {
+            _ = store.isFavourite("/a.sid")
+        } onChange: {
+            changed.withLock { $0 = true }
+        }
+        await store.setFavourite("/a.sid", true)
+        #expect(changed.withLock { $0 })
     }
 }
 

@@ -17,7 +17,17 @@ struct CuratedPlaylistView: View {
             Divider()
             content
         }
-        .task(id: playlist.file) { await library.loadPlaylist(playlist) }
+        // Again whenever the tunes are gone: the library drops its caches
+        // when the collection changes, which would otherwise leave this
+        // loading for good.
+        .task(id: TaskKey(file: playlist.file, loaded: library.playlistTunes[playlist.file] != nil)) {
+            await library.loadPlaylist(playlist)
+        }
+    }
+
+    private struct TaskKey: Equatable {
+        let file: String
+        let loaded: Bool
     }
 
     @ViewBuilder

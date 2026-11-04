@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         store.startPolling()
         guard !Self.isRunningTests else { return }
+        TuneDrag.install()
         fingerprints.startPolling()
         nowPlaying = NowPlayingController(store: store)
         activity = PlaybackActivity(store: store)

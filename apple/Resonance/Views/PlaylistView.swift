@@ -86,7 +86,7 @@ struct PlaylistView: View {
             if isInPlaylistOrder {
                 ForEach(displayedRows) { row in
                     TableRow(row)
-                        .draggable(PlaylistRowDrag(path: row.id))
+                        .draggable(TuneDrag.payload(path: row.id, title: row.title, author: row.author))
                 }
                 .dropDestination(for: PlaylistRowDrag.self) { offset, drags in
                     reorder(drags, to: offset)

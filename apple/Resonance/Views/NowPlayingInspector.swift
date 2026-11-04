@@ -100,20 +100,11 @@ struct NowPlayingInspector: View {
                 .foregroundStyle(.secondary)
                 .padding(.top, 6)
             }
-            if showsPlaylistStatus(track) {
-                playlistStatus(track)
-                    .padding(.top, 10)
-            }
+            playlistStatus(track)
+                .padding(.top, 10)
         }
         .textSelection(.enabled)
         .padding(.horizontal, 4)
-    }
-
-    /// Whether `playlistStatus` has anything to show: not for a tune
-    /// playing from the playlist.
-    private func showsPlaylistStatus(_ track: TrackDetails) -> Bool {
-        !store.rows.contains(where: { $0.id == track.path })
-            || store.queueActive || store.surpriseActive || store.shuffleCollectionActive
     }
 
     /// The header's released field in words: "1985 Gremlin Graphics" →
