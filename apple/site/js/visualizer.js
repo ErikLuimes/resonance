@@ -1,8 +1,8 @@
-// Resonance's voice visualizer, ported from VisualizerView.swift and
-// SIDVoice.swift: per-voice level bars with fast attack, slow release and
-// a peak-hold marker, and the note and waveform under each bar.
+// The chip section's drawing, after Resonance's VisualizerView.swift and
+// SIDVoice.swift: per-voice levels with fast attack and slow release, and a
+// stylised scope of each voice's waveform.
 
-import { noteName, waveName, TRI, SAW, PUL, NOI } from './tune.js';
+import { TRI, SAW, PUL, NOI } from './tune.js';
 
 export const VOICE_COLORS = ['#3FD0E8', '#9B6BFF', '#FF9A3C'];
 
@@ -38,17 +38,6 @@ export class VoiceMeter {
   }
 }
 
-function alpha(hex, a) {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
-}
-
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, Math.min(r, h / 2, w / 2));
-  ctx.fill();
-}
-
 /** Sizes a canvas's backing store to its CSS box; returns its CSS size. */
 export function fitCanvas(canvas) {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -61,51 +50,6 @@ export function fitCanvas(canvas) {
   const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   return { ctx, w, h };
-}
-
-const LABEL_HEIGHT = 32;
-const GAP = 6;
-
-export function drawVisualizer(canvas, meter, voices, scale = 1) {
-  const { ctx, w, h } = fitCanvas(canvas);
-  ctx.clearRect(0, 0, w, h);
-  const label = LABEL_HEIGHT * scale;
-  const gap = GAP * scale;
-  const width = (w - gap * 2) / 3;
-  const barHeight = h - label;
-
-  for (let i = 0; i < 3; i++) {
-    const x = i * (width + gap);
-    const color = VOICE_COLORS[i];
-
-    // Faint slot so silent voices stay visible.
-    ctx.fillStyle = alpha(color, 0.12);
-    roundRect(ctx, x, 0, width, barHeight, 4 * scale);
-
-    const level = meter.levels[i];
-    const barH = Math.max(barHeight * level, 2);
-    const gradient = ctx.createLinearGradient(0, barHeight, 0, barHeight - barH);
-    gradient.addColorStop(0, alpha(color, 0.6));
-    gradient.addColorStop(1, color);
-    ctx.fillStyle = gradient;
-    roundRect(ctx, x, barHeight - barH, width, barH, 4 * scale);
-
-    const peakY = barHeight - barHeight * meter.peaks[i];
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-    ctx.fillRect(x, Math.max(peakY - 2 * scale, 0), width, 2 * scale);
-
-    const v = voices[i];
-    const gate = v && v[2];
-    const center = x + width / 2;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = `600 ${13 * scale}px ui-monospace, "SF Mono", Menlo, monospace`;
-    ctx.fillStyle = gate ? color : '#8e8e93';
-    ctx.fillText((v && v[0] >= 0 && noteName(v[0])) || '·', center, barHeight + 11 * scale);
-    ctx.font = `${9 * scale}px ui-monospace, "SF Mono", Menlo, monospace`;
-    ctx.fillStyle = '#8e8e93';
-    ctx.fillText((v && waveName(v[1])) || '—', center, barHeight + 26 * scale);
-  }
 }
 
 // One cycle of a SID waveform at phase p (0…1), between -1 and 1.

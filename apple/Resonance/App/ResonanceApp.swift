@@ -21,6 +21,9 @@ struct ResonanceApp: App {
         .commands {
             AboutCommands()
             PlaybackCommands(store: appDelegate.store, library: appDelegate.library)
+            #if DEBUG
+            RecordingCommands()
+            #endif
         }
 
         Window("About Resonance", id: AboutView.windowID) {

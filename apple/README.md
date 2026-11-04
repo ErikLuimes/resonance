@@ -139,19 +139,24 @@ After merging upstream into this fork:
 `site/` is Resonance's GitHub Pages site: static HTML, CSS and ES modules,
 no build step. Upstream's Phosphor site stays in `../docs`.
 
-Preview it locally (modules and the audio worklet need HTTP, not `file://`):
+Preview it locally (the JavaScript modules need HTTP, not `file://`):
 
 ```bash
 python3 -m http.server 8642 --directory apple/site
 ```
 
-- The hero window is HTML, not a screenshot. Its demo tunes are composed
-  in the browser (`js/tune.js`) and played by a small SID-style synth and
-  50 Hz driver in an AudioWorklet (`js/sid-worklet.js`); the visualizer
-  (`js/visualizer.js`) ports `VisualizerView` and `VoiceMeter`.
-- The library search runs over `assets/hvsc-sample.json`, title, author,
-  released, songs and length for a few composers' folders in HVSC's
-  MUSICIANS, ranked like upstream's `score_entry`.
+- The hero is a tour of the app: screen recordings in `media/`, one per
+  chapter (`CHAPTERS` in `js/main.js`), each also shown in its own section.
+  Videos start muted (browsers only autoplay muted video); the Sound button
+  turns sound on for all of them, and each plays only while on screen.
+- Recordings become those files with `scripts/site-videos.sh`: it finds the
+  window inside a ⇧⌘5 selection, scales to 1600 wide, evens out loudness
+  and writes `<name>.mp4` and a poster `<name>.jpg`. Record the app at
+  1440 × 900 (Debug builds: Window → Size for Recording), 16:10 like the
+  page's video frames. Raw recordings stay out of git.
+- "The chip" animates its scopes silently: `js/chip.js` steps a stand-in
+  tune composed by `js/tune.js` through a 50 Hz SID-style music driver, and
+  `js/visualizer.js` draws it, after `VisualizerView` and `VoiceMeter`.
 - Download buttons follow the latest GitHub release of
   `ErikLuimes/resonance` (`REPO` in `js/main.js`), preferring a `.dmg`,
   then `.zip` or `.pkg`. Until there's a public release, they point to the

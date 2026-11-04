@@ -6,12 +6,12 @@
 
 <p align="center">
   <strong>A native macOS player for Commodore 64 music.</strong><br>
-  All of the High Voltage SID Collection in the sidebar, a visualizer that shows every note,<br>
-  and an interface made of Liquid Glass.
+  All of the High Voltage SID Collection, a fingerprint of how every tune sounds,<br>
+  visualizers that show every note, and an interface made of Liquid Glass.
 </p>
 
 <p align="center">
-  <a href="https://erikluimes.github.io/resonance/"><img src="https://img.shields.io/badge/website-live%20demo-3FD0E8?style=flat-square&labelColor=12141F" alt="Website and live demo"></a>
+  <a href="https://erikluimes.github.io/resonance/"><img src="https://img.shields.io/badge/website-tour-3FD0E8?style=flat-square&labelColor=12141F" alt="Website and tour"></a>
   <img src="https://img.shields.io/badge/macOS-27%2B-9B6BFF?style=flat-square&logo=apple&logoColor=white&labelColor=12141F" alt="macOS 27 or later">
   <img src="https://img.shields.io/badge/Apple%20silicon-arm64-9B6BFF?style=flat-square&labelColor=12141F" alt="Apple silicon">
   <img src="https://img.shields.io/badge/Swift%206-SwiftUI-FF9A3C?style=flat-square&logo=swift&logoColor=white&labelColor=12141F" alt="Swift 6 and SwiftUI">
@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <a href="https://erikluimes.github.io/resonance/"><b>Website &amp; live demo</b></a> ·
+  <a href="https://erikluimes.github.io/resonance/"><b>Website &amp; tour</b></a> ·
   <a href="#features">Features</a> ·
   <a href="#getting-started">Getting started</a> ·
   <a href="#keyboard-shortcuts">Shortcuts</a> ·
@@ -35,32 +35,71 @@ demoscene. **Resonance** is a SwiftUI app made only for the Mac that brings the 
 SID Collection — more than 60,000 tunes — to your desktop, and shows you exactly how each one
 is played.
 
-> **Hear it first:** the [website](https://erikluimes.github.io/resonance/) has an interactive
-> copy of the Resonance window. Hit play and it composes a SID-style tune in your browser.
+> **See it first:** the [website](https://erikluimes.github.io/resonance/) has a tour of the app,
+> with sound: Sounds Like, the Now Playing visualizers, searching HVSC and playlists.
 
 ## Features
 
-- **All of HVSC, one click away.** Musicians, Games and Demos live in the sidebar. Browse
-  composers and their tunes, or just type: results are ranked across a category or all of
-  HVSC, exact matches first, typos and accents forgiven.
-- **Surprise Me.** A radio of random tunes from the whole collection, picked one ahead, never
-  repeating anything you've heard since launch. Press <kbd>⇧</kbd><kbd>⌘</kbd><kbd>R</kbd>
-  and let it run.
-- **See every voice.** A live visualizer with a level bar and peak hold for each SID voice,
-  plus the note and waveform it's playing, redrawn every display frame.
-- **Who made it, and why.** The inspector gives the composer a card, with STIL's notes on
-  them and a link to all their tunes. Covers read "Cover of … by …", and the original is one
-  click away.
+### Discover by sound
+
+- **Sounds Like.** Resonance listens to every tune in HVSC in the background and keeps a
+  fingerprint of how it sounds: its waveforms, arpeggios, filter sweeps, drums and bass. Play
+  anything and the inspector lists the tunes that sound most like it, each a click away.
+- **Find Similar and Sound filters.** Sort any list by likeness to one tune, or keep only the
+  tunes with arpeggios, filter sweeps, noise drums, ring mod, sync leads or digi samples.
+- **Composers who sound similar.** Every composer's card names the composers whose music
+  sounds most like theirs.
+
+### All of HVSC, one click away
+
+- **Download and update from the app.** Resonance fetches the collection for you, checks the
+  mirror for a newer release, and updates in one click, then shows what the new release added.
+- **The HVSC Home.** The release at a glance: what's new, Phosphor's curated playlists, the
+  tunes you played last, and the collection's own documents.
+- **Musicians, Games and Demos.** Composers by handle and real name, with their tune count,
+  years active and Play, Shuffle and Add to… on their card.
+- **One search for everything.** Composers in any word order ("jeroen tel"), titles, years and
+  labels, spelled either way ("second reality" finds *2nd Reality*). From any list, one step
+  takes the search to all of HVSC.
+- **Surprise Me and Shuffle Collection.** A radio of random tunes from the whole collection
+  (<kbd>⇧</kbd><kbd>⌘</kbd><kbd>R</kbd>), or every tune in HVSC once, in a new order.
+
+### See the music
+
+- **Now Playing.** A full-window player with four visualizers: Halo, Particles, Radial and the
+  Sound Map (<kbd>⇧</kbd><kbd>⌘</kbd><kbd>F</kbd>).
+- **Sound Map.** Every note the tune plays becomes a point in 3D, placed by its timbre, so
+  notes that sound alike gather together and the music draws its own map as it plays.
+- **Every voice, live.** The inspector's visualizer shows each SID voice as a scope, as level
+  bars with peak hold, or as its envelope, with the note and waveform it's playing.
+- **Themes.** Colour the three voices Resonance, C64, Noir, Ember, Abyss, Phosphor, Greyscale
+  or your own.
+
+### Know the tune
+
+- **Who made it, and why.** The composer gets a card with STIL's notes on them; covers read
+  "Cover of … by …" with the original a click away; STIL's stories and interviews are set as
+  quotes, and composers who have passed away are remembered.
+- **Known bugs.** HVSC's list of tunes that misbehave in emulation shows on the tunes it names.
+
+### Your music
+
+- **Playlists and Favourites.** Make as many playlists as you like, heart tunes into
+  Favourites (shared with Phosphor), and add anything with **Add to…**, which finds a playlist
+  as you type. Drag tunes onto a playlist in the sidebar, or reorder them inside it.
+- **Always know what's playing from.** "Playing from Rob Hubbard", "Playing from Search
+  'commando'": every source is named, and one click takes you back to it.
 - **A proper Mac app.** Now Playing in Control Center, your keyboard's media keys, a Playback
   menu with shortcuts, and drag and drop for SID files, folders and M3U playlists.
+
+### Under the hood
+
 - **Two engines.** SIDLite (from libsidplayfp) picks the chip model from each tune's header;
   reSID emulates the chip cycle by cycle. Switch any time.
 - **Stereo, your way.** 2SID and 3SID tunes, mirrored stereo for 2SID, and three widths of
   pseudo-stereo for mono tunes.
-- **A playlist that stays put.** Sort by any column, drag to reorder, import M3U. Tunes you
-  play from the library go to a temporary queue, so your playlist is never clobbered.
 - **Song lengths and subtunes.** The HVSC Songlengths database moves on at the right moment,
-  and subtunes are a click — or <kbd>⌥</kbd><kbd>⌘</kbd><kbd>←</kbd>/<kbd>→</kbd> — away.
+  and subtunes are a click away (<kbd>⌥</kbd><kbd>⌘</kbd><kbd>←</kbd> / <kbd>→</kbd>).
 
 ## Getting started
 
@@ -69,16 +108,17 @@ is played.
 1. **Install.** Download the latest build from
    [Releases](https://github.com/ErikLuimes/resonance/releases), open it and drag Resonance into
    Applications. No release yet? [Build it yourself](#build-from-source) — it takes a few minutes.
-2. **Add your collection.** In **Settings → HVSC**, choose the folder that holds `MUSICIANS`,
-   `GAMES` and `DEMOS`, or click **Use Phosphor's**. No HVSC yet? Get it from
-   [hvsc.c64.org](https://hvsc.c64.org).
+2. **Get the collection.** No HVSC yet? Click **Download** next to Collection in the sidebar:
+   Resonance fetches the newest release into the folder Phosphor uses. Already have it? It's
+   found in Phosphor's folder, or choose yours in **Settings → Collection**.
 3. **Press <kbd>⇧</kbd><kbd>⌘</kbd><kbd>R</kbd>.** Surprise Me starts the radio. Or drop SID
-   files, folders and M3U playlists onto the window.
+   files, folders and M3U playlists onto the window. Fingerprinting starts on its own and takes
+   a few hours for all of HVSC; Sounds Like fills in as it goes.
 
 > [!NOTE]
-> Song lengths and STIL comments are read from Phosphor's data folder
-> (`~/Library/Application Support/phosphor/`). If you've run Phosphor, Resonance shares what it
-> downloaded. Without them, tunes play for your default length in **Settings → Playback**.
+> Resonance shares Phosphor's data folder (`~/Library/Application Support/phosphor/`): the
+> collection, song lengths, STIL, play history and favourites. Both apps see the same library,
+> and you can use them side by side.
 
 ## Keyboard shortcuts
 
@@ -89,6 +129,7 @@ is played.
 | <kbd>⌘</kbd> <kbd>←</kbd> / <kbd>→</kbd> | Previous / next track |
 | <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>←</kbd> / <kbd>→</kbd> | Previous / next subtune |
 | <kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>R</kbd> | Surprise Me |
+| <kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>F</kbd> | Show or hide Now Playing |
 | <kbd>⌘</kbd> <kbd>↑</kbd> / <kbd>↓</kbd> | Volume up / down |
 | <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>S</kbd> | Shuffle |
 | <kbd>⌘</kbd> <kbd>O</kbd> | Add files or folders |
@@ -143,8 +184,8 @@ This repository is based on Phosphor's, so you'll find both here:
 
 **Want real hardware?** Phosphor plays through a
 [USBSID-Pico](https://github.com/LouDnl/USBSID-Pico) or an [Ultimate 64](https://ultimate64.com/),
-and has HVSC sync, favourites, a DSP pedalboard, a web remote and karaoke for MUS files.
-Resonance doesn't do those yet — for them, use [Phosphor](https://sandlbn.github.io/Phosphor/).
+and has a DSP pedalboard, a web remote and karaoke for MUS files. Resonance doesn't do those
+yet — for them, use [Phosphor](https://sandlbn.github.io/Phosphor/).
 
 ## License & credits
 
