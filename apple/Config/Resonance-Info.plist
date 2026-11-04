@@ -10,6 +10,19 @@
 	     after the version: 0.1.0-alpha.1. -->
 	<key>ResonanceReleaseStage</key>
 	<string>$(RELEASE_STAGE)</string>
+	<!-- Sparkle updates. Both come from build settings and are empty in
+	     Debug builds, which don't update themselves: the feed on the
+	     website, and the public half of the EdDSA key release.sh signs
+	     updates with (scripts/release.sh checks they match). -->
+	<key>SUFeedURL</key>
+	<string>$(SPARKLE_FEED_URL)</string>
+	<key>SUPublicEDKey</key>
+	<string>$(SPARKLE_PUBLIC_ED_KEY)</string>
+	<!-- Check daily without asking first; nothing about the Mac is sent. -->
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUEnableSystemProfiling</key>
+	<false/>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

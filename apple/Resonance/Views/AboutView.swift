@@ -73,12 +73,7 @@ struct AboutView: View {
 
     /// "0.1.0-alpha.1": the version and its release stage (the project's
     /// RELEASE_STAGE, none for a final release).
-    private static var appVersion: String {
-        let info = Bundle.main.infoDictionary ?? [:]
-        let version = info["CFBundleShortVersionString"] as? String ?? "?"
-        let stage = info["ResonanceReleaseStage"] as? String ?? ""
-        return stage.isEmpty ? version : "\(version)-\(stage)"
-    }
+    private static var appVersion: String { Updater.appVersion() }
 }
 
 /// Replaces the standard About menu item, which can't show the Phosphor

@@ -357,6 +357,8 @@ private struct AdvancedSettings: View {
     ]
 
     var body: some View {
+        UpdateSettings()
+
         Section {
             LabeledContent {
                 Button("Import") {
@@ -596,4 +598,47 @@ private struct ThemeSettings: View {
         .environment(PlayerStore.preview)
         .environment(LibraryStore(player: .preview))
         .environment(FingerprintStore(player: .preview))
+}
+
+/// Sparkle's two settings, and a way to check now.
+private struct UpdateSettings: View {
+    @Environment(Updater.self) private var updater
+
+    var body: some View {
+        @Bindable var updater = updater
+        Section {
+            Toggle("Check for updates automatically", isOn: $updater.checksAutomatically)
+            Toggle("Download and install automatically", isOn: $updater.installsAutomatically)
+                .disabled(!updater.checksAutomatically)
+            LabeledContent("Last checked") {
+                HStack {
+                    Text(lastChecked)
+                        .foregroundStyle(.secondary)
+                    AccentLink("Check Now") { updater.checkForUpdates() }
+                        .disabled(!updater.canCheckForUpdates)
+                }
+            }
+        } header: {
+            Text("Updates")
+        } footer: {
+            Text(updater.isAvailable
+                 ? "Resonance checks for a new version once a day. Updates are verified with Resonance's signing key before they're installed, and nothing about your Mac is sent. Automatic updates install when you quit."
+                 : "This build of Resonance doesn't update itself. Releases from the website do.")
+        }
+        .disabled(!updater.isAvailable)
+    }
+
+    private var lastChecked: String {
+        guard let date = updater.lastCheck else { return "Never" }
+        return Self.dateFormatter.string(from: date)
+    }
+
+    /// "Today at 14:02", "Yesterday at 09:15", "3 Nov 2026 at 21:40".
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        formatter.doesRelativeDateFormatting = true
+        return formatter
+    }()
 }

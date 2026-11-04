@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let library: LibraryStore
     let fingerprints: FingerprintStore
     let playlists: PlaylistsStore
+    let updater = Updater()
     private var nowPlaying: NowPlayingController?
     private var activity: PlaybackActivity?
     private var outputLatency: OutputLatencyMonitor?

@@ -20,6 +20,7 @@ struct ResonanceApp: App {
         .windowResizability(.contentMinSize)
         .commands {
             AboutCommands()
+            UpdateCommands(updater: appDelegate.updater)
             MiniPlayerCommands()
             HelpCommands()
             PlaybackCommands(store: appDelegate.store, library: appDelegate.library)
@@ -58,6 +59,7 @@ struct ResonanceApp: App {
         Settings {
             SettingsView()
                 .environment(appDelegate.store)
+                .environment(appDelegate.updater)
                 .environment(appDelegate.library)
                 .environment(appDelegate.fingerprints)
                 .environment(appDelegate.playlists)

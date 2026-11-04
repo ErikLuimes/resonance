@@ -13,6 +13,7 @@
 		0BC0465548DDA9FA7F88FFB1 /* PhosphorCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FA99E36DFC9909E36EFDFFA1 /* PhosphorCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */; };
 		5C1A7E0B2D9F4E3A8B6C0D11 /* STILKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5C1A7E0B2D9F4E3A8B6C0D12 /* STILKit */; };
+		5C1A7E0B2D9F4E3A8B6C0D21 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5C1A7E0B2D9F4E3A8B6C0D22 /* Sparkle */; };
 		D1A2B3C4D5E6F70819203A02 /* playlists in Resources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4D5E6F70819203A01 /* playlists */; };
 /* End PBXBuildFile section */
 
@@ -88,6 +89,7 @@
 			files = (
 				E836E96C5BC45F7A1EFF5F86 /* PhosphorCore.framework in Frameworks */,
 				5C1A7E0B2D9F4E3A8B6C0D11 /* STILKit in Frameworks */,
+				5C1A7E0B2D9F4E3A8B6C0D21 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -200,6 +202,7 @@
 			name = Resonance;
 			packageProductDependencies = (
 				5C1A7E0B2D9F4E3A8B6C0D12 /* STILKit */,
+				5C1A7E0B2D9F4E3A8B6C0D22 /* Sparkle */,
 			);
 			productName = Resonance;
 			productReference = BD618DF38BE01ED7BAC0B411 /* Resonance.app */;
@@ -261,6 +264,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				5C1A7E0B2D9F4E3A8B6C0D13 /* XCLocalSwiftPackageReference "Packages/STILKit" */,
+				5C1A7E0B2D9F4E3A8B6C0D23 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2AB91D63C9C73ECC697336D4 /* Products */;
@@ -515,6 +519,8 @@
 				RELEASE_STAGE = alpha.1;
 				PRODUCT_BUNDLE_IDENTIFIER = nl.luimes.resonance;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SPARKLE_FEED_URL = "";
+				SPARKLE_PUBLIC_ED_KEY = "";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -542,6 +548,8 @@
 				RELEASE_STAGE = alpha.1;
 				PRODUCT_BUNDLE_IDENTIFIER = nl.luimes.resonance;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SPARKLE_FEED_URL = "https://erikluimes.github.io/resonance/appcast.xml";
+				SPARKLE_PUBLIC_ED_KEY = "LavbQC73WZl/WNmTY+ucX/rsgqo0EocEorAVR5JiyLo=";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -628,10 +636,26 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		5C1A7E0B2D9F4E3A8B6C0D23 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.10.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		5C1A7E0B2D9F4E3A8B6C0D12 /* STILKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = STILKit;
+		};
+		5C1A7E0B2D9F4E3A8B6C0D22 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5C1A7E0B2D9F4E3A8B6C0D23 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

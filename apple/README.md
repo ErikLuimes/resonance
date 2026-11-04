@@ -225,6 +225,59 @@ build. Publish the `.dmg` on a GitHub release tagged `v<version>` (an alpha
 or beta as a pre-release, `v0.1.0-alpha.1`); the website's Download button
 takes the newest release with a `.dmg`.
 
+### Updates
+
+The app updates itself with [Sparkle](https://sparkle-project.org) (a
+Swift package): Check for Updates… in the app menu, and Settings →
+Advanced → Updates. It reads `site/appcast.xml` from the website
+(`SUFeedURL`, the `SPARKLE_FEED_URL` build setting) and only installs an
+update whose EdDSA signature matches the public key built into the app
+(`SUPublicEDKey`, the `SPARKLE_PUBLIC_ED_KEY` build setting). Both are set
+for Release only, so Debug builds don't update themselves.
+
+The signature is what makes unsigned (ad-hoc) releases updatable: Sparkle
+accepts an update that's either EdDSA-signed with the app's key or signed
+with the same Developer ID, and ad-hoc builds never share an identity. It
+also takes the quarantine off the new version, so only the first install
+needs approving in System Settings; the app must run from Applications,
+not the disk image. Once releases are signed with Developer ID, updates
+from unsigned builds keep working, because the EdDSA key stays the same.
+**Never change or lose that key**: apps with the old one can't update.
+
+Once, before the first release with updates:
+
+1. Make the key, which goes into the login keychain:
+   `build/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys`
+   (run `scripts/release.sh` or `xcodebuild -resolvePackageDependencies
+   -project Resonance.xcodeproj -clonedSourcePackagesDirPath
+   build/SourcePackages` first to download the tools). It prints the
+   public key.
+2. Set `SPARKLE_PUBLIC_ED_KEY` in the Resonance target's Release settings
+   to that public key, and commit it. It isn't secret.
+3. Back up the private key somewhere safe outside the repository:
+   `generate_keys -x sparkle-private-key.txt`, then store the file in a
+   password manager and delete it. `generate_keys -f <file>` imports it
+   on another Mac.
+
+Each release:
+
+1. Raise `CURRENT_PROJECT_VERSION` (the build number: Sparkle compares
+   it) and, as usual, `MARKETING_VERSION` / `RELEASE_STAGE`.
+2. Optionally write `release-notes/<version>.md`; the update dialog shows
+   it.
+3. Run `scripts/release.sh`. Besides the `.dmg`, it signs the image with
+   the keychain's key and adds it to `site/appcast.xml`, linking to
+   `https://github.com/ErikLuimes/resonance/releases/download/v<version>/`.
+   It stops early if the key is missing or doesn't match the build
+   setting, or if the build number isn't higher than the feed's newest.
+4. Publish the GitHub release with the `.dmg`, under that tag and name.
+5. Then commit and push `site/appcast.xml`: the website deploys it and
+   apps find the update within a day.
+
+The variables at the top of `release.sh` point a build at a local feed
+and a test key, to try an update end to end without touching the real
+feed.
+
 Before a release, after changing dependencies: `scripts/acknowledgements.sh`
 rewrites `Resonance/Acknowledgements.txt`, the licences About Resonance
 shows.
