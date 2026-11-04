@@ -20,6 +20,7 @@ struct ResonanceApp: App {
         .windowResizability(.contentMinSize)
         .commands {
             AboutCommands()
+            HelpCommands()
             PlaybackCommands(store: appDelegate.store, library: appDelegate.library)
             #if DEBUG
             RecordingCommands()
@@ -43,6 +44,14 @@ struct ResonanceApp: App {
         .defaultSize(width: 640, height: 640)
         .restorationBehavior(.disabled)
         // Opened from About Resonance only.
+        .commandsRemoved()
+
+        Window("Resonance Help", id: HelpView.windowID) {
+            HelpView()
+        }
+        .defaultSize(width: 860, height: 600)
+        .restorationBehavior(.disabled)
+        // Opened from the Help menu only.
         .commandsRemoved()
 
         Settings {
