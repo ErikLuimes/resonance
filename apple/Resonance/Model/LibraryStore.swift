@@ -49,11 +49,11 @@ final class LibraryStore {
     /// The rows of Phosphor's published playlists, by playlist file;
     /// absent until loaded, nil when the lookup failed.
     private(set) var playlistTunes: [String: [LibraryRow]?] = [:]
-    /// The play history shared with Phosphor, newest first; nil until
+    /// The play history, newest first; nil until
     /// loaded. Reloaded on every track change (the core records the play
     /// before it reports the new track).
     private(set) var recent: [RecentPlay]?
-    /// How many different tunes have ever been played, in either app.
+    /// How many different tunes have ever been played.
     private(set) var heardCount: Int?
     /// A sidebar section the window should show (the inspector's link to
     /// the playlist that's playing, a Home playlist card); the window
@@ -182,7 +182,7 @@ final class LibraryStore {
         await loadRecent()
     }
 
-    /// Forget every tune ever heard, in both apps.
+    /// Forget every tune ever heard.
     func resetHeard() async {
         await core.resetHeard()
         await loadRecent()

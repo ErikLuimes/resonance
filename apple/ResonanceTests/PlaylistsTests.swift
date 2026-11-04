@@ -13,7 +13,7 @@ struct PlaylistsStoreTests {
         let suite = "ResonanceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
-        let player = PlayerStore(defaults: defaults, phosphorHvscRoot: { nil }) { _ in fake }
+        let player = PlayerStore(defaults: defaults, phosphorHvscRoot: { nil }, defaultHvscRoot: nil) { _ in fake }
         return PlaylistsStore(player: player, folder: folder, defaults: defaults)
     }
 
@@ -98,7 +98,7 @@ struct PlaybackSourceTests {
         let suite = "ResonanceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
-        let store = PlayerStore(defaults: defaults, phosphorHvscRoot: { nil }) { _ in fake }
+        let store = PlayerStore(defaults: defaults, phosphorHvscRoot: { nil }, defaultHvscRoot: nil) { _ in fake }
 
         store.playQueue([URL(filePath: "/a.sid")], startAt: URL(filePath: "/a.sid"), from: .search(query: "commando"))
         var snapshot = FakeCore.stoppedSnapshot
@@ -132,7 +132,7 @@ struct PlaylistPlacingTests {
         let suite = "ResonanceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
-        let player = PlayerStore(defaults: defaults, phosphorHvscRoot: { nil }) { _ in fake }
+        let player = PlayerStore(defaults: defaults, phosphorHvscRoot: { nil }, defaultHvscRoot: nil) { _ in fake }
         let store = PlaylistsStore(player: player, folder: folder, defaults: defaults)
         let mix = try #require(store.create(named: "Mix"))
         await store.add(["/a.sid", "/b.sid", "/c.sid", "/d.sid"], to: .playlist(mix.id))

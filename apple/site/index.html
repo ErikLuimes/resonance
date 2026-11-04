@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Resonance — SID music, native to your Mac</title>
-  <meta name="description" content="Resonance is a native macOS player for Commodore 64 SID music. All of the High Voltage SID Collection, Sounds Like discovery from each tune's sound fingerprint, Now Playing visualizers, playlists and Liquid Glass, on Phosphor's reSID and SIDLite engines.">
+  <meta name="description" content="Resonance is a native macOS player for Commodore 64 SID music. All of the High Voltage SID Collection, Sounds Like discovery from each tune's sound fingerprint, Now Playing visualizers, playlists and Liquid Glass. Its own app, built on Phosphor's open-source engine.">
   <meta name="theme-color" content="#07080d">
   <meta name="color-scheme" content="dark">
 
   <meta property="og:type" content="website">
   <meta property="og:title" content="Resonance — SID music, native to your Mac">
-  <meta property="og:description" content="A SwiftUI player for Commodore 64 music, powered by Phosphor. Browse all of HVSC, find tunes that sound alike, and watch every voice of the SID chip.">
+  <meta property="og:description" content="A native Mac player for Commodore 64 music. Browse all of HVSC, find tunes that sound alike, and watch every voice of the SID chip.">
   <meta property="og:url" content="https://erikluimes.github.io/resonance/">
   <meta property="og:image" content="https://erikluimes.github.io/resonance/assets/og-card.png">
   <meta property="og:image:width" content="1200">
@@ -106,7 +106,7 @@
         <p class="lede" data-reveal>
           All 60,000 tunes of the High Voltage SID Collection, fingerprinted by how they sound,
           with visualizers that draw the chip as it plays. Made of Liquid Glass, made for the Mac,
-          on Phosphor's reSID and SIDLite engines.
+          built on Phosphor's open-source engine.
         </p>
         <div class="hero-cta" data-reveal>
           <a class="btn btn-primary" href="#download" data-download>
@@ -310,7 +310,7 @@
           <p class="kicker">Your music</p>
           <h2>Playlists and favourites.<br><span class="grad">Right where you need them.</span></h2>
           <p class="section-lede">
-            Heart a tune into Favourites, shared with Phosphor. Make as many playlists as you like, drag
+            Heart a tune into Favourites. Make as many playlists as you like, drag
             tunes onto them from anywhere, and reorder them by hand. And wherever the music comes from,
             Resonance says so: “Playing from Rob Hubbard”, one click back to it.
           </p>
@@ -410,8 +410,8 @@
 
           <article class="tile tile-wide" data-reveal>
             <div class="tile-icon" style="--c: var(--v2)"><svg class="i"><use href="#i-link"/></svg></div>
-            <h3>Friends with Phosphor</h3>
-            <p>Shares Phosphor's HVSC folder, song lengths, STIL, play history and favourites, and imports its settings in one click. Its own playlists and settings live apart, so neither app overwrites the other.</p>
+            <h3>Coming from Phosphor?</h3>
+            <p>Resonance is its own app, with its own favourites, history, playlists, settings and collection. One click imports Phosphor's settings, favourites, play history and HVSC collection. Nothing in Phosphor changes.</p>
           </article>
         </div>
       </div>
@@ -478,9 +478,9 @@
       <div class="container">
         <div class="section-head" data-reveal>
           <p class="kicker">Under the hood</p>
-          <h2>Phosphor's engine.<br><span class="grad">A native shell.</span></h2>
+          <h2>Its own app.<br><span class="grad">Phosphor's engine.</span></h2>
           <p class="section-lede">
-            Resonance doesn't reinvent SID playback. It compiles the engine of
+            Resonance is its own app, but it doesn't reinvent SID playback. It compiles the engine of
             <a href="https://sandlbn.github.io/Phosphor/">Phosphor</a>, Marcin Spoczynski's open-source
             Rust player, without changing a line, and talks to it through UniFFI. Improvements upstream
             flow straight into the Mac app.
@@ -525,6 +525,7 @@
                 <tr><td>HVSC download, favourites, history</td><td class="yes">✓</td><td class="yes">✓</td></tr>
                 <tr><td>Sounds Like &amp; Sound Map</td><td class="yes">✓</td><td class="no">—</td></tr>
                 <tr><td>Control Center &amp; media keys</td><td class="yes">✓</td><td class="no">—</td></tr>
+                <tr><td>Imports Phosphor's settings, favourites &amp; history</td><td class="yes">✓</td><td class="no">—</td></tr>
                 <tr><td>USBSID-Pico &amp; Ultimate 64</td><td class="no">—</td><td class="yes">✓</td></tr>
                 <tr><td>Pedalboard FX, web remote, karaoke</td><td class="no">—</td><td class="yes">✓</td></tr>
               </tbody>
@@ -569,7 +570,7 @@
             <li>
               <span class="step-n">2</span>
               <h3>Get the collection</h3>
-              <p>No HVSC yet? Click Download next to Collection in the sidebar. Already have it? Resonance finds Phosphor's, or choose yours in Settings → Collection.</p>
+              <p>No HVSC yet? Click Download next to Collection in the sidebar. Already have it? Choose its folder in Settings → Collection, or import Phosphor's in Settings → Advanced.</p>
             </li>
             <li>
               <span class="step-n">3</span>
@@ -609,7 +610,7 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
         <div class="faq" data-reveal>
           <details>
             <summary>Do I need Phosphor installed?</summary>
-            <p>No — Resonance has Phosphor's engine built in and downloads HVSC itself. The two do get along, though: they share Phosphor's data folder, so the collection, song lengths, STIL, play history and favourites are the same in both.</p>
+            <p>No. Resonance is its own app, with Phosphor's engine built in, and it downloads HVSC itself. Already use Phosphor? Settings → Advanced → Import from Phosphor brings over its settings, favourites, play history and HVSC collection. Nothing in Phosphor changes, and the two can run side by side.</p>
           </details>
           <details>
             <summary>Do I need my own copy of HVSC?</summary>
@@ -629,11 +630,11 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
           </details>
           <details>
             <summary>Where does it keep my playlists and settings?</summary>
-            <p>Your playlists are M3U files in <code>~/Library/Application Support/Resonance/Playlists</code>, My Playlist is <code>session.m3u</code> next to them, and the sound fingerprints are a database in the same folder. Settings live in Resonance's own preferences. Play history and favourites are Phosphor's own files, which both apps share.</p>
+            <p>Your playlists are M3U files in <code>~/Library/Application Support/Resonance/Playlists</code>, My Playlist is <code>session.m3u</code> next to them, and your favourites, play history and sound fingerprints are in the same folder. Settings live in Resonance's own preferences.</p>
           </details>
           <details>
             <summary>How long does fingerprinting take?</summary>
-            <p>A few hours for all of HVSC, in the background, at low priority. It picks up where it left off, you can pause it in Settings → Collection, and Sounds Like fills in as it goes.</p>
+            <p>Hardly any time: the first time, Resonance imports the published fingerprint set (about 37 MB), which covers all of HVSC, so Sounds Like works straight away. A background scan at low priority fills in anything it doesn't cover; you can pause it in Settings → Collection.</p>
           </details>
           <details>
             <summary>Why can't I scrub through a tune?</summary>
@@ -650,7 +651,7 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
         <img src="assets/icon-256.png" alt="" width="40" height="40">
         <div>
           <strong>Resonance</strong>
-          <span>powered by Phosphor</span>
+          <span>The SID, played and seen</span>
         </div>
       </div>
       <div class="footer-links">

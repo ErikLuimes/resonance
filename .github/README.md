@@ -85,7 +85,7 @@ is played.
 ### Your music
 
 - **Playlists and Favourites.** Make as many playlists as you like, heart tunes into
-  Favourites (shared with Phosphor), and add anything with **Add to…**, which finds a playlist
+  Favourites, and add anything with **Add to…**, which finds a playlist
   as you type. Drag tunes onto a playlist in the sidebar, or reorder them inside it.
 - **Always know what's playing from.** "Playing from Rob Hubbard", "Playing from Search
   'commando'": every source is named, and one click takes you back to it.
@@ -109,16 +109,19 @@ is played.
    [Releases](https://github.com/ErikLuimes/resonance/releases), open it and drag Resonance into
    Applications. No release yet? [Build it yourself](#build-from-source) — it takes a few minutes.
 2. **Get the collection.** No HVSC yet? Click **Download** next to Collection in the sidebar:
-   Resonance fetches the newest release into the folder Phosphor uses. Already have it? It's
-   found in Phosphor's folder, or choose yours in **Settings → Collection**.
+   Resonance fetches the newest release into its own folder. Already have it? Choose its folder
+   in **Settings → Collection**.
 3. **Press <kbd>⇧</kbd><kbd>⌘</kbd><kbd>R</kbd>.** Surprise Me starts the radio. Or drop SID
-   files, folders and M3U playlists onto the window. Fingerprinting starts on its own and takes
-   a few hours for all of HVSC; Sounds Like fills in as it goes.
+   files, folders and M3U playlists onto the window. Sounds Like works straight away: the first
+   time, Resonance imports the published fingerprint set (about 37 MB) for all of HVSC, and a
+   background scan fills in anything it doesn't cover.
 
 > [!NOTE]
-> Resonance shares Phosphor's data folder (`~/Library/Application Support/phosphor/`): the
-> collection, song lengths, STIL, play history and favourites. Both apps see the same library,
-> and you can use them side by side.
+> **Coming from Phosphor?** Resonance is its own app and keeps its own favourites, history,
+> playlists, settings and collection in `~/Library/Application Support/Resonance/`.
+> **Settings → Advanced → Import from Phosphor** brings over Phosphor's playback settings,
+> favourites and play history, and its HVSC collection if Resonance has none. Nothing in Phosphor
+> changes.
 
 ## Keyboard shortcuts
 

@@ -133,6 +133,10 @@ final class PlayerStore {
     var hasCollection: Bool {
         _ = hvscTreeRevision
         guard let root = hvscRoot else { return false }
+        return Self.holdsCollection(root)
+    }
+
+    nonisolated static func holdsCollection(_ root: String) -> Bool {
         let folder = URL(filePath: root)
         return ["MUSICIANS", "GAMES", "DEMOS"].contains {
             FileManager.default.fileExists(atPath: folder.appending(path: $0).path)
@@ -155,16 +159,21 @@ final class PlayerStore {
 
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let phosphorHvscRoot: () -> String?
+    /// Where Download puts the collection, in Resonance's own folder.
+    @ObservationIgnored let downloadHvscRoot: String?
+    @ObservationIgnored private var isShutDown = false
     @ObservationIgnored private var playlistRevision: UInt64?
     @ObservationIgnored private var pollTask: Task<Void, Never>?
 
     /// Reads the saved settings from `defaults` and starts a core configured
-    /// with them via `makeCore`. Until an HVSC folder is chosen, Phosphor's
-    /// (`phosphorHvscRoot`) is used.
+    /// with them via `makeCore`. Until an HVSC folder is chosen (or
+    /// imported from Phosphor, `phosphorHvscRoot`), it's `defaultHvscRoot`,
+    /// where Download puts the collection.
     init(
         defaults: UserDefaults = .standard,
         sessionPath: URL = AppPaths.sessionPlaylist,
         phosphorHvscRoot: @escaping () -> String? = { sharedDefaults().hvscRoot },
+        defaultHvscRoot: String? = AppPaths.hvscDirectory.path,
         makeCore: (CoreConfig) -> any PlayerCoreProtocol
     ) {
         let engine = Engine(storageValue: defaults.string(forKey: Pref.engine)) ?? .sidLite
@@ -173,9 +182,10 @@ final class PlayerStore {
         let repeatMode = Repeat(storageValue: defaults.string(forKey: Pref.repeatMode)) ?? .off
         let options = PlaybackOptions(from: defaults)
         let hvscRoot = (defaults.object(forKey: Pref.hvscRoot) as? String)
-            .map { $0.isEmpty ? nil : $0 } ?? phosphorHvscRoot()
+            .map { $0.isEmpty ? nil : $0 } ?? defaultHvscRoot
         self.defaults = defaults
         self.phosphorHvscRoot = phosphorHvscRoot
+        self.downloadHvscRoot = defaultHvscRoot
         self.engine = engine
         self.volume = volume
         self.shuffle = shuffle
@@ -324,7 +334,7 @@ final class PlayerStore {
         }
     }
 
-    /// Use the HVSC folder Phosphor is configured with.
+    /// Use the HVSC folder Phosphor is configured with (or downloaded to).
     func usePhosphorHvscRoot() {
         hvscRoot = phosphorHvscRoot()
     }
@@ -394,9 +404,9 @@ final class PlayerStore {
         return latestHvsc > installedHvsc
     }
 
-    /// Fetch Phosphor's published playlists into the cache both apps read
-    /// (Phosphor does this at launch; without it, a fresh install has
-    /// none), then re-read the Home's metadata, which lists them.
+    /// Fetch Phosphor's published playlists into Resonance's cache (as
+    /// Phosphor does at launch; without it, a fresh install has none),
+    /// then re-read the Home's metadata, which lists them.
     func syncPublishedPlaylists() async {
         guard (try? await core.syncPublishedPlaylists()) != nil else { return }
         hvscInfoRevision = nil
@@ -426,9 +436,7 @@ final class PlayerStore {
     /// collection are left out.
     func publishedPlaylistTunes(_ playlist: HvscPlaylist) -> [URL] {
         guard let root = hvscRoot else { return [] }
-        let directory = URL.applicationSupportDirectory
-            .appending(path: "phosphor")
-            .appending(path: "published_playlists")
+        let directory = AppPaths.supportDirectory.appending(path: "published_playlists")
         let content = (try? String(contentsOf: directory.appending(path: playlist.file), encoding: .utf8)) ?? ""
         return content
             .split(whereSeparator: \.isNewline)
@@ -446,10 +454,92 @@ final class PlayerStore {
         options = shared.options
     }
 
-    /// Save the playlist and stop the engine (app termination).
+    /// Phosphor's settings, its favourites and play history added to
+    /// Resonance's, and its HVSC collection while Resonance has none. What
+    /// it did, in a sentence.
+    func importFromPhosphor() async -> String {
+        importPhosphorSettings()
+        var collection = false
+        if !hasCollection, let root = phosphorHvscRoot(), Self.holdsCollection(root) {
+            hvscRoot = root
+            collection = true
+        }
+        return Self.describe(await core.importFromPhosphor(), collection: collection)
+    }
+
+    nonisolated static func describe(_ imported: PhosphorImport, collection: Bool = false) -> String {
+        func count(_ n: UInt32, _ one: String, _ many: String) -> String? {
+            n == 0 ? nil : "\(n.formatted()) \(n == 1 ? one : many)"
+        }
+        let added = [
+            count(imported.favorites, "favourite", "favourites"),
+            count(imported.recentlyPlayed, "recently played tune", "recently played tunes"),
+            count(imported.heard, "heard tune", "heard tunes"),
+        ].compactMap(\.self)
+        let summary = added.isEmpty
+            ? "Settings imported. No new favourites or history."
+            : "Settings imported. Added \(added.formatted(.list(type: .and)))."
+        return collection ? summary + " Using Phosphor's HVSC collection." : summary
+    }
+
+    /// Save the playlist and stop the engine (app termination). Once.
     func shutdown() {
+        guard !isShutDown else { return }
+        isShutDown = true
         stopPolling()
         core.shutdown()
+    }
+
+    // MARK: Reset
+
+    /// The collection in use is the one Download put in Resonance's own
+    /// folder, so Settings can offer to remove it.
+    var collectionIsDownloadedHere: Bool {
+        _ = hvscTreeRevision
+        guard let root = hvscRoot, root == downloadHvscRoot else { return false }
+        return FileManager.default.fileExists(atPath: root)
+    }
+
+    /// Move the collection Download put in Resonance's folder to the Trash,
+    /// stopping a download into it first.
+    func trashDownloadedCollection(
+        trash: (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) }
+    ) async throws {
+        guard let root = hvscRoot, root == downloadHvscRoot else { return }
+        await stopDownload()
+        try trash(URL(filePath: root))
+        core.reloadHvsc()
+        hvscInfo = nil
+    }
+
+    /// Start over: stop everything, move Resonance's folder (favourites,
+    /// history, playlists, fingerprints, its HVSC) to the Trash and forget
+    /// its settings. The app should restart right after. Phosphor's folder
+    /// isn't touched.
+    func resetEverything(
+        trash: (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) }
+    ) async throws {
+        await stopDownload()
+        // Saves the playlist one last time, so nothing writes into the
+        // folder once it's gone.
+        shutdown()
+        if FileManager.default.fileExists(atPath: AppPaths.supportDirectory.path) {
+            try trash(AppPaths.supportDirectory)
+        }
+        // Only the app's own settings; never a test's suite's host.
+        if defaults == .standard, let id = Bundle.main.bundleIdentifier {
+            defaults.removePersistentDomain(forName: id)
+        }
+    }
+
+    /// Cancel a running download and wait (up to 10 s) until it has
+    /// stopped writing.
+    private func stopDownload() async {
+        guard core.hvscSyncStatus()?.running == true else { return }
+        core.cancelHvscSync()
+        for _ in 0..<200 where core.hvscSyncStatus()?.running == true {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
     }
 
     // MARK: Derived
@@ -470,8 +560,10 @@ final class PlayerStore {
 }
 
 /// Where Resonance keeps its own files — separate from the Iced app's
-/// `~/Library/Application Support/phosphor`, whose config, Songlengths and
-/// HVSC the core only reads.
+/// `~/Library/Application Support/phosphor`, which only Import from
+/// Phosphor reads. The engine's own files (favourites, play history, the
+/// search index) go next to the session playlist; see
+/// `core/src/config.rs`.
 nonisolated enum AppPaths {
     static var supportDirectory: URL {
         URL.applicationSupportDirectory.appending(path: "Resonance", directoryHint: .isDirectory)
@@ -483,6 +575,11 @@ nonisolated enum AppPaths {
 
     static var fingerprintDatabase: URL {
         supportDirectory.appending(path: "fingerprints.sqlite")
+    }
+
+    /// The HVSC folder until another is chosen, where Download puts it.
+    static var hvscDirectory: URL {
+        supportDirectory.appending(path: "HVSC", directoryHint: .isDirectory)
     }
 
     /// Phosphor's own folder: its config, play history, Songlengths and

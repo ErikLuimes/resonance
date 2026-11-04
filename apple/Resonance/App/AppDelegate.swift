@@ -14,7 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     override init() {
         // Under unit tests the app is only a host: no audio, no saved session.
         store = Self.isRunningTests
-            ? PlayerStore(defaults: UserDefaults(suiteName: "tests")!, phosphorHvscRoot: { nil }) { _ in PreviewCore.empty }
+            ? PlayerStore(defaults: UserDefaults(suiteName: "tests")!, phosphorHvscRoot: { nil }, defaultHvscRoot: nil) { _ in PreviewCore.empty }
             : .live()
         library = LibraryStore(player: store)
         fingerprints = FingerprintStore(player: store)

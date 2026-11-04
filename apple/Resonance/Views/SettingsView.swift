@@ -138,7 +138,7 @@ private struct CollectionSettings: View {
             if store.hasCollection {
                 Text("The folder that holds MUSICIANS, GAMES and DEMOS. Updating adds the new and changed tunes; tunes a release moves or removes stay where they were. Downloading again restores missing or damaged files.")
             } else {
-                Text("The folder that holds MUSICIANS, GAMES and DEMOS. With nothing in it yet, download the collection into it — by default the folder Phosphor uses.")
+                Text("The folder that holds MUSICIANS, GAMES and DEMOS. With nothing in it yet, download the collection into it — by default Resonance's own folder.")
             }
         }
         .fileImporter(isPresented: $choosingFolder, allowedContentTypes: [.folder]) { result in
@@ -317,17 +317,17 @@ private struct HistorySettings: View {
                 }
             }
         } footer: {
-            Text("Every tune you've ever played, for the SIDs heard count in Recently Played. Phosphor shares both lists, so clearing them here clears them there too.")
+            Text("Every tune you've ever played, for the SIDs heard count in Recently Played.")
         }
         .confirmationDialog("Clear recently played?", isPresented: $confirmingClear) {
             Button("Clear") { Task { await library.clearRecent() } }
         } message: {
-            Text("Removes every tune from Recently Played, in Resonance and in Phosphor.")
+            Text("Removes every tune from Recently Played.")
         }
         .confirmationDialog("Reset heard tunes?", isPresented: $confirmingReset) {
             Button("Reset") { Task { await library.resetHeard() } }
         } message: {
-            Text("Forgets every tune you've heard, so the SIDs heard count starts from zero, in Resonance and in Phosphor.")
+            Text("Forgets every tune you've heard, so the SIDs heard count starts from zero.")
         }
         .task { await library.loadRecent() }
     }
@@ -338,10 +338,15 @@ private struct HistorySettings: View {
     }
 }
 
-/// Importing Phosphor's settings, and where both apps keep their files.
+/// Importing from Phosphor, and where each app keeps its files.
 private struct AdvancedSettings: View {
     @Environment(PlayerStore.self) private var store
+    @Environment(PlaylistsStore.self) private var playlists
+    @Environment(LibraryStore.self) private var library
     @State private var sizes: [URL: Int64] = [:]
+    @State private var importing = false
+    /// What the last import added.
+    @State private var imported: String?
 
     private static let folders = [
         ("Resonance", AppPaths.supportDirectory),
@@ -350,9 +355,25 @@ private struct AdvancedSettings: View {
 
     var body: some View {
         Section {
-            Button("Import Settings from Phosphor") { store.importPhosphorSettings() }
+            LabeledContent {
+                Button("Import") {
+                    importing = true
+                    Task {
+                        imported = await store.importFromPhosphor()
+                        await playlists.loadFavourites()
+                        await library.loadRecent()
+                        importing = false
+                    }
+                }
+                .disabled(importing)
+            } label: {
+                Text("Import from Phosphor")
+                if let imported {
+                    Text(imported)
+                }
+            }
         } footer: {
-            Text("Song lengths and your HVSC collection are read from Phosphor's data folder, so both apps share them.")
+            Text("Takes Phosphor's playback settings, adds its favourites and play history to Resonance's, and uses its HVSC collection if Resonance has none. Nothing in Phosphor changes.")
         }
 
         Section {
@@ -368,12 +389,106 @@ private struct AdvancedSettings: View {
         } header: {
             Text("Data Folders")
         } footer: {
-            Text("Resonance keeps its fingerprints and session playlist in its own folder. Play history, song lengths and, unless you chose another folder, HVSC live in Phosphor's.")
+            Text("Resonance keeps its favourites, play history, playlists, fingerprints and, unless you choose another folder, HVSC in its own folder. It reads Phosphor's only when you import from it.")
         }
         .task {
             for (_, url) in Self.folders {
                 sizes[url] = await Task.detached(priority: .utility) { DiskUsage.bytes(at: url) }.value
             }
+        }
+
+        ResetSettings()
+    }
+}
+
+/// Starting over: the collection Download put in Resonance's folder, or
+/// everything Resonance keeps. Both go to the Trash, never Phosphor's.
+private struct ResetSettings: View {
+    @Environment(PlayerStore.self) private var store
+    @State private var collectionBytes: Int64?
+    @State private var confirmingCollection = false
+    @State private var confirmingReset = false
+    @State private var working = false
+    @State private var error: String?
+
+    var body: some View {
+        Section {
+            if store.collectionIsDownloadedHere {
+                LabeledContent {
+                    Button("Move to Trash…") { confirmingCollection = true }
+                        .disabled(working)
+                } label: {
+                    Text("Downloaded collection")
+                    Text("HVSC in Resonance's folder · \(collectionSize)")
+                }
+            }
+            LabeledContent {
+                Button("Reset Resonance…") { confirmingReset = true }
+                    .disabled(working)
+            } label: {
+                Text("Everything")
+                Text("Start Resonance fresh")
+            }
+            if let error {
+                Text(error)
+                    .foregroundStyle(.red)
+            }
+        } header: {
+            Text("Reset")
+        } footer: {
+            Text("Both move files to the Trash, so you can put them back. Phosphor's folder is never touched.")
+        }
+        .task(id: store.collectionIsDownloadedHere) {
+            guard store.collectionIsDownloadedHere, let root = store.hvscRoot else { return }
+            let url = URL(filePath: root)
+            collectionBytes = await Task.detached(priority: .utility) { DiskUsage.bytes(at: url) }.value
+        }
+        .confirmationDialog("Move the downloaded collection to the Trash?", isPresented: $confirmingCollection) {
+            Button("Move to Trash", role: .destructive) {
+                run { try await store.trashDownloadedCollection() }
+            }
+        } message: {
+            Text("Moves HVSC in Resonance's folder (\(collectionSize)) to the Trash, stopping a download into it first. You can download it again from the Home.")
+        }
+        .confirmationDialog("Reset Resonance?", isPresented: $confirmingReset) {
+            Button("Reset Resonance", role: .destructive) {
+                run {
+                    try await store.resetEverything()
+                    Self.relaunch()
+                }
+            }
+        } message: {
+            Text("Moves Resonance's folder to the Trash: your favourites, play history, playlists, fingerprints and its HVSC collection. Its settings are forgotten. Resonance then restarts, fresh.")
+        }
+    }
+
+    /// Quit, and open again once this process has gone: a shell outside
+    /// the app waits for it to exit, so the two never run at once.
+    private static func relaunch() {
+        let wait = Process()
+        wait.executableURL = URL(filePath: "/bin/sh")
+        wait.arguments = [
+            "-c", "while kill -0 \"$1\" 2>/dev/null; do sleep 0.2; done; /usr/bin/open \"$2\"",
+            "relaunch", "\(ProcessInfo.processInfo.processIdentifier)", Bundle.main.bundlePath,
+        ]
+        try? wait.run()
+        NSApp.terminate(nil)
+    }
+
+    private var collectionSize: String {
+        collectionBytes.map { $0.formatted(.byteCount(style: .file)) } ?? "measuring…"
+    }
+
+    private func run(_ action: @escaping () async throws -> Void) {
+        working = true
+        error = nil
+        Task {
+            do {
+                try await action()
+            } catch {
+                self.error = "Couldn't move it to the Trash: \(error.localizedDescription)"
+            }
+            working = false
         }
     }
 }

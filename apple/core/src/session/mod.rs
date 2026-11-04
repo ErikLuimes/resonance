@@ -76,7 +76,7 @@ pub struct Session {
     radio_pick: RadioPick,
     /// Every tune played since launch; Surprise Me doesn't pick these.
     heard: HashSet<PathBuf>,
-    /// Record each play in the history shared with Phosphor. Off unless the
+    /// Record each play in the play history. Off unless the
     /// driver turns it on, so tests never touch the real files.
     pub(crate) records_history: bool,
     /// Latest status from the player thread, with timing fields zeroed when

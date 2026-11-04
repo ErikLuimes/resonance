@@ -93,18 +93,25 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
 
 ## Data and settings
 
-- Reads Phosphor's `~/Library/Application Support/phosphor/`: `config.json`
-  (default HVSC folder, and *Settings → Import Settings from Phosphor*),
-  `Songlengths.md5` and `STIL.txt`. It never writes there, with one exception:
-  the HVSC search-index cache in `hvsc_index/`, which both apps share. It's
-  disposable and self-validating, and either app's index build saves the
-  other one (Musicians takes ~6 s cold on an SSD).
-- The HVSC folder defaults to Phosphor's and can be changed in Settings.
-- Keeps its own playlist in `~/Library/Application Support/Resonance/session.m3u`
-  and its settings in its own user defaults (`nl.luimes.resonance`). The two apps
-  can't overwrite each other's playlist or settings.
-- Engine diagnostics are appended to Phosphor's `phosphor-debug.log` (shared
-  `dlog!` code). Prefer not to run both apps at once.
+- Everything Resonance writes is in `~/Library/Application Support/Resonance/`:
+  My Playlist (`session.m3u`), your playlists (`Playlists/`), the fingerprints,
+  and the files the engine sources keep in their config folder — favourites,
+  play history, the HVSC search-index cache, the curated playlists cache and
+  `phosphor-debug.log`. `core/src/config.rs` points upstream's `config_dir()`
+  there, without changing `src/`. Settings are in its own user defaults
+  (`nl.luimes.resonance`).
+- The HVSC folder is `Resonance/HVSC` until you choose another; Download puts
+  the collection there. Song lengths and STIL come from the collection's own
+  `DOCUMENTS` folder.
+- Phosphor's `~/Library/Application Support/phosphor/` is read only by
+  *Settings → Advanced → Import from Phosphor* (and its *Use Phosphor's*
+  button in Settings → Collection): its `config.json` (playback settings and
+  HVSC folder), and `favorites.json`, `recently_played.json` and `heard.txt`,
+  merged into Resonance's. Import also switches to Phosphor's collection when
+  Resonance has none. Nothing is ever written there. Upstream's HTTP clients
+  would take a proxy from that `config.json`; the shim's `apply_proxy` leaves
+  them on the system's settings instead.
+- Running both apps at once is safe; they don't write each other's files.
 
 ## Scope
 
@@ -114,8 +121,8 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
   sections, fuzzy search per category or across HVSC, Surprise Me) and STIL
   commentary in the inspector.
 
-USBSID-Pico and Ultimate 64, HVSC sync, favourites and recently played, the DSP
-pedalboard and the HTTP remote are not wired up yet. The core only includes the modules it needs, and the `usb`
+USBSID-Pico and Ultimate 64, the DSP pedalboard and the HTTP remote are not
+wired up yet. The core only includes the modules it needs, and the `usb`
 feature is never enabled, so the USB bridge daemon and its admin prompt
 can't be reached.
 

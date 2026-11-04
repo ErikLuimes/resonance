@@ -59,6 +59,7 @@ struct ResonanceApp: App {
                 .environment(appDelegate.store)
                 .environment(appDelegate.library)
                 .environment(appDelegate.fingerprints)
+                .environment(appDelegate.playlists)
                 .voiceThemed()
         }
 

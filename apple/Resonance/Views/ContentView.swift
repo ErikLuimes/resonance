@@ -5,7 +5,7 @@ import PhosphorCore
 /// What the sidebar can show. Favorites and Recent slot in here later.
 enum SidebarItem: Hashable {
     case playlist
-    /// The play history shared with Phosphor.
+    /// The play history.
     case recent
     /// The HVSC Home: the collection's header row in the sidebar.
     case hvscHome
@@ -122,7 +122,7 @@ struct ContentView: View {
         }
         .navigationTitle("Resonance")
         // Constant on purpose, like the rest of the toolbar (see below).
-        .navigationSubtitle("powered by Phosphor")
+        .navigationSubtitle("The SID, played and seen")
         // One search field for the whole window, with a fixed prompt. Each
         // section used to bring its own (the HVSC one with scope buttons),
         // so the toolbar changed on every sidebar click — which made SwiftUI
@@ -329,7 +329,7 @@ struct ContentView: View {
             .overlay(alignment: .top) {
                 // The Home view is the first download's status surface;
                 // other panes, and an update, get the pill instead.
-                StatusBanner(showsSync: section != .hvscHome || store.hasCollection)
+                StatusBanner(showsSync: section != .hvscHome || store.hvscInfo != nil)
             }
             .inspector(isPresented: $showInspector) {
                 NowPlayingInspector()

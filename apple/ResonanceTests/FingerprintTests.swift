@@ -66,7 +66,7 @@ struct FingerprintStoreTests {
         let suite = "ResonanceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
-        let player = PlayerStore(defaults: defaults, phosphorHvscRoot: { "/HVSC" }) { _ in fake }
+        let player = PlayerStore(defaults: defaults, phosphorHvscRoot: { "/HVSC" }, defaultHvscRoot: "/HVSC") { _ in fake }
         return FingerprintStore(player: player, defaults: defaults)
     }
 

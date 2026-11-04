@@ -32,7 +32,7 @@ struct PlayingFrom: View {
     }
 }
 
-/// A heart that makes the tune a favourite (shared with Phosphor), or not.
+/// A heart that makes the tune a favourite, or not.
 struct FavouriteButton: View {
     let path: String
 

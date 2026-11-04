@@ -87,6 +87,15 @@ pub struct CoreConfig {
     pub hvsc_root: Option<String>,
 }
 
+/// What `import_from_phosphor` added to Resonance's favourites and play
+/// history.
+#[derive(Debug, Clone, Default, uniffi::Record)]
+pub struct PhosphorImport {
+    pub favorites: u32,
+    pub recently_played: u32,
+    pub heard: u32,
+}
+
 /// Settings read from the Iced Phosphor app's config.json, for a one-time
 /// "import from Phosphor".
 #[derive(Debug, Clone, uniffi::Record)]
@@ -358,7 +367,7 @@ pub struct TuneBug {
     pub subtune: Option<u16>,
 }
 
-/// A tune from the play history shared with Phosphor.
+/// A tune from the play history.
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct RecentTune {
     pub item: HvscTuneItem,
@@ -534,6 +543,11 @@ struct HvscInfoCache {
 impl PlayerCore {
     #[uniffi::constructor]
     pub fn new(config: CoreConfig) -> Arc<Self> {
+        // The engine's files (favourites, history, the search index) go
+        // next to the session playlist, in Resonance's own folder.
+        if let Some(dir) = Path::new(&config.session_path).parent() {
+            crate::config::set_data_dir(dir.to_path_buf());
+        }
         let hvsc_root = config.hvsc_root.map(PathBuf::from);
         let fingerprints = Arc::new(Fingerprints::new(
             Path::new(&config.session_path).with_file_name("fingerprints.sqlite"),
@@ -717,8 +731,9 @@ impl PlayerCore {
     // channel the app drains at its snapshot rate.
 
     /// Begin downloading the collection. It lands in the current HVSC
-    /// folder, or in Phosphor's default folder when none is set (creating
-    /// it); `hvsc_sync_status()` reports where. Returns immediately.
+    /// folder, or in `HVSC` in Resonance's folder when none is set
+    /// (creating it); `hvsc_sync_status()` reports where. Returns
+    /// immediately.
     pub fn start_hvsc_sync(&self) -> Result<(), HvscError> {
         let state = self.sync_state.lock().unwrap();
         if state.as_ref().is_some_and(|s| s.status.running) {
@@ -730,7 +745,7 @@ impl PlayerCore {
         let root = self
             .library
             .root()
-            .or_else(hvsc_sync::default_hvsc_root)
+            .or_else(|| crate::config::config_dir().map(|d| d.join("HVSC")))
             .ok_or(HvscError::NoRoot)?;
         let url = sync_archive_url(*self.latest_hvsc.lock().unwrap());
         let handle = hvsc_sync::HvscSyncHandle::start_from_zip(&url, &root)
@@ -782,6 +797,15 @@ impl PlayerCore {
     pub fn cancel_hvsc_sync(&self) {
         if let Some(handle) = self.sync.lock().unwrap().as_ref() {
             handle.cancel();
+        }
+    }
+
+    /// The collection folder was removed on disk (Settings moved it to the
+    /// Trash): drop the lists, indexes, song lengths and STIL read from it.
+    pub fn reload_hvsc(&self) {
+        self.fingerprints.scanner().stop();
+        if let Some(root) = self.library.root() {
+            self.apply_post_sync(&root);
         }
     }
 
@@ -955,7 +979,7 @@ impl PlayerCore {
 
     /// Fuzzy search by title, author, file name and release; `scope` limits
     /// it to one category. The first search in a category builds its index
-    /// (or loads it from the cache shared with Phosphor).
+    /// (or loads it from the index cache).
     pub async fn hvsc_search(
         &self,
         query: String,
@@ -1023,8 +1047,8 @@ impl PlayerCore {
             .collect()
     }
 
-    /// The play history shared with Phosphor, newest first: the last 100
-    /// different tunes either app played, those still on disk.
+    /// The play history, newest first: the last 100 different tunes
+    /// played, those still on disk.
     pub async fn recently_played(&self) -> Result<Vec<RecentTune>, HvscError> {
         let hits = self.library.recent().await?;
         Ok(hits
@@ -1047,7 +1071,7 @@ impl PlayerCore {
             .collect()
     }
 
-    // ── Favourites, shared with Phosphor (its favorites.json) ──
+    // ── Favourites (favorites.json, in Phosphor's format) ──
 
     /// The favourite tunes' files, newest first. A file that moved is
     /// found again by its MD5 in the collection (Phosphor's fallback), and
@@ -1088,22 +1112,39 @@ impl PlayerCore {
         .map_err(|e| HvscError::Io { message: e.to_string() })?
     }
 
-    /// How many different tunes Phosphor and Resonance have ever played.
+    /// How many different tunes have ever been played.
     pub async fn heard_count(&self) -> u32 {
         tokio::task::spawn_blocking(crate::history::heard_count)
             .await
             .unwrap_or(0) as u32
     }
 
-    /// Empty the play history shared with Phosphor.
+    /// Empty the play history.
     pub async fn clear_recently_played(&self) {
         let _ = tokio::task::spawn_blocking(crate::history::clear_recent).await;
     }
 
-    /// Forget every tune Phosphor and Resonance have played, for the heard
-    /// count.
+    /// Forget every tune played, for the heard count.
     pub async fn reset_heard(&self) {
         let _ = tokio::task::spawn_blocking(crate::history::reset_heard).await;
+    }
+
+    /// Merge Phosphor's favourites and play history into Resonance's.
+    /// Phosphor's files are only read.
+    pub async fn import_from_phosphor(&self) -> PhosphorImport {
+        tokio::task::spawn_blocking(|| {
+            let Some(dir) = crate::config::phosphor_dir() else {
+                return PhosphorImport::default();
+            };
+            let imported = crate::history::import_from(&dir);
+            PhosphorImport {
+                favorites: imported.favorites as u32,
+                recently_played: imported.recent as u32,
+                heard: imported.heard as u32,
+            }
+        })
+        .await
+        .unwrap_or_default()
     }
 
     /// Surprise Me: an endless stream of random tunes from all of HVSC, one
@@ -1339,7 +1380,7 @@ impl PlayerCore {
     /// first kilobyte of its STIL.txt, as Phosphor checks), and remember it
     /// for the next download.
     pub async fn check_hvsc_update(&self) -> Result<HvscVersionCheck, HvscError> {
-        let mirror = crate::config::Config::load().hvsc_mirror_url;
+        let mirror = crate::config::DEFAULT_HVSC_MIRROR_URL;
         let latest = crate::stil::check_hvsc_update(&mirror)
             .await
             .map_err(|message| HvscError::Io { message })?
@@ -1350,8 +1391,8 @@ impl PlayerCore {
     }
 
     /// Fetch Phosphor's published playlists (its GitHub repo's index and
-    /// the M3U files that are new or changed since the last sync) into the
-    /// cache both apps read, as Phosphor does at every launch. The index is
+    /// the M3U files that are new or changed since the last sync) into
+    /// Resonance's cache, as Phosphor does at every launch. The index is
     /// written last, so an interrupted sync is redone next time. Returns
     /// how many playlists were downloaded.
     pub async fn sync_published_playlists(&self) -> Result<u32, HvscError> {
@@ -1429,11 +1470,7 @@ impl PlayerCore {
     fn apply_post_sync(&self, root: &Path) {
         crate::hvsc_index_cache::clear_all();
         self.library.refresh();
-        let config = crate::config::Config::load();
-        databases::install(
-            &self.databases,
-            databases::Databases::load_with_tree(&config, Some(root)),
-        );
+        databases::install(&self.databases, databases::Databases::load_with_tree(Some(root)));
     }
 
     fn send(&self, cmd: Command) {
@@ -1488,15 +1525,14 @@ fn to_usize(v: Vec<u32>) -> Vec<usize> {
     v.into_iter().map(|i| i as usize).collect()
 }
 
-/// The archive to download: an explicit `hvsc_zip_url` in Phosphor's
-/// config wins, else the mirror's `<N>-all-of-them` archive at `latest`
-/// (the release the update check found), else at the tree's known
-/// release. Mirrors upstream's `HvscZipSyncStart` resolution;
+/// The archive to download: the default mirror's `<N>-all-of-them`
+/// archive at `latest` (the release the update check found). Follows
+/// upstream's `HvscZipSyncStart` resolution with its default settings;
 /// unlike it, an unrecognised mirror host falls back to brona.dk's, the
-/// canonical mirror, rather than dead-ending (Resonance has no field to
-/// paste an archive URL into).
+/// canonical mirror, rather than dead-ending.
 fn sync_archive_url(latest: Option<u32>) -> String {
-    let config = crate::config::Config::load();
+    // Upstream's defaults: Resonance doesn't read Phosphor's config.json.
+    let config = crate::config::Config::default();
     let latest = latest.map(|v| format!("v{v}"));
     config
         .hvsc_zip_url

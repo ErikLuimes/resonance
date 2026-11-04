@@ -16,7 +16,7 @@ struct AboutView: View {
             VStack(spacing: 4) {
                 Text("Resonance")
                     .font(.title.weight(.semibold))
-                Text("powered by Phosphor")
+                Text("The SID, played and seen")
                     .font(.title3)
                     .foregroundStyle(.secondary)
                 Text("Resonance \(Self.appVersion) · Phosphor \(phosphorVersion())")
@@ -28,11 +28,12 @@ struct AboutView: View {
             }
 
             Text("""
-                Resonance is a native Mac interface for Phosphor, Marcin Spoczynski's \
-                open-source SID music player. Phosphor itself is a Rust app for macOS, \
-                Linux and Windows; Resonance plays through its engine unchanged — \
-                SIDLite and reSID emulation, song lengths, STIL and the HVSC library — \
-                and gives it a SwiftUI front end made only for the Mac.
+                Resonance is a SID music player made only for the Mac. It plays \
+                through the engine of Phosphor, Marcin Spoczynski's open-source SID \
+                player for macOS, Linux and Windows — SIDLite and reSID emulation, \
+                song lengths, STIL and the HVSC library — compiled in unchanged. \
+                Use Phosphor too? Import its settings, favourites and history in \
+                Settings → Advanced.
                 """)
                 .font(.callout)
                 .multilineTextAlignment(.center)

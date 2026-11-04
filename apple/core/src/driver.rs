@@ -24,7 +24,7 @@ use crate::player::{self, PlayState, PlayerCmd, PlayerStatus};
 use crate::playlist::{self, LoadingProgress, PlaylistEntry, RepeatMode};
 use crate::session::{persist, Engine, Options, RadioKind, Session};
 use crate::viz::{SharedFeed, VizCapture, VizFeed};
-use crate::{audio_volume, config};
+use crate::audio_volume;
 
 /// How often the advance check runs while playing (statuses also wake the
 /// loop every frame) and while idle.
@@ -209,9 +209,7 @@ fn spawn_loader(progress: LoadingProgress, library: Library) -> (Sender<Job>, Re
             for job in job_rx.iter() {
                 let result = match job {
                     Job::Databases => {
-                        // Read-only: Resonance never writes Phosphor's config.json.
-                        let config = config::Config::load();
-                        Loaded::Databases(Box::new(Databases::load_with_tree(&config, library.root().as_deref())))
+                        Loaded::Databases(Box::new(Databases::load_with_tree(library.root().as_deref())))
                     }
                     Job::RestoreSession(path) => {
                         set_progress(&progress, "Restoring playlist…");

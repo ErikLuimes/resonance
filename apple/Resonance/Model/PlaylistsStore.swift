@@ -19,12 +19,11 @@ nonisolated enum AddTarget: Hashable, Sendable {
     case playlist(String)
 }
 
-/// Your playlists, the favourites Resonance shares with Phosphor, and
-/// adding tunes to either.
+/// Your playlists, your favourites, and adding tunes to either.
 ///
 /// Playlists are plain M3U files (one absolute path per line), so other
-/// players open them too. Favourites are Phosphor's favorites.json, read
-/// and written through the core.
+/// players open them too. Favourites are a favorites.json in Phosphor's
+/// format, in Resonance's folder, read and written through the core.
 @Observable
 final class PlaylistsStore {
     /// Sorted by name.

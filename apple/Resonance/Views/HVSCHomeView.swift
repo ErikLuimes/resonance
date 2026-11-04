@@ -16,18 +16,21 @@ struct HVSCHomeView: View {
 
     var body: some View {
         Group {
-            if store.hasCollection, let info = store.hvscInfo {
+            // The first download, extraction included: its folders appear
+            // before the collection is whole, so it isn't one yet.
+            if let sync = store.hvscSync, sync.running, store.hvscInfo == nil {
+                DownloadProgress(sync: sync)
+            } else if store.hasCollection, let info = store.hvscInfo {
                 CollectionHome(info: info, openCategory: openCategory)
                     // A new release starts fresh, so the first frame can
                     // show the previous release's counts to animate from.
                     .id(info.version)
             } else if store.hasCollection {
-                ProgressView("Reading the collection…")
+                Text("Reading the collection…")
+                    .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let sync = store.hvscSync {
-                if sync.running {
-                    DownloadProgress(sync: sync)
-                } else if let error = sync.error {
+                if let error = sync.error {
                     DownloadError(error: error)
                 } else {
                     // Finished, but the app hasn't pointed at the folder yet.
@@ -110,8 +113,8 @@ private struct DownloadError: View {
     }
 }
 
-/// The download's progress: a ring over the tile, a bar with its numbers,
-/// and the worker's own line (which names the file being extracted).
+/// The download's progress, through download and extraction: the tile
+/// and a bar with its numbers.
 private struct DownloadProgress: View {
     let sync: HvscSyncStatus
     @Environment(PlayerStore.self) private var store
@@ -121,25 +124,7 @@ private struct DownloadProgress: View {
         let fraction = sync.fraction
 
         VStack(spacing: 18) {
-            ZStack {
-                Tile(size: 96, symbol: "archivebox")
-                if let fraction {
-                    Circle()
-                        .stroke(.quaternary, lineWidth: 5)
-                        .frame(width: 132, height: 132)
-                    Circle()
-                        .trim(from: 0, to: fraction)
-                        .stroke(.tint, style: StrokeStyle(lineWidth: 5, lineCap: .round))
-                        .rotationEffect(.degrees(-90))
-                        .frame(width: 132, height: 132)
-                    Text(fraction.formatted(.percent.precision(.fractionLength(0))))
-                        .font(.title.bold())
-                        .monospacedDigit()
-                } else {
-                    ProgressView()
-                }
-            }
-            .animation(.linear(duration: 0.25), value: fraction ?? 0)
+            Tile(size: 96, symbol: "archivebox")
 
             Text(extracting ? "Extracting the Collection" : "Downloading the Collection")
                 .font(.title2.weight(.semibold))
@@ -154,13 +139,11 @@ private struct DownloadProgress: View {
                 }
                 .frame(width: 340)
             } else {
+                // Before the server announces a total.
                 ProgressView()
+                    .progressViewStyle(.linear)
+                    .frame(width: 340)
             }
-
-            Text(sync.current)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .lineLimit(1)
 
             Button("Cancel") { store.cancelHvscSync() }
                 .buttonStyle(.bordered)
@@ -222,9 +205,10 @@ private struct CollectionHome: View {
             _tilesSettled = State(initialValue: false)
         }
     }
-    /// The content's width, which picks the column counts below. The
-    /// detail column's minimum is pinned elsewhere, so this only ever
-    /// rearranges the content inside it.
+    /// The content's width, which picks the column counts below: what the
+    /// column offers, not what the content takes (which a too-wide layout
+    /// would inflate, and so keep itself). The detail column's minimum is
+    /// pinned elsewhere, so this only ever rearranges the content inside it.
     @State private var width: CGFloat = 900
 
     var body: some View {
@@ -251,12 +235,12 @@ private struct CollectionHome: View {
                 jumpBackIn
                 extras
             }
-            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
             .padding(.horizontal, 24)
             .padding(.vertical, 20)
             .frame(maxWidth: 1200)
             .frame(maxWidth: .infinity)
         }
+        .onGeometryChange(for: CGFloat.self) { min($0.size.width, 1200) - 48 } action: { width = $0 }
         // The history gains each play before the core reports the track.
         .task(id: store.trackRevision) { await library.loadRecent() }
         .task { await playUpdate() }
@@ -323,18 +307,24 @@ private struct CollectionHome: View {
     // ── Hero ──
 
     private var hero: some View {
-        // Two layouts for the same data. Wide: the stats sit right of the
-        // title. Narrow: they drop below it. ViewThatFits picks the first
-        // whose ideal width fits, so the title is never squeezed.
+        // Three layouts for the same data. Wide: the stats sit right of the
+        // title. Narrow: they drop below it. Narrowest (the smallest
+        // window): a smaller tile, the title on two lines, the stats two by
+        // two. ViewThatFits picks the first whose ideal width fits, so the
+        // title is never squeezed.
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .bottom, spacing: 36) {
-                heroIdentity
+                heroIdentity()
                 Spacer(minLength: 0)
-                stats
+                stats()
             }
             VStack(alignment: .leading, spacing: 22) {
-                heroIdentity
-                stats
+                heroIdentity()
+                stats()
+            }
+            VStack(alignment: .leading, spacing: 18) {
+                heroIdentity(compact: true)
+                stats(compact: true)
             }
         }
         .padding(.horizontal, 28)
@@ -373,10 +363,10 @@ private struct CollectionHome: View {
         }
     }
 
-    private var heroIdentity: some View {
+    private func heroIdentity(compact: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 20) {
-                Tile(size: 84, symbol: "waveform")
+            HStack(spacing: compact ? 14 : 20) {
+                Tile(size: compact ? 56 : 84, symbol: "waveform")
                     .shadow(color: Palette.purple.opacity(0.35), radius: 14, y: 8)
                 VStack(alignment: .leading, spacing: 4) {
                     if let version = heroVersion {
@@ -404,11 +394,11 @@ private struct CollectionHome: View {
                         }
                     }
                     Text("High Voltage SID Collection")
-                        .font(.system(size: 30, weight: .bold))
+                        .font(.system(size: compact ? 24 : 30, weight: .bold))
                         .kerning(-0.4)
                         // Shown whole or the layout below takes over: the
-                        // title is never truncated.
-                        .fixedSize()
+                        // title is never truncated. The compact one wraps.
+                        .fixedSize(horizontal: !compact, vertical: true)
                     Text(subtitle)
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -437,12 +427,27 @@ private struct CollectionHome: View {
         }
     }
 
-    private var stats: some View {
-        HStack(spacing: 28) {
-            stat(heroCounts.tunes, "tunes", delta: delta(\.tunes))
-            stat(heroCounts.composers, "composers", delta: delta(\.composers))
-            stat(heroCounts.stilNotes, "STIL notes", delta: delta(\.stilNotes))
-            stat(songLengthCoverage, "song lengths")
+    private func stats(compact: Bool = false) -> some View {
+        Group {
+            if compact {
+                Grid(alignment: .leading, horizontalSpacing: 28, verticalSpacing: 12) {
+                    GridRow {
+                        stat(heroCounts.tunes, "tunes", delta: delta(\.tunes))
+                        stat(heroCounts.composers, "composers", delta: delta(\.composers))
+                    }
+                    GridRow {
+                        stat(heroCounts.stilNotes, "STIL notes", delta: delta(\.stilNotes))
+                        stat(songLengthCoverage, "song lengths")
+                    }
+                }
+            } else {
+                HStack(spacing: 28) {
+                    stat(heroCounts.tunes, "tunes", delta: delta(\.tunes))
+                    stat(heroCounts.composers, "composers", delta: delta(\.composers))
+                    stat(heroCounts.stilNotes, "STIL notes", delta: delta(\.stilNotes))
+                    stat(songLengthCoverage, "song lengths")
+                }
+            }
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
@@ -583,7 +588,7 @@ private struct CollectionHome: View {
 
     // ── Jump back in ──
 
-    /// The last few tunes played, here or in Phosphor; a click plays the
+    /// The last few tunes played; a click plays the
     /// history from that tune.
     @ViewBuilder
     private var jumpBackIn: some View {
@@ -591,7 +596,7 @@ private struct CollectionHome: View {
             let shown = Array(recent.prefix(width >= 640 ? 6 : 4))
             let columns = width >= 640 ? 2 : 1
             VStack(alignment: .leading, spacing: 12) {
-                sectionHeader("Jump Back In", sub: "Recently played here and in Phosphor") {
+                sectionHeader("Jump Back In", sub: "The tunes you played last") {
                     AccentLink("History") { library.shownSection = .recent }
                 }
                 Grid(horizontalSpacing: 20, verticalSpacing: 2) {

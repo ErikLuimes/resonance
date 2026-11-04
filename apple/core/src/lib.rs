@@ -24,7 +24,7 @@ pub(crate) mod audio_volume;
 pub(crate) mod c64_emu;
 #[allow(dead_code, unused, clippy::all)]
 #[path = "../../../src/config.rs"]
-pub(crate) mod config;
+pub(crate) mod phosphor_config;
 #[allow(dead_code, unused, clippy::all)]
 #[path = "../../../src/debug_log.rs"]
 pub(crate) mod debug_log;
@@ -77,6 +77,8 @@ pub(crate) mod stil;
 uniffi::setup_scaffolding!();
 
 mod buglist;
+/// Upstream's `config`, with the data folder Resonance chooses.
+pub(crate) mod config;
 mod databases;
 mod driver;
 mod fingerprint;

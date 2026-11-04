@@ -91,6 +91,10 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     func heardCount() async -> UInt32 { lock.withLock { _heard } }
     func clearRecentlyPlayed() async {}
     func resetHeard() async {}
+    func importFromPhosphor() async -> PhosphorImport {
+        record("importFromPhosphor")
+        return PhosphorImport(favorites: 2, recentlyPlayed: 1, heard: 0)
+    }
     func hvscBugs(path: String) async -> [TuneBug] { [] }
 
     func hvscTunesAt(paths: [String]) async throws -> [HvscTuneItem] {
@@ -146,6 +150,7 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
         }
     }
     func cancelHvscSync() { record("syncCancel") }
+    func reloadHvsc() { record("reloadHvsc") }
 
     func startFingerprintScan() async throws { record("fingerprintScan") }
     func retryFailedFingerprints() async throws { record("retryFingerprints") }
@@ -226,7 +231,8 @@ struct PlayerStoreTests {
         let store = PlayerStore(
             defaults: defaults,
             sessionPath: URL(filePath: "/tmp/session.m3u"),
-            phosphorHvscRoot: { phosphorHvscRoot }
+            phosphorHvscRoot: { phosphorHvscRoot },
+            defaultHvscRoot: phosphorHvscRoot
         ) {
             config = $0
             return fake
@@ -353,14 +359,14 @@ struct HvscSettingsTests {
 
     private func makeStore(phosphor: String?) -> (PlayerStore, CoreConfig) {
         var config: CoreConfig?
-        let store = PlayerStore(defaults: defaults, phosphorHvscRoot: { phosphor }) {
+        let store = PlayerStore(defaults: defaults, phosphorHvscRoot: { phosphor }, defaultHvscRoot: phosphor) {
             config = $0
             return fake
         }
         return (store, config!)
     }
 
-    @Test func usesPhosphorsFolderUntilOneIsChosen() {
+    @Test func usesTheDefaultFolderUntilOneIsChosen() {
         let (store, config) = makeStore(phosphor: "/HVSC")
         #expect(config.hvscRoot == "/HVSC")
         #expect(store.hvscRoot == "/HVSC")
@@ -409,7 +415,7 @@ struct HvscSyncTests {
     }
 
     private func makeStore(phosphor: String?) -> PlayerStore {
-        PlayerStore(defaults: defaults, phosphorHvscRoot: { phosphor }) { _ in fake }
+        PlayerStore(defaults: defaults, phosphorHvscRoot: { phosphor }, defaultHvscRoot: phosphor) { _ in fake }
     }
 
     @Test func startForwardsAndReportsACoresError() async {
@@ -479,7 +485,7 @@ struct LibraryStoreTests {
         let suite = "ResonanceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
-        let player = PlayerStore(defaults: defaults, phosphorHvscRoot: { root }) { _ in fake }
+        let player = PlayerStore(defaults: defaults, phosphorHvscRoot: { root }, defaultHvscRoot: root) { _ in fake }
         return (LibraryStore(player: player), player)
     }
 

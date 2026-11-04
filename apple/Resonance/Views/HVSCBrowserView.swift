@@ -481,7 +481,7 @@ struct HvscDownloadView: View {
                 } label: {
                     Label("Download HVSC", systemImage: "arrow.down.circle")
                 }
-                Text("The whole collection as one archive, into the folder Phosphor uses.")
+                Text("The whole collection as one archive, into Resonance's folder.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

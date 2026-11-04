@@ -1,9 +1,8 @@
 import SwiftUI
 import PhosphorCore
 
-/// The play history Resonance shares with Phosphor: the last 100 different
-/// tunes either app played, newest first, and how much of HVSC has been
-/// heard so far.
+/// The play history: the last 100 different tunes played, newest first,
+/// and how much of HVSC has been heard so far.
 struct RecentlyPlayedView: View {
     /// The window search field's text for this section.
     let search: String
@@ -28,7 +27,7 @@ struct RecentlyPlayedView: View {
                 ContentUnavailableView {
                     Label("Nothing Played Yet", systemImage: "clock")
                 } description: {
-                    Text("Tunes you play here or in Phosphor show up here, newest first.")
+                    Text("Tunes you play show up here, newest first.")
                 }
                 // The whole pane, so the header stays on top and the play bar at
                 // the bottom.
@@ -70,7 +69,7 @@ struct RecentlyPlayedView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Recently Played")
                     .font(.title2.weight(.bold))
-                Text("Shared with Phosphor: the last 100 different tunes either app played.")
+                Text("The last 100 different tunes you played.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 if let heard = heardText {

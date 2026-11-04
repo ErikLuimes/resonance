@@ -1,7 +1,7 @@
 //! Read-only HVSC reference data shared by the session (song lengths) and
 //! the library (song lengths, STIL, and the release number that keys the
-//! search-index cache). Loaded once from Phosphor's data folder on the
-//! loader thread, then published through a shared slot.
+//! search-index cache). Loaded once from the collection's DOCUMENTS
+//! folder on the loader thread, then published through a shared slot.
 
 use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
@@ -9,7 +9,6 @@ use std::sync::Arc;
 
 use tokio::sync::watch;
 
-use crate::config::{self, Config};
 use crate::playlist::SonglengthDb;
 use crate::stil::{self, StilDb};
 
@@ -20,7 +19,7 @@ pub(crate) struct Databases {
     /// The same STIL.txt's entries as written, for the app's own parser.
     pub stil_text: Option<StilText>,
     /// HVSC release, e.g. 85. Part of the index-cache key, derived the same
-    /// way as Phosphor's (main.rs:4476-4485) so both apps share one cache.
+    /// way as Phosphor's (main.rs:4476-4485), so the cache files match.
     pub hvsc_version: Option<u32>,
 }
 
@@ -38,7 +37,7 @@ pub(crate) fn install(shared: &SharedDatabases, databases: Databases) {
 
 /// The databases once loaded. Index builds and tune listings wait for this:
 /// an index built without them would lack song lengths and STIL flags, and
-/// would be saved like that to the cache shared with Phosphor.
+/// would be saved like that to the index cache.
 pub(crate) async fn loaded(shared: &SharedDatabases) -> Arc<Databases> {
     let mut rx = shared.subscribe();
     let db = match rx.wait_for(Option::is_some).await {
@@ -50,48 +49,17 @@ pub(crate) async fn loaded(shared: &SharedDatabases) -> Arc<Databases> {
 }
 
 impl Databases {
-    /// Load what Phosphor has on disk, without writing anything back.
-    ///
-    /// Song lengths only come from `<config_dir>/Songlengths.md5`, like
-    /// Phosphor's boot (main.rs:548-558). STIL comes from the remembered
-    /// file, else `<config_dir>/STIL.txt` (main.rs:569-584).
-    pub fn load(config: &Config) -> Self {
-        let songlengths = songlength_file()
-            .and_then(|p| log_err("Songlengths", &p, SonglengthDb::load(&p)));
-        let (stil, stil_text) = load_stil_pair(stil_file(config));
-        let hvsc_version = stil.as_ref().and_then(|s| s.hvsc_version).or_else(|| {
-            config
-                .hvsc_known_version
-                .as_deref()
-                .and_then(|v| v.trim().trim_start_matches(['v', 'V']).parse().ok())
-        });
-        Self {
-            songlengths,
-            stil,
-            stil_text,
-            hvsc_version,
-        }
-    }
-
-    /// `load`, then the collection's own DOCUMENTS where they have more:
-    /// at launch and after a download.
-    ///
-    /// A fresh install remembers no STIL or Songlengths path yet, and the
-    /// tree the sync brings in keeps both in its DOCUMENTS folder (the
-    /// layout Phosphor's `apply_post_hvsc_sync` adopts), so look there when
-    /// the remembered paths have nothing. After an update the tree's copies
-    /// are a newer release than the remembered ones, and win, as at
-    /// Phosphor's launch (main.rs `tree_db_is_newer`).
-    pub fn load_with_tree(config: &Config, hvsc_root: Option<&Path>) -> Self {
-        let mut db = Self::load(config);
+    /// The collection's own song lengths and STIL, from its DOCUMENTS
+    /// folder (where the download puts them): at launch and after a
+    /// download. Nothing is read from Phosphor's folder.
+    pub fn load_with_tree(hvsc_root: Option<&Path>) -> Self {
+        let mut db = Self::default();
         db.fill_from_documents(hvsc_root);
         db
     }
 
-    /// The part `load_with_tree` adds: the sync puts STIL.txt and
-    /// Songlengths.md5 in the tree's DOCUMENTS folder, where a fresh
-    /// install's remembered paths point at nothing, so adopt them: what the
-    /// normal lookup didn't find, or both when the tree is a newer release.
+    /// Adopt the tree's DOCUMENTS: what isn't loaded yet, or both when the
+    /// tree is a newer release than what is.
     pub(crate) fn fill_from_documents(&mut self, hvsc_root: Option<&Path>) {
         let Some(documents) = hvsc_root.map(|root| root.join("DOCUMENTS")) else {
             return
@@ -220,21 +188,6 @@ fn log_err<T>(what: &str, path: &Path, result: Result<T, String>) -> Option<T> {
     result
         .map_err(|e| eprintln!("[resonance] {what} at {}: {e}", path.display()))
         .ok()
-}
-
-/// `<config_dir>/Songlengths.md5`, like Phosphor's boot.
-fn songlength_file() -> Option<PathBuf> {
-    config::songlength_db_path().filter(|p| p.exists())
-}
-
-/// The remembered STIL file, else `<config_dir>/STIL.txt`.
-fn stil_file(config: &Config) -> Option<PathBuf> {
-    config
-        .last_stil_file
-        .as_ref()
-        .map(PathBuf::from)
-        .filter(|p| p.exists())
-        .or_else(|| stil::stil_db_path().filter(|p| p.exists()))
 }
 
 /// A STIL file's parsed database and its raw entries, when `path` has one.

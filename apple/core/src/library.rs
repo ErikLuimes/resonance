@@ -2,9 +2,8 @@
 //! fuzzy search over a per-category index, and random picks.
 //!
 //! Wraps upstream's model (`hvsc_browser`, one `HvscBrowser` per category)
-//! and its on-disk index cache, which is shared with Phosphor — both apps
-//! build identical, self-validating indexes, so either one's build saves
-//! the other the 30–60 s walk.
+//! and its on-disk, self-validating index cache, which saves the 30–60 s
+//! walk after the first build.
 //!
 //! Every method is async for the FFI layer: blocking disk work runs on the
 //! tokio blocking pool, and the lock around the browsers is only held for
@@ -532,7 +531,7 @@ impl Library {
         .await
     }
 
-    /// The tunes played most recently (the history shared with Phosphor),
+    /// The tunes played most recently (the play history),
     /// newest first, read from their headers with song lengths and STIL
     /// flags, and when each was played. Files no longer on disk are left
     /// out; tunes outside the collection have no category.

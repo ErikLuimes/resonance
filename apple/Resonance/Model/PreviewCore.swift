@@ -162,6 +162,7 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
     func heardCount() async -> UInt32 { 2_431 }
     func clearRecentlyPlayed() async {}
     func resetHeard() async {}
+    func importFromPhosphor() async -> PhosphorImport { PhosphorImport(favorites: 0, recentlyPlayed: 0, heard: 0) }
 
     func hvscBugs(path: String) async -> [TuneBug] {
         guard path == items.first?.path else { return [] }
@@ -191,6 +192,7 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
     func hvscSyncStatus() -> HvscSyncStatus? { nil }
     func startHvscSync() throws {}
     func cancelHvscSync() {}
+    func reloadHvsc() {}
     func hvscInfo() async -> HvscInfo? { nil }
     func syncPublishedPlaylists() async throws -> UInt32 { 0 }
     func hvscComposers(category: HvscCategory) async throws -> [HvscComposer] { [] }

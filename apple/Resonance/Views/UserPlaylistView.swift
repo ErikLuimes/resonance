@@ -43,7 +43,7 @@ struct UserPlaylistView: View {
                           systemImage: playlist == nil ? "heart" : "music.note.list")
                 } description: {
                     Text(playlist == nil
-                         ? "Heart a tune in the inspector or Now Playing. Phosphor shares your favourites."
+                         ? "Heart a tune in the inspector or Now Playing."
                          : "Add tunes with Add to, in the inspector, Now Playing or a list's context menu.")
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -108,7 +108,7 @@ struct UserPlaylistView: View {
     private var subtitle: String {
         let count = playlists.rows[id]?.count
         let tunes = count.map { $0 == 1 ? "1 tune" : "\($0.formatted()) tunes" } ?? "…"
-        return playlist == nil ? "\(tunes), shared with Phosphor" : tunes
+        return tunes
     }
 
     /// Dropped at `offset` of the rows shown: before that row's file, or
