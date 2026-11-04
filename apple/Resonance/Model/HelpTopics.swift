@@ -297,7 +297,7 @@ extension HelpTopic {
             summary: "Every Playback command has a key.",
             blocks: [
                 .shortcuts([
-                    HelpShortcut(keys: "Space", action: "Play or pause, in My Playlist"),
+                    HelpShortcut(keys: "Space", action: "Play or pause (not while typing)"),
                     HelpShortcut(keys: "⌘.", action: "Stop"),
                     HelpShortcut(keys: "⌘→", action: "Next track"),
                     HelpShortcut(keys: "⌘←", action: "Previous track"),

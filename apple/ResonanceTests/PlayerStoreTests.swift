@@ -131,7 +131,7 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
 
     func hvscSyncStatus() -> HvscSyncStatus? { lock.withLock { _sync } }
     func hvscInfo() async -> HvscInfo? { lock.withLock { _hvscInfo } }
-    func syncPublishedPlaylists() async throws -> UInt32 { record("syncPlaylists"); return 0 }
+    func syncPublishedPlaylists(bundled: String?) async throws -> UInt32 { record("syncPlaylists"); return 0 }
     func tunesFromFiles(paths: [String]) async -> [HvscTuneItem] { [] }
     private var _composers: [HvscComposer] = []
     func set(composers: [HvscComposer]) { lock.withLock { _composers = composers } }

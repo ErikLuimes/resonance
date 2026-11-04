@@ -456,11 +456,14 @@ final class PlayerStore {
         return latestHvsc > installedHvsc
     }
 
-    /// Fetch Phosphor's published playlists into Resonance's cache (as
-    /// Phosphor does at launch; without it, a fresh install has none),
-    /// then re-read the Home's metadata, which lists them.
+    /// The curated playlists: the copy inside the app fills an empty cache
+    /// (so a fresh install has them, offline too), then they're brought up
+    /// to date from Resonance's repository, as Phosphor does at launch. The
+    /// Home's metadata, which lists them, is re-read either way: offline,
+    /// the seeded ones still show.
     func syncPublishedPlaylists() async {
-        guard (try? await core.syncPublishedPlaylists()) != nil else { return }
+        let bundled = Bundle.main.url(forResource: "playlists", withExtension: nil)?.path
+        _ = try? await core.syncPublishedPlaylists(bundled: bundled)
         hvscInfoRevision = nil
         await loadHvscInfo()
     }

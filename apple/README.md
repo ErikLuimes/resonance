@@ -100,6 +100,13 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
   `phosphor-debug.log`. `core/src/config.rs` points upstream's `config_dir()`
   there, without changing `src/`. Settings are in its own user defaults
   (`nl.luimes.resonance`).
+- The curated playlists are Phosphor's published playlists, from the
+  `playlists/` folder at the top of this repository (it merges in from
+  upstream): `core/src/curated.rs` brings them up to date at launch from
+  this repository's `main` on GitHub, not Phosphor's. The app also ships
+  the folder, which fills an empty cache on the first launch, offline too.
+  Edit, add or remove a playlist there (with `index.json`, whose `sha256`
+  tells apps a file changed), push, and every Resonance picks it up.
 - The HVSC folder is `Resonance/HVSC` until you choose another; Download puts
   the collection there. Song lengths and STIL come from the collection's own
   `DOCUMENTS` folder.

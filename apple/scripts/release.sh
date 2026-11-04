@@ -50,7 +50,11 @@ if [ -n "$IDENTITY" ]; then
     NAME="Resonance-$VERSION"
 else
     echo "No Developer ID Application certificate: building unsigned"
-    SIGNING=(CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO)
+    # No hardened runtime: its library validation only loads frameworks
+    # signed by the app's own team, and an ad-hoc build has none, so the
+    # app couldn't load PhosphorCore. (Notarization needs it; this build
+    # isn't notarized.)
+    SIGNING=(CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO ENABLE_HARDENED_RUNTIME=NO)
     NAME="Resonance-$VERSION-unsigned"
 fi
 

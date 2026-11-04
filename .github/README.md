@@ -130,7 +130,7 @@ is played.
 
 | Shortcut | Action |
 | --- | --- |
-| <kbd>Space</kbd> | Play / Pause (in the playlist) |
+| <kbd>Space</kbd> | Play / Pause |
 | <kbd>⌘</kbd> <kbd>.</kbd> | Stop |
 | <kbd>⌘</kbd> <kbd>←</kbd> / <kbd>→</kbd> | Previous / next track |
 | <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>←</kbd> / <kbd>→</kbd> | Previous / next subtune |

@@ -13,6 +13,7 @@
 		0BC0465548DDA9FA7F88FFB1 /* PhosphorCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FA99E36DFC9909E36EFDFFA1 /* PhosphorCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */; };
 		5C1A7E0B2D9F4E3A8B6C0D11 /* STILKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5C1A7E0B2D9F4E3A8B6C0D12 /* STILKit */; };
+		D1A2B3C4D5E6F70819203A02 /* playlists in Resources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4D5E6F70819203A01 /* playlists */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -56,6 +57,7 @@
 		9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = PhosphorCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		BD618DF38BE01ED7BAC0B411 /* Resonance.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Resonance.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F8024CBD8CE4F2DA043269EF /* ResonanceTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ResonanceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D1A2B3C4D5E6F70819203A01 /* playlists */ = {isa = PBXFileReference; lastKnownFileType = folder; name = playlists; path = ../playlists; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -107,6 +109,7 @@
 				C6453AC673229E64EE9991B0 /* ResonanceTests */,
 				411E8B423831D7B4B6F29CF1 /* PhosphorCore */,
 				44A88AA8803A35B8CB3E1767 /* Config */,
+				D1A2B3C4D5E6F70819203A01 /* playlists */,
 				6D960DB7A3C67A976CF668BD /* scripts */,
 				2AB91D63C9C73ECC697336D4 /* Products */,
 			);
@@ -276,6 +279,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D1A2B3C4D5E6F70819203A02 /* playlists in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

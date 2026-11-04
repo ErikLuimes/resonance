@@ -1,6 +1,13 @@
 import SwiftUI
 import PhosphorCore
 
+/// The Playback menu and the other playback commands. None is ever
+/// disabled: SwiftUI only refreshes a menu item's enabled state when the
+/// menu opens, so a shortcut kept the state from launch (Stop and the
+/// subtune keys stayed off while music played; Surprise Me would stay off
+/// after the first download). Each action does nothing when it doesn't
+/// apply instead. Titles that follow the player are views of their own,
+/// which refresh as the menu opens.
 struct PlaybackCommands: Commands {
     let store: PlayerStore
     let library: LibraryStore
@@ -8,10 +15,7 @@ struct PlaybackCommands: Commands {
     var body: some Commands {
         // ⇧⌘F: ⌃⌘F is the system's Enter Full Screen.
         CommandGroup(before: .sidebar) {
-            Button(store.isShowingNowPlaying ? "Hide Now Playing" : "Show Now Playing") {
-                store.toggleNowPlaying()
-            }
-            .keyboardShortcut("f", modifiers: [.command, .shift])
+            NowPlayingItem(store: store)
         }
 
         CommandGroup(replacing: .newItem) {
@@ -21,11 +25,8 @@ struct PlaybackCommands: Commands {
 
         CommandMenu("Playback") {
             // No Space shortcut here: a plain-key menu shortcut would swallow
-            // spaces typed into the search field. The playlist handles Space.
-            Button(store.isPlaying ? "Pause" : "Play") { store.playPause() }
-            Button("Stop") { store.stop() }
-                .keyboardShortcut(".")
-                .disabled(store.state == .stopped)
+            // spaces typed into the search field. SpaceKey handles Space.
+            TransportItems(store: store)
 
             Divider()
 
@@ -33,20 +34,11 @@ struct PlaybackCommands: Commands {
                 .keyboardShortcut(.rightArrow)
             Button("Previous Track") { store.previous() }
                 .keyboardShortcut(.leftArrow)
-            Button("Next Subtune") { store.nextSubtune() }
-                .keyboardShortcut(.rightArrow, modifiers: [.command, .option])
-                .disabled(!store.hasSubtunes)
-            Button("Previous Subtune") { store.previousSubtune() }
-                .keyboardShortcut(.leftArrow, modifiers: [.command, .option])
-                .disabled(!store.hasSubtunes)
+            SubtuneItems(store: store)
 
             Divider()
 
-            Button("Surprise Me") { Task { await library.surpriseMe() } }
-                .keyboardShortcut("r", modifiers: [.command, .shift])
-                .disabled(!library.hasRoot)
-            Button("Shuffle Collection") { Task { await library.shuffleCollection() } }
-                .disabled(!library.hasRoot)
+            CollectionItems(library: library)
 
             Divider()
 
@@ -64,6 +56,54 @@ struct PlaybackCommands: Commands {
                     Text(mode.displayName).tag(mode)
                 }
             }
+        }
+    }
+}
+
+private struct NowPlayingItem: View {
+    let store: PlayerStore
+
+    var body: some View {
+        Button(store.isShowingNowPlaying ? "Hide Now Playing" : "Show Now Playing") {
+            store.toggleNowPlaying()
+        }
+        .keyboardShortcut("f", modifiers: [.command, .shift])
+    }
+}
+
+private struct TransportItems: View {
+    let store: PlayerStore
+
+    var body: some View {
+        Button(store.isPlaying ? "Pause" : "Play") { store.playPause() }
+        Button("Stop") { store.stop() }
+            .keyboardShortcut(".")
+    }
+}
+
+private struct SubtuneItems: View {
+    let store: PlayerStore
+
+    var body: some View {
+        Button("Next Subtune") { store.nextSubtune() }
+            .keyboardShortcut(.rightArrow, modifiers: [.command, .option])
+        Button("Previous Subtune") { store.previousSubtune() }
+            .keyboardShortcut(.leftArrow, modifiers: [.command, .option])
+    }
+}
+
+private struct CollectionItems: View {
+    let library: LibraryStore
+
+    var body: some View {
+        Button("Surprise Me") {
+            guard library.hasRoot else { return }
+            Task { await library.surpriseMe() }
+        }
+        .keyboardShortcut("r", modifiers: [.command, .shift])
+        Button("Shuffle Collection") {
+            guard library.hasRoot else { return }
+            Task { await library.shuffleCollection() }
         }
     }
 }

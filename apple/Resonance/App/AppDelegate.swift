@@ -27,6 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         store.startPolling()
         guard !Self.isRunningTests else { return }
         TuneDrag.install()
+        SpaceKey.start(store)
         miniPlayer = MiniPlayer(store: store, library: library, playlists: playlists)
         fingerprints.startPolling()
         nowPlaying = NowPlayingController(store: store)

@@ -77,6 +77,7 @@ pub(crate) mod stil;
 uniffi::setup_scaffolding!();
 
 mod buglist;
+mod curated;
 /// Upstream's `config`, with the data folder Resonance chooses.
 pub(crate) mod config;
 mod databases;

@@ -194,7 +194,7 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
     func cancelHvscSync() {}
     func reloadHvsc() {}
     func hvscInfo() async -> HvscInfo? { nil }
-    func syncPublishedPlaylists() async throws -> UInt32 { 0 }
+    func syncPublishedPlaylists(bundled: String?) async throws -> UInt32 { 0 }
     func hvscComposers(category: HvscCategory) async throws -> [HvscComposer] { [] }
     func similarComposers(authorPath: String, limit: UInt32) async -> [SimilarComposer] { [] }
     func tunesFromFiles(paths: [String]) async -> [HvscTuneItem] { [] }

@@ -1390,37 +1390,31 @@ impl PlayerCore {
         Ok(HvscVersionCheck { latest, installed })
     }
 
-    /// Fetch Phosphor's published playlists (its GitHub repo's index and
-    /// the M3U files that are new or changed since the last sync) into
-    /// Resonance's cache, as Phosphor does at every launch. The index is
-    /// written last, so an interrupted sync is redone next time. Returns
-    /// how many playlists were downloaded.
-    pub async fn sync_published_playlists(&self) -> Result<u32, HvscError> {
-        use crate::published_playlists::{cache_dir, Manifest, PublishedPlaylistsClient};
+    /// Bring the curated playlists up to date from Resonance's repository
+    /// (see `curated`), as Phosphor does at every launch. `bundled` is the
+    /// app's own copy, which fills an empty cache first, so the playlists
+    /// are there on the first launch even offline. Returns how many
+    /// playlists were downloaded.
+    pub async fn sync_published_playlists(&self, bundled: Option<String>) -> Result<u32, HvscError> {
         let io = |message: String| HvscError::Io { message };
-        let dir = cache_dir().ok_or_else(|| io("No config folder.".to_string()))?;
-        let client = PublishedPlaylistsClient::new();
-        let manifest = client.fetch_index().await.map_err(io)?;
-        let index = dir.join("index.json");
-        let previous: std::collections::HashMap<String, String> = std::fs::read_to_string(&index)
-            .ok()
-            .and_then(|s| serde_json::from_str::<Manifest>(&s).ok())
-            .map(|m| m.playlists.into_iter().map(|p| (p.file, p.sha256)).collect())
-            .unwrap_or_default();
-        let mut downloaded = 0;
-        for entry in &manifest.playlists {
-            let current = dir.join(&entry.file).exists()
-                && previous.get(&entry.file) == Some(&entry.sha256);
-            if !current {
-                client.download_playlist(&entry.file, dir.clone()).await.map_err(io)?;
-                downloaded += 1;
+        let dir = crate::published_playlists::cache_dir().ok_or_else(|| io("No config folder.".to_string()))?;
+        if let Some(bundled) = bundled {
+            let seeded = tokio::task::spawn_blocking({
+                let dir = dir.clone();
+                move || crate::curated::seed(std::path::Path::new(&bundled), &dir)
+            })
+            .await
+            .map_err(|e| io(e.to_string()))?
+            .map_err(|e| io(e.to_string()))?;
+            if seeded {
+                // The Home's metadata lists them.
+                *self.hvsc_info_cache.lock().unwrap() = None;
             }
         }
-        let json = serde_json::to_string_pretty(&manifest).map_err(|e| io(e.to_string()))?;
-        std::fs::create_dir_all(&dir).map_err(|e| io(e.to_string()))?;
-        std::fs::write(&index, json).map_err(|e| io(e.to_string()))?;
-        // The Home's metadata lists them.
-        *self.hvsc_info_cache.lock().unwrap() = None;
+        let downloaded = crate::curated::sync(&dir).await.map_err(io)?;
+        if downloaded > 0 {
+            *self.hvsc_info_cache.lock().unwrap() = None;
+        }
         Ok(downloaded)
     }
 

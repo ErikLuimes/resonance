@@ -28,6 +28,8 @@ final class MiniPlayer: NSObject, NSWindowDelegate {
     private var item: NSStatusItem?
     private var panel: NSPanel?
     private var clickMonitor: Any?
+    /// The player's size, as it last measured itself.
+    private var size: CGSize?
     /// When the panel last closed: a click on the item that closed it (by
     /// taking its focus) mustn't open it again straight away.
     private var closedAt = Date.distantPast
@@ -100,6 +102,10 @@ final class MiniPlayer: NSObject, NSWindowDelegate {
         guard let anchor = itemFrame else { return }
         let panel = panel ?? makePanel()
         self.panel = panel
+        // The player's last size; the first time, it shows once it has
+        // measured itself (see fit).
+        if let size { panel.setContentSize(size) }
+        panel.alphaValue = size == nil ? 0 : 1
         place(panel, below: anchor)
         panel.makeKeyAndOrderFront(nil)
         item?.button?.highlight(true)
@@ -136,13 +142,36 @@ final class MiniPlayer: NSObject, NSWindowDelegate {
         .voiceThemed()
         .clipShape(.rect(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.separator))
+        // Its own height, whatever the panel's (a list, a note, nothing),
+        // which the panel then takes on.
+        .fixedSize()
+        .onGeometryChange(for: CGSize.self) { proxy in
+            proxy.size
+        } action: { [weak self] size in
+            self?.fit(size)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
-        let host = NSHostingController(rootView: content)
-        // The panel follows the player's height (a list, a note, nothing).
-        host.sizingOptions = .preferredContentSize
-        let panel = MiniPlayerPanel(contentViewController: host)
+        // Sized here, not by the hosting view (sizingOptions), and a beat
+        // later: the panel resizing itself while SwiftUI laid it out, and
+        // being moved back under the item as it did, looped until the
+        // stack ran out.
+        let host = NSHostingView(rootView: content)
+        host.sizingOptions = []
+        let panel = MiniPlayerPanel(contentView: host)
         panel.delegate = self
         return panel
+    }
+
+    /// The panel as big as the player (`size`), its top under the item.
+    private func fit(_ size: CGSize) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let panel, size.width > 0, let anchor = itemFrame else { return }
+            self.size = size
+            if size != panel.frame.size { panel.setContentSize(size) }
+            place(panel, below: anchor)
+            panel.alphaValue = 1
+        }
     }
 
     /// Under the item, its top a little below the menu bar, kept on screen.
@@ -154,12 +183,6 @@ final class MiniPlayer: NSObject, NSWindowDelegate {
     }
 
     func windowDidResignKey(_ notification: Notification) { close() }
-
-    /// Grown or shrunk with its content: back under the item.
-    func windowDidResize(_ notification: Notification) {
-        guard let panel, let anchor = itemFrame else { return }
-        place(panel, below: anchor)
-    }
 
     // MARK: ⌃⌥⌘P
 
@@ -188,9 +211,10 @@ final class MiniPlayer: NSObject, NSWindowDelegate {
 /// A borderless panel that takes the keyboard without making Resonance the
 /// active app, floating over the menu bar's apps like a menu.
 private final class MiniPlayerPanel: NSPanel {
-    init(contentViewController: NSViewController) {
-        super.init(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
-        self.contentViewController = contentViewController
+    init(contentView: NSView) {
+        super.init(contentRect: NSRect(origin: .zero, size: contentView.fittingSize),
+                   styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
+        self.contentView = contentView
         isFloatingPanel = true
         level = .popUpMenu
         backgroundColor = .clear
@@ -205,16 +229,14 @@ private final class MiniPlayerPanel: NSPanel {
 }
 
 /// Window → Mini Player, with its shortcut. The hot key handles the keys
-/// themselves, in every app; this item is how people find it.
+/// themselves, in every app; this item is how people find it. Never
+/// disabled (see PlaybackCommands): with the player off it does nothing.
 struct MiniPlayerCommands: Commands {
-    @AppStorage(Pref.menuBarPlayer) private var showsMenuBarPlayer = true
-
     var body: some Commands {
         CommandGroup(before: .windowList) {
             // After the menu has closed, which would take the panel's focus.
             Button("Mini Player") { DispatchQueue.main.async { MiniPlayer.shared?.toggle() } }
                 .keyboardShortcut(MiniPlayer.key, modifiers: MiniPlayer.modifiers)
-                .disabled(!showsMenuBarPlayer)
             Divider()
         }
     }
