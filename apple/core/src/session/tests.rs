@@ -152,6 +152,79 @@ fn path(name: &str) -> PathBuf {
     PathBuf::from(format!("/hvsc/{name}.sid"))
 }
 
+// ── Failed loads ─────────────────────────────────────────────────────────────
+
+fn failed(path: &PathBuf, error: &str) -> PlayerStatus {
+    PlayerStatus {
+        state: PlayState::Stopped,
+        error: Some(format!("Cannot read {}: {error}", path.display())),
+        ..PlayerStatus::default()
+    }
+}
+
+#[test]
+fn a_failed_load_is_explained_and_skipped() {
+    let mut h = Harness::new(vec![entry("a", 1, Some(60)), entry("b", 1, Some(60))]);
+    h.session.play_index(0, h.at(0.0));
+    h.feed(failed(&path("a"), "Operation not permitted (os error 1)"), 0.1);
+    assert_eq!(played(&h.sent()), vec![(path("a"), 1), (path("b"), 1)]);
+    let notice = h.session.notice.clone().expect("a notice");
+    assert!(notice.starts_with("Resonance isn't allowed to read a.sid"), "{notice}");
+    assert!(notice.ends_with("Skipped."), "{notice}");
+    // The player repeats the error until the next Play; it counts once.
+    h.feed(failed(&path("a"), "Operation not permitted (os error 1)"), 0.2);
+    assert!(played(&h.sent()).is_empty());
+    // b plays: the run of failures is over.
+    h.feed(h.status(1, 1, 1, 10), 0.3);
+    assert_eq!(h.session.status.state, PlayState::Playing);
+}
+
+#[test]
+fn a_tune_that_crashes_while_playing_is_skipped_too() {
+    let mut h = Harness::new(vec![entry("a", 1, Some(60)), entry("b", 1, Some(60))]);
+    h.session.play_index(0, h.at(0.0));
+    h.feed(h.status(0, 1, 2, 10), 2.0);
+    assert_eq!(h.session.status.state, PlayState::Playing);
+    let crashed = PlayerStatus {
+        state: PlayState::Stopped,
+        error: Some("Illegal instruction $12 at address $0404".into()),
+        ..PlayerStatus::default()
+    };
+    h.feed(crashed, 2.5);
+    assert_eq!(played(&h.sent()), vec![(path("a"), 1), (path("b"), 1)]);
+    assert_eq!(
+        h.session.notice.as_deref(),
+        Some("a.sid didn't play: Illegal instruction $12 at address $0404. Skipped.")
+    );
+}
+
+#[test]
+fn repeat_one_does_not_replay_a_crashing_tune() {
+    let mut h = Harness::new(vec![entry("a", 1, Some(60))]);
+    h.session.set_repeat(RepeatMode::Single);
+    h.session.play_index(0, h.at(0.0));
+    h.feed(h.status(0, 1, 2, 10), 2.0);
+    let crashed = PlayerStatus {
+        state: PlayState::Stopped,
+        error: Some("Illegal instruction $12 at address $0404".into()),
+        ..PlayerStatus::default()
+    };
+    h.feed(crashed, 2.5);
+    assert_eq!(played(&h.sent()), vec![(path("a"), 1)]);
+    assert!(!h.session.notice.as_deref().unwrap().ends_with("Skipped."));
+}
+
+#[test]
+fn every_entry_failing_stops_the_skipping() {
+    let mut h = Harness::new(vec![entry("a", 1, Some(60)), entry("b", 1, Some(60))]);
+    h.session.play_index(0, h.at(0.0));
+    h.feed(failed(&path("a"), "No such file or directory (os error 2)"), 0.1);
+    h.feed(failed(&path("b"), "No such file or directory (os error 2)"), 0.2);
+    assert_eq!(played(&h.sent()), vec![(path("a"), 1), (path("b"), 1)]);
+    let notice = h.session.notice.clone().expect("a notice");
+    assert_eq!(notice, "b.sid is missing: it was moved or deleted.");
+}
+
 // ── Engines ──────────────────────────────────────────────────────────────────
 
 #[test]

@@ -23,6 +23,24 @@ use crossbeam_channel::Sender;
 
 use crate::player::pseudo_stereo::DetuneStrength;
 use crate::player::{PlayState, PlayerCmd, PlayerStatus};
+
+/// The player's error for a failed load, in the user's terms: macOS's file
+/// protection and a missing file are the common cases.
+fn friendly_load_error(error: &str, path: &Path) -> String {
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| path.display().to_string());
+    if error.contains("Operation not permitted") || error.contains("Permission denied") {
+        format!(
+            "Resonance isn't allowed to read {name}. Allow it in System Settings → Privacy & Security → Files and Folders, or move the tune into your collection."
+        )
+    } else if error.contains("No such file") {
+        format!("{name} is missing: it was moved or deleted.")
+    } else {
+        format!("{name} didn't play: {error}.")
+    }
+}
 use crate::playlist::{Playlist, PlaylistEntry, RepeatMode, SonglengthDb};
 
 /// Software engines only. "auto" and "usb" would make `create_engine` try
@@ -106,6 +124,17 @@ pub struct Session {
     last_writes_at: Instant,
     /// Debounce for auto-advance (main.rs `last_advance_at`).
     last_advance_at: Option<Instant>,
+    /// The Play sent last, until the player reports it playing or failing.
+    awaiting_play: Option<(PathBuf, u16)>,
+    /// The player's error text already acted on; it repeats in every
+    /// status until the next Play, so it's acted on once.
+    handled_failure: Option<String>,
+    /// Loads that failed one after another; stops the skipping once every
+    /// entry has had its turn.
+    failed_in_a_row: usize,
+    /// What the user should know about the last failed load, kept until
+    /// their next action (the driver clears it).
+    pub notice: Option<String>,
 
     /// Bumped whenever anything visible in the playlist changes (rows,
     /// order, selected subtune, durations). Drives Swift refetches and the
@@ -170,6 +199,10 @@ impl Session {
             engine,
             last_writes_at: now,
             last_advance_at: None,
+            awaiting_play: None,
+            handled_failure: None,
+            failed_in_a_row: 0,
+            notice: None,
             playlist_revision: 0,
             track_revision: 0,
         }
@@ -225,6 +258,8 @@ impl Session {
         }
         let Some(mut status) = latest else { return };
 
+        self.note_failure(&status, now);
+
         // Drop timing from statuses produced before our latest Play /
         // SetSubtune reached the player (main.rs:4839-4868). Upstream only
         // compares the subtune; comparing the path as well also catches the
@@ -244,6 +279,71 @@ impl Session {
     /// register writes arrive for a while by design.
     pub fn hold_silence(&mut self, now: Instant) {
         self.last_writes_at = now;
+    }
+
+    /// A tune that failed, at load (unreadable, gone, not a tune) or while
+    /// playing (the C64 program crashed): say so, and move on to the next
+    /// entry rather than stop, as long as some entry hasn't failed yet.
+    /// Both players report a failure as an error in every status until the
+    /// next Play, so each error text counts once.
+    fn note_failure(&mut self, status: &PlayerStatus, now: Instant) {
+        if status.state == PlayState::Playing {
+            if let Some((path, song)) = &self.awaiting_play {
+                let arrived = status
+                    .track_info
+                    .as_ref()
+                    .is_some_and(|t| &t.path == path && t.current_song == *song);
+                if arrived {
+                    self.awaiting_play = None;
+                    self.failed_in_a_row = 0;
+                }
+            }
+            return;
+        }
+        let Some(error) = status.error.as_ref() else { return };
+        if status.state != PlayState::Stopped
+            || self.handled_failure.as_deref() == Some(error.as_str())
+        {
+            return;
+        }
+        // Only what we asked for: not an old error lingering after a Stop.
+        let awaited = self.awaiting_play.take().map(|(path, _)| path);
+        let path = match awaited {
+            Some(path) => path,
+            None if self.status.state == PlayState::Playing => {
+                match self.current_entry() {
+                    Some(e) => e.path.clone(),
+                    None => return,
+                }
+            }
+            None => return,
+        };
+        self.handled_failure = Some(error.clone());
+        self.failed_in_a_row += 1;
+        eprintln!("[resonance] tune failed: {error}");
+
+        let cur = self.active().current;
+        let next = if self.failed_in_a_row < self.active().len() {
+            self.active_mut().next()
+        } else {
+            None
+        };
+        // Repeat One would replay the crashing tune forever.
+        let next = next.filter(|idx| Some(*idx) != cur || self.radio);
+        let mut notice = friendly_load_error(error, &path);
+        if next.is_some() {
+            notice.push_str(" Skipped.");
+        }
+        self.notice = Some(notice);
+        match next {
+            Some(idx) => self.play_track(idx, now),
+            None => {
+                self.failed_in_a_row = 0;
+                if self.radio {
+                    self.radio_ran_out();
+                }
+            }
+        }
     }
 
     fn is_stale(&self, status: &PlayerStatus) -> bool {
@@ -365,9 +465,10 @@ impl Session {
                     crate::history::record(entry);
                 }
             }
-            let cmd = self.play_cmd(path, song);
+            let cmd = self.play_cmd(path.clone(), song);
             self.active_mut().current = Some(idx);
             self.send(cmd);
+            self.awaiting_play = Some((path, song));
             self.clear_advance_status(now);
             // Fresh track — the previous track's debounce must not gate
             // this one's first auto-advance (main.rs:4444-4446).
@@ -411,6 +512,7 @@ impl Session {
     pub fn stop(&mut self) {
         self.send(PlayerCmd::Stop);
         self.last_advance_at = None;
+        self.awaiting_play = None;
     }
 
     /// Honours shuffle and repeat via `Playlist::next` — unlike the HTTP

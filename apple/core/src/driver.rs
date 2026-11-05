@@ -647,8 +647,10 @@ fn run(
 impl State {
     fn handle(&mut self, cmd: Command) {
         let now = Instant::now();
-        // A new action supersedes the previous loader / internal error.
+        // A new action supersedes the previous loader / internal error, and
+        // the session's note about a failed load.
         self.error = None;
+        self.session.notice = None;
         let s = &mut self.session;
         match cmd {
             Command::AddPaths { paths, play_first } => {
@@ -830,7 +832,11 @@ impl State {
             },
             playlist: self.published_playlist.1.clone(),
             loading,
-            error: self.error.clone().or_else(|| s.status.error.clone()),
+            error: self
+                .error
+                .clone()
+                .or_else(|| s.notice.clone())
+                .or_else(|| s.status.error.clone()),
         };
         if let Ok(mut slot) = out.lock() {
             *slot = Arc::new(published);
