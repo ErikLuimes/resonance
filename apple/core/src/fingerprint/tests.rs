@@ -372,7 +372,60 @@ fn stopping_a_scan_keeps_its_place() {
 }
 
 fn row(path: &str, features: [f32; FEATURES]) -> FeatureRow {
-    FeatureRow { path: path.into(), subtune: 1, is_start: true, features }
+    FeatureRow { path: path.into(), subtune: 1, is_start: true, features, embedding: None }
+}
+
+fn embedded(path: &str, features: [f32; FEATURES], embedding: &[f32]) -> FeatureRow {
+    FeatureRow { embedding: Some(embedding.to_vec()), ..row(path, features) }
+}
+
+fn spread_features(k: usize) -> [f32; FEATURES] {
+    let mut f = [0.0; FEATURES];
+    f[k % FEATURES] = 1.0;
+    f
+}
+
+#[test]
+fn embeddings_decide_when_the_seed_has_one() {
+    let index = Index::build(vec![
+        embedded("seed", spread_features(0), &[1.0, 0.0, 0.0]),
+        embedded("sounds-alike", spread_features(1), &[0.99, 0.1, 0.0]),
+        embedded("sounds-different", spread_features(2), &[0.0, 1.0, 0.0]),
+        embedded("also-different", spread_features(3), &[0.0, 0.0, 1.0]),
+        row("no-embedding", spread_features(0)),
+    ]);
+    let hits = index.similar("seed", None, 5);
+    assert_eq!(hits[0].path, "sounds-alike");
+    assert!(hits.iter().all(|h| h.path != "no-embedding"), "the two scales don't mix");
+    assert_eq!(index.score("seed", "no-embedding"), None);
+    assert!((index.score("seed", "seed").unwrap() - 1.0).abs() < 1e-4);
+}
+
+#[test]
+fn a_seed_without_an_embedding_falls_back_to_the_features() {
+    let index = Index::build(vec![
+        row("seed", spread_features(0)),
+        embedded("same-features", spread_features(0), &[1.0, 0.0]),
+        embedded("other-features", spread_features(5), &[1.0, 0.0]),
+    ]);
+    let hits = index.similar("seed", None, 5);
+    assert_eq!(hits.len(), 2);
+    assert_eq!(hits[0].path, "same-features");
+    assert!((hits[0].score - 1.0).abs() < 1e-4);
+}
+
+#[test]
+fn a_typical_pair_is_shown_near_zero_though_embeddings_lie_close() {
+    let rows: Vec<FeatureRow> = (0..64)
+        .map(|k| {
+            let wobble = (k as f32 * 0.7).sin() * 0.05;
+            embedded(&format!("t{k}"), spread_features(k), &[1.0, wobble, -wobble])
+        })
+        .collect();
+    let index = Index::build(rows);
+    let hits = index.similar("t0", None, 63);
+    let median = hits[hits.len() / 2].score;
+    assert!(median.abs() < 0.5, "median shown as {median}");
 }
 
 #[test]
@@ -465,8 +518,57 @@ fn a_shipped_set_fills_gaps_but_never_replaces_finished_fingerprints() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+#[test]
+fn embeddings_import_whole_and_survive_a_rebuild_of_the_fingerprints() {
+    let dir = temp_dir("embeddings");
+    let seed_path = dir.join("seed.sqlite");
+    {
+        let seed = rusqlite::Connection::open(&seed_path).unwrap();
+        seed.execute_batch(
+            "CREATE TABLE embeddings (md5 TEXT, subtune INTEGER, vector BLOB);
+             CREATE TABLE embedding_scales (dimension INTEGER, scale REAL);
+             INSERT INTO embedding_scales VALUES (0, 1.0), (1, 2.0);
+             INSERT INTO embeddings VALUES ('tune', 1, x'7F81');
+             PRAGMA user_version = 1;",
+        )
+        .unwrap();
+    }
+    let store = Store::open(&dir.join("mine.sqlite")).unwrap();
+    assert!(!store.has_embeddings().unwrap());
+    let fp = scan_tune(&psid(1, 1), 1, 4.0, &|| false).unwrap().unwrap();
+    store.mark_scanning("tune", 1).unwrap();
+    store.save("tune", 1, &fp).unwrap();
+    store.set_tune("A/tune.sid", "tune", 1, 1).unwrap();
+    assert_eq!(store.import_embeddings(&seed_path).unwrap(), 1);
+    assert_eq!(store.import_embeddings(&seed_path).unwrap(), 1, "replaces, doesn't add");
+    let rows = store.features().unwrap();
+    assert_eq!(rows[0].embedding.as_deref(), Some(&[1.0, -2.0][..]));
+    store.clear().unwrap();
+    assert!(store.has_embeddings().unwrap());
+
+    let wrong = dir.join("wrong.sqlite");
+    rusqlite::Connection::open(&wrong).unwrap().pragma_update(None, "user_version", 99).unwrap();
+    assert!(store.import_embeddings(&wrong).is_err());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_extras_measure_envelopes_and_filter_modes() {
+    let fp = run(100, |i| match i {
+        0 => vec![(0, 0x18, 0x1F), (0, 0x17, 0xF1), (0, 0x05, 0xF0), (0, 0x06, 0x0F), (0, 0x04, 0x41)],
+        _ => Vec::new(),
+    });
+    assert_eq!(fp.extra[0], 1.0, "attack");
+    assert_eq!(fp.extra[1], 0.0, "decay");
+    assert_eq!(fp.extra[3], 1.0, "release");
+    assert_eq!(fp.extra[6], 1.0, "low-pass");
+    assert_eq!(fp.extra[7], 0.0, "band-pass");
+    assert_eq!(fp.extra[9], 1.0, "resonance");
+    assert!(fp.features().iter().all(|x| x.is_finite()));
+}
+
 /// The published set, end to end (opt-in, it's 36 MB):
-/// `FINGERPRINT_SET=$PWD/build/fingerprints-x1.zip cargo test -p phosphor-apple published_set -- --ignored`
+/// `FINGERPRINT_SET=$PWD/build/fingerprints-x2.zip cargo test -p phosphor-apple published_set -- --ignored`
 #[test]
 #[ignore]
 fn imports_the_published_set() {

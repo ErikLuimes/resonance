@@ -9,11 +9,14 @@ import PhosphorCore
 /// its envelope. Multi-SID tunes show their first chip. Drawn into one
 /// Canvas (see VisualizerView).
 struct ScopeVisualizer: View {
+    /// False pauses it, e.g. while another page or Now Playing covers it.
+    var isActive = true
+
     @Environment(PlayerStore.self) private var store
     @Environment(\.voiceTheme) private var theme
 
     var body: some View {
-        TimelineView(.animation(paused: !store.isPlaying)) { _ in
+        TimelineView(.animation(minimumInterval: VisualizerFeed.frameInterval, paused: !store.isPlaying || !isActive)) { _ in
             let feed = store.visualizer
             let voices = feed.latest()?.chips.first?.voices ?? []
             let scope = voices.isEmpty ? nil : feed.scope(chip: 0, count: 2048)

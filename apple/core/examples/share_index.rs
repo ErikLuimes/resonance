@@ -5,7 +5,7 @@
 //!     cargo run -p phosphor-apple --release --example share_index -- \
 //!         <HVSC folder> [fingerprints.sqlite] > index.json
 //!
-//! Use the published fingerprint set (fingerprints-x1.zip on the
+//! Use the published fingerprint set (fingerprints-x2.zip on the
 //! `fingerprints` release) or a copy of the app's own store: opening the
 //! file may convert it, so don't point it at the one the app is using.
 

@@ -16,7 +16,7 @@ struct HaloView: View {
     @State private var shape = HaloShape()
 
     var body: some View {
-        TimelineView(.animation(paused: !isActive)) { context in
+        TimelineView(.animation(minimumInterval: VisualizerFeed.frameInterval, paused: !isActive)) { context in
             let frame = store.visualizer.latest()
             let _ = shape.update(voices: frame?.chips.first?.voices ?? [], frame: frame?.index, at: context.date)
             // Copied out as values: an effect that only captured `shape`

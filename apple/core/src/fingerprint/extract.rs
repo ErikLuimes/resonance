@@ -109,6 +109,8 @@ pub(crate) struct Fingerprint {
     pub voice_level: [f32; 3],
     /// `tag` bits.
     pub tags: u32,
+    /// What's measured for "Sounds like" alone, in `Extras::finish` order.
+    pub extra: [f32; EXTRA],
 }
 
 impl Fingerprint {
@@ -122,7 +124,7 @@ impl Fingerprint {
         let ln = |x: f32| (1.0 + x.max(0.0)).ln();
         let mut levels = self.voice_level;
         levels.sort_by(|a, b| b.total_cmp(a));
-        [
+        let base = [
             self.mix[0],
             self.mix[1],
             self.mix[2],
@@ -145,11 +147,15 @@ impl Fingerprint {
             levels[0],
             levels[1],
             levels[2],
-        ]
+        ];
+        std::array::from_fn(|k| if k < BASE_FEATURES { base[k] } else { self.extra[k - BASE_FEATURES] })
     }
 }
 
-pub(crate) const FEATURES: usize = 22;
+const BASE_FEATURES: usize = 22;
+/// Instrument shape, filter character, chip and how notes move; see `Extras`.
+pub(crate) const EXTRA: usize = 19;
+pub(crate) const FEATURES: usize = BASE_FEATURES + EXTRA;
 
 /// Traits the app draws, in `Fingerprint::traits` order.
 pub(crate) const TRAITS: usize = 9;
@@ -172,6 +178,154 @@ impl Fingerprint {
             self.pwm_depth * 3.0,
         ]
         .map(|x| x.clamp(0.0, 1.0))
+    }
+}
+
+// ── Extras ───────────────────────────────────────────────────────────────────
+
+/// A running mean and spread.
+#[derive(Default)]
+struct Running {
+    n: f64,
+    sum: f64,
+    squares: f64,
+}
+
+impl Running {
+    fn push(&mut self, x: f64) {
+        self.n += 1.0;
+        self.sum += x;
+        self.squares += x * x;
+    }
+
+    fn mean(&self) -> f64 {
+        if self.n > 0.0 {
+            self.sum / self.n
+        } else {
+            0.0
+        }
+    }
+
+    fn std(&self) -> f64 {
+        if self.n > 1.0 {
+            (self.squares / self.n - self.mean().powi(2)).max(0.0).sqrt()
+        } else {
+            0.0
+        }
+    }
+}
+
+const NOTE_TIME_BINS: usize = 8;
+
+/// The measurements that made "Sounds like" better in the benchmark
+/// (`design/similarity`), chiefly the voices' envelope settings at note start.
+#[derive(Default)]
+struct Extras {
+    attack: Running,
+    decay: Running,
+    sustain: Running,
+    release: Running,
+    filter_frames: f64,
+    filter_modes: [f64; 3],
+    resonance: Running,
+    sounding: f64,
+    combined: f64,
+    notes_in_bin: [f64; NOTE_TIME_BINS],
+    last_note: [Option<u32>; VOICES],
+    last_midi: [Option<f64>; VOICES],
+    gaps: Running,
+    intervals: [f64; 4],
+}
+
+impl Extras {
+    /// One frame, after its writes: the registers now, and the voices whose
+    /// gate came on during it.
+    fn frame(
+        &mut self,
+        regs: &[[u8; 32]; MAX_CHIPS],
+        chips: usize,
+        started: &[bool; VOICES],
+        frame: u32,
+        frames: u32,
+        clock: f64,
+    ) {
+        for (chip, r) in regs.iter().enumerate().take(chips) {
+            if r[0x17] & 0x0F != 0 {
+                self.filter_frames += 1.0;
+                for (k, mode) in self.filter_modes.iter_mut().enumerate() {
+                    *mode += ((r[0x18] >> (4 + k)) & 1) as f64;
+                }
+                self.resonance.push((r[0x17] >> 4) as f64 / 15.0);
+            }
+            for v in 0..3 {
+                let base = v * 7;
+                let id = chip * 3 + v;
+                let waves = r[base + 4] >> 4;
+                if r[base + 4] & 1 == 1 && waves != 0 {
+                    self.sounding += 1.0;
+                    self.combined += (waves.count_ones() > 1) as u8 as f64;
+                }
+                if !started[id] {
+                    continue;
+                }
+                self.attack.push((r[base + 5] >> 4) as f64 / 15.0);
+                self.decay.push((r[base + 5] & 15) as f64 / 15.0);
+                self.sustain.push((r[base + 6] >> 4) as f64 / 15.0);
+                self.release.push((r[base + 6] & 15) as f64 / 15.0);
+                let bin = (frame as usize * NOTE_TIME_BINS / frames.max(1) as usize).min(NOTE_TIME_BINS - 1);
+                self.notes_in_bin[bin] += 1.0;
+                if let Some(last) = self.last_note[id] {
+                    self.gaps.push((1.0 + (frame - last) as f64).ln());
+                }
+                self.last_note[id] = Some(frame);
+                let freq = u16::from_le_bytes([r[base], r[base + 1]]) as f64 * clock / 16_777_216.0;
+                if freq > 8.0 && waves & 8 == 0 {
+                    let midi = 69.0 + 12.0 * (freq / 440.0).log2();
+                    if let Some(last) = self.last_midi[id] {
+                        let step = (midi - last).abs();
+                        let bin = match step {
+                            s if s < 0.5 => 0,
+                            s if s < 2.5 => 1,
+                            s if s < 7.5 => 2,
+                            _ => 3,
+                        };
+                        self.intervals[bin] += 1.0;
+                    }
+                    self.last_midi[id] = Some(midi);
+                }
+            }
+        }
+    }
+
+    fn finish(&self, chips: usize, is_8580: bool) -> [f32; EXTRA] {
+        let filter_total = self.filter_frames.max(1.0);
+        let bin_mean = self.notes_in_bin.iter().sum::<f64>() / NOTE_TIME_BINS as f64;
+        let bin_spread = (self.notes_in_bin.iter().map(|n| (n - bin_mean).powi(2)).sum::<f64>()
+            / NOTE_TIME_BINS as f64)
+            .sqrt();
+        let interval_total = self.intervals.iter().sum::<f64>().max(1.0);
+        [
+            self.attack.mean(),
+            self.decay.mean(),
+            self.sustain.mean(),
+            self.release.mean(),
+            self.attack.std(),
+            self.release.std(),
+            self.filter_modes[0] / filter_total,
+            self.filter_modes[1] / filter_total,
+            self.filter_modes[2] / filter_total,
+            self.resonance.mean(),
+            is_8580 as u8 as f64,
+            chips as f64,
+            self.combined / self.sounding.max(1.0),
+            if bin_mean > 0.0 { bin_spread / bin_mean } else { 0.0 },
+            self.gaps.std(),
+            self.intervals[0] / interval_total,
+            self.intervals[1] / interval_total,
+            self.intervals[2] / interval_total,
+            self.intervals[3] / interval_total,
+        ]
+        .map(|x| x as f32)
     }
 }
 
@@ -280,6 +434,8 @@ pub(crate) struct Extractor {
     // Pulse width.
     pwm_sum: f64,
     pwm_notes: u32,
+    extras: Extras,
+    is_8580: bool,
 }
 
 impl Extractor {
@@ -320,12 +476,20 @@ impl Extractor {
             digi_frames: 0,
             pwm_sum: 0.0,
             pwm_notes: 0,
+            extras: Extras::default(),
+            is_8580: false,
         }
+    }
+
+    /// Whether the tune's header asks for an 8580.
+    pub fn set_8580(&mut self, is_8580: bool) {
+        self.is_8580 = is_8580;
     }
 
     /// One video frame's writes, in order: `(cycle, chip * 0x20 + reg, value)`.
     pub fn frame(&mut self, writes: &[(u32, u8, u8)]) {
         let mut hits = [[0u16; 32]; MAX_CHIPS];
+        let mut started = [false; VOICES];
         for &(_, mapped, value) in writes {
             let chip = (mapped >> 5) as usize;
             let reg = (mapped & 0x1F) as usize;
@@ -334,6 +498,7 @@ impl Extractor {
             }
             hits[chip][reg] = hits[chip][reg].saturating_add(1);
             if let Some(v) = (reg < 0x15 && reg % 7 == 4).then_some(reg / 7) {
+                started[chip * 3 + v] |= self.regs[chip][reg] & 1 == 0 && value & 1 == 1;
                 self.control(chip * 3 + v, self.regs[chip][reg], value);
             }
             self.regs[chip][reg] = value;
@@ -348,6 +513,8 @@ impl Extractor {
         }
         self.digi_frames += digi as u32;
 
+        let clock = if self.is_pal { PAL_CLOCK } else { NTSC_CLOCK };
+        self.extras.frame(&self.regs, self.num_chips, &started, self.frames, self.expected_frames, clock);
         self.advance_envelopes();
         self.measure();
         self.frames += 1;
@@ -594,6 +761,7 @@ impl Extractor {
             pitch_spread: self.pitch.std() as f32,
             voice_level,
             tags: 0,
+            extra: self.extras.finish(self.num_chips, self.is_8580),
         };
         fp.tags = tags(&fp);
         fp
@@ -634,6 +802,11 @@ pub(crate) fn tags(fp: &Fingerprint) -> u32 {
 
 // ── Emulation ────────────────────────────────────────────────────────────────
 
+fn header_asks_for_8580(data: &[u8]) -> bool {
+    let word = |at: usize| data.get(at..at + 2).map(|b| u16::from_be_bytes([b[0], b[1]]));
+    word(4).is_some_and(|version| version >= 2) && word(0x76).is_some_and(|flags| (flags >> 4) & 3 == 2)
+}
+
 /// Emulate `subtune` (1-based) of a SID file for `secs` and fingerprint it.
 /// `cancelled` is polled every few seconds of emulated time; Ok(None) when
 /// it stopped the scan.
@@ -656,6 +829,7 @@ pub(crate) fn scan_tune(
     let clock = if is_pal { PAL_CLOCK } else { NTSC_CLOCK };
     let frames = (secs as f64 * clock / cycles as f64).ceil().max(1.0) as u32;
     let mut extractor = Extractor::new(is_pal, player.num_sids(), frames);
+    extractor.set_8580(header_asks_for_8580(data));
     let mut writes = Vec::with_capacity(256);
     for frame in 0..frames {
         if frame % 256 == 0 && cancelled() {

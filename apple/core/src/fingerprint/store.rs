@@ -12,13 +12,15 @@ use std::path::Path;
 
 use rusqlite::{params, Connection, OptionalExtension, Row};
 
-use super::extract::{Fingerprint, BINS, FEATURES};
+use super::extract::{Fingerprint, BINS, EXTRA, FEATURES};
 
 /// Bump when the extractor changes what it measures: rows from another
 /// version count as unscanned and are redone.
-pub(crate) const EXTRACTOR_VERSION: i64 = 1;
+pub(crate) const EXTRACTOR_VERSION: i64 = 2;
 /// The tables' layout; another value drops them (they're only a cache).
-const SCHEMA: i64 = 1;
+const SCHEMA: i64 = 2;
+/// The published audio embeddings' layout; another value is refused.
+pub(crate) const EMBEDDING_SET: i64 = 1;
 /// Scans of one subtune before it's marked failed for good.
 pub(crate) const MAX_ATTEMPTS: i64 = 2;
 
@@ -45,6 +47,8 @@ pub(crate) struct FeatureRow {
     pub subtune: u16,
     pub is_start: bool,
     pub features: [f32; FEATURES],
+    /// The subtune's audio embedding, where the published set has one.
+    pub embedding: Option<Vec<f32>>,
 }
 
 pub(crate) struct Store {
@@ -54,7 +58,7 @@ pub(crate) struct Store {
 const FP_COLUMNS: &str = "scanned_secs, is_pal, num_chips, activity, \
     mix_tri, mix_saw, mix_pul, mix_noi, notes_per_sec, arp_rate, vibrato_rate, \
     filter_usage, cutoff_mean, cutoff_spread, cutoff_motion, ring, sync, d418_rate, digi, \
-    pwm_depth, noise_hits, pulse_bass, pitch_mean, pitch_spread, level1, level2, level3, tags";
+    pwm_depth, noise_hits, pulse_bass, pitch_mean, pitch_spread, level1, level2, level3, tags, extra";
 
 impl Store {
     pub fn open(path: &Path) -> rusqlite::Result<Self> {
@@ -99,8 +103,18 @@ impl Store {
                 filter_usage REAL, cutoff_mean REAL, cutoff_spread REAL, cutoff_motion REAL,
                 ring REAL, sync REAL, d418_rate REAL, digi REAL, pwm_depth REAL,
                 noise_hits REAL, pulse_bass REAL, pitch_mean REAL, pitch_spread REAL,
-                level1 REAL, level2 REAL, level3 REAL, tags INTEGER,
+                level1 REAL, level2 REAL, level3 REAL, tags INTEGER, extra BLOB,
                 PRIMARY KEY (md5, subtune)
+            );
+            CREATE TABLE IF NOT EXISTS embeddings (
+                md5 TEXT NOT NULL,
+                subtune INTEGER NOT NULL,
+                vector BLOB NOT NULL,
+                PRIMARY KEY (md5, subtune)
+            ) WITHOUT ROWID;
+            CREATE TABLE IF NOT EXISTS embedding_scales (
+                dimension INTEGER PRIMARY KEY,
+                scale REAL NOT NULL
             );",
         )?;
         conn.pragma_update(None, "user_version", SCHEMA)?;
@@ -163,6 +177,7 @@ impl Store {
 
     pub fn save(&self, md5: &str, subtune: u16, fp: &Fingerprint) -> rusqlite::Result<()> {
         let activity: Vec<u8> = fp.activity.iter().flatten().copied().collect();
+        let extra: Vec<u8> = fp.extra.iter().flat_map(|x| x.to_le_bytes()).collect();
         self.conn.execute(
             &format!(
                 "INSERT OR REPLACE INTO fingerprints
@@ -170,7 +185,7 @@ impl Store {
                  VALUES (?1, ?2, 1,
                     COALESCE((SELECT attempts FROM fingerprints WHERE md5 = ?1 AND subtune = ?2), 1),
                     ?3, NULL, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17,
-                    ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31)"
+                    ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32)"
             ),
             params![
                 md5,
@@ -204,6 +219,7 @@ impl Store {
                 fp.voice_level[1],
                 fp.voice_level[2],
                 fp.tags,
+                extra,
             ],
         )?;
         Ok(())
@@ -239,21 +255,71 @@ impl Store {
 
     /// Every scanned subtune's feature vector, with a path that holds it.
     pub fn features(&self) -> rusqlite::Result<Vec<FeatureRow>> {
+        let scales: Vec<f32> = self
+            .conn
+            .prepare("SELECT scale FROM embedding_scales ORDER BY dimension")?
+            .query_map([], |r| r.get::<_, f64>(0).map(|s| s as f32))?
+            .collect::<rusqlite::Result<_>>()?;
         let mut stmt = self.conn.prepare(&format!(
-            "SELECT t.path, f.subtune, f.subtune = t.start_song, {FP_COLUMNS}
+            "SELECT t.path, f.subtune, f.subtune = t.start_song, e.vector, {FP_COLUMNS}
              FROM fingerprints f JOIN tunes t ON t.md5 = f.md5
+             LEFT JOIN embeddings e ON e.md5 = f.md5 AND e.subtune = f.subtune
              WHERE f.status = 1 AND f.version = ?1"
         ))?;
         let rows = stmt.query_map(params![EXTRACTOR_VERSION], |r| {
-            let fp = read_fingerprint(r, 3)?;
+            let fp = read_fingerprint(r, 4)?;
+            let vector: Option<Vec<u8>> = r.get(3)?;
             Ok(FeatureRow {
                 path: r.get(0)?,
                 subtune: r.get(1)?,
                 is_start: r.get(2)?,
                 features: fp.features(),
+                embedding: vector.filter(|v| v.len() == scales.len()).map(|v| {
+                    v.iter().zip(&scales).map(|(&q, scale)| q as i8 as f32 * scale / 127.0).collect()
+                }),
             })
         })?;
         rows.collect()
+    }
+
+    /// Whether the published audio embeddings are here.
+    pub fn has_embeddings(&self) -> rusqlite::Result<bool> {
+        self.conn.query_row("SELECT EXISTS (SELECT 1 FROM embeddings)", [], |r| r.get(0))
+    }
+
+    /// Replace the audio embeddings with those of a published file: they
+    /// come from one fit together, so never a mix. Returns how many arrived.
+    pub fn import_embeddings(&self, seed: &Path) -> Result<usize, String> {
+        let err = |e: rusqlite::Error| e.to_string();
+        self.conn
+            .execute("ATTACH DATABASE ?1 AS seed", params![seed.to_string_lossy()])
+            .map_err(err)?;
+        let merged = (|| {
+            let set: i64 = self
+                .conn
+                .query_row("PRAGMA seed.user_version", [], |r| r.get(0))
+                .map_err(err)?;
+            if set != EMBEDDING_SET {
+                return Err("The embeddings are for another version of Resonance.".to_string());
+            }
+            let tx = self.conn.unchecked_transaction().map_err(err)?;
+            tx.execute_batch(
+                "DELETE FROM main.embeddings;
+                 DELETE FROM main.embedding_scales;
+                 INSERT INTO main.embedding_scales SELECT dimension, scale FROM seed.embedding_scales;",
+            )
+            .map_err(err)?;
+            let added = tx
+                .execute(
+                    "INSERT INTO main.embeddings SELECT md5, subtune, vector FROM seed.embeddings",
+                    [],
+                )
+                .map_err(err)?;
+            tx.commit().map_err(err)?;
+            Ok(added)
+        })();
+        let _ = self.conn.execute("DETACH DATABASE seed", []);
+        merged
     }
 
     /// Merge the finished fingerprints of another store file (the set
@@ -366,5 +432,13 @@ fn read_fingerprint(r: &Row, at: usize) -> rusqlite::Result<Fingerprint> {
         pitch_spread: f(23)?,
         voice_level: [f(24)?, f(25)?, f(26)?],
         tags: r.get::<_, Option<u32>>(at + 27)?.unwrap_or(0),
+        extra: {
+            let blob: Vec<u8> = r.get::<_, Option<Vec<u8>>>(at + 28)?.unwrap_or_default();
+            let mut extra = [0f32; EXTRA];
+            for (value, bytes) in extra.iter_mut().zip(blob.chunks_exact(4)) {
+                *value = f32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
+            }
+            extra
+        },
     })
 }

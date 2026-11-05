@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 pub(crate) use extract::{tag, Fingerprint, BINS};
 pub(crate) use scan::{ScanTune, Scanner};
 pub(crate) use similar::Index;
-pub(crate) use store::EXTRACTOR_VERSION;
+pub(crate) use store::{EMBEDDING_SET, EXTRACTOR_VERSION};
 use store::Store;
 
 /// A subtune's look, as percentages: its nine traits and its waveform mix
@@ -85,6 +85,20 @@ impl Fingerprints {
         let added = store.import(seed)?;
         *self.index.lock().unwrap_or_else(|p| p.into_inner()) = None;
         Ok(added)
+    }
+
+    /// Replace the audio embeddings with those in the file at `seed`. They
+    /// change every match, so the index is rebuilt. Blocking.
+    pub fn import_embeddings(&self, seed: &std::path::Path) -> Result<usize, String> {
+        let store = Store::open(self.scanner.db_path()).map_err(|e| e.to_string())?;
+        let added = store.import_embeddings(seed)?;
+        *self.index.lock().unwrap_or_else(|p| p.into_inner()) = None;
+        Ok(added)
+    }
+
+    /// Whether the published audio embeddings are here. Blocking.
+    pub fn has_embeddings(&self) -> bool {
+        self.read(|s| s.has_embeddings()).unwrap_or(false)
     }
 
     /// Run `f` on the read connection, opening it on first use.

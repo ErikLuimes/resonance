@@ -81,11 +81,12 @@ fn main() {
                 Ok(hits) => {
                     for h in hits {
                         println!(
-                            "{:>4.0}%  {:<36} {:<28} #{}",
+                            "{:>4.0}%  {:<36} {:<28} #{}  {}",
                             h.score.max(0.0) * 100.0,
                             h.item.title,
                             h.item.author,
-                            h.subtune
+                            h.subtune,
+                            h.item.path
                         );
                     }
                 }

@@ -83,6 +83,11 @@ runs. The SID emulators it includes (reSID through resid-rs, SIDLite and
 libsidplayfp) are GPL-licensed, so Resonance as built and distributed is
 covered by the GNU General Public License, version 3. Its source code is
 at https://github.com/ErikLuimes/resonance.
+
+Sounds Like uses embeddings made in advance with MERT-v1-95M by Yizhi Li et
+al. (https://huggingface.co/m-a-p/MERT-v1-95M), downloaded separately under the
+CC BY-NC 4.0 licence (https://creativecommons.org/licenses/by-nc/4.0/). They
+were reduced in size. The MERT model itself isn't part of Resonance.
 """)
     for text, crates in sorted(groups.values(), key=lambda g: g[1][0].lower()):
         f.write("\n%s\n\n%s\n\n%s\n" % (rule, "\n".join(crates), text))

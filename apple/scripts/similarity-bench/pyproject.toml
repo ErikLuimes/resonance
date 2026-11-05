@@ -1,0 +1,12 @@
+[project]
+name = "similarity-bench"
+version = "0.1.0"
+description = "Measures Resonance's Sounds Like against candidate similarity methods"
+requires-python = ">=3.11,<3.13"
+dependencies = ["numpy>=2.0"]
+
+[dependency-groups]
+embed = ["torch>=2.4", "torchaudio>=2.4", "transformers>=4.44,<5", "muq"]
+
+[tool.uv]
+package = false

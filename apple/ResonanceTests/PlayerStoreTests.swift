@@ -170,6 +170,8 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     func retryFailedFingerprints() async throws { record("retryFingerprints") }
     func importFingerprints(path: String) async throws -> UInt32 { record("importFingerprints"); return 0 }
     func downloadFingerprints() async throws -> UInt32 { record("downloadFingerprints"); return 12 }
+    func hasEmbeddings() async -> Bool { false }
+    func downloadEmbeddings() async throws -> UInt32 { 0 }
     func rebuildFingerprints() async throws { record("rebuildFingerprints") }
     func stopFingerprintScan() {}
     func setFingerprintScanPaused(paused: Bool) {}
@@ -203,7 +205,7 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     }
     func vizLatest() -> VizSidFrame? { nil }
     func vizHistory(count: UInt32) -> [VizSidFrame] { [] }
-    func vizScope(chip: UInt32, count: UInt32) -> VizScope { VizScope(sampleRate: 44_784, voices: [[], [], []]) }
+    func vizScope(chip: UInt32, count: UInt32) -> VizScopeSamples { VizScopeSamples(sampleRate: 44_784, voices: [[], [], []]) }
     func vizStats() -> VizStats { VizStats(frames: 0, shadowMicros: 0, bufferMs: 100, outputLatencyMs: 12, offsetMs: 0) }
     func setVizOutputLatencyMs(ms: UInt32) {}
     func setVizOffsetMs(ms: Int32) {}

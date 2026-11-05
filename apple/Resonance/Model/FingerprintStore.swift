@@ -54,6 +54,8 @@ final class FingerprintStore {
     @ObservationIgnored private var refetchedAt = Date.distantPast
     /// Whether this launch has looked at downloading the published set.
     @ObservationIgnored private var setChecked = false
+    /// Whether this launch has looked at downloading the audio embeddings.
+    @ObservationIgnored private var embeddingsChecked = false
     /// Recent (time, subtunes done) readings, for `remaining`.
     @ObservationIgnored private var samples: [(at: Date, done: UInt32)] = []
 
@@ -103,6 +105,16 @@ final class FingerprintStore {
             setChecked = true
             if !defaults.bool(forKey: Pref.fingerprintSetImported), s.done * 2 < s.total {
                 Task { await downloadSet(quietly: true) }
+            }
+        }
+        // Once: the audio embeddings that sharpen Sounds Like. Quietly: it
+        // goes by the fingerprints alone without them.
+        if !embeddingsChecked, player.hasCollection {
+            embeddingsChecked = true
+            Task {
+                guard await !core.hasEmbeddings(),
+                      (try? await core.downloadEmbeddings()) != nil else { return }
+                similar = [:]
             }
         }
         // New fingerprints: ask again for the tunes lists are waiting on,

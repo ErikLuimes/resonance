@@ -253,8 +253,15 @@ release.
   extractor version), then upload it to the GitHub release tagged
   `fingerprints`, replacing the old file. Bumping `EXTRACTOR_VERSION` means
   publishing a new set: the app asks for the file of its own version.
+  Keep the earlier versions' files there for older apps.
   Check a set end to end with
-  `FINGERPRINT_SET=$PWD/build/fingerprints-x1.zip cargo test -p phosphor-apple published_set -- --ignored`.
+  `FINGERPRINT_SET=$PWD/build/fingerprints-x2.zip cargo test -p phosphor-apple published_set -- --ignored`.
+- The audio embeddings: Sounds Like blends the fingerprints with MERT
+  embeddings, made offline and downloaded once as `embeddings-e1.zip` from the
+  same release (`scripts/similarity-bench/embed_all.py`, then
+  `export_embeddings.py`). A tune without one, such as a tune new in a later
+  HVSC release, goes by its fingerprint alone, so re-run those after an HVSC
+  update when convenient. See `../design/similarity/`.
 - `Cargo.toml` turns off overflow checks for `resid-rs` in debug builds: its
   resampler overflows an `i32` multiply (`sampler.rs:297`), which release
   builds wrap silently but debug builds turn into a panic on the reSID
@@ -363,3 +370,7 @@ The app as built also includes GPL-licensed SID emulators (reSID through
 resid-rs, SIDLite and libsidplayfp), so builds of Resonance are distributed
 under the GNU GPL, version 3, with the source here. About Resonance →
 Acknowledgements lists every library in the app and its licence.
+
+The audio embeddings Sounds Like downloads aren't part of the app or this
+licence. They derive from MERT-v1-95M and are released under CC BY-NC 4.0, in
+their own asset, `embeddings-e1.zip`, with a licence file inside.

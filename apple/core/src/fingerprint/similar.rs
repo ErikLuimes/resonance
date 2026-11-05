@@ -1,10 +1,12 @@
-//! "Sounds like": cosine similarity between standardised feature vectors.
+//! "Sounds like": how close two subtunes are, by how the player drives the
+//! chip and, where the published embeddings have both, by how they sound.
 //!
 //! Each feature is z-scored over the whole store first, so a feature that
 //! barely varies across HVSC (most tunes have no ring modulation) can't
-//! dominate, and one where a tune stands out counts. The whole store fits
-//! in memory (HVSC's ~100k subtunes × 22 floats is under 10 MB), so a query
-//! is a straight pass over it.
+//! dominate, and one where a tune stands out counts. A query is a straight
+//! pass over the store, which fits in memory (about 60 MB for HVSC's ~90k
+//! subtunes with embeddings). `design/similarity` has the benchmark that
+//! chose all this; change it only against that benchmark.
 
 use std::collections::HashMap;
 
@@ -21,12 +23,29 @@ const WEIGHTS: [f32; FEATURES] = [
     0.7, 0.7, 1.0, 0.7, // ring, sync, digi, pulse-width modulation
     0.8, 0.7, 0.6, 0.4, // noise hits, pulse bass, pitch
     0.4, 0.4, 0.4, // voice levels
+    NEW, NEW, NEW, NEW, NEW, NEW, // envelope settings
+    NEW, NEW, NEW, NEW, // filter modes, resonance
+    NEW, NEW, NEW, // 8580, chips, combined waveforms
+    NEW, NEW, // notes over time
+    NEW, NEW, NEW, NEW, // melodic steps
 ];
+/// The weight the first 22 average: the benchmark's choice, not tuned.
+const NEW: f32 = 15.0 / 22.0;
+
+/// How much the audio embedding counts against the features, in the cosines.
+/// The benchmark's frozen value; embeddings all lie close together, so in
+/// effect the features still decide much of the order.
+const EMBEDDING_SHARE: f32 = 0.75;
 
 pub(crate) struct Index {
     rows: Vec<FeatureRow>,
     /// Standardised, weighted and unit length, row-major.
     vectors: Vec<[f32; FEATURES]>,
+    /// Unit length; None where the subtune has no embedding.
+    embeddings: Vec<Option<Box<[f32]>>>,
+    /// The blended score of two typical subtunes: shown as 0% alike, as the
+    /// features' cosine already gives, since embeddings alone read near 100%.
+    typical: f32,
     mean: [f32; FEATURES],
     std: [f32; FEATURES],
     by_key: HashMap<(String, u16), usize>,
@@ -41,7 +60,9 @@ pub(crate) struct Match<'a> {
 }
 
 impl Index {
-    pub fn build(rows: Vec<FeatureRow>) -> Self {
+    pub fn build(mut rows: Vec<FeatureRow>) -> Self {
+        let embeddings: Vec<Option<Box<[f32]>>> =
+            rows.iter_mut().map(|r| r.embedding.take().and_then(unit_embedding)).collect();
         let n = rows.len().max(1) as f64;
         let mut mean = [0f64; FEATURES];
         for r in &rows {
@@ -62,6 +83,8 @@ impl Index {
         let mut index = Self {
             vectors: Vec::with_capacity(rows.len()),
             rows: Vec::new(),
+            embeddings,
+            typical: 0.0,
             mean,
             std,
             by_key: HashMap::with_capacity(rows.len()),
@@ -76,7 +99,51 @@ impl Index {
             }
         }
         index.rows = rows;
+        index.typical = index.typical_score();
         index
+    }
+
+    /// The median blended score over a spread of pairs.
+    fn typical_score(&self) -> f32 {
+        let with: Vec<usize> = (0..self.rows.len()).filter(|&i| self.embeddings[i].is_some()).collect();
+        if with.len() < 2 {
+            return 0.0;
+        }
+        let mut scores: Vec<f32> = (0..with.len().min(4000))
+            .map(|k| {
+                let i = with[k * with.len() / with.len().min(4000)];
+                let j = with[(k * 7919 + with.len() / 2) % with.len()];
+                self.blended(i, j)
+            })
+            .collect();
+        scores.sort_by(f32::total_cmp);
+        scores[scores.len() / 2].min(0.99)
+    }
+
+    fn feature_score(&self, i: usize, j: usize) -> f32 {
+        dot(&self.vectors[i], &self.vectors[j])
+    }
+
+    fn blended(&self, i: usize, j: usize) -> f32 {
+        let (Some(a), Some(b)) = (&self.embeddings[i], &self.embeddings[j]) else {
+            return self.feature_score(i, j);
+        };
+        EMBEDDING_SHARE * dot(a, b) + (1.0 - EMBEDDING_SHARE) * self.feature_score(i, j)
+    }
+
+    /// How alike two subtunes are: blended when the first has an embedding,
+    /// which then leaves out those without (None); by features otherwise.
+    fn pair(&self, seed: usize, other: usize) -> Option<f32> {
+        if self.embeddings[seed].is_none() {
+            return Some(self.feature_score(seed, other));
+        }
+        self.embeddings[other].as_ref()?;
+        Some(self.shown(self.blended(seed, other)))
+    }
+
+    /// A blended score with the typical pair at 0 and the same subtune at 1.
+    fn shown(&self, score: f32) -> f32 {
+        (score - self.typical) / (1.0 - self.typical)
     }
 
     pub fn len(&self) -> usize {
@@ -105,32 +172,52 @@ impl Index {
     /// first: each composer is the average of their tunes' start songs,
     /// and needs at least `min_tunes` of them scanned.
     pub fn similar_composers(&self, folder: &str, min_tunes: usize, limit: usize) -> Vec<(String, f32)> {
-        let mut sums: HashMap<&str, ([f32; FEATURES], usize)> = HashMap::new();
+        #[derive(Clone)]
+        struct Sum {
+            features: Vec<f32>,
+            embedding: Vec<f32>,
+            tunes: usize,
+            embedded: usize,
+        }
+        let mut sums: HashMap<&str, Sum> = HashMap::new();
         for &i in self.by_path.values() {
             let Some(composer) = composer_folder(&self.rows[i].path) else { continue };
-            let slot = sums.entry(composer).or_insert(([0.0; FEATURES], 0));
-            for (s, x) in slot.0.iter_mut().zip(&self.vectors[i]) {
-                *s += x;
+            let slot = sums.entry(composer).or_insert_with(|| Sum {
+                features: vec![0.0; FEATURES],
+                embedding: Vec::new(),
+                tunes: 0,
+                embedded: 0,
+            });
+            add(&mut slot.features, &self.vectors[i]);
+            slot.tunes += 1;
+            if let Some(e) = &self.embeddings[i] {
+                slot.embedding.resize(e.len(), 0.0);
+                add(&mut slot.embedding, e);
+                slot.embedded += 1;
             }
-            slot.1 += 1;
         }
-        let unit = |(mut v, n): ([f32; FEATURES], usize)| -> Option<[f32; FEATURES]> {
-            if n < min_tunes {
-                return None;
-            }
-            let len = v.iter().map(|x| x * x).sum::<f32>().sqrt();
-            (len > 1e-6).then(|| {
-                v.iter_mut().for_each(|x| *x /= len);
-                v
-            })
-        };
-        let Some(target) = sums.get(folder).copied().and_then(unit) else { return Vec::new() };
-        let mut scored: Vec<(String, f32)> = sums
+        let sums: HashMap<&str, Sum> = sums
             .into_iter()
-            .filter(|(f, _)| *f != folder)
-            .filter_map(|(f, sum)| {
-                let v = unit(sum)?;
-                Some((f.to_string(), v.iter().zip(&target).map(|(a, b)| a * b).sum()))
+            .filter(|(_, s)| s.tunes >= min_tunes)
+            .map(|(f, mut s)| {
+                normalise(&mut s.features);
+                normalise(&mut s.embedding);
+                (f, s)
+            })
+            .collect();
+        let Some(target) = sums.get(folder) else { return Vec::new() };
+        let blend = target.embedded >= min_tunes;
+        let mut scored: Vec<(String, f32)> = sums
+            .iter()
+            .filter(|(f, s)| **f != folder && (!blend || s.embedded >= min_tunes))
+            .map(|(f, s)| {
+                let features = dot(&s.features, &target.features);
+                let score = if blend {
+                    self.shown(EMBEDDING_SHARE * dot(&s.embedding, &target.embedding) + (1.0 - EMBEDDING_SHARE) * features)
+                } else {
+                    features
+                };
+                (f.to_string(), score)
             })
             .collect();
         scored.sort_by(|a, b| b.1.total_cmp(&a.1));
@@ -142,7 +229,7 @@ impl Index {
     /// either hasn't been scanned.
     pub fn score(&self, a: &str, b: &str) -> Option<f32> {
         let (&i, &j) = (self.by_path.get(a)?, self.by_path.get(b)?);
-        Some(self.vectors[i].iter().zip(&self.vectors[j]).map(|(x, y)| x * y).sum())
+        self.pair(i, j)
     }
 
     /// The tunes most like `path`'s `subtune` (its start song when None),
@@ -153,15 +240,13 @@ impl Index {
             None => self.by_path.get(path),
         };
         let Some(&seed) = seed else { return Vec::new() };
-        let target = self.vectors[seed];
 
         let mut best: HashMap<&str, (usize, f32)> = HashMap::new();
-        for (i, v) in self.vectors.iter().enumerate() {
-            let row = &self.rows[i];
+        for (i, row) in self.rows.iter().enumerate() {
             if row.path == path {
                 continue;
             }
-            let score: f32 = v.iter().zip(&target).map(|(a, b)| a * b).sum();
+            let Some(score) = self.pair(seed, i) else { continue };
             let slot = best.entry(row.path.as_str()).or_insert((i, f32::MIN));
             if score > slot.1 {
                 *slot = (i, score);
@@ -179,6 +264,30 @@ impl Index {
         matches.truncate(limit);
         matches
     }
+}
+
+fn dot(a: &[f32], b: &[f32]) -> f32 {
+    a.iter().zip(b).map(|(x, y)| x * y).sum()
+}
+
+fn add(sum: &mut [f32], v: &[f32]) {
+    for (s, x) in sum.iter_mut().zip(v) {
+        *s += x;
+    }
+}
+
+fn normalise(v: &mut [f32]) {
+    let length = dot(v, v).sqrt();
+    if length > 1e-6 {
+        v.iter_mut().for_each(|x| *x /= length);
+    }
+}
+
+fn unit_embedding(mut v: Vec<f32>) -> Option<Box<[f32]>> {
+    (dot(&v, &v) > 1e-12).then(|| {
+        normalise(&mut v);
+        v.into_boxed_slice()
+    })
 }
 
 /// The composer folder a collection path is in: "MUSICIANS/H/Hubbard_Rob"

@@ -45,7 +45,7 @@ private struct ParticleMetalView: NSViewRepresentable {
         view.colorPixelFormat = .bgra8Unorm
         view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
         view.layer?.isOpaque = false
-        view.preferredFramesPerSecond = 120
+        view.preferredFramesPerSecond = VisualizerFeed.framesPerSecond
         view.delegate = context.coordinator
         update(view, context.coordinator)
         return view

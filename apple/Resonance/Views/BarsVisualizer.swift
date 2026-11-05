@@ -8,12 +8,15 @@ import PhosphorCore
 /// Levels are the voices' envelopes from the visualizer feed's reSID, in
 /// step with the audio. Drawn into one Canvas (see VisualizerView).
 struct BarsVisualizer: View {
+    /// False pauses it, e.g. while another page or Now Playing covers it.
+    var isActive = true
+
     @Environment(PlayerStore.self) private var store
     @Environment(\.voiceTheme) private var theme
     @State private var meter = VoiceMeter()
 
     var body: some View {
-        TimelineView(.animation(paused: !store.isPlaying)) { context in
+        TimelineView(.animation(minimumInterval: VisualizerFeed.frameInterval, paused: !store.isPlaying || !isActive)) { context in
             let voices = store.visualizer.latest()?.chips.flatMap(\.voices) ?? []
             // Empty slots until the first frame sounds.
             let levels = voices.isEmpty

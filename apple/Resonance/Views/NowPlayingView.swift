@@ -346,7 +346,7 @@ private struct VoiceChips: View {
     @Environment(\.voiceTheme) private var theme
 
     var body: some View {
-        TimelineView(.animation(paused: !store.isPlaying || !isActive)) { _ in
+        TimelineView(.animation(minimumInterval: VisualizerFeed.frameInterval, paused: !store.isPlaying || !isActive)) { _ in
             let voices = store.visualizer.latest()?.chips.first?.voices ?? []
             VStack(spacing: 8) {
                 ForEach(0..<3, id: \.self) { i in

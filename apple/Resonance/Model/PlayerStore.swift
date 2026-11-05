@@ -172,6 +172,8 @@ final class PlayerStore {
     var sharedTune: SharedTuneLink?
 
     let core: any PlayerCoreProtocol
+    /// The visualizers' shared per-frame read (see `VisualizerFeed`).
+    @ObservationIgnored let vizFrames = FrameCache()
 
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let phosphorHvscRoot: () -> String?

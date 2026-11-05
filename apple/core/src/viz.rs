@@ -224,9 +224,18 @@ impl VizFeed {
             .max(oldest);
         std::array::from_fn(|voice| {
             let ring = self.ring(chip, voice);
-            (start..end)
-                .map(|n| ring[(n % SAMPLE_RING as u64) as usize])
-                .collect()
+            // At most two runs of the ring, copied as slices.
+            // Behind the ring's oldest sample (a long output latency) there's
+            // nothing to return.
+            let mut out = Vec::with_capacity(end.saturating_sub(start) as usize);
+            let mut n = start;
+            while n < end {
+                let i = (n % SAMPLE_RING as u64) as usize;
+                let take = ((SAMPLE_RING - i) as u64).min(end - n) as usize;
+                out.extend_from_slice(&ring[i..i + take]);
+                n += take as u64;
+            }
+            out
         })
     }
 

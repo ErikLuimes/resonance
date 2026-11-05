@@ -17,7 +17,7 @@ struct RadialView: View {
     @State private var spectrum = VoiceSpectrum()
 
     var body: some View {
-        TimelineView(.animation(paused: !isActive)) { context in
+        TimelineView(.animation(minimumInterval: VisualizerFeed.frameInterval, paused: !isActive)) { context in
             let scope = store.visualizer.scope(chip: 0, count: VoiceSpectrum.size)
             let _ = spectrum.update(voices: scope.voices, sampleRate: scope.sampleRate, at: context.date)
             let levels = spectrum.levels

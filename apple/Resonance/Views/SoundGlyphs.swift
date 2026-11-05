@@ -94,6 +94,8 @@ struct MorphSphere: View {
     var animated = true
     /// Above 1 fills more of the frame, clipping what turns past it.
     var zoom = 1.0
+    /// False holds it still while it's covered, e.g. by Now Playing.
+    var isActive = true
 
     @Environment(\.voiceTheme) private var theme
 
@@ -101,7 +103,8 @@ struct MorphSphere: View {
         let points = MorphSphereShape(fingerprint)
         Group {
             if animated {
-                TimelineView(.animation) { timeline in
+                // Decoration, not something to follow: 30 fps is plenty.
+                TimelineView(.animation(minimumInterval: 1 / 30, paused: !isActive)) { timeline in
                     canvas(points, angle: timeline.date.timeIntervalSinceReferenceDate * 0.45)
                 }
             } else {

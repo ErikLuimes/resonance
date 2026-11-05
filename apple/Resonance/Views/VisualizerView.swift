@@ -11,6 +11,7 @@ import SwiftUI
 /// app after re-running layout too many times.
 struct VisualizerView: View {
     @Environment(\.voiceTheme) private var theme
+    @Environment(PlayerStore.self) private var store
     @AppStorage(Pref.visualizerMode) private var mode = VisualizerMode.scope
     /// The page scrolled to; nil until the scroll view reports one.
     @State private var page: VisualizerMode?
@@ -22,7 +23,10 @@ struct VisualizerView: View {
             ScrollView(.horizontal) {
                 LazyHStack(spacing: 0) {
                     ForEach(VisualizerMode.allCases) { mode in
-                        visualizer(mode)
+                        // Only the page shown draws. The LazyHStack keeps
+                        // every page it has made, and Now Playing covers
+                        // the inspector without unmounting it.
+                        visualizer(mode, isActive: mode == (page ?? self.mode) && !store.isShowingNowPlaying)
                             .padding(.horizontal, 12)
                             .padding(.top, showsBadge ? 12 + Self.badgeHeight + 8 : 12)
                             // Room for the dots.
@@ -56,11 +60,11 @@ struct VisualizerView: View {
     }
 
     @ViewBuilder
-    private func visualizer(_ mode: VisualizerMode) -> some View {
+    private func visualizer(_ mode: VisualizerMode, isActive: Bool) -> some View {
         switch mode {
-        case .scope: ScopeVisualizer()
-        case .bars: BarsVisualizer()
-        case .envelope: EnvelopeVisualizer()
+        case .scope: ScopeVisualizer(isActive: isActive)
+        case .bars: BarsVisualizer(isActive: isActive)
+        case .envelope: EnvelopeVisualizer(isActive: isActive)
         }
     }
 

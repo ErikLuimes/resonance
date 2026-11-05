@@ -39,7 +39,7 @@ struct SIDMonitorDebugView: View {
                     .monospacedDigit()
                     .frame(width: 60, alignment: .trailing)
             }
-            TimelineView(.animation(paused: !store.isPlaying)) { _ in
+            TimelineView(.animation(minimumInterval: VisualizerFeed.frameInterval, paused: !store.isPlaying)) { _ in
                 let feed = store.visualizer
                 let chip = min(selectedChip, chips - 1)
                 let history = feed.history(Self.flashFrames)

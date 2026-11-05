@@ -86,8 +86,8 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
         vizLatest().map { [$0] } ?? []
     }
 
-    func vizScope(chip: UInt32, count: UInt32) -> VizScope {
-        guard chip == 0 else { return VizScope(sampleRate: Self.previewRate, voices: [[], [], []]) }
+    func vizScope(chip: UInt32, count: UInt32) -> VizScopeSamples {
+        guard chip == 0 else { return VizScopeSamples(sampleRate: Self.previewRate, voices: [[], [], []]) }
         let voices = Self.previewVoices.map { v in
             (0..<Int(min(count, 2048))).map { n -> Float in
                 let phase = Float((Double(n) * v.hz / Double(Self.previewRate)).truncatingRemainder(dividingBy: 1))
@@ -98,7 +98,7 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
                 }
             }
         }
-        return VizScope(sampleRate: Self.previewRate, voices: voices)
+        return VizScopeSamples(sampleRate: Self.previewRate, voices: voices)
     }
 
     func vizStats() -> VizStats {
@@ -221,6 +221,8 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
     func fingerprints(paths: [String]) async -> [TuneFingerprint?] { paths.map { _ in nil } }
     func similarTunes(path: String, subtune: UInt16?, limit: UInt32) async throws -> [SimilarTune] { [] }
     func similarity(seed: String, paths: [String]) async -> [Float?] { paths.map { _ in nil } }
+    func hasEmbeddings() async -> Bool { false }
+    func downloadEmbeddings() async throws -> UInt32 { 0 }
     func addPaths(paths: [String], playFirst: Bool) {}
     func clear() {}
     func moveEntries(from: [UInt32], to: UInt32) {}

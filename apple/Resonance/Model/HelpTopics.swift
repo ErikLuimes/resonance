@@ -134,7 +134,7 @@ extension HelpTopic {
             title: "Sounds Like", symbol: "waveform.badge.magnifyingglass",
             summary: "Find the tunes in HVSC that sound most like the one you love.",
             blocks: [
-                .paragraph("Resonance plays every tune in the collection silently in the background and learns how it sounds: its waveforms, its arpeggios and filter sweeps, its drums and its bass. That fingerprint is what it compares, across all of HVSC."),
+                .paragraph("Resonance plays every tune in the collection silently in the background and learns how it sounds: its waveforms, its arpeggios and filter sweeps, its drums and its bass. That fingerprint is what it compares, across all of HVSC, along with an embedding of each tune's sound, made in advance and downloaded once."),
                 .heading("What sounds like this?"),
                 .bullets([
                     "Play a tune. The inspector's **Sounds Like** card shows its fingerprint as a sphere, its sound in a sentence, and the closest tunes, each with how alike it is as a percentage.",

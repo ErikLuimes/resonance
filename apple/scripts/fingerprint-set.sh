@@ -9,7 +9,11 @@
 # from the GitHub release tagged "fingerprints" (download_fingerprints in
 # core/src/ffi.rs), so upload it there, replacing the old one:
 #
-#   gh release upload fingerprints apple/build/fingerprints-x1.zip --clobber
+#   gh release upload fingerprints apple/build/fingerprints-x2.zip --clobber
+#
+# Leave the sets of earlier extractor versions there: older apps download them.
+# The audio embeddings are a separate asset; see
+# scripts/similarity-bench/export_embeddings.py.
 #
 # (Create the release once first: gh release create fingerprints --title
 # "Fingerprints" --notes "The fingerprint set Resonance downloads.")

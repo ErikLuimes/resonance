@@ -257,7 +257,7 @@ private struct MiniScope: View {
     @Environment(\.voiceTheme) private var theme
 
     var body: some View {
-        TimelineView(.animation(paused: !store.isPlaying)) { _ in
+        TimelineView(.animation(minimumInterval: VisualizerFeed.frameInterval, paused: !store.isPlaying)) { _ in
             let feed = store.visualizer
             let voices = feed.latest()?.chips.first?.voices ?? []
             let scope = voices.isEmpty ? nil : feed.scope(chip: 0, count: 1024)

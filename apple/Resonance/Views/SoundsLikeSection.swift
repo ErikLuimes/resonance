@@ -30,7 +30,7 @@ struct SoundsLikeSection: View {
                     HStack(alignment: .center, spacing: 10) {
                         // Closer in than the fit-anything default, like the
                         // hover card's.
-                        MorphSphere(fingerprint: fp, zoom: 1.2)
+                        MorphSphere(fingerprint: fp, zoom: 1.2, isActive: !player.isShowingNowPlaying)
                             .frame(width: 76, height: 76)
                         Text(fp.summary)
                             .fixedSize(horizontal: false, vertical: true)

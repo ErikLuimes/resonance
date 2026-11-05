@@ -275,11 +275,17 @@ pub struct VizSidFrame {
     pub chips: Vec<VizChip>,
 }
 
+/// A scope read, packed: the UI reads one every display frame, and a
+/// `bytes` field crosses the FFI as a single copy where a `sequence<f32>`
+/// is lifted a float at a time.
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
-pub struct VizScope {
+pub struct VizScopeSamples {
     pub sample_rate: f32,
-    /// Three voices, each −1…1 (waveform × envelope), oldest sample first.
-    pub voices: Vec<Vec<f32>>,
+    /// Samples per voice.
+    pub count: u32,
+    /// Three voices' samples, voice after voice, each −1…1 (waveform ×
+    /// envelope), oldest first, as native-endian f32.
+    pub samples: Vec<u8>,
 }
 
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
@@ -868,12 +874,22 @@ impl PlayerCore {
     /// The last `count` samples (at most 2048) of each of `chip`'s voices,
     /// up to what's being heard now. Fewer at the start of a subtune; empty
     /// while stopped or for a chip the tune doesn't have.
-    pub fn viz_scope(&self, chip: u32, count: u32) -> VizScope {
+    pub fn viz_scope(&self, chip: u32, count: u32) -> VizScopeSamples {
         let feed = viz::lock(&self.driver.viz);
         let voices = feed.scope(Instant::now(), chip as usize, count as usize);
-        VizScope {
-            sample_rate: feed.sample_rate(),
-            voices: voices.into(),
+        let sample_rate = feed.sample_rate();
+        drop(feed);
+        let count = voices[0].len();
+        let mut samples = Vec::with_capacity(voices.len() * count * 4);
+        for voice in &voices {
+            for s in voice {
+                samples.extend_from_slice(&s.to_ne_bytes());
+            }
+        }
+        VizScopeSamples {
+            sample_rate,
+            count: count as u32,
+            samples,
         }
     }
 
@@ -1234,43 +1250,38 @@ impl PlayerCore {
     /// Like works without hours of scanning; the scan then fills in the
     /// rest. Returns how many fingerprints were added.
     pub async fn download_fingerprints(&self) -> Result<u32, HvscError> {
-        let io = |message: String| HvscError::Io { message };
         let url = format!(
             "https://github.com/ErikLuimes/resonance/releases/download/fingerprints/fingerprints-x{}.zip",
             fingerprint::EXTRACTOR_VERSION
         );
-        let dir = self
-            .fingerprints
-            .scanner()
-            .db_path()
-            .parent()
-            .map(Path::to_path_buf)
-            .ok_or_else(|| io("No folder for the fingerprints.".to_string()))?;
-        let builder = reqwest::Client::builder().user_agent("Resonance").timeout(Duration::from_secs(300));
-        let client = crate::config::apply_proxy(builder).build().map_err(|e| io(e.to_string()))?;
-        let response = client.get(&url).send().await.map_err(|e| io(format!("Couldn't reach GitHub: {e}")))?;
-        if !response.status().is_success() {
-            return Err(io(format!("The fingerprint set isn't available ({}).", response.status())));
-        }
-        let zip = response.bytes().await.map_err(|e| io(format!("The download stopped: {e}")))?;
-        let seed = dir.join("fingerprints-download.sqlite");
-        let unpacked = seed.clone();
-        tokio::task::spawn_blocking(move || -> Result<(), String> {
-            // The zip checks each file's CRC as it's read.
-            let mut archive = zip::ZipArchive::new(std::io::Cursor::new(zip)).map_err(|e| e.to_string())?;
-            let mut entry = archive.by_name("fingerprints.sqlite").map_err(|e| e.to_string())?;
-            let mut out = std::fs::File::create(&unpacked).map_err(|e| e.to_string())?;
-            std::io::copy(&mut entry, &mut out).map_err(|e| format!("The download is damaged: {e}"))?;
-            Ok(())
-        })
-        .await
-        .map_err(|e| io(e.to_string()))?
-        .map_err(io)?;
+        let seed = download_store_file(&self.fingerprints, &url, "fingerprints.sqlite").await?;
         let added = self.import_fingerprints(seed.to_string_lossy().into_owned()).await;
-        for suffix in ["", "-wal", "-shm", "-journal"] {
-            let _ = std::fs::remove_file(format!("{}{suffix}", seed.display()));
-        }
+        remove_store_file(&seed);
         added
+    }
+
+    /// Whether the published audio embeddings are here.
+    pub async fn has_embeddings(&self) -> bool {
+        let fps = self.fingerprints.clone();
+        tokio::task::spawn_blocking(move || fps.has_embeddings()).await.unwrap_or(false)
+    }
+
+    /// Download the published audio embeddings (the release asset
+    /// embeddings-e<N>.zip, about 12 MB) for "Sounds like". Without them it
+    /// goes by the fingerprints alone.
+    pub async fn download_embeddings(&self) -> Result<u32, HvscError> {
+        let url = format!(
+            "https://github.com/ErikLuimes/resonance/releases/download/fingerprints/embeddings-e{}.zip",
+            fingerprint::EMBEDDING_SET
+        );
+        let seed = download_store_file(&self.fingerprints, &url, "embeddings.sqlite").await?;
+        let fps = self.fingerprints.clone();
+        let path = seed.clone();
+        let added = tokio::task::spawn_blocking(move || fps.import_embeddings(&path))
+            .await
+            .map_err(|e| HvscError::Io { message: e.to_string() })?;
+        remove_store_file(&seed);
+        added.map(|n| n as u32).map_err(|message| HvscError::Io { message })
     }
 
     /// Fingerprints for the tunes at `paths` (files in the collection),
@@ -2017,5 +2028,48 @@ mod sync_tests {
         apply_event(&mut failed, HvscSyncEvent::Done(Err("Cancelled".into())));
         assert!(!failed.running);
         assert_eq!(failed.error.as_deref(), Some("Cancelled"));
+    }
+}
+
+/// Fetch a zip from a release and unpack its `entry` next to the store.
+async fn download_store_file(
+    fingerprints: &fingerprint::Fingerprints,
+    url: &str,
+    entry: &str,
+) -> Result<PathBuf, HvscError> {
+    let io = |message: String| HvscError::Io { message };
+    let dir = fingerprints
+        .scanner()
+        .db_path()
+        .parent()
+        .map(Path::to_path_buf)
+        .ok_or_else(|| io("No folder for the fingerprints.".to_string()))?;
+    let builder = reqwest::Client::builder().user_agent("Resonance").timeout(Duration::from_secs(300));
+    let client = crate::config::apply_proxy(builder).build().map_err(|e| io(e.to_string()))?;
+    let response = client.get(url).send().await.map_err(|e| io(format!("Couldn't reach GitHub: {e}")))?;
+    if !response.status().is_success() {
+        return Err(io(format!("The fingerprint set isn't available ({}).", response.status())));
+    }
+    let zip = response.bytes().await.map_err(|e| io(format!("The download stopped: {e}")))?;
+    let seed = dir.join(format!("download-{entry}"));
+    let unpacked = seed.clone();
+    let entry = entry.to_string();
+    tokio::task::spawn_blocking(move || -> Result<(), String> {
+        // The zip checks each file's CRC as it's read.
+        let mut archive = zip::ZipArchive::new(std::io::Cursor::new(zip)).map_err(|e| e.to_string())?;
+        let mut entry = archive.by_name(&entry).map_err(|e| e.to_string())?;
+        let mut out = std::fs::File::create(&unpacked).map_err(|e| e.to_string())?;
+        std::io::copy(&mut entry, &mut out).map_err(|e| format!("The download is damaged: {e}"))?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| io(e.to_string()))?
+    .map_err(io)?;
+    Ok(seed)
+}
+
+fn remove_store_file(seed: &Path) {
+    for suffix in ["", "-wal", "-shm", "-journal"] {
+        let _ = std::fs::remove_file(format!("{}{suffix}", seed.display()));
     }
 }

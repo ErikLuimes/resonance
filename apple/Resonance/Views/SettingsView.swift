@@ -232,14 +232,22 @@ private struct FingerprintSettings: View {
             } else {
                 LabeledContent("Fingerprinted", value: "Starting…")
             }
+            // Its own row: the scan runs for hours, so starting and pausing
+            // it shouldn't hide among the database controls.
+            LabeledContent("Scanning") {
+                HStack {
+                    Text(scanState)
+                        .foregroundStyle(.secondary)
+                    if fingerprints.status?.finished != true {
+                        Button(scanButton) { fingerprints.paused.toggle() }
+                    }
+                }
+            }
             LabeledContent("Database") {
                 HStack {
                     if let databaseBytes {
                         Text(databaseBytes.formatted(.byteCount(style: .file)))
                             .foregroundStyle(.secondary)
-                    }
-                    if fingerprints.status?.finished != true {
-                        Button(fingerprints.paused ? "Resume" : "Pause") { fingerprints.paused.toggle() }
                     }
                     Button("Rebuild All…") { confirmingRebuild = true }
                 }
@@ -282,6 +290,20 @@ private struct FingerprintSettings: View {
                 }
             }.value
         }
+    }
+
+    /// What the scan is doing, next to its button.
+    private var scanState: String {
+        if fingerprints.status?.finished == true { return "Finished" }
+        if fingerprints.paused { return "Paused" }
+        return fingerprints.status?.running == true ? "In the background" : "Starting…"
+    }
+
+    /// Start before anything has been scanned, Resume after, Pause while
+    /// it runs. Pausing holds its place, also across launches.
+    private var scanButton: String {
+        guard fingerprints.paused else { return "Pause" }
+        return (fingerprints.status?.done ?? 0) == 0 ? "Start" : "Resume"
     }
 
     /// "About 1 hour, 20 minutes left".
