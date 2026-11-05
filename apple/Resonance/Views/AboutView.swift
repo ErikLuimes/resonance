@@ -1,79 +1,75 @@
 import SwiftUI
 import PhosphorCore
 
-/// The About window: Resonance's version, the Phosphor engine it runs on,
-/// and where it comes from. A fixed-width column, so the window's size
-/// follows its text and nothing else.
+/// The About window, in the Mac's classic shape: the icon, the name and
+/// version, a line on what it is, who it's built on, the licence, and
+/// buttons to the acknowledgements, the website and the source. A fixed
+/// width, so the window's size follows its text and nothing else.
 struct AboutView: View {
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openURL) private var openURL
+
+    static let website = URL(string: "https://useresonance.app")!
+    static let source = URL(string: "https://github.com/ErikLuimes/resonance")!
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 0) {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
-                .frame(width: 96, height: 96)
+                .frame(width: 88, height: 88)
+                .padding(.bottom, 10)
 
-            VStack(spacing: 4) {
-                Text("Resonance")
-                    .font(.title.weight(.semibold))
-                Text("The SID, played and seen")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                Text("Resonance \(Self.appVersion) · Phosphor \(phosphorVersion())")
-                    .font(.callout)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-                    .padding(.top, 4)
-            }
-
-            Text("""
-                Resonance is a SID music player made only for the Mac. It plays \
-                through the engine of Phosphor, Marcin Spoczynski's open-source SID \
-                player for macOS, Linux and Windows — SIDLite and reSID emulation, \
-                song lengths, STIL and the HVSC library — compiled in unchanged. \
-                Use Phosphor too? Import its settings, favourites and history in \
-                Settings → Advanced.
-                """)
+            Text("Resonance")
+                .font(.title2.weight(.semibold))
+            Text("Version \(Self.version)")
                 .font(.callout)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Text("For USBSID-Pico or Ultimate 64 hardware, use Phosphor.")
-                .font(.callout)
+                .monospacedDigit()
                 .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+                .padding(.top, 2)
 
-            HStack(spacing: 20) {
-                Link("Phosphor on GitHub", destination: URL(string: "https://github.com/sandlbn/Phosphor")!)
-                Link("Phosphor Website", destination: URL(string: "https://sandlbn.github.io/Phosphor/")!)
-            }
-            .font(.callout)
+            Text("The SID, played and seen.")
+                .font(.callout)
+                .padding(.top, 14)
 
-            VStack(spacing: 2) {
-                Text("Resonance © 2026 Erik Luimes · MIT License")
-                Text("Phosphor © 2026 Marcin Spoczynski · MIT License")
-                // The SID emulators it includes are GPL, so the app is too.
-                Text("This app includes reSID, SIDLite and libsidplayfp, and is distributed under the GNU GPL, version 3.")
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 4)
+            VStack(spacing: 3) {
+                // The link as literal markdown: an interpolated link
+                // isn't parsed.
+                (Text("Built on ") + Text("[Phosphor](https://github.com/sandlbn/Phosphor)")
+                    + Text(" \(phosphorVersion()) by Marcin Spoczynski."))
+                    .tint(.accentColor)
+                Text("SID emulation by reSIDfp, SIDLite and reSID.")
             }
             .font(.caption)
-            .foregroundStyle(.tertiary)
+            .foregroundStyle(.secondary)
+            .padding(.top, 14)
 
-            AccentLink("Acknowledgements") { openWindow(id: AcknowledgementsView.windowID) }
+            Text("© 2026 Erik Luimes. MIT licence; distributed under the GNU GPL, version 3.")
                 .font(.caption)
+                .foregroundStyle(.tertiary)
+                .padding(.top, 14)
+
+            HStack(spacing: 8) {
+                Button("Acknowledgements") { openWindow(id: AcknowledgementsView.windowID) }
+                Button("Website") { openURL(Self.website) }
+                Button("Source Code") { openURL(Self.source) }
+            }
+            .controlSize(.small)
+            .padding(.top, 18)
         }
-        .padding(.horizontal, 32)
-        .padding(.bottom, 28)
-        .frame(width: 380)
+        .multilineTextAlignment(.center)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.horizontal, 28)
+        .padding(.bottom, 24)
+        .frame(width: 340)
     }
 
-    /// "0.1.0-alpha.1": the version and its release stage (the project's
-    /// RELEASE_STAGE, none for a final release).
-    private static var appVersion: String { Updater.appVersion() }
+    /// "0.1.0-alpha.4 (4)": the version with its release stage, and the
+    /// build number, for bug reports.
+    private static var version: String {
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
+        return "\(Updater.appVersion()) (\(build))"
+    }
 }
 
 /// Replaces the standard About menu item, which can't show the Phosphor

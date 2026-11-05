@@ -444,9 +444,13 @@ private struct HvscCollectionRow: View {
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             } else if !store.hasCollection && !running {
-                Button("Download") { store.startHvscSync() }
+                // An icon: the word wrapped in a narrow sidebar.
+                Button("Download", systemImage: "arrow.down.circle") { store.startHvscSync() }
+                    .labelStyle(.iconOnly)
                     .buttonStyle(.borderless)
-                    .font(.callout)
+                    .font(.body)
+                    .foregroundStyle(isSelected ? AnyShapeStyle(.white) : AnyShapeStyle(.tint))
+                    .help("Download the High Voltage SID Collection")
             } else if showsUpdate, let latest = store.latestHvsc {
                 Button("Update") { store.startHvscSync() }
                     .buttonStyle(.borderless)

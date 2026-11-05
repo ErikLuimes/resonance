@@ -3,8 +3,9 @@ import PhosphorCore
 
 /// The menu bar player, in three parts: the tune (its voices, title,
 /// composer and heart, progress, and the play bar's transport), the list
-/// it plays from with what comes next, and the actions (Surprise Me, Add
-/// to…, Open Resonance). Works with the main window closed; Settings →
+/// it plays from with what comes next, and the actions: Surprise Me, and
+/// a link that shows the tune in Resonance. Adding to playlists and
+/// sharing stay in the main window. Works with the main window closed; Settings →
 /// Appearance hides it. No accent colour: the panel's glass takes on the
 /// desktop's colours, and the accent didn't read on it.
 struct MiniPlayerView: View {
@@ -227,22 +228,35 @@ struct MiniPlayerView: View {
             }
             .disabled(!store.hasCollection)
             .help(store.surpriseActive ? "Back to the list that played before" : "Random tunes from all of HVSC")
-            if let path = store.nowPlaying?.path {
-                AddToButton(files: [path], label: "Add to…")
-                    .labelStyle(.titleOnly)
-                    .buttonStyle(.bordered)
-                ShareButton(path: path, subtune: store.nowPlaying.map { Int($0.currentSong) })
-                    .labelStyle(.titleOnly)
-                    .buttonStyle(.bordered)
-            }
             Spacer(minLength: 8)
-            Button("Open Resonance", action: openApp)
-            .buttonStyle(.plain)
+            // Underlined like the list's "From" link: the panel has no
+            // accent colour to mark links with.
+            Group {
+                if let path = store.nowPlaying?.path {
+                    AccentLink("Show in Resonance") { show(path) }
+                        .help("Open Resonance with this tune selected")
+                } else {
+                    AccentLink("Open Resonance", action: openApp)
+                }
+            }
+            .underline(color: .secondary.opacity(0.5))
             .pointerStyle(.link)
         }
         .controlSize(.small)
         .buttonBorderShape(.capsule)
         .font(.callout)
+    }
+
+    /// Open Resonance's window with the playing tune selected: in the list
+    /// it plays from, or (a composer, a search, Surprise Me) in its place
+    /// in the library.
+    private func show(_ path: String) {
+        openApp()
+        if let source = store.source {
+            library.open(source, playing: path)
+        } else {
+            library.reveal(tunePath: path)
+        }
     }
 
     private static func time(_ seconds: TimeInterval) -> String {
