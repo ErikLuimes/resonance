@@ -32,6 +32,10 @@ rusqlite = { version = "0.41", features = ["bundled"] }
 # Scan workers run at utility QoS (pthread_set_qos_class_self_np).
 libc = "0.2"
 
+# The reSIDfp engine: libsidplayfp + libresidfp, rendered from the audio
+# callback (see ../residfp-sys).
+residfp-sys = { path = "../residfp-sys" }
+
 # ── Mirrors of the root Cargo.toml ───────────────────────────────────────────
 # Same versions and features as ../../Cargo.toml for the engine sources this
 # crate includes via #[path]. When an upstream merge adds a dependency to one

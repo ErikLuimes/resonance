@@ -33,7 +33,7 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     static let stoppedSnapshot = Snapshot(
         state: .stopped, currentIndex: nil, queueActive: false, surpriseActive: false, shuffleCollectionActive: false, track: nil,
         elapsedMs: 0, durationMs: nil,
-        shuffle: false, repeat: .off, engine: .sidLite, playlistRevision: 0, trackRevision: 0,
+        shuffle: false, repeat: .off, engine: .reSidFp, playlistRevision: 0, trackRevision: 0,
         loading: nil, error: nil, hvscIndexing: [], hvscTreeRevision: 0
     )
 
@@ -295,7 +295,7 @@ struct PlayerStoreTests {
 
     @Test func unchangedSettingsAreNotResent() {
         let (store, _) = makeStore()
-        store.engine = .sidLite
+        store.engine = .reSidFp
         store.shuffle = false
         #expect(fake.calls.isEmpty)
     }

@@ -194,7 +194,7 @@ final class PlayerStore {
         defaultHvscRoot: String? = AppPaths.hvscDirectory.path,
         makeCore: (CoreConfig) -> any PlayerCoreProtocol
     ) {
-        let engine = Engine(storageValue: defaults.string(forKey: Pref.engine)) ?? .sidLite
+        let engine = Engine(storageValue: defaults.string(forKey: Pref.engine)) ?? .reSidFp
         let volume = defaults.object(forKey: Pref.volume) as? Double ?? 0.8
         let shuffle = defaults.bool(forKey: Pref.shuffle)
         let repeatMode = Repeat(storageValue: defaults.string(forKey: Pref.repeatMode)) ?? .off

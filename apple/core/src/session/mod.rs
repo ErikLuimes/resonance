@@ -32,15 +32,29 @@ use crate::playlist::{Playlist, PlaylistEntry, RepeatMode, SonglengthDb};
 pub enum Engine {
     SidLite,
     ReSid,
+    /// libsidplayfp with reSIDfp, rendered from the audio callback
+    /// (`crate::residfp_player`): not one of upstream's engines.
+    ReSidFp,
+    /// libsidplayfp's own SIDLite through the same pull-driven player.
+    SidLiteDirect,
 }
 
 impl Engine {
-    /// The name `sid_device::create_engine` understands.
+    /// The name `sid_device::create_engine` understands. `ReSidFp` has
+    /// its own player thread and never reaches `create_engine`.
     pub fn as_engine_name(self) -> &'static str {
         match self {
             Engine::SidLite => "sidlite",
             Engine::ReSid => "emulated",
+            Engine::ReSidFp => "residfp",
+            Engine::SidLiteDirect => "sidlite-direct",
         }
+    }
+
+    /// Runs in its own player thread (the driver swaps players), rather
+    /// than as a device inside upstream's.
+    pub fn is_pull_driven(self) -> bool {
+        matches!(self, Engine::ReSidFp | Engine::SidLiteDirect)
     }
 }
 
@@ -169,6 +183,20 @@ impl Session {
         self.cmd_tx = cmd_tx;
         self.status = PlayerStatus::default();
         self.last_advance_at = None;
+    }
+
+    /// Switch to `engine` on a freshly spawned player thread, resuming the
+    /// current track on it if one was playing (`set_engine` for engines
+    /// that don't live inside the same player).
+    pub fn switch_player(&mut self, cmd_tx: Sender<PlayerCmd>, engine: Engine, now: Instant) {
+        let was_playing = self.status.state == PlayState::Playing;
+        self.set_player(cmd_tx);
+        self.engine = engine;
+        if was_playing {
+            if let Some(idx) = self.active().current {
+                self.play_track(idx, now);
+            }
+        }
     }
 
     /// Queue a command without ever blocking (main.rs `send_cmd`). The

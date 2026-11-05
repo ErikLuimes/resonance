@@ -2,9 +2,11 @@
 //!
 //!     cargo run -p phosphor-apple --example headless -- <file.sid|folder|list.m3u>...
 //!
-//! Env: RESONANCE_ENGINE=resid switches from SIDLite to reSID;
+//! Env: RESONANCE_ENGINE=resid switches from SIDLite to reSID, =residfp to
+//! reSIDfp (libsidplayfp), =sidlite-direct to SIDLite direct;
 //! RESONANCE_LENGTH=<secs> sets the default song length (default 8, so
-//! auto-advance shows up quickly). Uses a throwaway session file.
+//! auto-advance shows up quickly); RESONANCE_VOLUME=<0–1> (default 0.8).
+//! Uses a throwaway session file.
 
 use std::time::Duration;
 
@@ -20,6 +22,8 @@ fn main() {
     }
     let engine = match std::env::var("RESONANCE_ENGINE").as_deref() {
         Ok("resid") => Engine::ReSid,
+        Ok("residfp") => Engine::ReSidFp,
+        Ok("sidlite-direct") => Engine::SidLiteDirect,
         _ => Engine::SidLite,
     };
     let length = std::env::var("RESONANCE_LENGTH")
@@ -29,9 +33,13 @@ fn main() {
     let session =
         std::env::temp_dir().join(format!("resonance-headless-{}.m3u", std::process::id()));
 
+    let volume = std::env::var("RESONANCE_VOLUME")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0.8);
     let core = PlayerCore::new(CoreConfig {
         engine,
-        volume: 0.8,
+        volume,
         options: PlaybackOptions {
             skip_rsid: false,
             default_song_length_secs: length,

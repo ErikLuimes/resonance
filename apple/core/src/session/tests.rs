@@ -152,6 +152,38 @@ fn path(name: &str) -> PathBuf {
     PathBuf::from(format!("/hvsc/{name}.sid"))
 }
 
+// ── Engines ──────────────────────────────────────────────────────────────────
+
+#[test]
+fn switching_player_threads_resumes_the_track() {
+    let mut h = Harness::new(vec![entry("a", 1, Some(60)), entry("b", 1, Some(60))]);
+    h.session.play_track(1, h.t0);
+    h.feed(h.status(1, 1, 5, 3), 5.0);
+    h.sent();
+
+    // A new player thread for the new engine: the track restarts on it.
+    let (tx, rx) = bounded(64);
+    h.session.switch_player(tx, Engine::ReSidFp, h.at(6.0));
+    assert_eq!(h.session.engine, Engine::ReSidFp);
+    assert_eq!(played(&rx.try_iter().collect::<Vec<_>>()), vec![(path("b"), 1)]);
+    assert!(h.sent().is_empty(), "nothing goes to the old player");
+    assert_eq!(h.session.status.elapsed, Duration::ZERO);
+
+    // Stopped: the switch doesn't start anything.
+    let mut h = Harness::new(vec![entry("a", 1, Some(60))]);
+    let (tx, rx) = bounded(64);
+    h.session.switch_player(tx, Engine::ReSidFp, h.t0);
+    assert!(rx.try_iter().next().is_none());
+}
+
+#[test]
+fn the_libsidplayfp_engines_are_pull_driven() {
+    assert!(Engine::ReSidFp.is_pull_driven() && Engine::SidLiteDirect.is_pull_driven());
+    assert!(!Engine::SidLite.is_pull_driven() && !Engine::ReSid.is_pull_driven());
+    assert_eq!(Engine::ReSidFp.as_engine_name(), "residfp");
+    assert_eq!(Engine::SidLiteDirect.as_engine_name(), "sidlite-direct");
+}
+
 // ── Auto-advance ─────────────────────────────────────────────────────────────
 
 #[test]

@@ -79,8 +79,22 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
     return immediately; Swift polls `snapshot()` at 20 Hz and `viz_frame()`
     per display frame. Library calls are `async` (Swift `await`s them) and
     run on tokio's blocking pool.
+  - `residfp_player.rs` — the **reSIDfp** and **SIDLite direct** engines,
+    Resonance's own: a libsidplayfp with libresidfp or its own SIDLite chip
+    (from `../residfp-sys`) rendered from the audio output callback instead
+    of upstream's wall-clock-paced player thread, speaking the same
+    `PlayerCmd` / `PlayerStatus` protocol so the session can't tell the
+    difference. Elapsed time is the samples
+    rendered; the chips report their registers, envelopes and waveforms, so
+    the visualizers get the real thing instead of `viz.rs`'s shadow reSID.
+    The driver swaps player threads when switching to or from it. Pseudo
+    stereo (Widen mono tunes) isn't implemented on it.
   - `build.rs` — reads upstream's version from the root `Cargo.toml`, so
     `phosphor_version()` (shown in About Resonance) follows upstream merges.
+- **`residfp-sys/`** — libsidplayfp 3.1.2 (with its SIDLite chip) and
+  libresidfp 1.2.3, vendored and built with `cc` behind a small C shim (its README has the details,
+  including the symbol renaming that keeps it apart from `sidplayfp-sys`'s
+  older libsidplayfp, which the fingerprint scan uses).
 - **`iced-shim/`** — `src/hvsc_sync.rs` imports `iced::futures`; this maps
   that path to `futures-util` so the GUI toolkit isn't built.
 - **`uniffi-bindgen/`** — the Swift binding generator, pinned to the same
@@ -123,7 +137,8 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
 ## Scope
 
 - **Milestone 1:** playlist, transport, subtunes, auto-advance, visualizer,
-  Now Playing and media keys, on the software engines (SIDLite and reSID).
+  Now Playing and media keys, on the software engines (SIDLite and reSID,
+  later joined by reSIDfp and SIDLite direct).
 - **Milestone 2:** the HVSC library in the sidebar (browse authors and
   sections, fuzzy search per category or across HVSC, Surprise Me) and STIL
   commentary in the inspector.

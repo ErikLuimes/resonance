@@ -38,6 +38,11 @@ pub enum Engine {
     SidLite,
     /// resid-rs emulation.
     ReSid,
+    /// libsidplayfp with reSIDfp (libresidfp), the reference emulation,
+    /// rendered from the audio output callback.
+    ReSidFp,
+    /// libsidplayfp's own SIDLite, rendered the same way: the lightest.
+    SidLiteDirect,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
@@ -1783,6 +1788,8 @@ impl From<Engine> for session::Engine {
         match e {
             Engine::SidLite => session::Engine::SidLite,
             Engine::ReSid => session::Engine::ReSid,
+            Engine::ReSidFp => session::Engine::ReSidFp,
+            Engine::SidLiteDirect => session::Engine::SidLiteDirect,
         }
     }
 }
@@ -1792,6 +1799,8 @@ impl From<session::Engine> for Engine {
         match e {
             session::Engine::SidLite => Engine::SidLite,
             session::Engine::ReSid => Engine::ReSid,
+            session::Engine::ReSidFp => Engine::ReSidFp,
+            session::Engine::SidLiteDirect => Engine::SidLiteDirect,
         }
     }
 }

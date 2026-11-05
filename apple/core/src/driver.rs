@@ -22,6 +22,7 @@ use crate::databases::{self, Databases, SharedDatabases};
 use crate::library::{Library, LibraryError};
 use crate::player::{self, PlayState, PlayerCmd, PlayerStatus};
 use crate::playlist::{self, LoadingProgress, PlaylistEntry, RepeatMode};
+use crate::residfp_player;
 use crate::session::{persist, Engine, Options, RadioKind, Session};
 use crate::viz::{SharedFeed, VizCapture, VizFeed};
 use crate::audio_volume;
@@ -372,15 +373,21 @@ struct Player {
     device_events: Receiver<player::DeviceConfigEvent>,
 }
 
-/// The bridge mode argument is ignored: without the `usb` feature no USB
-/// engine exists to consult it.
-fn spawn_player(engine: Engine) -> Player {
-    let (commands, statuses, device_events) = player::spawn_player(
-        engine.as_engine_name().to_string(),
-        String::new(),
-        String::new(),
-        "bridge".to_string(),
-    );
+/// Upstream's player thread for its engines; the reSIDfp player for
+/// `Engine::ReSidFp`, which writes the visualizer feed itself. The bridge
+/// mode argument is ignored: without the `usb` feature no USB engine
+/// exists to consult it.
+fn spawn_player(engine: Engine, viz: &SharedFeed) -> Player {
+    let (commands, statuses, device_events) = if engine.is_pull_driven() {
+        residfp_player::spawn(viz.clone(), engine)
+    } else {
+        player::spawn_player(
+            engine.as_engine_name().to_string(),
+            String::new(),
+            String::new(),
+            "bridge".to_string(),
+        )
+    };
     Player {
         commands,
         statuses,
@@ -414,7 +421,7 @@ fn run(
     let now = Instant::now();
     audio_volume::set(start.volume);
 
-    let player = spawn_player(start.engine);
+    let player = spawn_player(start.engine, viz.feed());
     let mut session = Session::new(
         player.commands.clone(),
         start.options,
@@ -541,6 +548,9 @@ impl State {
             Command::PrevSubtune => s.prev_subtune(now),
             Command::SetShuffle(on) => s.set_shuffle(on),
             Command::SetRepeat(mode) => s.set_repeat(mode),
+            Command::SetEngine(engine) if engine.is_pull_driven() != s.engine.is_pull_driven() => {
+                self.swap_player(engine, now)
+            }
             Command::SetEngine(engine) => s.set_engine(engine, now),
             Command::SetOptions(options) => s.set_options(options, now),
             Command::SetHvscRoot(root) => s.set_hvsc_root(root),
@@ -551,12 +561,26 @@ impl State {
     fn ingest(&mut self, first: PlayerStatus) {
         let rest: Vec<_> = self.player.statuses.try_iter().collect();
         let now = Instant::now();
-        // Every status, not just the latest: each carries one frame.
-        for status in std::iter::once(&first).chain(&rest) {
-            self.viz.ingest(status, now);
+        // Every status, not just the latest: each carries one frame. The
+        // reSIDfp player feeds the visualizers itself.
+        if !self.session.engine.is_pull_driven() {
+            for status in std::iter::once(&first).chain(&rest) {
+                self.viz.ingest(status, now);
+            }
         }
         self.session
             .ingest_statuses(std::iter::once(first).chain(rest), now);
+    }
+
+    /// Switch between upstream's player thread and the reSIDfp one: end
+    /// the old thread, start the new, and let the session resume on it.
+    fn swap_player(&mut self, engine: Engine, now: Instant) {
+        let _ = self.player.commands.try_send(PlayerCmd::Stop);
+        let _ = self.player.commands.try_send(PlayerCmd::Quit);
+        self.viz.reset();
+        self.player = spawn_player(engine, self.viz.feed());
+        self.session
+            .switch_player(self.player.commands.clone(), engine, now);
     }
 
     fn apply_loaded(&mut self, result: Loaded) {
@@ -604,7 +628,7 @@ impl State {
     /// fresh one on the same engine so the app keeps working.
     fn respawn_player(&mut self) {
         eprintln!("[resonance] player thread exited — restarting it");
-        self.player = spawn_player(self.session.engine);
+        self.player = spawn_player(self.session.engine, self.viz.feed());
         self.session.set_player(self.player.commands.clone());
         self.error = Some("The player stopped unexpectedly and was restarted.".into());
     }

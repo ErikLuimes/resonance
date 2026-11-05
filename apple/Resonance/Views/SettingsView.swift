@@ -52,13 +52,13 @@ private struct PlaybackSettings: View {
     var body: some View {
         @Bindable var store = store
         Section {
-            Picker("Engine", selection: $store.engine) {
-                ForEach(Engine.allCases, id: \.self) { engine in
-                    Text(engine.displayName).tag(engine)
-                }
+            ForEach(Engine.pickerOrder, id: \.self) { engine in
+                EngineRow(engine: engine, isOn: store.engine == engine) { store.engine = engine }
             }
+        } header: {
+            Text("Engine")
         } footer: {
-            Text("SIDLite picks the chip model from each tune's header. Changing the engine restarts the current tune.")
+            Text("Changing the engine restarts the current tune.")
         }
 
         Section {
@@ -78,7 +78,7 @@ private struct PlaybackSettings: View {
             Text("The default length is used for tunes missing from the Songlengths database. 0 means play until silence.")
         }
 
-        Section("Stereo") {
+        Section {
             Toggle("Play 2SID tunes in mirrored stereo", isOn: $store.options.forceStereo2sid)
             Picker("Widen mono tunes", selection: $store.options.pseudoStereo) {
                 Text("Off").tag(PseudoStereo?.none)
@@ -86,7 +86,53 @@ private struct PlaybackSettings: View {
                     Text(strength.displayName).tag(Optional(strength))
                 }
             }
+        } header: {
+            Text("Stereo")
+        } footer: {
+            if store.engine.rendersDirectly {
+                Text("Widen mono tunes has no effect on \(store.engine.displayName).")
+            }
         }
+    }
+}
+
+/// One engine to pick, as a radio row: the dot, the name (with a
+/// Recommended badge on the default) and a line on what sets it apart.
+/// The whole row selects.
+private struct EngineRow: View {
+    let engine: Engine
+    let isOn: Bool
+    let select: () -> Void
+
+    var body: some View {
+        Button(action: select) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Image(systemName: isOn ? "inset.filled.circle" : "circle")
+                    .foregroundStyle(isOn ? Color.accentColor : Color.secondary)
+                    .font(.body)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 8) {
+                        Text(engine.displayName)
+                        if engine == Engine.recommended {
+                            Text("Recommended")
+                                .font(.caption2.weight(.medium))
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 2)
+                                .background(Color.accentColor, in: .capsule)
+                                .foregroundStyle(.white)
+                        }
+                    }
+                    Text(engine.caption)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn ? [.isSelected] : [])
+        .accessibilityLabel("\(engine.displayName), \(engine.caption)")
     }
 }
 

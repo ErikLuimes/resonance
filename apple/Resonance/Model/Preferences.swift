@@ -52,6 +52,8 @@ nonisolated extension Engine {
         switch storageValue {
         case "sidlite": self = .sidLite
         case "resid": self = .reSid
+        case "residfp": self = .reSidFp
+        case "sidlite-direct": self = .sidLiteDirect
         default: return nil
         }
     }
@@ -60,15 +62,42 @@ nonisolated extension Engine {
         switch self {
         case .sidLite: "sidlite"
         case .reSid: "resid"
+        case .reSidFp: "residfp"
+        case .sidLiteDirect: "sidlite-direct"
         }
     }
 
     var displayName: String {
         switch self {
-        case .sidLite: "SIDLite (libsidplayfp)"
+        case .sidLite: "SIDLite"
         case .reSid: "reSID"
+        case .reSidFp: "reSIDfp"
+        case .sidLiteDirect: "SIDLite direct"
         }
     }
+
+    /// What sets each engine apart, in a line: what a newcomer needs to pick one.
+    var caption: String {
+        switch self {
+        case .sidLite: "Compact model, the original player."
+        case .reSid: "Older model, the heaviest."
+        case .reSidFp: "Most accurate sound."
+        case .sidLiteDirect: "Lightest on the processor."
+        }
+    }
+
+    /// Whether the engine renders straight into the audio output (the
+    /// libsidplayfp player), where Phosphor's pseudo-stereo doesn't apply.
+    var rendersDirectly: Bool {
+        self == .reSidFp || self == .sidLiteDirect
+    }
+
+    /// The engine a fresh install plays on, and the one Settings recommends.
+    static let recommended = Engine.reSidFp
+
+    /// The engines as Settings lists them: the recommended one first, then
+    /// the light one, then the two older ones.
+    static let pickerOrder: [Engine] = [.reSidFp, .sidLiteDirect, .sidLite, .reSid]
 }
 
 nonisolated extension Repeat {

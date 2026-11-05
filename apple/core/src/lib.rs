@@ -87,6 +87,7 @@ mod ffi;
 mod history;
 mod hvsc_info;
 mod library;
+mod residfp_player;
 pub(crate) mod session;
 mod share;
 mod viz;

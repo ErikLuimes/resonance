@@ -1,0 +1,18 @@
+# libsidplayfp 3.1.2 with libresidfp 1.2.3 (reSIDfp), built from vendored
+# sources behind a small C shim, for Resonance's reSIDfp engine. See README.md.
+[package]
+name = "residfp-sys"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "GPL-2.0-or-later"
+description = "libsidplayfp + libresidfp as a pull-driven SID player with per-voice state for visualizers"
+# Distinct from sidplayfp-sys's `links = "sidplayfp"`: both crates compile
+# libsidplayfp, and Cargo refuses two packages with the same native library.
+links = "residfp_player"
+build = "build.rs"
+
+[dependencies]
+
+[build-dependencies]
+cc = "1"

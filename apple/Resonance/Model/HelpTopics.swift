@@ -325,7 +325,7 @@ extension HelpTopic {
             blocks: [
                 .heading("Playback"),
                 .bullets([
-                    "**Engine**: SIDLite picks the chip model from each tune's header; reSID emulates the chip cycle by cycle. Changing it restarts the tune.",
+                    "**Engine**: four software emulations, all following each tune's header for PAL or NTSC and the chip model. **reSIDfp**, the default, is the most accurate: libsidplayfp's reference C64 and chip emulation. **SIDLite direct** is a compact chip model, the lightest on the processor. **SIDLite** is the same compact chip through Phosphor's original player, and **reSID** the older cycle-by-cycle model, the heaviest. Changing the engine restarts the tune.",
                     "**Skip RSID tunes**, and the **default song length** for tunes missing from the Songlengths database (0 plays until silence).",
                     "**Stereo**: play 2SID tunes in mirrored stereo, and widen mono tunes: Subtle, Medium or Wide.",
                 ]),
@@ -362,7 +362,7 @@ extension HelpTopic {
                 .heading("Sounds Like says a tune isn't fingerprinted"),
                 .paragraph("The scan hasn't reached it yet. Check Settings → Collection: is the scan paused? Click **Download** next to Published set to fetch the fingerprints of all of HVSC. If some tunes couldn't be scanned, **Retry** tries them again."),
                 .heading("A tune stops too soon, or plays on and on"),
-                .paragraph("Song lengths come from HVSC's Songlengths database. Tunes it doesn't know play for the default song length in Settings → Playback. Some tunes sound different on the other engine: try switching between SIDLite and reSID."),
+                .paragraph("Song lengths come from HVSC's Songlengths database. Tunes it doesn't know play for the default song length in Settings → Playback. Some tunes sound different on another engine: try switching between SIDLite, reSIDfp, SIDLite direct and reSID."),
                 .heading("The HVSC download stopped"),
                 .paragraph("Click **Retry** in the message at the top of the window. A download that was cancelled starts over from Download next to Collection."),
                 .heading("Coming from Phosphor"),

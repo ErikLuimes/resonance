@@ -1,10 +1,13 @@
 //! The visualizers' data source.
 //!
-//! The engines keep their reSID / SIDLite instances to themselves, inside
-//! upstream files, so the chip that's actually playing can't tell us its
-//! envelopes or per-voice waveforms. Instead the session thread runs a
+//! Phosphor's engines keep their reSID / SIDLite instances to themselves,
+//! inside upstream files, so the chip that's actually playing can't tell us
+//! its envelopes or per-voice waveforms. Instead the session thread runs a
 //! visuals-only reSID `Synth` per chip, fed the register shadow from every
-//! player status. Register changes land on frame boundaries, so a gate
+//! player status (`VizCapture`). The reSIDfp engine's chips do report their
+//! state, so its player pushes frames straight into the feed instead
+//! (`VizFeed::push_rendered`), scheduled at the time its audio callback
+//! rendered them; nothing below the read API changes for the UI. Register changes land on frame boundaries, so a gate
 //! cleared and set again inside one frame (hard restart) and `$D418` digis
 //! don't show — fine for visuals, and the same on both engines.
 //!
@@ -48,7 +51,7 @@ pub(crate) const TRACK_START_LAG: Duration = Duration::from_millis(100);
 /// Per voice: the buffer lag plus a full scope window, with room to spare.
 const SAMPLE_RING: usize = 16_384;
 /// C64 cycles per scope sample: 44.8 kHz on PAL, 46.5 kHz on NTSC.
-const CYCLES_PER_SAMPLE: u32 = 22;
+pub(crate) const CYCLES_PER_SAMPLE: u32 = 22;
 const REGS_PER_CHIP: usize = 32;
 /// The write-only registers, $00–$18.
 const WRITE_REGS: usize = 0x19;
@@ -66,6 +69,11 @@ pub(crate) fn clock_hz(is_pal: bool) -> f64 {
     } else {
         1_022_727.0
     }
+}
+
+/// The scope's sample rate: one sample every `CYCLES_PER_SAMPLE`.
+pub(crate) fn scope_rate(is_pal: bool) -> f32 {
+    (clock_hz(is_pal) / CYCLES_PER_SAMPLE as f64) as f32
 }
 
 /// One chip's state at the end of a player frame.
@@ -102,6 +110,40 @@ pub(crate) struct Frame {
     /// Its scope samples, `sample_start..sample_start + sample_count`.
     sample_start: u64,
     sample_count: u32,
+}
+
+impl Frame {
+    /// A frame rendered by an engine that reports its own chip state (the
+    /// reSIDfp player), covering emulated time `start..end`.
+    pub(crate) fn rendered(
+        index: u64,
+        is_pal: bool,
+        num_chips: usize,
+        chips: [ChipState; MAX_CHIPS],
+        start: Duration,
+        end: Duration,
+    ) -> Self {
+        Self {
+            index,
+            is_pal,
+            num_chips: num_chips.min(MAX_CHIPS),
+            chips,
+            start,
+            end,
+            sample_start: 0,
+            sample_count: 0,
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn start(&self) -> Duration {
+        self.start
+    }
+
+    #[cfg(test)]
+    pub(crate) fn end(&self) -> Duration {
+        self.end
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
@@ -271,7 +313,7 @@ impl VizFeed {
         &self.samples[(chip * 3 + voice) * SAMPLE_RING..][..SAMPLE_RING]
     }
 
-    // ── Write side, from the session thread ──
+    // ── Write side ──
 
     fn clear(&mut self, sample_rate: f32) {
         self.frames.clear();
@@ -281,15 +323,50 @@ impl VizFeed {
         self.sample_rate = sample_rate;
     }
 
+    /// A new track or subtune starts: drop everything (the reSIDfp
+    /// player's half of `VizCapture::start`).
+    pub(crate) fn begin_track(&mut self, is_pal: bool) {
+        self.clear(scope_rate(is_pal));
+    }
+
+    /// Playback stopped: nothing to show.
+    pub(crate) fn stop(&mut self) {
+        let rate = self.sample_rate;
+        self.clear(rate);
+    }
+
     /// Append a frame and its samples: one slice per chip and voice, in
     /// chip order, all the same length.
-    fn push(&mut self, mut frame: Frame, samples: &[Vec<f32>], now: Instant, took: Duration) {
-        let count = samples.first().map_or(0, Vec::len);
+    fn push(&mut self, frame: Frame, samples: &[Vec<f32>], now: Instant, took: Duration) {
+        let mut refs: [&[f32]; MAX_CHIPS * 3] = [&[]; MAX_CHIPS * 3];
+        for (slot, voice) in refs.iter_mut().zip(samples) {
+            *slot = voice;
+        }
+        self.append(frame, &refs[..samples.len().min(MAX_CHIPS * 3)], took);
+        self.schedule(&frame, now);
+    }
+
+    /// Append a frame an engine rendered itself, whose start plays at
+    /// `audible_at` (before the output device's latency, which reads add).
+    /// `took` is the emulation time it cost.
+    pub(crate) fn push_rendered(
+        &mut self,
+        frame: Frame,
+        samples: &[&[f32]],
+        audible_at: Instant,
+        took: Duration,
+    ) {
+        self.append(frame, samples, took);
+        self.audible = Some((audible_at, frame.start));
+    }
+
+    fn append(&mut self, mut frame: Frame, samples: &[&[f32]], took: Duration) {
+        let count = samples.first().map_or(0, |s| s.len());
         frame.sample_start = self.written;
         frame.sample_count = count as u32;
         for (k, voice) in samples.iter().enumerate() {
             let ring = &mut self.samples[k * SAMPLE_RING..][..SAMPLE_RING];
-            for (n, &s) in voice.iter().enumerate() {
+            for (n, &s) in voice.iter().take(count).enumerate() {
                 ring[((self.written + n as u64) % SAMPLE_RING as u64) as usize] = s;
             }
         }
@@ -299,7 +376,6 @@ impl VizFeed {
             self.frames.pop_front();
         }
         self.frames.push_back(frame);
-        self.schedule(&frame, now);
 
         let micros = took.as_secs_f32() * 1e6;
         self.stats.shadow_micros = if self.stats.frames == 0 {
@@ -367,6 +443,19 @@ impl VizCapture {
                 .map(|_| Vec::with_capacity(1024))
                 .collect(),
         }
+    }
+
+    pub fn feed(&self) -> &SharedFeed {
+        &self.feed
+    }
+
+    /// Forget the shadows and empty the feed: another engine takes over
+    /// the feed, or the track is over.
+    pub fn reset(&mut self) {
+        self.track = None;
+        self.shadows.clear();
+        self.elapsed = None;
+        lock(&self.feed).stop();
     }
 
     pub fn ingest(&mut self, status: &PlayerStatus, now: Instant) {
@@ -469,7 +558,7 @@ impl VizCapture {
     }
 
     fn sample_rate(&self) -> f32 {
-        (clock_hz(self.is_pal) / CYCLES_PER_SAMPLE as f64) as f32
+        scope_rate(self.is_pal)
     }
 }
 

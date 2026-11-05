@@ -51,7 +51,7 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
             track: track,
             elapsedMs: current == nil ? 0 : 83_000,
             durationMs: current.flatMap { items[$0].durationSecs }.map { UInt64($0) * 1000 },
-            shuffle: false, repeat: .off, engine: .sidLite,
+            shuffle: false, repeat: .off, engine: .reSidFp,
             playlistRevision: 1, trackRevision: 1, loading: nil, error: nil,
             hvscIndexing: [], hvscTreeRevision: 0
         )
