@@ -293,6 +293,8 @@ private struct Transport: View {
             elapsed: store.elapsed,
             duration: store.duration,
             canSeek: store.canSeek,
+            engine: store.engine,
+            hasSubtunes: store.hasSubtunes,
             seeking: store.seeking,
             seekPosition: store.seekPosition,
             onDark: true,

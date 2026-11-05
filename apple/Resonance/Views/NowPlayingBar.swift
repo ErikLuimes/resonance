@@ -116,6 +116,7 @@ struct NowPlayingBar: View {
                 duration: store.duration,
                 hasSubtunes: store.hasSubtunes,
                 canSeek: store.canSeek,
+                engine: store.engine,
                 seeking: store.seeking,
                 seekPosition: store.seekPosition,
                 seek: { store.seek(to: $0) }
@@ -300,20 +301,19 @@ private struct SurpriseBadge: View {
 
 /// Elapsed / length with the bar. It scrubs on the engines that can seek
 /// (reSIDfp and SIDLite direct); on the other two the tune plays in real
-/// time only, and a click or drag on the bar explains.
+/// time only, and a click on the bar explains.
 private struct ProgressRow: View {
     let elapsed: TimeInterval
     let duration: TimeInterval?
     let hasSubtunes: Bool
     let canSeek: Bool
+    let engine: Engine
     let seeking: Bool
     let seekPosition: TimeInterval?
     let seek: (TimeInterval) -> Void
 
-    @State private var explaining = false
     @State private var preview: TimeInterval?
 
-    private static let why = "This engine plays SID tunes in real time only. Scrubbing works with the reSIDfp and SIDLite direct engines."
     private static let how = "Drag or click to a point in the tune. The sound pauses while the engine runs there, about a second per minute of tune."
 
     var body: some View {
@@ -325,36 +325,21 @@ private struct ProgressRow: View {
                 elapsed: elapsed,
                 duration: duration,
                 canSeek: canSeek,
+                engine: engine,
+                hasSubtunes: hasSubtunes,
                 seeking: seeking,
                 seekPosition: seekPosition,
                 preview: $preview,
-                seek: seek,
-                refused: { explaining = true }
+                seek: seek
             )
             // The row's height, so the thin bar is easy to hit.
             .frame(height: 14)
-            .help(canSeek ? Self.how : Self.why)
-            .popover(isPresented: $explaining, arrowEdge: .bottom) { explanation }
+            .help(canSeek ? Self.how : "The \(engine.displayName) engine can't scrub. Click for why.")
             Text(duration.map(format) ?? "--:--")
         }
         .font(.caption)
         .monospacedDigit()
         .foregroundStyle(.secondary)
-    }
-
-    private var explanation: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("No Scrubbing on This Engine")
-                .font(.headline)
-            Text("The SIDLite and reSID engines play a tune in real time only. To scrub, choose reSIDfp or SIDLite direct in Settings → Playback.")
-            if hasSubtunes {
-                Text("Use \(Image(systemName: "chevron.left")) \(Image(systemName: "chevron.right")) to jump between the songs in this tune.")
-            }
-        }
-        .font(.callout)
-        .frame(width: 260, alignment: .leading)
-        .fixedSize(horizontal: false, vertical: true)
-        .padding(14)
     }
 
     private func format(_ t: TimeInterval) -> String {

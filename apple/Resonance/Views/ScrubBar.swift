@@ -1,11 +1,12 @@
+import PhosphorCore
 import SwiftUI
 
 /// The progress bar through a tune. On the engines that can seek (reSIDfp
 /// and SIDLite direct) a drag or click goes there, the fill following the
-/// pointer; on the others it's read-only and `refused` runs on a click, so
-/// the parent can explain. `preview` is the time under the pointer while
-/// dragging, or the point just asked for until the player reports it, so
-/// the parent's elapsed label can show it.
+/// pointer; on the others it's read-only, and a click opens a note that
+/// names the engine and offers the Playback settings. `preview` is the time
+/// under the pointer while dragging, or the point just asked for until the
+/// player reports it, so the parent's elapsed label can show it.
 ///
 /// While the engine runs to the target, the fill there turns grey (where
 /// you'll land) and a solid fill races up to it from where the run started:
@@ -14,6 +15,10 @@ struct ScrubBar: View {
     let elapsed: TimeInterval
     let duration: TimeInterval?
     let canSeek: Bool
+    /// The engine playing, for the note when it can't seek.
+    let engine: Engine
+    /// The tune has more than one song: the note mentions stepping between them.
+    var hasSubtunes = false
     /// The player is running to the point asked for; the fill dims.
     let seeking: Bool
     /// How far it has got, while seeking.
@@ -22,8 +27,10 @@ struct ScrubBar: View {
     var onDark = false
     @Binding var preview: TimeInterval?
     let seek: (TimeInterval) -> Void
-    var refused: () -> Void = {}
 
+    @Environment(\.openSettings) private var openSettings
+    /// The note that this engine can't scrub.
+    @State private var explaining = false
     /// While dragging: where the pointer is, 0...1.
     @State private var dragFraction: Double?
     /// Asked for; shown until the player's elapsed time reaches it.
@@ -96,7 +103,7 @@ struct ScrubBar: View {
                         dragFraction = nil
                         guard canSeek, let duration, duration > 0 else {
                             preview = nil
-                            refused()
+                            explaining = !canSeek
                             return
                         }
                         let target = Self.clamp(value.location.x / max(width, 1)) * duration
@@ -114,6 +121,7 @@ struct ScrubBar: View {
                     }
             )
         }
+        .popover(isPresented: $explaining, arrowEdge: .bottom) { explanation }
         .onChange(of: elapsed) { _, now in
             if let pending, abs(now - pending) < 1 {
                 self.pending = nil
@@ -129,5 +137,27 @@ struct ScrubBar: View {
 
     private static func clamp(_ f: Double) -> Double {
         min(max(f, 0), 1)
+    }
+
+    private var explanation: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Scrubbing Needs reSIDfp or SIDLite Direct")
+                .font(.headline)
+            Text("The \(engine.displayName) engine plays a tune in real time only, so there's nothing to jump to. The reSIDfp and SIDLite direct engines run the tune to the point you choose.")
+            if hasSubtunes {
+                Text("Use \(Image(systemName: "chevron.left")) \(Image(systemName: "chevron.right")) to jump between the songs in this tune.")
+            }
+            Button("Choose Engine…") {
+                explaining = false
+                UserDefaults.standard.set(SettingsTab.playback.rawValue, forKey: Pref.settingsTab)
+                openSettings()
+            }
+            .controlSize(.small)
+            .padding(.top, 2)
+        }
+        .font(.callout)
+        .frame(width: 280, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(14)
     }
 }
