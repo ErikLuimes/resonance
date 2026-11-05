@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Packs the finished MERT batches into the asset the app downloads.
 
-    uv run export_embeddings.py [--dims 128] [--out ../../build/embeddings-e1.zip]
+    uv run export_embeddings.py --db STORE [--dims 128] [--out ../../build/embeddings-e1.zip]
 
 Compresses with uncentered PCA, which keeps cosines (centering would change the
 fusion's effective shares), then to 8 bits per dimension with a scale for each.
@@ -44,7 +44,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dims", type=int, default=128)
     parser.add_argument("--work", default=f"{corpus.CACHE_DIR}/full")
-    parser.add_argument("--db", default=corpus.DEFAULT_DB)
+    # The store scanned from the files that were rendered. An older store can
+    # hold another HVSC release's MD5 for the same path, which no tune would match.
+    parser.add_argument("--db", required=True, help="a store made by the current extractor")
     parser.add_argument("--revision", default="12af15fef9d0ac838c3f475bfbbf26d2060dd4f5")
     parser.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "../../build/embeddings-e1.zip"))
     args = parser.parse_args()
@@ -70,7 +72,10 @@ def main():
 
     conn = sqlite3.connect(f"file:{args.db}?mode=ro", uri=True)
     md5s = dict(conn.execute("SELECT path, md5 FROM tunes"))
+    finished = set(conn.execute("SELECT md5, subtune FROM fingerprints WHERE status = 1"))
     conn.close()
+    keys = [(md5s.get(p), s) for p, s in zip(paths, subtunes)]
+    print(f"{len(set(keys) & finished)} of {len(finished)} finished subtunes have an embedding")
 
     with tempfile.TemporaryDirectory() as work:
         db_path = f"{work}/embeddings.sqlite"
@@ -84,7 +89,7 @@ def main():
         db.executemany("INSERT INTO embedding_scales VALUES (?, ?)", enumerate(peak.tolist()))
         db.executemany(
             "INSERT OR IGNORE INTO embeddings VALUES (?, ?, ?)",
-            ((md5s[p], s, q.tobytes()) for p, s, q in zip(paths, subtunes, quantized)),
+            ((m, s, q.tobytes()) for (m, s), q in zip(keys, quantized) if m),
         )
         db.commit()
         db.execute("VACUUM")

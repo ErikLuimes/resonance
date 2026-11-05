@@ -4,9 +4,9 @@
 //! Each feature is z-scored over the whole store first, so a feature that
 //! barely varies across HVSC (most tunes have no ring modulation) can't
 //! dominate, and one where a tune stands out counts. A query is a straight
-//! pass over the store, which fits in memory (about 60 MB for HVSC's ~90k
-//! subtunes with embeddings). `design/similarity` has the benchmark that
-//! chose all this; change it only against that benchmark.
+//! pass over the store, which fits in memory (the process peaks at about
+//! 265 MB for HVSC's ~90k subtunes with embeddings). `design/similarity` has
+//! the benchmark that chose all this; change it only against that benchmark.
 
 use std::collections::HashMap;
 

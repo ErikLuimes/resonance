@@ -52,6 +52,16 @@ same composer 0.64% of the time.
 | E: MuQ-MuLan | 9.2% | 24.2% | 8.0% |
 | F: MERT-v1-95M | 12.0% | 32.9% | 7.5% |
 
+### Full collection
+
+- 88,010 fingerprints finished and 1,067 failed. 99.6% of the finished ones (87,667) have an embedding.
+- Downloads: `fingerprints-x2.zip` 42 MB, `embeddings-e1.zip` 11 MB.
+- Rust against `rust_parity.py`, 37 seeds: 30 identical in order. Three of the other seven are silent
+  tunes, where about 415 others tie and the choice is arbitrary. Without embeddings, all 37 had the
+  same top 12, and 35 the same order.
+- A query takes about 0.3 s from a cold process. Peak memory is about 265 MB, or 248 MB without
+  embeddings.
+
 ## What was learned
 
 - **The similarity formula barely matters; the input does.** Euclidean, rank-normalised and whitened
@@ -74,6 +84,13 @@ same composer 0.64% of the time.
   test would be stronger evidence and hasn't been run.
 - The rendered audio uses reSID with default settings, three 10-second segments per subtune.
 - Melody-based cover detection is a different feature and isn't attempted here.
+- Scanning the same subtune twice can give different features: about 10% of 400 sampled rows moved by
+  more than 1% of a feature's spread. The cause isn't established. The published set fixes one version
+  for everyone who downloads it, but a local scan differs slightly.
+- Scans run without C64 ROMs, so most BASIC tunes fail or come back silent. Silent tunes match each
+  other at 100%. About 415 rows are affected.
+- The published set covers one HVSC release. A tune from another release has a different MD5, so it's
+  scanned locally and has no embedding.
 - Tunes without an embedding (new in a later HVSC release, or silent or failed in the render) use the
   features alone as a seed, and don't appear in the lists of tunes that have embeddings.
 
@@ -97,7 +114,11 @@ uv run bench.py eval --subset ~/Library/Caches/ResonanceSimilarity/subset.tsv --
 - `core/examples/render_audio.rs` renders audio, and `register_features.rs` extracts B's features
   from a list.
 - `embed.py` embeds with a model, `candidates.py` builds B, C, fusions and PCA.
-- `embed_all.py` embeds the whole collection, and `export_embeddings.py` packs the release asset.
+- `embed_all.py` embeds the whole collection, and `export_embeddings.py --db STORE` packs the release
+  asset. Pass a store scanned from the files that were rendered, because MD5s differ between HVSC
+  releases.
+- `rust_parity.py --store STORE [--embeddings ZIP]` checks the Rust ranking against its own copy of the
+  formula.
 - The bake-off used a copy of the extractor-1 store, at
   `~/Library/Caches/ResonanceSimilarity/fingerprints-v1.sqlite`.
 - The held-out split has been spent. New work should still choose on development data, but a new
