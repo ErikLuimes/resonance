@@ -3,6 +3,22 @@
     <channel>
         <title>Resonance</title>
         <item>
+            <title>0.1.0-alpha.5</title>
+            <pubDate>Thu, 05 Nov 2026 21:08:27 +0100</pubDate>
+            <sparkle:version>5</sparkle:version>
+            <sparkle:shortVersionString>0.1.0-alpha.5</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>27.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[## Scrub through a tune
+
+Drag or click the progress bar, in the player bar, Now Playing or the menu bar player, and the tune goes there. Control Center's position slider and its 15-second skips work too.
+
+A SID tune is a small C64 program, not a recording, so there's nothing to jump to: Resonance runs the tune to that point silently at about sixty times its speed. While it does, the bar shows where you're going in grey and the engine winding up to it, with the clock counting along; the sound comes back when it arrives, about a second per minute of tune on reSIDfp and less on SIDLite direct.
+
+Scrubbing works on the reSIDfp and SIDLite direct engines. SIDLite and reSID play in real time only; a click on their bar says so.
+]]></description>
+            <enclosure url="https://github.com/ErikLuimes/resonance/releases/download/v0.1.0-alpha.5/Resonance-0.1.0-alpha.5-unsigned.dmg" length="11416216" type="application/octet-stream" sparkle:edSignature="eGBtqUPA4/uffxLDl9DRwE47UXSLmCf6GmrDYzVU4tUORPd22oP7/HwOGAjyhyvttI6C/OKug5VbxpSjE/EpBQ=="/>
+        </item>
+        <item>
             <title>0.1.0-alpha.4</title>
             <pubDate>Thu, 05 Nov 2026 15:51:46 +0100</pubDate>
             <sparkle:version>4</sparkle:version>
