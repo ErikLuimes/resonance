@@ -21,7 +21,7 @@
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <!-- ?v= changes with each site update, so a browser that cached the last
        one fetches the new files instead of mixing old and new. -->
-  <link rel="stylesheet" href="styles.css?v=20261104h">
+  <link rel="stylesheet" href="styles.css?v=20261105a">
   <link rel="modulepreload" href="js/main.js?v=20261104h">
   <script>
     // Sections fade in as main.js reveals them. If it never runs (a failed
@@ -501,13 +501,13 @@
       <div class="container">
         <div class="section-head" data-reveal>
           <p class="kicker">Under the hood</p>
-          <h2>Its own app.<br><span class="grad">Phosphor's engine.</span></h2>
+          <h2>Its own app.<br><span class="grad">Phosphor's engine, libsidplayfp's sound.</span></h2>
           <p class="section-lede">
-            Resonance is its own app, but it doesn't reinvent SID playback. It compiles the engine of
+            Resonance is its own app, but it doesn't reinvent the library. It compiles the engine of
             <a href="https://sandlbn.github.io/Phosphor/">Phosphor</a>, Marcin Spoczynski's open-source
-            Rust player, without changing a line, and talks to it through UniFFI. Improvements upstream
-            flow straight into the Mac app. For the sound itself it adds libsidplayfp's reSIDfp,
-            rendered straight into the audio output.
+            Rust player, without changing a line, and talks to it through UniFFI, so improvements upstream
+            flow straight into the Mac app. For the sound it adds its own player around libsidplayfp's
+            reSIDfp, rendered straight into the audio output.
           </p>
         </div>
 
@@ -537,32 +537,37 @@
 
           <div class="compare glass-panel" data-reveal>
             <h3>Resonance or Phosphor?</h3>
-            <p class="dim">Same Phosphor engine, different jobs. Got a USBSID-Pico or an Ultimate&nbsp;64? Phosphor drives real hardware; Resonance doesn't, yet.</p>
-            <table>
-              <thead><tr><th></th><th>Resonance</th><th>Phosphor</th></tr></thead>
-              <tbody>
-                <tr><td>Runs on</td><td>macOS 27, Apple silicon</td><td>macOS, Windows, Linux</td></tr>
-                <tr><td>Interface</td><td>SwiftUI, Liquid Glass</td><td>Iced (Rust)</td></tr>
-                <tr><td>reSID &amp; SIDLite emulation</td><td class="yes">✓</td><td class="yes">✓</td></tr>
-                <tr><td>reSIDfp emulation (libsidplayfp)</td><td class="yes">✓</td><td class="no">—</td></tr>
-                <tr><td>HVSC browser, search, Surprise Me</td><td class="yes">✓</td><td class="yes">✓</td></tr>
-                <tr><td>Songlengths &amp; STIL</td><td class="yes">✓</td><td class="yes">✓</td></tr>
-                <tr><td>HVSC download, favourites, history</td><td class="yes">✓</td><td class="yes">✓</td></tr>
-                <tr><td>Playlists, drag &amp; drop, M3U files</td><td class="yes">✓</td><td class="yes">✓</td></tr>
-                <tr><td>2SID, 3SID &amp; pseudo-stereo</td><td class="yes">✓</td><td class="yes">✓</td></tr>
-                <tr><td>Visualizers</td><td>Halo, Particles, Radial, Sound Map</td><td>Bars, Scope, Tracker</td></tr>
-                <tr><td>Sounds Like, Find Similar &amp; sound filters</td><td class="yes">✓</td><td class="no">—</td></tr>
-                <tr><td>Small player</td><td>In the menu bar, from any app</td><td>A compact window</td></tr>
-                <tr><td>Now Playing in Control Center, media keys</td><td class="yes">✓</td><td class="no">—</td></tr>
-                <tr><td>Share links with preview cards</td><td class="yes">✓</td><td class="no">—</td></tr>
-                <tr><td>Updates</td><td>Built in</td><td>GitHub Releases</td></tr>
-                <tr><td>Imports Phosphor's settings, favourites &amp; history</td><td class="yes">✓</td><td class="no">—</td></tr>
-                <tr><td>USBSID-Pico &amp; Ultimate 64</td><td class="no">—</td><td class="yes">✓</td></tr>
-                <tr><td>Pedalboard FX, web remote, karaoke, Assembly64</td><td class="no">—</td><td class="yes">✓</td></tr>
-              </tbody>
-            </table>
+            <p class="dim">Same engine, different jobs. Phosphor runs on three platforms and drives real hardware: got a USBSID-Pico or an Ultimate&nbsp;64, use Phosphor. Resonance is the Mac app around that engine: the visualizers, Sounds Like, the menu bar player, share links, and reSIDfp for the sound. Use both if you like: Resonance imports Phosphor's settings, favourites and history, and nothing in Phosphor changes.</p>
           </div>
         </div>
+
+        <details class="others" data-reveal>
+          <summary>Compare with Phosphor and other Mac SID players</summary>
+          <div class="compare glass-panel">
+            <p class="dim">Checked in November 2026 against each one's own site: <a href="https://sandlbn.github.io/Phosphor/">Phosphor</a>, whose engine Resonance runs; <a href="https://www.sidmusic.org/sidplay/mac/">SIDPLAY</a>, the classic Mac app, last released in 2016 and kept building by a <a href="https://github.com/Alexco500/sidplay5">community port</a>; <a href="https://flipsid.thealumni.fi/">flipSID</a>, new in 2026; and <a href="https://haendel.ddns.net/">JSIDPlay2</a>, the Java one. In the browser there's also <a href="https://deepsid.chordian.net/">DeepSID</a>.</p>
+            <div class="others-scroll">
+              <table>
+                <thead><tr><th></th><th>Resonance</th><th>Phosphor</th><th>SIDPLAY</th><th>flipSID</th><th>JSIDPlay2</th></tr></thead>
+                <tbody>
+                <tr><td>Made for</td><td>The Mac, in SwiftUI</td><td>macOS, Windows, Linux, in Iced</td><td>The Mac, in Cocoa</td><td>Windows, Mac, Linux</td><td>Java; also the browser</td></tr>
+                <tr><td>Apple silicon</td><td class="yes">✓</td><td class="yes">✓</td><td>Through a community port</td><td class="yes">✓</td><td>With OpenJDK 21</td></tr>
+                <tr><td>SID emulation</td><td>reSIDfp, SIDLite, reSID</td><td>SIDLite, reSID</td><td>libsidplayfp</td><td>reSIDfp, reSID, resid-fp</td><td>reSID, reSIDfp</td></tr>
+                <tr><td>HVSC download, Songlengths &amp; STIL</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+                <tr><td>Playlists &amp; favourites</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+                <tr><td>Sounds Like</td><td class="yes">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+                <tr><td>Visualizers</td><td>Halo, Particles, Radial, Sound Map</td><td>Bars, Scope, Tracker</td><td>Oscilloscope</td><td class="no">—</td><td>Oscilloscope</td></tr>
+                <tr><td>Small player</td><td>In the menu bar, from any app</td><td>A compact window</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+                <tr><td>Control Center &amp; media keys</td><td class="yes">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+                <tr><td>Share links</td><td class="yes">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+                <tr><td>Real SID hardware</td><td class="no">—</td><td>USBSID-Pico, Ultimate 64</td><td>ASID over MIDI, SIDBlaster</td><td>Ultimate 64, HardSID</td><td>HardSID, SIDBlaster, ExSID</td></tr>
+                <tr><td>Also</td><td>Imports Phosphor's settings and history</td><td>Pedalboard FX, web remote, karaoke, Assembly64</td><td class="no">—</td><td>STIL search, filter curves</td><td>Up to 15 SIDs, NetworkSID</td></tr>
+                <tr><td>Last release</td><td>0.1.0-alpha.3, 2026</td><td>0.4.7, 2026</td><td>4.2, 2016</td><td>0.3.0, November 2026</td><td>4.14 beta</td></tr>
+                <tr><td>Licence</td><td>MIT; GPL as built</td><td>MIT</td><td>GPL</td><td>GPL</td><td>GPL</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
       </div>
     </section>
 
@@ -645,7 +650,7 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
           </details>
           <details>
             <summary>Do I need my own copy of HVSC?</summary>
-            <p>No. Click Download next to Collection in the sidebar and Resonance fetches the newest release of the High Voltage SID Collection, free, from an HVSC mirror. When a new release comes out it says so, and updates in one click. Already have a copy? Choose it in Settings → Collection.</p>
+            <p>No. Click the download arrow next to Collection in the sidebar and Resonance fetches the newest release of the High Voltage SID Collection, free, from an HVSC mirror. When a new release comes out it says so, and updates in one click. Already have a copy? Choose it in Settings → Collection.</p>
           </details>
           <details>
             <summary>Can I play my own SID files?</summary>
@@ -653,7 +658,7 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
           </details>
           <details>
             <summary>Can it play through a USBSID-Pico or an Ultimate 64?</summary>
-            <p>Not yet. Resonance plays through software emulation — SIDLite or reSID. For real hardware, use <a href="https://sandlbn.github.io/Phosphor/">Phosphor</a>.</p>
+            <p>Not yet. Resonance plays through software emulation: reSIDfp, SIDLite or reSID. For real hardware, use <a href="https://sandlbn.github.io/Phosphor/">Phosphor</a>.</p>
           </details>
           <details>
             <summary>Which Macs does it run on?</summary>

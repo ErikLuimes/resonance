@@ -630,6 +630,38 @@ h3 { margin: 0; letter-spacing: -0.02em; }
 .compare td.yes { color: var(--v1); font-weight: 700; }
 .compare td.no { color: var(--dim); }
 
+/* Other players: folded away until asked for */
+.others { margin-top: 28px; }
+.others summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 2px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.others summary:hover { color: var(--text); }
+.others summary::-webkit-details-marker { display: none; }
+.others summary::after {
+  content: "";
+  flex: none;
+  width: 12px;
+  height: 12px;
+  background:
+    linear-gradient(currentColor, currentColor) center / 12px 2px no-repeat,
+    linear-gradient(currentColor, currentColor) center / 2px 12px no-repeat;
+  transition: rotate 0.3s var(--ease);
+}
+.others[open] summary::after { rotate: 135deg; }
+.others .compare { margin-top: 14px; }
+.others .compare > p a { color: var(--text); text-underline-offset: 3px; }
+.others-scroll { overflow-x: auto; }
+.others table { min-width: 860px; }
+.others td { vertical-align: top; }
+
 /* Download */
 .download { padding: clamp(26px, 5vw, 48px); }
 .dl-main { display: flex; align-items: center; gap: clamp(24px, 5vw, 48px); }
