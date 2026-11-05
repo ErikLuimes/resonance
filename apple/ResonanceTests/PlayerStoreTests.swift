@@ -137,6 +137,21 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     func tunesFromFiles(paths: [String]) async -> [HvscTuneItem] {
         lock.withLock { _filesTunes.filter { paths.contains($0.path) } }
     }
+    private var _resolved: [String: ResolvedFiles] = [:]
+    /// What `resolveFiles` answers for `path`; by default that it's one tune.
+    func set(resolved: ResolvedFiles, for path: String) { lock.withLock { _resolved[path] = resolved } }
+    func resolveFiles(paths: [String]) async -> ResolvedFiles {
+        lock.withLock {
+            var out = ResolvedFiles(paths: [], found: 0, listed: 0)
+            for path in paths {
+                let one = _resolved[path] ?? ResolvedFiles(paths: [path], found: 1, listed: 1)
+                out.paths += one.paths
+                out.found += one.found
+                out.listed += one.listed
+            }
+            return out
+        }
+    }
     private var _composers: [HvscComposer] = []
     func set(composers: [HvscComposer]) { lock.withLock { _composers = composers } }
     func hvscComposers(category: HvscCategory) async throws -> [HvscComposer] { lock.withLock { _composers } }

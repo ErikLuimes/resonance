@@ -248,7 +248,7 @@ extension HelpTopic {
             blocks: [
                 .bullets([
                     "Click **+** next to Playlists in the sidebar to make one, and type its name.",
-                    "Control-click a playlist in the sidebar to play, rename, duplicate or delete it, or show its file in Finder. A deleted playlist goes to the Trash; its tunes stay where they are.",
+                    "Control-click a playlist in the sidebar to play, rename, duplicate, export or delete it, or show its file in Finder. A deleted playlist goes to the Trash; its tunes stay where they are.",
                     "Drag tunes up and down in a playlist to reorder them. That works while the list is in its own order: not sorted by a column, filtered or searched.",
                     "To take a tune out, Control-click it and choose **Remove from Playlist**.",
                 ]),
@@ -256,6 +256,7 @@ extension HelpTopic {
                 .paragraph("**Add to…** in the inspector, in Now Playing, on a composer's card and in a tune's context menu shows My Playlist, Favourites and your playlists, most recently used first. Type to find one; a name that's not taken makes a new playlist with the tunes in it."),
                 .heading("Where they live"),
                 .paragraph("Your playlists are plain M3U files in ~/Library/Application Support/Resonance/Playlists, which other players can open too."),
+                .paragraph("To share one, or Favourites or My Playlist, Control-click it in the sidebar and choose **Export…**. Tunes from HVSC are saved with paths relative to the collection, so the file works on any Mac with HVSC. Other players may not find them without your HVSC folder as their base."),
             ],
             related: [.favourites, .dragAndDrop]
         ),
@@ -287,6 +288,9 @@ extension HelpTopic {
                     "Hold **⌘** while you drop to **move** tunes from one of your playlists to another, as ⌘ moves files in Finder. Dropping into Favourites or My Playlist, or from any other list, always adds.",
                     "Within one of your playlists or My Playlist, drag to reorder.",
                     "Drop SID files, folders or M3U playlists from Finder onto the window to add them to My Playlist.",
+                    "Drop them on **Playlists** or an empty part of the sidebar to make a new playlist. A playlist or a folder is named after its file, and the file itself stays as it is.",
+                    "Drop them on a playlist in the sidebar to add the tunes to it, or on Favourites to heart them.",
+                    "Drop an M3U playlist on the app's icon, or use **Open With** in Finder, to make a new playlist. It's shown, not played. SID files opened this way play in My Playlist.",
                 ]),
             ],
             related: [.playlists, .favourites]

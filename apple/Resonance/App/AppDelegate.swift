@@ -38,12 +38,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Finder "Open With", double-clicked .sid files, Dock drops, and
-    /// shared tune links (resonance://tune/…, from the share page).
+    /// Finder "Open With", double-clicked files, Dock drops, and shared
+    /// tune links (resonance://tune/…, from the share page). A playlist
+    /// file becomes a playlist of yours, shown and not played; anything
+    /// else goes to My Playlist and plays.
     func application(_ application: NSApplication, open urls: [URL]) {
         let files = urls.filter(\.isFileURL)
-        if !files.isEmpty {
-            store.add(files, playFirst: true)
+        let tunes = files.filter { !PlaylistsStore.isPlaylistFile($0) }
+        if !tunes.isEmpty {
+            store.add(tunes, playFirst: true)
+        }
+        let lists = files.filter(PlaylistsStore.isPlaylistFile)
+        if !lists.isEmpty {
+            Task { await playlists.importAsNew(lists) }
+            NSApp.activate()
+            MiniPlayer.openMainWindow?()
         }
         if let link = urls.last(where: { !$0.isFileURL }), store.openShared(link) {
             NSApp.activate()

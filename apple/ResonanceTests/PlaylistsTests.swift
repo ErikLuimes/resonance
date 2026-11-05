@@ -42,6 +42,126 @@ struct PlaylistsStoreTests {
         #expect(reread.read(try #require(reread.playlist(playlist.id))) == ["/a.sid", "/c.sid"])
     }
 
+    @Test func aPlaylistFileBecomesANamedPlaylistAndSaysWhatsMissing() async throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let store = makeStore()
+        fake.set(resolved: ResolvedFiles(paths: ["/a.sid", "/b.sid"], found: 2, listed: 3), for: "/lists/Top 100.m3u")
+
+        await store.importAsNew([URL(filePath: "/lists/Top 100.m3u")])
+
+        let made = try #require(store.playlists.first)
+        #expect(made.name == "Top 100")
+        #expect(store.read(made) == ["/a.sid", "/b.sid"])
+        #expect(store.revealing == made.id)
+        #expect(store.renaming == nil, "it has its name already")
+        #expect(store.importNotice == "Top 100: 2 of 3 tunes found.")
+        #expect(fake.calls.isEmpty, "nothing goes to My Playlist or starts playing")
+    }
+
+    @Test func aPlaylistWithNothingPlayableMakesNoPlaylist() async {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let store = makeStore()
+        fake.set(resolved: ResolvedFiles(paths: [], found: 0, listed: 3), for: "/lists/Gone.m3u")
+
+        await store.importAsNew([URL(filePath: "/lists/Gone.m3u")])
+
+        #expect(store.playlists.isEmpty)
+        #expect(store.revealing == nil)
+        #expect(store.importNotice?.hasPrefix("No playable SID files found in Gone.") == true)
+    }
+
+    @Test func importingTheSameFileTwiceMakesASecondPlaylist() async {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let store = makeStore()
+        fake.set(resolved: ResolvedFiles(paths: ["/a.sid"], found: 1, listed: 1), for: "/lists/Mix.m3u")
+
+        await store.importAsNew([URL(filePath: "/lists/Mix.m3u")])
+        await store.importAsNew([URL(filePath: "/lists/Mix.m3u")])
+
+        #expect(store.playlists.map(\.name) == ["Mix", "Mix 2"])
+    }
+
+    @Test func looseTunesMakeOnePlaylistToName() async throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let store = makeStore()
+
+        await store.importAsNew([URL(filePath: "/x/a.sid"), URL(filePath: "/x/b.sid")])
+
+        let made = try #require(store.playlists.first)
+        #expect(store.playlists.count == 1)
+        #expect(made.name == "Untitled Playlist")
+        #expect(store.read(made) == ["/x/a.sid", "/x/b.sid"])
+        #expect(store.renaming == made.id)
+    }
+
+    @Test func filesDroppedOnAPlaylistAreAddedToIt() async throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let store = makeStore()
+        let mix = try #require(store.create(named: "Mix"))
+        await store.add(["/a.sid"], to: .playlist(mix.id))
+        fake.set(resolved: ResolvedFiles(paths: ["/a.sid", "/b.sid"], found: 2, listed: 2), for: "/lists/More.m3u")
+
+        await store.addFiles([URL(filePath: "/lists/More.m3u")], to: .playlist(mix.id))
+
+        #expect(store.read(mix) == ["/a.sid", "/b.sid"])
+        #expect(store.playlists.count == 1, "no new playlist")
+        #expect(store.importNotice == nil)
+    }
+
+    @Test func exportsCollectionTunesAsRelativePaths() {
+        let files = ["/HVSC/MUSICIANS/A/Ann/One.sid", "/Music/Mine.sid", "/HVSC2/Other.sid"]
+        #expect(PlaylistsStore.exportedM3U(files, hvscRoot: "/HVSC")
+            == "#EXTM3U\nMUSICIANS/A/Ann/One.sid\n/Music/Mine.sid\n/HVSC2/Other.sid\n")
+        #expect(PlaylistsStore.exportedM3U(files, hvscRoot: "/HVSC/").contains("\nMUSICIANS/A/Ann/One.sid\n"))
+        #expect(PlaylistsStore.exportedM3U(files, hvscRoot: nil).contains("/HVSC/MUSICIANS/A/Ann/One.sid"))
+    }
+
+    @Test func exportWritesTheFileAndLeavesThePlaylistAlone() async throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let store = makeStore()
+        let mix = try #require(store.create(named: "Mix"))
+        await store.add(["/a.sid"], to: .playlist(mix.id))
+        let out = FileManager.default.temporaryDirectory.appending(path: "Export-\(UUID().uuidString).m3u")
+        defer { try? FileManager.default.removeItem(at: out) }
+
+        #expect(store.export(.playlist(mix.id), to: out))
+        #expect(try String(contentsOf: out, encoding: .utf8) == "#EXTM3U\n/a.sid\n")
+        #expect(store.read(mix) == ["/a.sid"])
+    }
+
+    @Test func exportsFavouritesNewestFirst() async throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let store = makeStore()
+        await store.add(["/old.sid"], to: .favourites)
+        await store.add(["/new.sid"], to: .favourites)
+        let out = FileManager.default.temporaryDirectory.appending(path: "Export-\(UUID().uuidString).m3u")
+        defer { try? FileManager.default.removeItem(at: out) }
+
+        #expect(store.export(.favourites, to: out))
+        #expect(try String(contentsOf: out, encoding: .utf8) == "#EXTM3U\n/new.sid\n/old.sid\n")
+    }
+
+    @Test func exportsMyPlaylistWithItsChosenSubtunes() {
+        #expect(PlaylistsStore.exportedM3U(["/HVSC/a.sid", "/b.sid"], songs: ["/HVSC/a.sid": 8], hvscRoot: "/HVSC")
+            == "#EXTM3U\n#PHOSPHOR:song=8\na.sid\n/b.sid\n")
+    }
+
+    @Test func myPlaylistsExportContentsNoteOnlyChosenSubtunes() {
+        let store = makeStore()
+        func item(_ path: String, song: UInt16) -> PlaylistItem {
+            PlaylistItem(path: path, title: "T", author: "A", released: "1987", songs: 9, selectedSong: song,
+                         durationSecs: 60, isRsid: false, isPal: true, numSids: 1, md5: nil)
+        }
+        var snapshot = FakeCore.stoppedSnapshot
+        snapshot.playlistRevision = 1
+        fake.set(snapshot: snapshot, items: [item("/a.sid", song: 1), item("/b.sid", song: 3)])
+        store.player.refresh()
+
+        let contents = store.exportContents(of: .myPlaylist)
+        #expect(contents.files == ["/a.sid", "/b.sid"])
+        #expect(contents.songs == ["/b.sid": 3])
+    }
+
     @Test func renamesDuplicatesAndDeletes() throws {
         defer { try? FileManager.default.removeItem(at: folder) }
         let store = makeStore()

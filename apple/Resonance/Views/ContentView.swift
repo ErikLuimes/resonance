@@ -25,6 +25,7 @@ struct ContentView: View {
     @State private var sidebarSelection: SidebarItem? = .playlist
     @State private var showInspector = true
     @State private var isDropTargeted = false
+    @State private var isSidebarDropTargeted = false
     @AppStorage("sidebar.curatedExpanded") private var curatedExpanded = true
     /// The collection folder the Home was last opened for on its own.
     @AppStorage(Pref.homeShownForRoot) private var homeShownForRoot = ""
@@ -181,6 +182,13 @@ struct ContentView: View {
                     .allowsHitTesting(false)
             }
         }
+        // A playlist just imported. A task, not onChange: a file opened from
+        // Finder at launch sets it before this view exists.
+        .task(id: playlists.revealing) {
+            guard let id = playlists.revealing else { return }
+            sidebarSelection = .userPlaylist(id)
+            playlists.revealing = nil
+        }
         // The inspector's author link (or a tune STIL links to): its
         // section, with no search, so the author list shows.
         .onChange(of: library.reveal) { _, reveal in
@@ -208,6 +216,7 @@ struct ContentView: View {
         List(selection: $sidebarSelection) {
             Section("Library") {
                 SidebarLabel("Recently Played", systemImage: "clock", playing: playing(.recent))
+                    .modifier(RefusesFiles())
                     .tag(SidebarItem.recent)
             }
             Section {
@@ -215,10 +224,12 @@ struct ContentView: View {
                              count: playlists.favourites?.count)
                     .modifier(PlaylistDrop(target: .favourites))
                     .background(SidebarDropHighlightOff())
+                    .contextMenu { ExportPlaylistButton(target: .favourites, name: "Favourites") }
                     .tag(SidebarItem.favourites)
                 SidebarLabel("My Playlist", systemImage: "music.note.list", playing: playing(.playlist),
                              count: store.rows.count)
                     .modifier(PlaylistDrop(target: .myPlaylist))
+                    .contextMenu { ExportPlaylistButton(target: .myPlaylist, name: "My Playlist") }
                     .tag(SidebarItem.playlist)
                 ForEach(playlists.playlists) { playlist in
                     UserPlaylistRow(playlist: playlist, playing: playing(.userPlaylist(playlist.id)),
@@ -244,9 +255,11 @@ struct ContentView: View {
             }
             Section("HVSC") {
                 HvscCollectionRow(isSelected: sidebarSelection == .hvscHome)
+                    .modifier(RefusesFiles())
                 if store.hasCollection {
                     ForEach(HvscCategory.allCases, id: \.self) { category in
                         Label(category.displayName, systemImage: category.symbolName)
+                            .modifier(RefusesFiles())
                             .tag(SidebarItem.hvsc(category))
                     }
                 }
@@ -255,9 +268,26 @@ struct ContentView: View {
                 Section("Curated Playlists", isExpanded: $curatedExpanded) {
                     ForEach(curated, id: \.file) { playlist in
                         CuratedPlaylistRow(playlist: playlist)
+                            .modifier(RefusesFiles())
                             .tag(SidebarItem.curated(playlist.file))
                     }
                 }
+            }
+        }
+        // Files from Finder on the Playlists heading or an empty part of the
+        // sidebar: rows that take them, or refuse them, answer for themselves.
+        .dropDestination(for: URL.self) { urls, _ in
+            let files = urls.filter(\.isFileURL)
+            guard !files.isEmpty else { return false }
+            Task { await playlists.importAsNew(files) }
+            return true
+        } isTargeted: { isSidebarDropTargeted = $0 }
+        .overlay {
+            if isSidebarDropTargeted {
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(.tint, lineWidth: 3)
+                    .padding(4)
+                    .allowsHitTesting(false)
             }
         }
     }
@@ -468,6 +498,7 @@ private struct HvscCollectionRow: View {
 /// which shows it in full.
 private struct StatusBanner: View {
     @Environment(PlayerStore.self) private var store
+    @Environment(PlaylistsStore.self) private var playlists
     @State private var dismissedError: String?
     var showsSync: Bool = true
 
@@ -511,6 +542,30 @@ private struct StatusBanner: View {
                 .padding(.vertical, 8)
                 .glassEffect(.regular, in: .capsule)
             }
+            if let importing = playlists.importing {
+                Label {
+                    Text(importing)
+                } icon: {
+                    ProgressView().controlSize(.small)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .glassEffect(.regular, in: .capsule)
+            }
+            if let notice = playlists.importNotice {
+                HStack(spacing: 10) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.yellow)
+                    Text(notice)
+                        .lineLimit(2)
+                    Button("Dismiss", systemImage: "xmark") { playlists.importNotice = nil }
+                        .labelStyle(.iconOnly)
+                        .buttonStyle(.borderless)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .glassEffect(.regular, in: .capsule)
+            }
             if let loading = store.loading {
                 Label {
                     Text(loading)
@@ -539,6 +594,8 @@ private struct StatusBanner: View {
         .padding(.top, 10)
         .animation(.default, value: store.loading)
         .animation(.default, value: store.error)
+        .animation(.default, value: playlists.importing)
+        .animation(.default, value: playlists.importNotice)
     }
 }
 
@@ -594,6 +651,27 @@ private struct SidebarLabel: View {
 /// One of your playlists in the sidebar: its name (edited in place right
 /// after it's made, or on Rename), and a menu to play, rename, duplicate,
 /// show or delete it.
+/// A sidebar list's Export… item: asks where, then saves an M3U there.
+private struct ExportPlaylistButton: View {
+    let target: AddTarget
+    let name: String
+
+    @Environment(PlaylistsStore.self) private var playlists
+
+    var body: some View {
+        Button("Export…") {
+            let panel = NSSavePanel()
+            panel.allowedContentTypes = [.m3uPlaylist]
+            panel.nameFieldStringValue = name + ".m3u"
+            panel.begin { response in
+                guard response == .OK, let url = panel.url else { return }
+                playlists.export(target, to: url)
+            }
+        }
+        .disabled(playlists.exportContents(of: target).files.isEmpty)
+    }
+}
+
 private struct UserPlaylistRow: View {
     let playlist: UserPlaylist
     let playing: Bool
@@ -633,6 +711,7 @@ private struct UserPlaylistRow: View {
             Button("Duplicate") {
                 if let copy = playlists.duplicate(playlist) { selection = .userPlaylist(copy.id) }
             }
+            ExportPlaylistButton(target: .playlist(playlist.id), name: playlist.name)
             Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([playlist.url]) }
             Divider()
             Button("Delete…", role: .destructive) { confirmingDelete = true }
@@ -665,8 +744,25 @@ private struct UserPlaylistRow: View {
     }
 }
 
+/// A sidebar row that isn't a list of yours turns files from Finder away.
+/// Without this they'd reach the sidebar's own drop, which makes a playlist.
+private struct RefusesFiles: ViewModifier {
+    private struct Refusal: DropDelegate {
+        func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .forbidden) }
+        func performDrop(info: DropInfo) -> Bool { false }
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(.rect.inset(by: -6))
+            .onDrop(of: [.fileURL], delegate: Refusal())
+    }
+}
+
 /// Tunes dragged from a list onto a sidebar playlist (or Favourites, or My
-/// Playlist) are added to it, under the system's drop highlight. Holding ⌘
+/// Playlist) are added to it, under the system's drop highlight, and so is
+/// what's behind files dropped from Finder. Holding ⌘
 /// as they drop moves them instead, from one of your playlists to another,
 /// as ⌘ moves in Finder; from any other list, and into Favourites or My
 /// Playlist, they're always added. (A sidebar row only takes drops through
@@ -701,7 +797,17 @@ private struct PlaylistDrop: ViewModifier {
             }
         }
         .contentShape(.rect.inset(by: -6))
-        .dropDestination(for: PlaylistRowDrag.self) { drags, _ in
+        .dropDestination(for: SidebarDrop.self) { items, _ in
+            let urls = items.compactMap { item -> URL? in
+                if case .file(let url) = item, url.isFileURL { url } else { nil }
+            }
+            if !urls.isEmpty {
+                Task { await playlists.addFiles(urls, to: target) }
+                return true
+            }
+            let drags = items.compactMap { item -> PlaylistRowDrag? in
+                if case .tunes(let drag) = item { drag } else { nil }
+            }
             let files = drags.flatMap(\.paths)
             guard !files.isEmpty else { return false }
             if case .playlist(let id) = target, drags.allSatisfy({ $0.from == id }) { return false }

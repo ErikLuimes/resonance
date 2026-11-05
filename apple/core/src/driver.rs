@@ -225,7 +225,7 @@ fn spawn_loader(progress: LoadingProgress, library: Library) -> (Sender<Job>, Re
                         }
                     }
                     Job::Paths { paths, play_first } => Loaded::Entries {
-                        entries: parse_paths(paths, &progress),
+                        entries: parse_paths(paths, &progress, library.root()),
                         play_first,
                     },
                     // Nothing is added, so no "Adding files" progress: a
@@ -263,7 +263,15 @@ fn spawn_loader(progress: LoadingProgress, library: Library) -> (Sender<Job>, Re
 /// Turn dropped / opened paths into entries, keeping their order: folders
 /// are scanned, playlists expanded, anything else parsed as a SID / MUS file
 /// (main.rs `Message::FileDropped`).
-fn parse_paths(paths: Vec<PathBuf>, progress: &LoadingProgress) -> Vec<PlaylistEntry> {
+///
+/// Published playlists hold HVSC-relative paths, which don't resolve next to
+/// the dropped file; when that yields nothing they are retried against
+/// `hvsc_root`.
+fn parse_paths(
+    paths: Vec<PathBuf>,
+    progress: &LoadingProgress,
+    hvsc_root: Option<PathBuf>,
+) -> Vec<PlaylistEntry> {
     let mut out = Vec::new();
     let mut files = Vec::new();
     let flush = |files: &mut Vec<PathBuf>, out: &mut Vec<PlaylistEntry>| {
@@ -280,7 +288,7 @@ fn parse_paths(paths: Vec<PathBuf>, progress: &LoadingProgress) -> Vec<PlaylistE
             out.extend(playlist::parse_directory(path, progress.clone()));
         } else if is_playlist_file(&path) {
             flush(&mut files, &mut out);
-            match playlist::parse_playlist_file(path, progress.clone()) {
+            match parse_playlist(path, progress, hvsc_root.as_ref()) {
                 Ok(entries) => out.extend(entries),
                 Err(e) => eprintln!("[resonance] {e}"),
             }
@@ -290,6 +298,87 @@ fn parse_paths(paths: Vec<PathBuf>, progress: &LoadingProgress) -> Vec<PlaylistE
     }
     flush(&mut files, &mut out);
     out
+}
+
+/// A playlist's tunes: its paths taken as relative to its own folder, or,
+/// when that misses some, to the collection if it finds more. (An exported
+/// playlist can mix full paths with collection-relative ones; full paths
+/// resolve against either.)
+fn parse_playlist(
+    path: PathBuf,
+    progress: &LoadingProgress,
+    hvsc_root: Option<&PathBuf>,
+) -> Result<Vec<PlaylistEntry>, String> {
+    let entries = playlist::parse_playlist_file(path.clone(), progress.clone())?;
+    let missing = u32::try_from(entries.len()).unwrap_or(u32::MAX) < listed_in_playlist(&path);
+    match hvsc_root {
+        Some(root) if missing => {
+            let from_root =
+                playlist::parse_playlist_file_with_base(path, root.clone(), progress.clone())?;
+            Ok(if from_root.len() > entries.len() { from_root } else { entries })
+        }
+        _ => Ok(entries),
+    }
+}
+
+/// How many tunes a playlist file names, whether they exist or not.
+fn listed_in_playlist(path: &Path) -> u32 {
+    let Ok(content) = std::fs::read_to_string(path) else {
+        return 0;
+    };
+    let is_pls = path
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("pls"));
+    let count = if is_pls {
+        content
+            .lines()
+            .filter(|l| {
+                let l = l.trim().to_ascii_lowercase();
+                l.starts_with("file") && l.contains('=')
+            })
+            .count()
+    } else {
+        playlist::parse_m3u_preview(&content).len()
+    };
+    u32::try_from(count).unwrap_or(u32::MAX)
+}
+
+/// The tunes behind dropped paths, without touching any list.
+#[derive(Debug, Default, PartialEq)]
+pub(crate) struct ResolvedTunes {
+    /// Each tune's file once, in order.
+    pub files: Vec<PathBuf>,
+    /// Tunes that loaded, repeats included, to set against `listed`.
+    pub found: u32,
+    /// Tunes asked for: a playlist's lines, a folder's playable files.
+    pub listed: u32,
+}
+
+/// Expand files, folders and playlists as a drop into My Playlist does,
+/// and report what they came to instead of adding it.
+pub(crate) fn resolve_tunes(paths: Vec<PathBuf>, hvsc_root: Option<PathBuf>) -> ResolvedTunes {
+    let progress = LoadingProgress::default();
+    let mut resolved = ResolvedTunes::default();
+    let mut seen = HashSet::new();
+    for path in paths {
+        let listed = if path.is_dir() {
+            None
+        } else if is_playlist_file(&path) {
+            Some(listed_in_playlist(&path))
+        } else {
+            Some(1)
+        };
+        let entries = parse_paths(vec![path], &progress, hvsc_root.clone());
+        let found = u32::try_from(entries.len()).unwrap_or(u32::MAX);
+        resolved.found = resolved.found.saturating_add(found);
+        resolved.listed = resolved.listed.saturating_add(listed.unwrap_or(found));
+        for entry in entries {
+            if seen.insert(entry.path.clone()) {
+                resolved.files.push(entry.path);
+            }
+        }
+    }
+    resolved
 }
 
 /// A random HVSC tune, parsed. A file that won't parse is skipped for
@@ -701,7 +790,92 @@ impl State {
 
 #[cfg(test)]
 mod tests {
-    use super::progress_text;
+    use super::{progress_text, resolve_tunes};
+    use std::path::{Path, PathBuf};
+
+    fn temp_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "resonance-resolve-{name}-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// A minimal PSID v2 file.
+    fn write_sid(path: &Path) {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let mut h = vec![0u8; 0x7C];
+        h[0..4].copy_from_slice(b"PSID");
+        h[4..6].copy_from_slice(&2u16.to_be_bytes());
+        h[6..8].copy_from_slice(&0x7Cu16.to_be_bytes());
+        h[8..10].copy_from_slice(&0x1000u16.to_be_bytes());
+        h[10..12].copy_from_slice(&0x1000u16.to_be_bytes());
+        h[12..14].copy_from_slice(&0x1003u16.to_be_bytes());
+        h[14..16].copy_from_slice(&1u16.to_be_bytes());
+        h[16..18].copy_from_slice(&1u16.to_be_bytes());
+        h.extend_from_slice(&[0x60, 0x60, 0x60, 0x60]);
+        std::fs::write(path, h).unwrap();
+    }
+
+    #[test]
+    fn a_playlist_of_collection_paths_resolves_against_the_collection() {
+        let root = temp_dir("root");
+        let tune = root.join("MUSICIANS/A/Ann/One.sid");
+        write_sid(&tune);
+        let elsewhere = temp_dir("elsewhere");
+        let list = elsewhere.join("List.m3u");
+        std::fs::write(
+            &list,
+            "#EXTM3U\nMUSICIANS/A/Ann/One.sid\nMUSICIANS/A/Ann/Gone.sid\nMUSICIANS/A/Ann/One.sid\n",
+        )
+        .unwrap();
+
+        let resolved = resolve_tunes(vec![list.clone()], Some(root.clone()));
+        assert_eq!(resolved.files, vec![tune], "each file once");
+        assert_eq!(resolved.found, 2, "repeats count as found");
+        assert_eq!(resolved.listed, 3, "the missing line counts as listed");
+
+        let without_root = resolve_tunes(vec![list], None);
+        assert!(without_root.files.is_empty());
+        assert_eq!(without_root.listed, 3);
+    }
+
+    #[test]
+    fn an_exported_playlist_mixing_full_and_collection_paths_finds_both() {
+        let root = temp_dir("mixed-root");
+        let inside = root.join("MUSICIANS/A/Ann/One.sid");
+        write_sid(&inside);
+        let elsewhere = temp_dir("mixed-elsewhere");
+        let outside = elsewhere.join("Mine.sid");
+        write_sid(&outside);
+        let list = elsewhere.join("Export.m3u");
+        std::fs::write(
+            &list,
+            format!("#EXTM3U\nMUSICIANS/A/Ann/One.sid\n{}\n", outside.display()),
+        )
+        .unwrap();
+
+        let resolved = resolve_tunes(vec![list], Some(root));
+        assert_eq!(resolved.files, vec![inside, outside]);
+        assert_eq!(resolved.found, 2);
+        assert_eq!(resolved.listed, 2);
+    }
+
+    #[test]
+    fn loose_files_and_folders_count_what_they_hold() {
+        let dir = temp_dir("loose");
+        let inside = dir.join("Folder/Two.sid");
+        write_sid(&inside);
+        let not_a_tune = dir.join("Notes.sid");
+        std::fs::write(&not_a_tune, "not a tune").unwrap();
+
+        let resolved = resolve_tunes(vec![dir.join("Folder"), not_a_tune], None);
+        assert_eq!(resolved.files, vec![inside]);
+        assert_eq!(resolved.found, 1);
+        assert_eq!(resolved.listed, 2, "the bad file was asked for and didn't load");
+    }
 
     #[test]
     fn progress_text_drops_upstreams_hourglass() {

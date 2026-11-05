@@ -198,6 +198,7 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
     func hvscComposers(category: HvscCategory) async throws -> [HvscComposer] { [] }
     func similarComposers(authorPath: String, limit: UInt32) async -> [SimilarComposer] { [] }
     func tunesFromFiles(paths: [String]) async -> [HvscTuneItem] { [] }
+    func resolveFiles(paths: [String]) async -> ResolvedFiles { ResolvedFiles(paths: [], found: 0, listed: 0) }
     func favoritePaths() async -> [String] { [] }
     func setFavorite(path: String, favorite: Bool) async throws {}
     func checkHvscUpdate() async throws -> HvscVersionCheck { HvscVersionCheck(latest: 86, installed: 85) }

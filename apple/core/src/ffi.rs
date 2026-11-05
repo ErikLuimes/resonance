@@ -95,6 +95,17 @@ pub struct CoreConfig {
 
 /// What `import_from_phosphor` added to Resonance's favourites and play
 /// history.
+/// The tunes behind dropped files, folders and playlists.
+#[derive(Debug, Clone, Default, uniffi::Record)]
+pub struct ResolvedFiles {
+    /// Each tune's absolute path once, in order.
+    pub paths: Vec<String>,
+    /// Tunes that loaded, repeats included.
+    pub found: u32,
+    /// Tunes asked for; more than `found` when some are missing.
+    pub listed: u32,
+}
+
 #[derive(Debug, Clone, Default, uniffi::Record)]
 pub struct PhosphorImport {
     pub favorites: u32,
@@ -1091,6 +1102,28 @@ impl PlayerCore {
             .into_iter()
             .map(|(category, e, has_stil)| HvscTuneItem::from_file(category, e, has_stil))
             .collect()
+    }
+
+    /// Expand files, folders and M3U/PLS playlists into their tunes,
+    /// without adding them anywhere. A playlist's relative paths are tried
+    /// next to it, then in the collection.
+    pub async fn resolve_files(&self, paths: Vec<String>) -> ResolvedFiles {
+        let root = self.library.root();
+        tokio::task::spawn_blocking(move || {
+            let paths = paths.into_iter().map(PathBuf::from).collect();
+            let resolved = crate::driver::resolve_tunes(paths, root);
+            ResolvedFiles {
+                paths: resolved
+                    .files
+                    .iter()
+                    .map(|p| p.to_string_lossy().into_owned())
+                    .collect(),
+                found: resolved.found,
+                listed: resolved.listed,
+            }
+        })
+        .await
+        .unwrap_or_default()
     }
 
     // ── Favourites (favorites.json, in Phosphor's format) ──

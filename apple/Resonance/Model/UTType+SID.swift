@@ -35,3 +35,15 @@ nonisolated struct PlaylistRowDrag: Codable, Transferable {
         CodableRepresentation(contentType: .playlistRow)
     }
 }
+
+/// What a sidebar playlist takes: tunes from a list in the app, or files
+/// from outside. One type, as a row holds one drop handler per payload.
+nonisolated enum SidebarDrop: Transferable {
+    case tunes(PlaylistRowDrag)
+    case file(URL)
+
+    static var transferRepresentation: some TransferRepresentation {
+        ProxyRepresentation(importing: { (drag: PlaylistRowDrag) in SidebarDrop.tunes(drag) })
+        ProxyRepresentation(importing: { (url: URL) in SidebarDrop.file(url) })
+    }
+}

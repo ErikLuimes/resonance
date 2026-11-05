@@ -39,6 +39,12 @@ final class PlaylistsStore {
     var renaming: String?
     /// The last message about something that went wrong.
     private(set) var error: String?
+    /// A playlist the sidebar should select (one just imported).
+    var revealing: String?
+    /// What's being read for an import or a drop, for the status banner.
+    private(set) var importing: String?
+    /// What an import or a drop couldn't find, until dismissed.
+    var importNotice: String?
 
     let player: PlayerStore
     /// Where the M3U files are.
@@ -129,6 +135,50 @@ final class PlaylistsStore {
         guard let copy = create(named: "\(playlist.name) copy") else { return nil }
         write(read(playlist), to: copy)
         return copy
+    }
+
+    /// A list's files as they'd be exported, with any sub-tune chosen by
+    /// file: only My Playlist remembers those.
+    func exportContents(of target: AddTarget) -> (files: [String], songs: [String: UInt16]) {
+        switch target {
+        case .favourites:
+            return (favourites ?? [], [:])
+        case .myPlaylist:
+            let chosen = player.rows.filter { $0.item.selectedSong != 1 }
+            return (player.rows.map(\.id), Dictionary(chosen.map { ($0.id, $0.item.selectedSong) }) { first, _ in first })
+        case .playlist(let id):
+            return (playlist(id).map(read) ?? [], [:])
+        }
+    }
+
+    /// Save a copy of a list for someone else, or another Mac: tunes in the
+    /// collection get HVSC-relative paths like the curated playlists, which
+    /// work wherever HVSC is. Others keep their full path.
+    @discardableResult
+    func export(_ target: AddTarget, to url: URL) -> Bool {
+        let (files, songs) = exportContents(of: target)
+        let text = Self.exportedM3U(files, songs: songs, hvscRoot: player.hvscRoot)
+        do {
+            try text.write(to: url, atomically: true, encoding: .utf8)
+            return true
+        } catch {
+            importNotice = "Couldn't export \(url.lastPathComponent): \(error.localizedDescription)"
+            return false
+        }
+    }
+
+    static func exportedM3U(_ files: [String], songs: [String: UInt16] = [:], hvscRoot: String?) -> String {
+        let prefix = hvscRoot.map { $0.hasSuffix("/") ? $0 : $0 + "/" }
+        var lines = ["#EXTM3U"]
+        for file in files {
+            if let song = songs[file] { lines.append("#PHOSPHOR:song=\(song)") }
+            if let prefix, file.hasPrefix(prefix) {
+                lines.append(String(file.dropFirst(prefix.count)))
+            } else {
+                lines.append(file)
+            }
+        }
+        return lines.joined(separator: "\n") + "\n"
     }
 
     /// Move `playlist`'s file to the Trash.
@@ -245,6 +295,83 @@ final class PlaylistsStore {
         order.removeAll { $0 == id || $0 == old }
         order.insert(id, at: 0)
         defaults.set(Array(order.prefix(50)), forKey: Pref.playlistsRecent)
+    }
+
+    // MARK: Files from outside
+
+    /// Whether the file is a playlist, as the core reads them.
+    static func isPlaylistFile(_ url: URL) -> Bool {
+        ["m3u", "m3u8", "pls"].contains(url.pathExtension.lowercased())
+    }
+
+    private static func isFolder(_ url: URL) -> Bool {
+        (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true
+    }
+
+    /// Make playlists from files dropped or opened from outside: one for
+    /// each playlist file and folder, named after it, and one for the
+    /// loose tunes, whose name the sidebar edits. The sidebar selects the
+    /// last one made. The files themselves stay as they are.
+    func importAsNew(_ urls: [URL]) async {
+        var notices: [String] = []
+        var made: UserPlaylist?
+        for url in urls where Self.isPlaylistFile(url) || Self.isFolder(url) {
+            let name = Self.isFolder(url) ? url.lastPathComponent : url.deletingPathExtension().lastPathComponent
+            if let playlist = await importTunes(of: [url], named: name, notices: &notices) {
+                made = playlist
+            }
+        }
+        let loose = urls.filter { !Self.isPlaylistFile($0) && !Self.isFolder($0) }
+        if !loose.isEmpty, let playlist = await importTunes(of: loose, named: nil, notices: &notices) {
+            made = playlist
+        }
+        if !notices.isEmpty { importNotice = notices.joined(separator: " ") }
+        if let made { revealing = made.id }
+    }
+
+    /// Add what's behind files dropped or opened from outside to `target`.
+    func addFiles(_ urls: [URL], to target: AddTarget) async {
+        // Through the core's own route, like a drop on the window: it keeps
+        // what a playlist file says about sub-tunes, and the session's order.
+        if target == .myPlaylist {
+            player.add(urls)
+            return
+        }
+        let resolved = await resolve(urls, label: urls.first?.lastPathComponent ?? "")
+        await add(resolved.paths, to: target)
+        if let notice = Self.notice(for: resolved, name: Self.displayName(of: urls), hvscRoot: player.hvscRoot) {
+            importNotice = notice
+        }
+    }
+
+    private func importTunes(of urls: [URL], named name: String?, notices: inout [String]) async -> UserPlaylist? {
+        let resolved = await resolve(urls, label: name ?? urls.first?.lastPathComponent ?? "")
+        let label = name ?? Self.displayName(of: urls)
+        if let notice = Self.notice(for: resolved, name: label, hvscRoot: player.hvscRoot) {
+            notices.append(notice)
+        }
+        guard !resolved.paths.isEmpty else { return nil }
+        return await addToNew(resolved.paths, named: name)
+    }
+
+    private func resolve(_ urls: [URL], label: String) async -> ResolvedFiles {
+        importing = "Reading \(label)…"
+        defer { importing = nil }
+        return await core.resolveFiles(paths: urls.map(\.path))
+    }
+
+    private static func displayName(of urls: [URL]) -> String {
+        urls.count == 1 ? urls[0].deletingPathExtension().lastPathComponent : "The dropped files"
+    }
+
+    /// What to say about tunes that didn't load; nil when they all did.
+    static func notice(for resolved: ResolvedFiles, name: String, hvscRoot: String?) -> String? {
+        if resolved.paths.isEmpty {
+            let hint = hvscRoot == nil ? " Choose your HVSC folder in Settings, then try again." : ""
+            return "No playable SID files found in \(name).\(hint)"
+        }
+        guard resolved.found < resolved.listed else { return nil }
+        return "\(name): \(resolved.found) of \(resolved.listed) tunes found."
     }
 
     // MARK: Rows
