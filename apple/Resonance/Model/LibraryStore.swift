@@ -308,23 +308,24 @@ final class LibraryStore {
     /// Show a tune STIL links to (an HVSC path) in the library, in its
     /// author's folder or its section.
     func reveal(hvscPath: String) {
-        guard let tune = file(atHvscPath: hvscPath), let category = category(of: tune.path) else { return }
-        reveal = LibraryReveal(
-            authorPath: tune.deletingLastPathComponent().path,
-            tunePath: tune.path,
-            category: category
-        )
+        guard let tune = file(atHvscPath: hvscPath) else { return }
+        reveal(tunePath: tune.path)
     }
 
     /// Show a tune (a file in the collection) in the library, in its
     /// author's folder or its section.
     func reveal(tunePath: String) {
-        guard let category = category(of: tunePath) else { return }
-        reveal = LibraryReveal(
-            authorPath: URL(filePath: tunePath).deletingLastPathComponent().path,
-            tunePath: tunePath,
-            category: category
-        )
+        guard let category = category(of: tunePath), let root = player.hvscRoot else { return }
+        // The browser lists MUSICIANS/<letter>/<composer> and GAMES/<range>;
+        // a tune can be further down ("MUSICIANS/S/SoedeSoft/Soede_Michiel").
+        let listedDepth = category == .musicians ? 3 : 2
+        let tune = URL(filePath: tunePath).standardizedFileURL
+        let inside = tune.pathComponents.count - URL(filePath: root).standardizedFileURL.pathComponents.count
+        var folder = tune
+        for _ in 0..<max(inside - listedDepth, 1) {
+            folder.deleteLastPathComponent()
+        }
+        reveal = LibraryReveal(authorPath: folder.path, tunePath: tunePath, category: category)
     }
 
     /// Read `category`'s composer summaries (the first time, every tune's

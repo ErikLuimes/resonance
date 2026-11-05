@@ -119,7 +119,7 @@ extension HelpTopic {
                       text: "Resonance keeps its own favourites, history and collection. **Import from Phosphor** brings over Phosphor's playback settings, favourites and play history, and its HVSC collection if Resonance has none. Nothing in Phosphor changes.",
                       link: .settings(.advanced)),
                 .heading("Sound fingerprints"),
-                .paragraph("Sounds Like, the Sound column and the Sound filters need each tune's fingerprint. The first time, Resonance downloads the published fingerprint set (about 37 MB), which covers all of HVSC, and a background scan fills in whatever it doesn't have. A full scan of your own takes a few hours; with the published set it's mostly done in a minute."),
+                .paragraph("Sounds Like, the Sound column and the Sound filters need each tune's fingerprint. The first time, Resonance downloads the published fingerprint set (about 42 MB) and audio embeddings (about 11 MB), which cover all of HVSC, and a background scan fills in whatever it doesn't have. A full scan of your own takes a few hours; with the published set it's mostly done in a minute."),
                 .heading("Start listening"),
                 .bullets([
                     "Press **⇧⌘R** for **Surprise Me**: a radio of random tunes from all of HVSC.",

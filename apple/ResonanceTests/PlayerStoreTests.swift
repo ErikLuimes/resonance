@@ -789,6 +789,21 @@ struct LibraryStoreTests {
         #expect(library.reveal?.tunePath == "/HVSC/GAMES/A-F/Catalypse.sid")
     }
 
+    @Test func revealOpensTheListedFolderOfATuneInASubfolder() {
+        let (library, _) = makeLibrary()
+        let cases = [
+            ("/HVSC/MUSICIANS/H/Hubbard_Rob/Delta.sid", "/HVSC/MUSICIANS/H/Hubbard_Rob"),
+            ("/HVSC/MUSICIANS/S/SoedeSoft/Soede_Michiel/Delta.sid", "/HVSC/MUSICIANS/S/SoedeSoft"),
+            ("/HVSC/DEMOS/UNKNOWN/Music_Shop/Tune.sid", "/HVSC/DEMOS/UNKNOWN"),
+            ("/HVSC/GAMES/A-F/Catalypse.sid", "/HVSC/GAMES/A-F"),
+        ]
+        for (tune, folder) in cases {
+            library.reveal(tunePath: tune)
+            #expect(library.reveal?.authorPath == folder)
+            #expect(library.reveal?.tunePath == tune)
+        }
+    }
+
     @Test func searchPassesItsScope() async throws {
         let (library, _) = makeLibrary()
         _ = try await library.search("commando", scope: .musicians)

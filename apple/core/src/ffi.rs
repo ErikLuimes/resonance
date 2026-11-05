@@ -1246,7 +1246,7 @@ impl PlayerCore {
     }
 
     /// Download the published fingerprint set for this extractor (a zip
-    /// holding fingerprints.sqlite, about 37 MB) and merge it in, so Sounds
+    /// holding fingerprints.sqlite, about 42 MB) and merge it in, so Sounds
     /// Like works without hours of scanning; the scan then fills in the
     /// rest. Returns how many fingerprints were added.
     pub async fn download_fingerprints(&self) -> Result<u32, HvscError> {
@@ -1267,7 +1267,7 @@ impl PlayerCore {
     }
 
     /// Download the published audio embeddings (the release asset
-    /// embeddings-e<N>.zip, about 12 MB) for "Sounds like". Without them it
+    /// embeddings-e<N>.zip, about 11 MB) for "Sounds like". Without them it
     /// goes by the fingerprints alone.
     pub async fn download_embeddings(&self) -> Result<u32, HvscError> {
         let url = format!(

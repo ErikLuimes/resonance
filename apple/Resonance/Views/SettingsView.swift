@@ -275,7 +275,7 @@ private struct FingerprintSettings: View {
         } header: {
             Text("Sound Fingerprints")
         } footer: {
-            Text("Resonance plays every tune silently in the background to learn how it sounds, for the Sound column and Sounds Like. It picks up where it left off, and takes a few hours for all of HVSC. The published set (about 37 MB) has the fingerprints of all of HVSC already; Resonance downloads it the first time, and the scan fills in the rest.")
+            Text("Resonance plays every tune silently in the background to learn how it sounds, for the Sound column and Sounds Like. It picks up where it left off, and takes a few hours for all of HVSC. The published set (about 42 MB) has the fingerprints of all of HVSC already; Resonance downloads it the first time, and the scan fills in the rest.")
         }
         .confirmationDialog("Rebuild all fingerprints?", isPresented: $confirmingRebuild) {
             Button("Rebuild") { Task { await fingerprints.rebuild() } }
