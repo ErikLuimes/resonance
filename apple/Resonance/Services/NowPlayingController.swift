@@ -16,6 +16,9 @@ final class NowPlayingController {
         let trackRevision: UInt64
         let state: PlaybackState
         let duration: TimeInterval?
+        let canSeek: Bool
+        /// A seek moves the elapsed time, and lands later: publish both.
+        let seeking: Bool
     }
 
     init(store: PlayerStore) {
@@ -26,7 +29,7 @@ final class NowPlayingController {
 
     private func observe() {
         withObservationTracking {
-            _ = (store.trackRevision, store.state, store.duration)
+            _ = (store.trackRevision, store.state, store.duration, store.canSeek, store.seeking)
         } onChange: { [weak self] in
             // onChange runs before the new values are set; read them next turn.
             Task { @MainActor in
@@ -38,9 +41,17 @@ final class NowPlayingController {
     }
 
     private func publish() {
-        let key = Key(trackRevision: store.trackRevision, state: store.state, duration: store.duration)
+        let key = Key(
+            trackRevision: store.trackRevision, state: store.state, duration: store.duration,
+            canSeek: store.canSeek, seeking: store.seeking
+        )
         guard key != lastKey else { return }
         lastKey = key
+
+        let commands = MPRemoteCommandCenter.shared()
+        commands.changePlaybackPositionCommand.isEnabled = store.canSeek
+        commands.skipForwardCommand.isEnabled = store.canSeek
+        commands.skipBackwardCommand.isEnabled = store.canSeek
 
         let center = MPNowPlayingInfoCenter.default()
         guard let track = store.nowPlaying, store.state != .stopped else {
@@ -83,8 +94,18 @@ final class NowPlayingController {
         on(commands.stopCommand) { $0.stop() }
         on(commands.nextTrackCommand) { $0.next() }
         on(commands.previousTrackCommand) { $0.previous() }
-        // SID tunes are generated live; there's nothing to seek in.
-        commands.changePlaybackPositionCommand.isEnabled = false
+        // Seeking, on the engines that can (`publish` enables these).
+        commands.changePlaybackPositionCommand.addTarget { @Sendable event in
+            guard let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
+            let position = event.positionTime
+            Task { @MainActor in store.seek(to: position) }
+            return .success
+        }
+        commands.skipForwardCommand.preferredIntervals = [15]
+        commands.skipBackwardCommand.preferredIntervals = [15]
+        on(commands.skipForwardCommand) { $0.skip(by: 15) }
+        on(commands.skipBackwardCommand) { $0.skip(by: -15) }
+        // Hold-to-seek is for real-time scanning, which the engines can't do.
         commands.seekForwardCommand.isEnabled = false
         commands.seekBackwardCommand.isEnabled = false
     }

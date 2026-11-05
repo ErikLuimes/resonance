@@ -240,6 +240,12 @@ impl Session {
         self.status = status;
     }
 
+    /// Keep the silence clock from running: the player is seeking, so no
+    /// register writes arrive for a while by design.
+    pub fn hold_silence(&mut self, now: Instant) {
+        self.last_writes_at = now;
+    }
+
     fn is_stale(&self, status: &PlayerStatus) -> bool {
         match (status.track_info.as_ref(), self.current_entry()) {
             (Some(info), Some(entry)) => {

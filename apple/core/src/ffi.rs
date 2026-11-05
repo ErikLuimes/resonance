@@ -181,6 +181,15 @@ pub struct Snapshot {
     pub shuffle: bool,
     pub repeat: Repeat,
     pub engine: Engine,
+    /// The engine can seek within a tune (reSIDfp and SIDLite direct).
+    pub can_seek: bool,
+    /// A seek is in progress: `elapsed_ms` already says where, the audio
+    /// is silent until the emulation has caught up.
+    pub seeking: bool,
+    /// While seeking: how far the emulation has got on its way to
+    /// `elapsed_ms` (from the top for a backward seek, from where it was
+    /// for a forward one), updated every tenth of a second of tune.
+    pub seek_position_ms: Option<u64>,
     /// Changes whenever `playlist()` would return something different.
     pub playlist_revision: u64,
     /// Changes on every track or subtune switch.
@@ -677,6 +686,14 @@ impl PlayerCore {
         self.send(Command::PrevSubtune);
     }
 
+    /// Go to `position_ms` in the playing subtune. Only the engines with
+    /// `can_seek` do; the others ignore it. The audio goes silent while the
+    /// emulation runs there (about a sixtieth of the distance on reSIDfp)
+    /// and `seeking` says so.
+    pub fn seek(&self, position_ms: u64) {
+        self.send(Command::Seek(Duration::from_millis(position_ms)));
+    }
+
     // ── Modes and settings ──
 
     pub fn set_shuffle(&self, on: bool) {
@@ -732,6 +749,9 @@ impl PlayerCore {
             shuffle: view.shuffle,
             repeat: view.repeat.into(),
             engine: view.engine.into(),
+            can_seek: view.can_seek,
+            seeking: view.seeking,
+            seek_position_ms: view.seek_position.map(|d| d.as_millis() as u64),
             playlist_revision: view.playlist_revision,
             track_revision: view.track_revision,
             loading: p.loading.clone(),

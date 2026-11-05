@@ -30,6 +30,11 @@ enum { RSFP_SAMPLING_INTERPOLATE = 0, RSFP_SAMPLING_RESAMPLE = 1 };
 /* Which chip emulation plays: reSIDfp (libresidfp) or libsidplayfp's SIDLite
  * (cRSID-based, far cheaper, output rate at most 48000). */
 enum { RSFP_CHIP_RESIDFP = 0, RSFP_CHIP_SIDLITE = 1 };
+/* How rsfp_skip clocks the chips: RENDER runs them as when playing and drops
+ * the audio; DIGITAL clocks reSIDfp's oscillators and envelopes but not its
+ * filter and resampler (SIDLite has no such mode and renders as RENDER);
+ * NONE leaves the chips alone, so only the C64 runs. */
+enum { RSFP_SKIP_RENDER = 0, RSFP_SKIP_DIGITAL = 1, RSFP_SKIP_NONE = 2 };
 
 typedef struct {
     uint32_t sample_rate;   /* 8000–192000 */
@@ -42,6 +47,7 @@ typedef struct {
     uint8_t  mono_2sid;     /* mix a 2SID tune to both channels instead of left/right */
     uint8_t  scope_cycles;  /* C64 cycles per visualizer scope sample; 0 keeps no scope */
     uint8_t  chip;          /* RSFP_CHIP_* */
+    uint16_t power_on_delay; /* cycles before the tune's init, 0–0x1FFF; above that libsidplayfp picks one at random */
 } rsfp_config;
 
 /* The loaded tune, as its header describes it (for the selected song). */
@@ -71,6 +77,7 @@ typedef struct {
     uint8_t  model[3];       /* RSFP_MODEL_* per installed chip */
     uint16_t cia1_timer_a;
     double   cpu_hz;
+    uint16_t power_on_delay; /* the delay used; pass it back to start another instance at the same alignment */
 } rsfp_play_info;
 
 /* One chip, now. */
@@ -134,6 +141,10 @@ uint32_t rsfp_take_writes(rsfp_player *p, unsigned chip, rsfp_write *out, uint32
                           uint32_t *total);
 
 void rsfp_mute(rsfp_player *p, unsigned chip, unsigned voice, int mute);
+/* Run the emulation `cycles` C64 cycles ahead without producing audio, the
+ * chips clocked per RSFP_SKIP_*. Returns the cycles run: `cycles` or a few
+ * more, or fewer when the emulation stopped (rsfp_error). */
+uint64_t rsfp_skip(rsfp_player *p, uint64_t cycles, int mode);
 void rsfp_filter(rsfp_player *p, unsigned chip, int enable);
 
 #ifdef __cplusplus

@@ -67,6 +67,8 @@ pub(crate) enum Command {
     SetShuffle(bool),
     SetRepeat(RepeatMode),
     SetEngine(Engine),
+    /// Go to this point in the playing subtune (the pull-driven engines).
+    Seek(Duration),
     SetOptions(Options),
     SetHvscRoot(Option<PathBuf>),
     /// Save, stop the player and end the thread; acknowledged on the sender.
@@ -98,6 +100,12 @@ pub(crate) struct SessionView {
     pub shuffle: bool,
     pub repeat: RepeatMode,
     pub engine: Engine,
+    /// The engine can seek (it's pull-driven).
+    pub can_seek: bool,
+    /// A seek is running: the audio is silent until it lands.
+    pub seeking: bool,
+    /// While seeking, where the emulation has got to on its way there.
+    pub seek_position: Option<Duration>,
     pub playlist_revision: u64,
     pub track_revision: u64,
 }
@@ -138,6 +146,9 @@ impl Driver {
                 shuffle: start.shuffle,
                 repeat: start.repeat,
                 engine: start.engine,
+                can_seek: start.engine.is_pull_driven(),
+                seeking: false,
+                seek_position: None,
                 playlist_revision: 0,
                 track_revision: 0,
             },
@@ -460,6 +471,23 @@ struct Player {
     commands: Sender<PlayerCmd>,
     statuses: Receiver<PlayerStatus>,
     device_events: Receiver<player::DeviceConfigEvent>,
+    /// The pull-driven player's seek side; upstream's has none.
+    seeker: Option<residfp_player::Seeker>,
+}
+
+impl Player {
+    fn seeking(&self) -> bool {
+        self.seeker
+            .as_ref()
+            .is_some_and(|s| s.seeking.load(std::sync::atomic::Ordering::Relaxed))
+    }
+
+    fn seek_position(&self) -> Option<Duration> {
+        let seeker = self.seeker.as_ref().filter(|_| self.seeking())?;
+        Some(Duration::from_millis(
+            seeker.position_ms.load(std::sync::atomic::Ordering::Relaxed),
+        ))
+    }
 }
 
 /// Upstream's player thread for its engines; the reSIDfp player for
@@ -467,20 +495,23 @@ struct Player {
 /// mode argument is ignored: without the `usb` feature no USB engine
 /// exists to consult it.
 fn spawn_player(engine: Engine, viz: &SharedFeed) -> Player {
-    let (commands, statuses, device_events) = if engine.is_pull_driven() {
-        residfp_player::spawn(viz.clone(), engine)
+    let (commands, statuses, device_events, seeker) = if engine.is_pull_driven() {
+        let (c, s, d, seeker) = residfp_player::spawn(viz.clone(), engine);
+        (c, s, d, Some(seeker))
     } else {
-        player::spawn_player(
+        let (c, s, d) = player::spawn_player(
             engine.as_engine_name().to_string(),
             String::new(),
             String::new(),
             "bridge".to_string(),
-        )
+        );
+        (c, s, d, None)
     };
     Player {
         commands,
         statuses,
         device_events,
+        seeker,
     }
 }
 
@@ -580,6 +611,10 @@ fn run(
             let now = Instant::now();
             // Device-config replies only come from USB engines; drop them.
             for _ in st.player.device_events.try_iter() {}
+            if st.player.seeking() {
+                // Silent on purpose: no writes reach the chips meanwhile.
+                st.session.hold_silence(now);
+            }
             st.session.tick(now);
             if let Some(request) = st.session.take_radio_request() {
                 let _ = st.loader.send(Job::Pick {
@@ -641,6 +676,18 @@ impl State {
                 self.swap_player(engine, now)
             }
             Command::SetEngine(engine) => s.set_engine(engine, now),
+            Command::Seek(target) => {
+                if let Some(seeker) = &self.player.seeker {
+                    // Short of the end by a second, so the last second plays
+                    // before the session advances.
+                    let end = s
+                        .current_entry()
+                        .and_then(|e| e.duration_secs)
+                        .map(|d| Duration::from_secs(u64::from(d)).saturating_sub(Duration::from_secs(1)));
+                    let target = end.map_or(target, |end| target.min(end));
+                    let _ = seeker.targets.try_send(target);
+                }
+            }
             Command::SetOptions(options) => s.set_options(options, now),
             Command::SetHvscRoot(root) => s.set_hvsc_root(root),
             Command::Shutdown(_) => unreachable!("handled by the loop"),
@@ -775,6 +822,9 @@ impl State {
                 shuffle: s.playlist.shuffle,
                 repeat: s.playlist.repeat,
                 engine: s.engine,
+                can_seek: self.player.seeker.is_some(),
+                seeking: self.player.seeking(),
+                seek_position: self.player.seek_position(),
                 playlist_revision: s.playlist_revision,
                 track_revision: s.track_revision,
             },

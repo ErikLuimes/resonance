@@ -26,6 +26,7 @@ struct Rig {
     cmds: Sender<PlayerCmd>,
     statuses: Receiver<PlayerStatus>,
     feed: SharedFeed,
+    seeker: Seeker,
 }
 
 impl Rig {
@@ -35,7 +36,7 @@ impl Rig {
 
     fn with_chip(chip: Chip) -> Self {
         let feed = Arc::new(Mutex::new(VizFeed::new()));
-        let (cmds, statuses, _device) = spawn_with(
+        let (cmds, statuses, _device, seeker) = spawn_with(
             feed.clone(),
             chip,
             Output::Fake {
@@ -48,7 +49,19 @@ impl Rig {
             cmds,
             statuses,
             feed,
+            seeker,
         }
+    }
+
+    fn seek(&self, secs: f64) {
+        self.seeker
+            .targets
+            .send(Duration::from_secs_f64(secs))
+            .unwrap();
+    }
+
+    fn seeking(&self) -> bool {
+        self.seeker.seeking.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     fn play(&self, path: &PathBuf, song: u16) {
@@ -168,6 +181,56 @@ fn feeds_the_visualizers() {
     let history = feed.history(now, 100);
     assert!(history.len() >= 10);
     assert!(history.windows(2).all(|w| w[1].index == w[0].index + 1));
+}
+
+#[test]
+fn seeks_forward_and_back() {
+    let rig = Rig::new();
+    let path = tune_file(1, "seek");
+    rig.play(&path, 1);
+    rig.wait(5.0, |s| s.elapsed >= Duration::from_millis(300));
+
+    // Forward: the clock jumps at once, then plays on from there.
+    rig.seek(4.0);
+    let jumped = rig.wait(2.0, |s| s.elapsed >= Duration::from_secs(4));
+    assert_eq!(jumped.state, PlayState::Playing);
+    let landed = rig.wait(5.0, |s| s.elapsed >= Duration::from_millis(4300));
+    assert!(!rig.seeking());
+    // The worker reported its way there, ending at the target.
+    let position = rig.seeker.position_ms.load(std::sync::atomic::Ordering::Relaxed);
+    assert_eq!(position, 4000);
+    assert!(landed.elapsed < Duration::from_secs(6), "{:?}", landed.elapsed);
+    assert_eq!(landed.sid_regs[0x04], 0x21, "still the first song's sawtooth");
+    assert!((landed.voice_levels[0] - 1.0).abs() < 0.01);
+
+    // Back: a fresh instance from the top.
+    rig.seek(1.0);
+    rig.wait(2.0, |s| s.elapsed < Duration::from_secs(2));
+    let later = rig.wait(5.0, |s| {
+        s.elapsed >= Duration::from_millis(1300) && s.elapsed < Duration::from_secs(3)
+    });
+    assert_eq!(later.state, PlayState::Playing);
+    assert!(!rig.seeking());
+    assert_eq!(later.sid_regs[0x04], 0x21);
+
+    // Seeking while paused lands paused, at the target.
+    rig.cmds.send(PlayerCmd::TogglePause).unwrap();
+    rig.wait(2.0, |s| s.state == PlayState::Paused);
+    rig.seek(3.0);
+    let at = rig.wait(5.0, |s| s.elapsed >= Duration::from_secs(3));
+    assert_eq!(at.state, PlayState::Paused);
+    std::thread::sleep(Duration::from_millis(400));
+    let held = rig.wait(2.0, |s| s.state == PlayState::Paused);
+    assert_eq!(held.elapsed, Duration::from_secs(3), "{:?}", held.elapsed);
+    rig.cmds.send(PlayerCmd::TogglePause).unwrap();
+    rig.wait(5.0, |s| s.elapsed >= Duration::from_millis(3200));
+
+    // A seek past a stop is ignored.
+    rig.cmds.send(PlayerCmd::Stop).unwrap();
+    rig.wait(2.0, |s| s.state == PlayState::Stopped);
+    rig.seek(2.0);
+    std::thread::sleep(Duration::from_millis(50));
+    assert!(!rig.seeking());
 }
 
 #[test]

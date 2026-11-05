@@ -355,6 +355,20 @@
             </div>
           </article>
 
+          <article class="tile tile-wide" data-reveal>
+            <div class="tile-icon" style="--c: var(--v3)"><svg class="i"><use href="#i-forward"/></svg></div>
+            <h3>Scrub through a tune</h3>
+            <p>Something SID players almost never do. A SID tune is a small C64 program, not a recording, so there's nothing to jump to: Resonance runs it there silently, sixty times faster than it plays, and the bar shows the engine winding up to the point you chose. Drag, click, or use Control Center's slider.</p>
+            <div class="seek-art" aria-hidden="true">
+              <span class="sa-time left"></span>
+              <span class="sa-lane">
+                <span class="sa-track"><i class="sa-target"></i><i class="sa-fill"></i></span>
+                <svg class="sa-cursor" viewBox="0 0 16 22" width="16" height="22"><path d="M1.5 1.5v16.3l4.3-4.1 3 6.8 2.6-1.1-3-6.8h5.9z" fill="#fff" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/></svg>
+              </span>
+              <span class="sa-time">4:12</span>
+            </div>
+          </article>
+
           <article class="tile tile-tall" data-reveal>
             <div class="tile-icon" style="--c: var(--v2)"><svg class="i"><use href="#i-dice"/></svg></div>
             <h3>Surprise Me</h3>
@@ -382,13 +396,13 @@
           <article class="tile" data-reveal>
             <div class="tile-icon"><svg class="i"><use href="#i-keyboard"/></svg></div>
             <h3>Now Playing &amp; media keys</h3>
-            <p>Shows up in Control Center's Now Playing, answers your keyboard's media keys, and puts every command in a Playback menu.</p>
+            <p>Shows up in Control Center's Now Playing, with its position slider and 15-second skips, answers your keyboard's media keys, and puts every command in a Playback menu.</p>
           </article>
 
           <article class="tile" data-reveal>
             <div class="tile-icon" style="--c: var(--v1)"><svg class="i"><use href="#i-cpu"/></svg></div>
             <h3>Four engines</h3>
-            <p>reSIDfp, libsidplayfp's reference emulation, is the default. SIDLite direct is the lightest, and Phosphor's SIDLite and reSID are still there.</p>
+            <p>reSIDfp, libsidplayfp's reference emulation, is the default. SIDLite direct is the lightest; both scrub. Phosphor's SIDLite and reSID are still there.</p>
           </article>
 
           <article class="tile" data-reveal>
@@ -673,8 +687,8 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
             <p>Hardly any time: the first time, Resonance imports the published fingerprint set (about 37 MB), which covers all of HVSC, so Sounds Like works straight away. A background scan at low priority fills in anything it doesn't cover; you can pause it in Settings → Collection.</p>
           </details>
           <details>
-            <summary>Why can't I scrub through a tune?</summary>
-            <p>Not yet. A SID tune is a little C64 program that plays in real time, so jumping ahead means running it at full speed, silently, up to that point, and the engine can't do that yet. Subtunes are a different matter: step between them with the arrows next to the progress bar.</p>
+            <summary>Why does the sound stop for a moment when I scrub?</summary>
+            <p>A SID tune is a little C64 program, not a recording, so there's nothing to jump to. Resonance runs the tune to the point you chose silently, about sixty times faster than it plays: a second or so per minute of tune on reSIDfp, less on SIDLite direct. The bar shows the engine winding up to it, and the sound comes back when it arrives. The SIDLite and reSID engines play in real time only and can't scrub.</p>
           </details>
         </div>
       </div>

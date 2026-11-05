@@ -204,14 +204,14 @@ extension HelpTopic {
                     "Close it with the close button at the top, press **Esc**, or press **⇧⌘F** again.",
                 ]),
                 .heading("The bar at the bottom"),
-                .paragraph("In the library, the floating bar plays, pauses and skips, shows the progress through the tune, and has Shuffle, Repeat and the volume. Tunes with more than one song step through them with the arrows next to the progress bar."),
+                .paragraph("In the library, the floating bar plays, pauses and skips, shows the progress through the tune, and has Shuffle, Repeat and the volume. Drag or click the progress bar to scrub. Tunes with more than one song step through them with the arrows next to the progress bar."),
                 .heading("The menu bar player"),
                 .paragraph("Click Resonance's icon in the menu bar, or press **⌃⌥⌘P** in any app, for a small player: the tune and its voices, the heart, the controls with Shuffle and Repeat, the next tunes in the list it plays from (click one to play it), Surprise Me and Add to…. Turn Surprise Me off there and Resonance goes back to the list you were playing."),
                 .paragraph("While it's on, closing the main window keeps the music playing; **Open Resonance** in the player brings the window back. Turn it off in Settings → Appearance."),
                 .heading("Control Center and media keys"),
-                .paragraph("Resonance shows what's playing in Control Center and answers your keyboard's play, next and previous keys."),
-                .note(title: "Why can't I scrub through a tune?",
-                      text: "A SID tune is a little C64 program that plays in real time, so jumping ahead means running it at full speed, silently, up to that point. The engine can't do that yet."),
+                .paragraph("Resonance shows what's playing in Control Center and answers your keyboard's play, next and previous keys. Control Center's position slider and its 15-second skips work too."),
+                .note(title: "Why does the sound stop for a moment when I scrub?",
+                      text: "A SID tune is a little C64 program, so there's nothing to jump to: to reach a point, Resonance runs the tune there silently at full speed, about a second per minute of tune on reSIDfp and faster on SIDLite direct. The bar shows the new position right away; the sound follows. The SIDLite and reSID engines play in real time only and can't scrub."),
             ],
             related: [.visualizers, .shortcuts, .settings]
         ),
@@ -329,7 +329,7 @@ extension HelpTopic {
             blocks: [
                 .heading("Playback"),
                 .bullets([
-                    "**Engine**: four software emulations, all following each tune's header for PAL or NTSC and the chip model. **reSIDfp**, the default, is the most accurate: libsidplayfp's reference C64 and chip emulation. **SIDLite direct** is a compact chip model, the lightest on the processor. **SIDLite** is the same compact chip through Phosphor's original player, and **reSID** the older cycle-by-cycle model, the heaviest. Changing the engine restarts the tune.",
+                    "**Engine**: four software emulations, all following each tune's header for PAL or NTSC and the chip model. **reSIDfp**, the default, is the most accurate: libsidplayfp's reference C64 and chip emulation. **SIDLite direct** is a compact chip model, the lightest on the processor. These two can scrub within a tune. **SIDLite** is the same compact chip through Phosphor's original player, and **reSID** the older cycle-by-cycle model, the heaviest; both play in real time only. Changing the engine restarts the tune.",
                     "**Skip RSID tunes**, and the **default song length** for tunes missing from the Songlengths database (0 plays until silence).",
                     "**Stereo**: play 2SID tunes in mirrored stereo, and widen mono tunes: Subtle, Medium or Wide.",
                 ]),

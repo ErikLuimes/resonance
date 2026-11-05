@@ -51,7 +51,7 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
             track: track,
             elapsedMs: current == nil ? 0 : 83_000,
             durationMs: current.flatMap { items[$0].durationSecs }.map { UInt64($0) * 1000 },
-            shuffle: false, repeat: .off, engine: .reSidFp,
+            shuffle: false, repeat: .off, engine: .reSidFp, canSeek: true, seeking: false, seekPositionMs: nil,
             playlistRevision: 1, trackRevision: 1, loading: nil, error: nil,
             hvscIndexing: [], hvscTreeRevision: 0
         )
@@ -240,6 +240,7 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
     func setRepeat(repeat: Repeat) {}
     func setShuffle(on: Bool) {}
     func setSubtune(song: UInt16) {}
+    func seek(positionMs: UInt64) {}
     func setVolume(volume: Float) {}
     func shutdown() {}
     func stop() {}

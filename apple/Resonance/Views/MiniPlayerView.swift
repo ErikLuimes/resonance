@@ -64,16 +64,30 @@ struct MiniPlayerView: View {
         }
     }
 
-    /// The bar, then the time played and the time left.
+    /// The time under the pointer while scrubbing.
+    @State private var preview: TimeInterval?
+
+    /// The bar (scrubbing like the player bar's), then the time played and
+    /// the time left.
     private var progress: some View {
-        VStack(spacing: 4) {
-            ProgressView(value: store.progress ?? 0)
-                .progressViewStyle(.linear)
+        let shown = preview ?? store.seekPosition ?? store.elapsed
+        return VStack(spacing: 4) {
+            ScrubBar(
+                elapsed: store.elapsed,
+                duration: store.duration,
+                canSeek: store.canSeek,
+                seeking: store.seeking,
+                seekPosition: store.seekPosition,
+                preview: $preview,
+                seek: { store.seek(to: $0) }
+            )
+            .frame(height: 12)
             HStack {
-                Text(Self.time(store.elapsed))
+                Text(Self.time(shown))
                 Spacer()
-                Text(store.duration.map { "−" + Self.time(max($0 - store.elapsed, 0)) } ?? "--:--")
+                Text(store.duration.map { "−" + Self.time(max($0 - shown, 0)) } ?? "--:--")
             }
+            .opacity(store.seeking && preview == nil ? 0.55 : 1)
             .font(.caption)
             .monospacedDigit()
             .foregroundStyle(.secondary)

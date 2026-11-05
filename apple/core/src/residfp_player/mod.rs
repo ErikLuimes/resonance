@@ -16,15 +16,28 @@
 //! thread. After each buffer the callback reports the chips' registers,
 //! envelopes and scope samples; the control thread turns those into
 //! statuses and visualizer frames.
+//!
+//! Seeking (`Seeker`): libsidplayfp can't save or restore state, so a seek
+//! runs the emulation silently to the target on a worker thread, with the
+//! chips' digital parts only (half the cost) and the last half second in
+//! full so the filter has settled. Forward, the callback hands the playing
+//! engine back and the worker runs it the rest of the way; backward, a
+//! fresh instance with the track's power-on delay starts from the top.
+//! The audio is silent meanwhile, elapsed time shows the target at once,
+//! and `Seeker::seeking` tells the UI. See design/scrubbing/README.md.
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering};
+use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use crossbeam_channel::{bounded, select, tick, Receiver, Sender};
-use residfp_sys::{Chip, ChipState as RawChip, Config, EnvPhase, Player as Engine, SamplingMethod};
+use residfp_sys::{
+    Chip, ChipState as RawChip, Config, EnvPhase, Player as Engine, SamplingMethod, SkipMode,
+    Started, TuneInfo,
+};
 
 use crate::player::sid_file;
 use crate::player::{DeviceConfigEvent, PlayState, PlayerCmd, PlayerStatus, TrackInfo};
@@ -48,6 +61,11 @@ const POOL: usize = 8;
 /// At most one status per this; writes accumulate across skipped reports.
 const STATUS_PERIOD: Duration = Duration::from_millis(20);
 const REGS_PER_CHIP: usize = 32;
+/// How much of a seek is rendered in full rather than skipped digitally,
+/// so the filter and resampler have settled when the audio resumes.
+const RENDER_TAIL: Duration = Duration::from_millis(500);
+/// How often the seek worker reports where it is, in tune time.
+const SEEK_STEP: Duration = Duration::from_millis(100);
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 
@@ -99,9 +117,22 @@ pub(crate) fn chip_for(engine: session::Engine) -> Option<Chip> {
     }
 }
 
-/// Start the player thread for `engine` (a pull-driven one). Same shape as
-/// upstream's `spawn_player`, so the driver treats both alike; `viz`
-/// receives the visualizer frames.
+/// The seek side of the player, which upstream's `PlayerCmd` has no room for.
+pub(crate) struct Seeker {
+    /// Where to go, from the start of the subtune. Beyond its end is the
+    /// caller's problem (the session advances when elapsed passes the
+    /// length).
+    pub targets: Sender<Duration>,
+    /// True from a seek's start until its audio plays.
+    pub seeking: Arc<AtomicBool>,
+    /// While seeking: where the emulation is, in milliseconds from the
+    /// start of the subtune, as the worker runs it toward the target.
+    pub position_ms: Arc<AtomicU64>,
+}
+
+/// Start the player thread for `engine` (a pull-driven one). The first
+/// three are the same shape as upstream's `spawn_player`, so the driver
+/// treats both alike; `viz` receives the visualizer frames.
 pub(crate) fn spawn(
     viz: SharedFeed,
     engine: session::Engine,
@@ -109,6 +140,7 @@ pub(crate) fn spawn(
     Sender<PlayerCmd>,
     Receiver<PlayerStatus>,
     Receiver<DeviceConfigEvent>,
+    Seeker,
 ) {
     spawn_with(viz, chip_for(engine).unwrap_or_default(), Output::Device)
 }
@@ -121,15 +153,31 @@ pub(crate) fn spawn_with(
     Sender<PlayerCmd>,
     Receiver<PlayerStatus>,
     Receiver<DeviceConfigEvent>,
+    Seeker,
 ) {
     let (cmd_tx, cmd_rx) = bounded::<PlayerCmd>(64);
     let (status_tx, status_rx) = bounded::<PlayerStatus>(16);
     let (device_tx, device_rx) = bounded::<DeviceConfigEvent>(16);
+    let (seek_tx, seek_rx) = bounded::<Duration>(16);
+    let seeking = Arc::new(AtomicBool::new(false));
+    let position_ms = Arc::new(AtomicU64::new(0));
+    let (flag, position) = (seeking.clone(), position_ms.clone());
     thread::Builder::new()
         .name("resonance-residfp".into())
-        .spawn(move || Control::new(status_tx, device_tx, viz, chip, output).run(cmd_rx))
+        .spawn(move || {
+            Control::new(status_tx, device_tx, viz, chip, output, flag, position).run(cmd_rx, seek_rx)
+        })
         .expect("failed to spawn the pull-driven player thread");
-    (cmd_tx, status_rx, device_rx)
+    (
+        cmd_tx,
+        status_rx,
+        device_rx,
+        Seeker {
+            targets: seek_tx,
+            seeking,
+            position_ms,
+        },
+    )
 }
 
 // ── Audio side ───────────────────────────────────────────────────────────────
@@ -140,6 +188,9 @@ enum ToAudio {
     /// Silence; the engine goes back to be freed.
     Drop,
     Pause(bool),
+    /// Hand the playing engine back to the control thread (a forward seek
+    /// runs it on from where it is); silence until the next Swap.
+    Return,
 }
 
 /// A started tune, owned by the callback while it plays.
@@ -150,6 +201,30 @@ struct Live {
     chips: usize,
     /// Frames rendered so far.
     samples: u64,
+    rate: u32,
+    cpu_hz: f64,
+}
+
+impl Live {
+    /// Run silently from `from` to `target`: digitally, then the last
+    /// `RENDER_TAIL` in full, reporting where it is in `position_ms` every
+    /// `SEEK_STEP`. Afterwards the sample count says `target`.
+    fn skip_to(&mut self, from: Duration, target: Duration, position_ms: &AtomicU64) {
+        let cycles = ((target.saturating_sub(from)).as_secs_f64() * self.cpu_hz) as u64;
+        let tail = ((RENDER_TAIL.as_secs_f64() * self.cpu_hz) as u64).min(cycles);
+        let step = (SEEK_STEP.as_secs_f64() * self.cpu_hz) as u64;
+        let mut done = 0;
+        while done < cycles - tail {
+            let n = step.min(cycles - tail - done);
+            self.engine.skip(n, SkipMode::Digital);
+            done += n;
+            let at = from + Duration::from_secs_f64(done as f64 / self.cpu_hz);
+            position_ms.store(at.as_millis() as u64, Ordering::Relaxed);
+        }
+        self.engine.skip(tail, SkipMode::Render);
+        position_ms.store(target.as_millis() as u64, Ordering::Relaxed);
+        self.samples = (target.as_secs_f64() * self.rate as f64) as u64;
+    }
 }
 
 /// What one buffer's worth of rendering produced.
@@ -223,6 +298,8 @@ struct Source {
     reports: Sender<Box<Report>>,
     pool: Receiver<Box<Report>>,
     retired: Sender<Box<Live>>,
+    /// Answers `ToAudio::Return`: the engine, or None when nothing plays.
+    returned: Sender<Option<Box<Live>>>,
     live: Option<Box<Live>>,
     paused: bool,
     scratch: Vec<i16>,
@@ -246,6 +323,9 @@ impl Source {
                     }
                 }
                 ToAudio::Pause(paused) => self.paused = paused,
+                ToAudio::Return => {
+                    let _ = self.returned.try_send(self.live.take());
+                }
             }
         }
         let frames = data.len() / 2;
@@ -392,6 +472,9 @@ struct Track {
     chips: usize,
     is_pal: bool,
     mono_2sid: bool,
+    /// What the engine was started with, so a seek's fresh instance lines
+    /// up with this one.
+    power_on_delay: u16,
     elapsed: Duration,
     regs: Vec<u8>,
     levels: Vec<f32>,
@@ -432,6 +515,40 @@ struct Control {
     last_status: Instant,
     pending_writes: usize,
     warned_pseudo: bool,
+    // ── seeking ──
+    seeking: Arc<AtomicBool>,
+    seek_position_ms: Arc<AtomicU64>,
+    seek: Option<Seek>,
+    returned_tx: Sender<Option<Box<Live>>>,
+    returned_rx: Receiver<Option<Box<Live>>>,
+    seek_done_tx: Sender<SeekDone>,
+    seek_done_rx: Receiver<SeekDone>,
+}
+
+/// A seek in flight.
+struct Seek {
+    target: Duration,
+    started: Instant,
+    /// The track id when it started; a result for another track is dropped.
+    for_track: u64,
+    /// Asked for while this one ran; starts when it lands.
+    pending: Option<Duration>,
+}
+
+/// The worker's result: the engine at `target`.
+struct SeekDone {
+    live: Box<Live>,
+    target: Duration,
+    for_track: u64,
+}
+
+/// What `build` makes of a tune file.
+struct Built {
+    engine: Engine,
+    tune: TuneInfo,
+    started: Started,
+    data: Vec<u8>,
+    is_mus: bool,
 }
 
 impl Control {
@@ -441,9 +558,13 @@ impl Control {
         viz: SharedFeed,
         chip: Chip,
         output: Output,
+        seeking: Arc<AtomicBool>,
+        seek_position_ms: Arc<AtomicU64>,
     ) -> Self {
         let (reports_tx, reports_rx) = bounded(REPORT_QUEUE);
         let (retired_tx, retired_rx) = bounded(8);
+        let (returned_tx, returned_rx) = bounded(1);
+        let (seek_done_tx, seek_done_rx) = bounded(2);
         // Replaced when the sink opens; until then nothing listens.
         let (to_audio, _) = bounded(1);
         let (pool_tx, _) = bounded(1);
@@ -468,12 +589,22 @@ impl Control {
             last_status: Instant::now(),
             pending_writes: 0,
             warned_pseudo: false,
+            seeking,
+            seek_position_ms,
+            seek: None,
+            returned_tx,
+            returned_rx,
+            seek_done_tx,
+            seek_done_rx,
         }
     }
 
-    fn run(mut self, commands: Receiver<PlayerCmd>) {
+    fn run(mut self, commands: Receiver<PlayerCmd>, seeks: Receiver<Duration>) {
         let reports = self.reports_rx.clone();
         let retired = self.retired_rx.clone();
+        let returned = self.returned_rx.clone();
+        let seek_done = self.seek_done_rx.clone();
+        let mut seeks = seeks;
         let idle = tick(Duration::from_millis(100));
         loop {
             select! {
@@ -481,6 +612,21 @@ impl Control {
                     Ok(PlayerCmd::Quit) | Err(_) => break,
                     Ok(cmd) => self.handle(cmd),
                 },
+                recv(seeks) -> target => match target {
+                    Ok(target) => self.seek(target),
+                    // The seeker was dropped; the thread ends with the commands.
+                    Err(_) => seeks = crossbeam_channel::never(),
+                },
+                recv(returned) -> live => {
+                    if let Ok(live) = live {
+                        self.seek_from_live(live);
+                    }
+                }
+                recv(seek_done) -> done => {
+                    if let Ok(done) = done {
+                        self.seek_done(done);
+                    }
+                }
                 recv(reports) -> report => {
                     if let Ok(report) = report {
                         self.report(report);
@@ -578,11 +724,16 @@ impl Control {
         self.send_status();
     }
 
-    fn start(&mut self, path: &Path, song: u16, mono_2sid: bool) -> Result<(), String> {
-        let rate = match &self.sink {
-            Some(sink) => sink.rate,
-            None => self.open_output()?,
-        };
+    /// Load the tune at `path` and start `song` on a fresh engine, with
+    /// `power_on_delay` or a random one.
+    fn build(
+        &self,
+        path: &Path,
+        song: u16,
+        mono_2sid: bool,
+        rate: u32,
+        power_on_delay: Option<u16>,
+    ) -> Result<Built, String> {
         let data =
             std::fs::read(path).map_err(|e| format!("Cannot read {}: {e}", path.display()))?;
         let is_mus = path
@@ -608,9 +759,32 @@ impl Control {
             mono_2sid: mono_2sid && tune.chips == 2,
             scope_cycles: CYCLES_PER_SAMPLE as u8,
             chip: self.chip,
+            power_on_delay,
             ..Config::default()
         };
         let started = engine.start(song, &cfg)?;
+        Ok(Built {
+            engine,
+            tune,
+            started,
+            data,
+            is_mus,
+        })
+    }
+
+    fn start(&mut self, path: &Path, song: u16, mono_2sid: bool) -> Result<(), String> {
+        let rate = match &self.sink {
+            Some(sink) => sink.rate,
+            None => self.open_output()?,
+        };
+        let Built {
+            engine,
+            tune,
+            started,
+            data,
+            is_mus,
+        } = self.build(path, song, mono_2sid, rate, None)?;
+        let mono_2sid = mono_2sid && tune.chips == 2;
 
         // The same MD5 as the other engines (upstream's parser), with
         // libsidplayfp's as the fallback.
@@ -627,7 +801,7 @@ impl Control {
         } else {
             tune.title.clone()
         };
-        let sid_type = if cfg.mono_2sid {
+        let sid_type = if mono_2sid {
             "2SID → Stereo (forced mono)".to_string()
         } else {
             match started.chips {
@@ -682,11 +856,14 @@ impl Control {
             id,
             chips: started.chips,
             samples: 0,
+            rate,
+            cpu_hz: started.cpu_hz,
         });
         self.to_audio
             .try_send(ToAudio::Swap(live))
             .map_err(|_| "the audio output isn't taking commands".to_string())?;
 
+        self.cancel_seek();
         viz::lock(&self.viz).begin_track(started.is_pal);
         let chips = started.chips.min(MAX_CHIPS);
         self.track = Some(Track {
@@ -696,6 +873,7 @@ impl Control {
             chips,
             is_pal: started.is_pal,
             mono_2sid,
+            power_on_delay: started.power_on_delay,
             elapsed: Duration::ZERO,
             regs: vec![0; MAX_CHIPS * REGS_PER_CHIP],
             levels: vec![0.0; chips * 3],
@@ -710,6 +888,182 @@ impl Control {
         Ok(())
     }
 
+    // ── Seeking ──
+
+    /// Go to `target` in the playing track: silence, then the audio
+    /// resumes there once the emulation has caught up.
+    fn seek(&mut self, target: Duration) {
+        if self.state == PlayState::Stopped {
+            return;
+        }
+        let Some(track) = self.track.as_mut() else { return };
+        if let Some(seek) = &mut self.seek {
+            seek.pending = Some(target);
+            return;
+        }
+        let forward = target >= track.elapsed;
+        self.seek = Some(Seek {
+            target,
+            started: Instant::now(),
+            for_track: track.id,
+            pending: None,
+        });
+        // Where the run starts: here, or the top for a fresh instance.
+        let start = if forward { track.elapsed } else { Duration::ZERO };
+        self.seek_position_ms
+            .store(start.as_millis() as u64, Ordering::Relaxed);
+        self.seeking.store(true, Ordering::Relaxed);
+        // The bar jumps now; the audio follows.
+        track.elapsed = target;
+        track.frame_start = target;
+        track.frame_at = None;
+        track.frame_took = Duration::ZERO;
+        track.frame_scope.iter_mut().for_each(Vec::clear);
+        self.send_status();
+        if forward {
+            // The callback hands the engine back (`seek_from_live`).
+            if self.to_audio.try_send(ToAudio::Return).is_err() {
+                self.cancel_seek();
+            }
+        } else {
+            let _ = self.to_audio.try_send(ToAudio::Pause(true));
+            self.seek_fresh();
+        }
+    }
+
+    /// The callback's answer to `Return`: run on from where it was, or
+    /// from the top when the audio had already passed the target.
+    fn seek_from_live(&mut self, live: Option<Box<Live>>) {
+        let Some(seek) = &self.seek else {
+            drop(live);
+            return;
+        };
+        match live {
+            None => self.cancel_seek(),
+            Some(live) => {
+                let from = Duration::from_secs_f64(live.samples as f64 / live.rate as f64);
+                if from <= seek.target {
+                    self.run_seek(live, from);
+                } else {
+                    drop(live);
+                    self.seek_fresh();
+                }
+            }
+        }
+    }
+
+    /// A new instance of the track, from the top.
+    fn seek_fresh(&mut self) {
+        let Some(track) = &self.track else {
+            self.cancel_seek();
+            return;
+        };
+        let built = self.build(
+            &track.info.path,
+            track.info.current_song,
+            track.mono_2sid,
+            track.rate,
+            Some(track.power_on_delay),
+        );
+        match built {
+            Ok(built) => {
+                let live = Box::new(Live {
+                    engine: built.engine,
+                    id: track.id,
+                    chips: built.started.chips,
+                    samples: 0,
+                    rate: track.rate,
+                    cpu_hz: built.started.cpu_hz,
+                });
+                self.run_seek(live, Duration::ZERO);
+            }
+            Err(e) => {
+                eprintln!("[residfp] seek: {e}");
+                self.cancel_seek();
+            }
+        }
+    }
+
+    /// Skip on a worker thread; the result comes back as a `SeekDone`.
+    fn run_seek(&mut self, mut live: Box<Live>, from: Duration) {
+        let Some(seek) = &self.seek else {
+            drop(live);
+            return;
+        };
+        let (target, for_track) = (seek.target, seek.for_track);
+        let tx = self.seek_done_tx.clone();
+        let position = self.seek_position_ms.clone();
+        self.seek_position_ms
+            .store(from.as_millis() as u64, Ordering::Relaxed);
+        let spawned = thread::Builder::new()
+            .name("residfp-seek".into())
+            .spawn(move || {
+                live.skip_to(from, target, &position);
+                let _ = tx.send(SeekDone {
+                    live,
+                    target,
+                    for_track,
+                });
+            });
+        if let Err(e) = spawned {
+            eprintln!("[residfp] seek thread: {e}");
+            self.cancel_seek();
+        }
+    }
+
+    fn seek_done(&mut self, done: SeekDone) {
+        // Not this seek's result (the track changed and a newer seek runs).
+        if self.seek.as_ref().map(|s| s.for_track) != Some(done.for_track) {
+            drop(done.live);
+            return;
+        }
+        let seek = self.seek.take().expect("checked above");
+        self.seeking.store(false, Ordering::Relaxed);
+        eprintln!(
+            "[residfp] seek to {:.1} s took {} ms",
+            done.target.as_secs_f64(),
+            seek.started.elapsed().as_millis()
+        );
+        let Some(track) = self
+            .track
+            .as_mut()
+            .filter(|t| t.id == done.for_track && self.state != PlayState::Stopped)
+        else {
+            drop(done.live);
+            return;
+        };
+        let mut live = done.live;
+        // A new id, so reports from before the seek are ignored.
+        let id = self.next_id;
+        self.next_id += 1;
+        live.id = id;
+        track.id = id;
+        track.elapsed = done.target;
+        track.frame_index = 0;
+        track.frame_start = done.target;
+        track.frame_at = None;
+        track.frame_took = Duration::ZERO;
+        track.frame_scope.iter_mut().for_each(Vec::clear);
+        let is_pal = track.is_pal;
+        viz::lock(&self.viz).begin_track(is_pal);
+        if self.to_audio.try_send(ToAudio::Swap(live)).is_err() {
+            eprintln!("[residfp] seek: the audio output isn't taking commands");
+        }
+        if self.state == PlayState::Paused {
+            let _ = self.to_audio.try_send(ToAudio::Pause(true));
+        }
+        self.send_status();
+        if let Some(next) = seek.pending {
+            self.seek(next);
+        }
+    }
+
+    /// Forget a seek in flight; its result, if any, is dropped on arrival.
+    fn cancel_seek(&mut self) {
+        self.seek = None;
+        self.seeking.store(false, Ordering::Relaxed);
+    }
+
     /// Open the output device and start its callback.
     fn open_output(&mut self) -> Result<u32, String> {
         let (to_audio, inbox) = bounded(8);
@@ -719,6 +1073,7 @@ impl Control {
             reports: self.reports_tx.clone(),
             pool,
             retired: self.retired_tx.clone(),
+            returned: self.returned_tx.clone(),
             live: None,
             paused: false,
             scratch: vec![0; CHUNK * 2],
@@ -733,6 +1088,7 @@ impl Control {
 
     fn stop_playback(&mut self) {
         let _ = self.to_audio.try_send(ToAudio::Drop);
+        self.cancel_seek();
         self.state = PlayState::Stopped;
         if self.track.take().is_some() {
             viz::lock(&self.viz).stop();

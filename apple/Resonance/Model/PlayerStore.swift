@@ -43,6 +43,14 @@ final class PlayerStore {
     private(set) var nowPlaying: TrackDetails?
     private(set) var elapsed: TimeInterval = 0
     private(set) var duration: TimeInterval?
+    /// The engine can seek within a tune (reSIDfp and SIDLite direct).
+    private(set) var canSeek = false
+    /// A seek is running: `elapsed` already says where; the audio is silent
+    /// until the emulation has caught up.
+    private(set) var seeking = false
+    /// While seeking: how far the emulation has got on its way there (from
+    /// the top for a backward seek, from where it was for a forward one).
+    private(set) var seekPosition: TimeInterval?
     private(set) var rows: [TrackRow] = []
     private(set) var loading: String?
     private(set) var error: String?
@@ -264,6 +272,9 @@ final class PlayerStore {
         update(\.nowPlaying, s.track)
         update(\.elapsed, TimeInterval(s.elapsedMs) / 1000)
         update(\.duration, s.durationMs.map { TimeInterval($0) / 1000 })
+        update(\.canSeek, s.canSeek)
+        update(\.seeking, s.seeking)
+        update(\.seekPosition, s.seekPositionMs.map { TimeInterval($0) / 1000 })
         update(\.loading, s.loading)
         update(\.error, s.error)
         update(\.trackRevision, s.trackRevision)
@@ -367,6 +378,18 @@ final class PlayerStore {
 
     func setSubtune(_ song: Int) {
         core.setSubtune(song: UInt16(clamping: song))
+    }
+
+    /// Go to `seconds` into the tune (on the engines with `canSeek`; the
+    /// others ignore it).
+    func seek(to seconds: TimeInterval) {
+        core.seek(positionMs: UInt64(max(seconds, 0) * 1000))
+    }
+
+    /// `delta` seconds ahead or back, within the tune.
+    func skip(by delta: TimeInterval) {
+        let target = max(elapsed + delta, 0)
+        seek(to: duration.map { min(target, $0) } ?? target)
     }
 
     func remove(indices: some Sequence<Int>) {

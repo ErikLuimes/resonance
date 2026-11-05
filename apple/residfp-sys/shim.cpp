@@ -20,6 +20,7 @@
 #include "sidplayfp/SidTune.h"
 #include "sidplayfp/SidTuneInfo.h"
 #include "sidplayfp/SidConfig.h"
+#include "sidplayfp/SidInfo.h"
 #include "sidplayfp/sidbuilder.h"
 #include "residfp/residfp.h" // for LIBRESIDFP_VERSION_*
 #include "sidemu.h"
@@ -68,12 +69,16 @@ class VizEmu : public sidemu
     std::vector<rsfp_write> writes;
     uint32_t writeCount = 0;
     event_clock_t origin = 0;
+    /// RSFP_SKIP_*: how the chip is clocked while the player skips ahead.
+    uint8_t skip = RSFP_SKIP_RENDER;
 
 protected:
     uint8_t chipModel = RSFP_MODEL_6581;
 
     // ── the chip ──
     virtual int chipClock(unsigned cycles, short *buf) = 0;
+    /// Clock the chip without producing audio (RSFP_SKIP_DIGITAL).
+    virtual void chipSkip(unsigned cycles) = 0;
     virtual void chipReset() = 0;
     virtual void chipWrite(uint8_t addr, uint8_t data) = 0;
     virtual uint8_t chipRead(uint8_t addr) = 0;
@@ -94,6 +99,12 @@ protected:
 private:
     void run(unsigned step)
     {
+        if (skip != RSFP_SKIP_RENDER)
+        {
+            if (skip == RSFP_SKIP_DIGITAL)
+                chipSkip(step);
+            return;
+        }
         const int room = bufferSize - m_bufferpos;
         const int worst = static_cast<int>(step * samplesPerCycle) + 2;
         if (room >= worst)
@@ -178,14 +189,15 @@ public:
         const event_clock_t t = now();
         unsigned cycles = static_cast<unsigned>(t - m_accessClk);
         m_accessClk = t;
+        const unsigned scoped = skip == RSFP_SKIP_RENDER ? scopeCycles : 0;
         while (cycles)
         {
             unsigned step = std::min(cycles, 1024u);
-            if (scopeCycles)
-                step = std::min(step, scopeCycles - scopePhase);
+            if (scoped)
+                step = std::min(step, scoped - scopePhase);
             run(step);
             cycles -= step;
-            if (scopeCycles)
+            if (scoped)
             {
                 scopePhase += step;
                 if (scopePhase == scopeCycles)
@@ -253,6 +265,17 @@ public:
     int bufferCapacity() const { return bufferSize; }
     uint8_t chipModelId() const { return chipModel; }
     void setOrigin() { origin = now(); }
+    void setSkip(uint8_t mode) { skip = mode; }
+    /// Forget the scope samples and writes logged so far (after a skip,
+    /// which the visualizers never saw).
+    void clearViz()
+    {
+        scopePhase = 0;
+        for (auto &v : scope)
+            v.clear();
+        writes.clear();
+        writeCount = 0;
+    }
     uint64_t cyclesSinceOrigin() const { return static_cast<uint64_t>(m_accessClk - origin); }
 
     void state(rsfp_chip_state_t *out) const
@@ -301,6 +324,7 @@ class ResidFpEmu final : public VizEmu
 
 protected:
     int chipClock(unsigned cycles, short *buf) override { return sid.clock(cycles, buf); }
+    void chipSkip(unsigned cycles) override { sid.clockDigital(cycles); }
     void chipReset() override { sid.reset(); }
     void chipWrite(uint8_t addr, uint8_t data) override { sid.write(addr, data); }
     uint8_t chipRead(uint8_t addr) override { return sid.read(addr); }
@@ -379,6 +403,13 @@ class SidLiteEmu final : public VizEmu
 
 protected:
     int chipClock(unsigned cycles, short *buf) override { return sid.clock(cycles, buf); }
+    /// SIDLite has no silent clock; at most 1024 cycles come at a time, under
+    /// 51 samples at its 48 kHz ceiling.
+    void chipSkip(unsigned cycles) override
+    {
+        short spill[256];
+        sid.clock(std::min(cycles, 1024u), spill);
+    }
     void chipReset() override { sid.reset(); }
     void chipWrite(uint8_t addr, uint8_t data) override { sid.write(addr, data); }
     uint8_t chipRead(uint8_t addr) override { return static_cast<uint8_t>(sid.read(addr)); }
@@ -742,6 +773,7 @@ int rsfp_start(rsfp_player *p, unsigned song, const rsfp_config *cfg, rsfp_play_
     c.defaultSidModel = cfg->default_model == RSFP_MODEL_8580 ? SidConfig::MOS8580 : SidConfig::MOS6581;
     c.forceSidModel = cfg->force_model != 0;
     c.digiBoost = cfg->digi_boost != 0;
+    c.powerOnDelay = cfg->power_on_delay;
     c.sidEmulation = &p->builder;
     if (!p->engine.config(c))
     {
@@ -801,6 +833,9 @@ int rsfp_start(rsfp_player *p, unsigned song, const rsfp_config *cfg, rsfp_play_
             out->model[i] = p->chips[i]->chipModelId();
         out->cia1_timer_a = p->engine.getCia1TimerA();
         out->cpu_hz = p->cpuHz;
+        // libsidplayfp adds a fixed 8000 cycles to the delay it was given (or
+        // chose) and reports the sum; report what rsfp_config takes.
+        out->power_on_delay = static_cast<uint16_t>(p->engine.info().powerOnDelay() - 8000);
     }
     p->error.clear();
     p->ready = true;
@@ -896,4 +931,38 @@ void rsfp_filter(rsfp_player *p, unsigned chip, int enable)
 {
     if (p)
         p->engine.filter(chip, enable != 0);
+}
+
+uint64_t rsfp_skip(rsfp_player *p, uint64_t cycles, int mode)
+{
+    if (!p || !p->ready)
+        return 0;
+    // Samples rendered before the skip belong before it.
+    p->pendingHead = 0;
+    p->pendingCount = 0;
+    for (VizEmu *e : p->chips)
+        e->setSkip(static_cast<uint8_t>(mode));
+    // play(n) runs n scheduler events, which is fewer than n cycles when
+    // the CIAs and VIC-II fire alongside the CPU, so go by the chips' clock.
+    const uint64_t start = p->chips[0]->cyclesSinceOrigin();
+    const uint64_t target = start + cycles;
+    uint64_t now = start;
+    while (now < target)
+    {
+        const unsigned step = static_cast<unsigned>(std::min<uint64_t>(target - now, MAX_PLAY_CYCLES));
+        const int n = p->engine.play(step);
+        if (n < 0)
+        {
+            p->error = p->engine.error();
+            p->ready = false;
+            break;
+        }
+        now = p->chips[0]->cyclesSinceOrigin();
+    }
+    for (VizEmu *e : p->chips)
+    {
+        e->setSkip(RSFP_SKIP_RENDER);
+        e->clearViz();
+    }
+    return now - start;
 }

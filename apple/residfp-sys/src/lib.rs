@@ -37,6 +37,7 @@ mod raw {
         pub mono_2sid: u8,
         pub scope_cycles: u8,
         pub chip: u8,
+        pub power_on_delay: u16,
     }
 
     #[repr(C)]
@@ -68,6 +69,7 @@ mod raw {
         pub model: [u8; 3],
         pub cia1_timer_a: u16,
         pub cpu_hz: f64,
+        pub power_on_delay: u16,
     }
 
     extern "C" {
@@ -112,6 +114,7 @@ mod raw {
         ) -> u32;
         pub fn rsfp_mute(p: *mut rsfp_player, chip: c_uint, voice: c_uint, mute: c_int);
         pub fn rsfp_filter(p: *mut rsfp_player, chip: c_uint, enable: c_int);
+        pub fn rsfp_skip(p: *mut rsfp_player, cycles: u64, mode: c_int) -> u64;
     }
 }
 
@@ -171,6 +174,10 @@ pub struct Config {
     /// C64 cycles per visualizer scope sample; 0 keeps no scope.
     pub scope_cycles: u8,
     pub chip: Chip,
+    /// C64 cycles between power-on and the tune's init, 0–8191; `None`
+    /// lets libsidplayfp pick one at random, as it does on its own. Two
+    /// instances of a tune line up only with the same delay.
+    pub power_on_delay: Option<u16>,
 }
 
 impl Default for Config {
@@ -186,6 +193,7 @@ impl Default for Config {
             mono_2sid: false,
             scope_cycles: 0,
             chip: Chip::ReSidFp,
+            power_on_delay: None,
         }
     }
 }
@@ -251,6 +259,8 @@ pub struct Started {
     pub chips: usize,
     pub models: [ChipModel; 3],
     pub cia1_timer_a: u16,
+    /// The power-on delay used (see [`Config::power_on_delay`]).
+    pub power_on_delay: u16,
 }
 
 /// Where a voice's envelope generator is.
@@ -311,6 +321,18 @@ pub fn version() -> &'static str {
     unsafe { CStr::from_ptr(raw::rsfp_version()) }
         .to_str()
         .unwrap_or("libsidplayfp")
+}
+
+/// How [`Player::skip`] clocks the chips.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SkipMode {
+    /// As when playing, with the audio dropped.
+    Render,
+    /// reSIDfp's oscillators and envelopes only, not its filter and
+    /// resampler; SIDLite renders as `Render`.
+    Digital,
+    /// The chips aren't clocked at all: only the C64 runs.
+    None,
 }
 
 // ── Player ───────────────────────────────────────────────────────────────────
@@ -449,6 +471,7 @@ impl Player {
                 Chip::ReSidFp => 0,
                 Chip::SidLite => 1,
             },
+            power_on_delay: cfg.power_on_delay.unwrap_or(u16::MAX),
         };
         let mut out = raw::rsfp_play_info::default();
         if unsafe { raw::rsfp_start(self.ptr, c_uint::from(song), &c, &mut out) } == 0 {
@@ -470,6 +493,7 @@ impl Player {
             chips: self.chips,
             models: out.model.map(model),
             cia1_timer_a: out.cia1_timer_a,
+            power_on_delay: out.power_on_delay,
         })
     }
 
@@ -527,6 +551,18 @@ impl Player {
 
     pub fn filter(&mut self, chip: usize, enable: bool) {
         unsafe { raw::rsfp_filter(self.ptr, chip as c_uint, enable as c_int) }
+    }
+
+    /// Run `cycles` C64 cycles ahead without producing audio. Returns the
+    /// cycles run: `cycles` or a few more, or fewer when the emulation
+    /// stopped (see [`Player::error`]).
+    pub fn skip(&mut self, cycles: u64, mode: SkipMode) -> u64 {
+        let m = match mode {
+            SkipMode::Render => 0,
+            SkipMode::Digital => 1,
+            SkipMode::None => 2,
+        };
+        unsafe { raw::rsfp_skip(self.ptr, cycles, m) }
     }
 
     pub fn error(&self) -> String {
@@ -654,6 +690,35 @@ mod tests {
             done += n;
         }
         out
+    }
+
+    #[test]
+    fn skipping_digital_matches_rendering() {
+        // The same power-on delay, so the two instances line up.
+        let cfg = Config {
+            power_on_delay: Some(0x123),
+            ..Config::default()
+        };
+        let (mut a, sa) = started(1, 1, &cfg);
+        let (mut b, sb) = started(1, 1, &cfg);
+        assert_eq!(sa.power_on_delay, 0x123);
+        assert_eq!(sb.power_on_delay, 0x123);
+        let cycles = 2 * 985_248;
+        let ran = a.skip(cycles, SkipMode::Render);
+        assert!(ran >= cycles && ran < cycles + 100, "{ran}");
+        assert_eq!(b.skip(cycles, SkipMode::Digital), ran);
+        assert_eq!(a.cycles(), b.cycles());
+        assert_eq!(
+            format!("{:?}", a.chip_state(0).unwrap()),
+            format!("{:?}", b.chip_state(0).unwrap())
+        );
+        // Both play on from there.
+        let out = render_secs(&mut b, 48_000, 0.1);
+        assert!(out.iter().any(|&s| s != 0));
+        assert!((b.cycles() as f64 - 2.1 * 985_248.0).abs() < 985_248.0 * 0.03);
+        // Left to libsidplayfp, the delay is one of its random ones.
+        let (_, s) = started(1, 1, &Config::default());
+        assert!(s.power_on_delay <= 0x1FFF, "{}", s.power_on_delay);
     }
 
     #[test]

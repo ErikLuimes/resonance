@@ -274,7 +274,8 @@ private struct Transport: View {
             .buttonStyle(.plain)
             .disabled(store.rows.isEmpty && !store.queueActive)
 
-            Text(clock(store.elapsed))
+            Text(clock(preview ?? store.seekPosition ?? store.elapsed))
+                .opacity(store.seeking && preview == nil ? 0.55 : 1)
             progress
             Text(store.duration.map(clock) ?? "--:--")
         }
@@ -283,21 +284,22 @@ private struct Transport: View {
         .foregroundStyle(.white.opacity(0.7))
     }
 
-    /// Read-only, like the player bar's: SID tunes can't be scrubbed.
+    /// The time under the pointer while scrubbing.
+    @State private var preview: TimeInterval?
+
+    /// Scrubs like the player bar's, in white.
     private var progress: some View {
-        Capsule()
-            .fill(.white.opacity(0.15))
-            .frame(height: 4)
-            .overlay(alignment: .leading) {
-                GeometryReader { proxy in
-                    Capsule()
-                        .fill(.white.opacity(0.85))
-                        .frame(width: proxy.size.width * (store.progress ?? 0))
-                }
-            }
-            .accessibilityElement()
-            .accessibilityLabel("Progress")
-            .accessibilityValue("\(Int((store.progress ?? 0) * 100)) percent")
+        ScrubBar(
+            elapsed: store.elapsed,
+            duration: store.duration,
+            canSeek: store.canSeek,
+            seeking: store.seeking,
+            seekPosition: store.seekPosition,
+            onDark: true,
+            preview: $preview,
+            seek: { store.seek(to: $0) }
+        )
+        .frame(height: 14)
     }
 
     private func clock(_ t: TimeInterval) -> String {

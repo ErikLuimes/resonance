@@ -114,8 +114,11 @@ struct NowPlayingBar: View {
             ProgressRow(
                 elapsed: store.elapsed,
                 duration: store.duration,
-                progress: store.progress,
-                hasSubtunes: store.hasSubtunes
+                hasSubtunes: store.hasSubtunes,
+                canSeek: store.canSeek,
+                seeking: store.seeking,
+                seekPosition: store.seekPosition,
+                seek: { store.seek(to: $0) }
             )
         }
     }
@@ -295,33 +298,43 @@ private struct SurpriseBadge: View {
     }
 }
 
-/// Elapsed / length with a read-only bar. SID tunes can't be seeked (the
-/// engine runs each one as a C64 program, in real time), but people expect
-/// to scrub: hovering explains, and so does a click or drag on the bar.
+/// Elapsed / length with the bar. It scrubs on the engines that can seek
+/// (reSIDfp and SIDLite direct); on the other two the tune plays in real
+/// time only, and a click or drag on the bar explains.
 private struct ProgressRow: View {
     let elapsed: TimeInterval
     let duration: TimeInterval?
-    let progress: Double?
     let hasSubtunes: Bool
+    let canSeek: Bool
+    let seeking: Bool
+    let seekPosition: TimeInterval?
+    let seek: (TimeInterval) -> Void
 
     @State private var explaining = false
+    @State private var preview: TimeInterval?
 
-    private static let why = "SID tunes play in real time, so you can't skip within a tune."
+    private static let why = "This engine plays SID tunes in real time only. Scrubbing works with the reSIDfp and SIDLite direct engines."
+    private static let how = "Drag or click to a point in the tune. The sound pauses while the engine runs there, about a second per minute of tune."
 
     var body: some View {
         HStack(spacing: 8) {
-            Text(format(elapsed))
-            ProgressView(value: progress ?? 0)
-                .progressViewStyle(.linear)
-                .opacity(progress == nil ? 0.3 : 1)
-                // The row's height, so the thin bar is easy to hit.
-                .frame(height: 14)
-                .contentShape(.rect)
-                // A click is a drag that didn't move.
-                .gesture(DragGesture(minimumDistance: 0).onEnded { _ in explaining = true })
-                .help(Self.why)
-                .accessibilityHint(Self.why)
-                .popover(isPresented: $explaining, arrowEdge: .bottom) { explanation }
+            // While seeking, the clock winds along with the engine.
+            Text(format(preview ?? seekPosition ?? elapsed))
+                .opacity(seeking && preview == nil ? 0.55 : 1)
+            ScrubBar(
+                elapsed: elapsed,
+                duration: duration,
+                canSeek: canSeek,
+                seeking: seeking,
+                seekPosition: seekPosition,
+                preview: $preview,
+                seek: seek,
+                refused: { explaining = true }
+            )
+            // The row's height, so the thin bar is easy to hit.
+            .frame(height: 14)
+            .help(canSeek ? Self.how : Self.why)
+            .popover(isPresented: $explaining, arrowEdge: .bottom) { explanation }
             Text(duration.map(format) ?? "--:--")
         }
         .font(.caption)
@@ -331,9 +344,9 @@ private struct ProgressRow: View {
 
     private var explanation: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("No Scrubbing in SID Tunes")
+            Text("No Scrubbing on This Engine")
                 .font(.headline)
-            Text("A SID tune is a little C64 program that plays in real time, so there's no skipping ahead or back within it.")
+            Text("The SIDLite and reSID engines play a tune in real time only. To scrub, choose reSIDfp or SIDLite direct in Settings → Playback.")
             if hasSubtunes {
                 Text("Use \(Image(systemName: "chevron.left")) \(Image(systemName: "chevron.right")) to jump between the songs in this tune.")
             }

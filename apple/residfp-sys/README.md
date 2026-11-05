@@ -49,8 +49,11 @@ versions.
   rates up to 48 kHz); PAL/NTSC and 6581/8580 follow the tune's header, with a default for tunes that don't say and a *force* option for
   each; the sample rate; the resampler (`INTERPOLATE`, reSIDfp's cheap
   zero-order resampler and libsidplayfp's default, or `RESAMPLE`, the sinc
-  one); 8580 digi boost; a mono mix for 2SID tunes; and how many C64 cycles
-  apart to sample the voices for the scope.
+  one); 8580 digi boost; a mono mix for 2SID tunes; how many C64 cycles
+  apart to sample the voices for the scope; and the power-on delay (the
+  cycles before the tune's init, which libsidplayfp otherwise picks at
+  random), reported back in the play info so a second instance of the tune
+  can be started in step with the first.
 - `rsfp_render(stereo, frames)`: renders exactly that many stereo frames.
   One chip plays on both channels; two chips left and right; a third in the
   middle at half level — Phosphor's layout.
@@ -60,6 +63,14 @@ versions.
   call), `rsfp_take_writes` (register writes with cycle stamps since the
   last call), `rsfp_cycles`.
 - `rsfp_mute`, `rsfp_filter`.
+- `rsfp_skip(cycles, mode)`: runs the emulation ahead without producing
+  audio, for seeking. `RSFP_SKIP_RENDER` clocks the chips as when playing
+  and drops the audio; `RSFP_SKIP_DIGITAL` clocks reSIDfp's oscillators and
+  envelopes only (libresidfp's `clockDigital`), which leaves the chip's
+  digital state identical at about half the cost, the filter and resampler
+  settling within a second; `RSFP_SKIP_NONE` runs the C64 alone and leaves
+  the chips' state behind. `design/scrubbing/README.md` has the
+  measurements, from `examples/seek_bench.rs`.
 
 Every SID is a `sidemu` of this crate's own (`VizEmu` in `shim.cpp`, with
 a subclass per chip) around libresidfp's `SID` or SIDLite's, the same way
@@ -89,7 +100,8 @@ about 6.5 % on the same tune.
 (`residfp_sys::testing::tiny_psid`) and renders them: a second of audio,
 scope samples at the expected rate, write stamps one frame apart, song
 selection, 2SID left/right, forced model and clock, both resamplers, the
-HVSC MD5, error reporting, and the same on the SIDLite chip.
+HVSC MD5, error reporting, a digital skip against a full one, and the same
+on the SIDLite chip.
 
 ## Updating
 
