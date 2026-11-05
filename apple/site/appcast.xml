@@ -3,6 +3,36 @@
     <channel>
         <title>Resonance</title>
         <item>
+            <title>0.1.0-alpha.4</title>
+            <pubDate>Thu, 05 Nov 2026 15:51:46 +0100</pubDate>
+            <sparkle:version>4</sparkle:version>
+            <sparkle:shortVersionString>0.1.0-alpha.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>27.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[## Two new sound engines
+
+Resonance now plays through libsidplayfp, the emulator behind most SID players, rendered straight into the audio output.
+
+- **reSIDfp** is the most accurate SID emulation available and is now the default. Tunes with filter sweeps and digi samples in particular sound closer to the real chip.
+- **SIDLite direct** is the same compact chip model as SIDLite, on the new player. It is the lightest on the processor of the four.
+- **SIDLite** and **reSID** are still there. Settings → Playback lists all four with a line on what sets each apart; changing the engine restarts the tune.
+- Widen mono tunes doesn't apply to the two new engines yet.
+
+## Better Sounds Like
+
+Sounds Like finds closer matches. In testing on composers it hadn't been tuned on, nearly twice as many of its suggestions came from the same composer as the tune you're playing.
+
+- It now looks at how each instrument is shaped, not only which waveforms and effects a tune uses.
+- It also compares how tunes actually sound, using a small download made in advance. Nothing is analysed on your Mac beyond the usual scan.
+- Percentages in Sounds Like are worked out differently, so they won't match what you saw before.
+- Your fingerprints are rebuilt once: Resonance downloads the new set the first time you open it.
+
+## Fixes
+
+- Opening a tune from a nested composer folder, such as from Sounds Like, no longer shows an empty page with 0 tunes. It opens the folder the tune is listed under.
+]]></description>
+            <enclosure url="https://github.com/ErikLuimes/resonance/releases/download/v0.1.0-alpha.4/Resonance-0.1.0-alpha.4-unsigned.dmg" length="12145382" type="application/octet-stream" sparkle:edSignature="MshOp1eETKO1GH0FYySD0Bq9vcSexvXeT1XVjMs5GOMR4X8B3XUNmVfxn5jgezBr948Xh5ucIzBIp8U/KzFjCg=="/>
+        </item>
+        <item>
             <title>0.1.0-alpha.3</title>
             <pubDate>Wed, 04 Nov 2026 18:54:56 +0100</pubDate>
             <sparkle:version>3</sparkle:version>
