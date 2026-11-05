@@ -280,7 +280,7 @@
           <p class="kicker">The collection</p>
           <h2>All of HVSC.<br><span class="grad">Kept current for you.</span></h2>
           <p class="section-lede">
-            No collection yet? Click Download and Resonance fetches the High Voltage SID Collection.
+            No collection yet? Click the download arrow next to Collection and Resonance fetches the High Voltage SID Collection.
             When a new release comes out, it says so, updates in one click, and shows what the release
             added: new tunes, new composers, new STIL notes.
           </p>
@@ -382,13 +382,13 @@
           <article class="tile" data-reveal>
             <div class="tile-icon"><svg class="i"><use href="#i-keyboard"/></svg></div>
             <h3>Now Playing &amp; media keys</h3>
-            <p>Shows up in Control Center, answers your keyboard's media keys, and puts every command in a Playback menu.</p>
+            <p>Shows up in Control Center's Now Playing, answers your keyboard's media keys, and puts every command in a Playback menu.</p>
           </article>
 
           <article class="tile" data-reveal>
             <div class="tile-icon" style="--c: var(--v1)"><svg class="i"><use href="#i-cpu"/></svg></div>
-            <h3>Two engines</h3>
-            <p>SIDLite from libsidplayfp picks the chip model from each tune's header; reSID emulates the chip cycle by cycle.</p>
+            <h3>Four engines</h3>
+            <p>reSIDfp, libsidplayfp's reference emulation, is the default. SIDLite direct is the lightest, and Phosphor's SIDLite and reSID are still there.</p>
           </article>
 
           <article class="tile" data-reveal>
@@ -413,10 +413,10 @@
             <div class="tile-text">
               <div class="tile-icon" style="--c: var(--v1)"><svg class="i"><use href="#i-play"/></svg></div>
               <h3>A player in the menu bar</h3>
-              <p>Click the icon, or press <kbd>⌃</kbd><kbd>⌥</kbd><kbd>⌘</kbd><kbd>P</kbd> in any app: the tune and its voices, the heart, the controls, what's next in the list it plays from, Surprise Me and Add to…. Close the window and the music plays on.</p>
+              <p>Click the icon, or press <kbd>⌃</kbd><kbd>⌥</kbd><kbd>⌘</kbd><kbd>P</kbd> in any app: the tune and its voices, the heart, the controls, what's next in the list it plays from, Surprise Me, and a link that opens the tune in Resonance. Close the window and the music plays on.</p>
             </div>
             <img class="tile-shot" src="media/mini-player.png" width="386" height="399" loading="lazy"
-                 alt="The menu bar player: RoboCop by Jonathan Dunn playing, with the next four tunes from HVSC Favorite Top 100">
+                 alt="The menu bar player: Ocean Loader 3 by Peter Clarke playing, with the next four tunes from Encore64">
           </article>
 
           <article class="tile tile-full tile-split" data-reveal>
@@ -506,7 +506,8 @@
             Resonance is its own app, but it doesn't reinvent SID playback. It compiles the engine of
             <a href="https://sandlbn.github.io/Phosphor/">Phosphor</a>, Marcin Spoczynski's open-source
             Rust player, without changing a line, and talks to it through UniFFI. Improvements upstream
-            flow straight into the Mac app.
+            flow straight into the Mac app. For the sound itself it adds libsidplayfp's reSIDfp,
+            rendered straight into the audio output.
           </p>
         </div>
 
@@ -524,8 +525,8 @@
             </li>
             <li style="--c: var(--v3)">
               <span class="layer-name">libphosphor_apple</span>
-              <span class="layer-desc">Rust · session state machine · driver thread · FFI</span>
-              <span class="layer-note">One thread owns playback and publishes an immutable snapshot after every step</span>
+              <span class="layer-desc">Rust · session state machine · driver thread · libsidplayfp player · FFI</span>
+              <span class="layer-note">One thread owns playback and publishes an immutable snapshot after every step; reSIDfp and SIDLite direct render in the audio callback</span>
             </li>
             <li style="--c: #8e93a8">
               <span class="layer-name">Phosphor engine</span>
@@ -536,21 +537,28 @@
 
           <div class="compare glass-panel" data-reveal>
             <h3>Resonance or Phosphor?</h3>
-            <p class="dim">Same engine, different jobs. Got a USBSID-Pico or an Ultimate&nbsp;64? Phosphor drives real hardware; Resonance doesn't, yet.</p>
+            <p class="dim">Same Phosphor engine, different jobs. Got a USBSID-Pico or an Ultimate&nbsp;64? Phosphor drives real hardware; Resonance doesn't, yet.</p>
             <table>
               <thead><tr><th></th><th>Resonance</th><th>Phosphor</th></tr></thead>
               <tbody>
                 <tr><td>Runs on</td><td>macOS 27, Apple silicon</td><td>macOS, Windows, Linux</td></tr>
                 <tr><td>Interface</td><td>SwiftUI, Liquid Glass</td><td>Iced (Rust)</td></tr>
                 <tr><td>reSID &amp; SIDLite emulation</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+                <tr><td>reSIDfp emulation (libsidplayfp)</td><td class="yes">✓</td><td class="no">—</td></tr>
                 <tr><td>HVSC browser, search, Surprise Me</td><td class="yes">✓</td><td class="yes">✓</td></tr>
                 <tr><td>Songlengths &amp; STIL</td><td class="yes">✓</td><td class="yes">✓</td></tr>
                 <tr><td>HVSC download, favourites, history</td><td class="yes">✓</td><td class="yes">✓</td></tr>
-                <tr><td>Sounds Like &amp; Sound Map</td><td class="yes">✓</td><td class="no">—</td></tr>
-                <tr><td>Control Center &amp; media keys</td><td class="yes">✓</td><td class="no">—</td></tr>
+                <tr><td>Playlists, drag &amp; drop, M3U files</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+                <tr><td>2SID, 3SID &amp; pseudo-stereo</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+                <tr><td>Visualizers</td><td>Halo, Particles, Radial, Sound Map</td><td>Bars, Scope, Tracker</td></tr>
+                <tr><td>Sounds Like, Find Similar &amp; sound filters</td><td class="yes">✓</td><td class="no">—</td></tr>
+                <tr><td>Small player</td><td>In the menu bar, from any app</td><td>A compact window</td></tr>
+                <tr><td>Now Playing in Control Center, media keys</td><td class="yes">✓</td><td class="no">—</td></tr>
+                <tr><td>Share links with preview cards</td><td class="yes">✓</td><td class="no">—</td></tr>
+                <tr><td>Updates</td><td>Built in</td><td>GitHub Releases</td></tr>
                 <tr><td>Imports Phosphor's settings, favourites &amp; history</td><td class="yes">✓</td><td class="no">—</td></tr>
                 <tr><td>USBSID-Pico &amp; Ultimate 64</td><td class="no">—</td><td class="yes">✓</td></tr>
-                <tr><td>Pedalboard FX, web remote, karaoke</td><td class="no">—</td><td class="yes">✓</td></tr>
+                <tr><td>Pedalboard FX, web remote, karaoke, Assembly64</td><td class="no">—</td><td class="yes">✓</td></tr>
               </tbody>
             </table>
           </div>
@@ -593,7 +601,7 @@
             <li>
               <span class="step-n">2</span>
               <h3>Get the collection</h3>
-              <p>No HVSC yet? Click Download next to Collection in the sidebar. Already have it? Choose its folder in Settings → Collection, or import Phosphor's in Settings → Advanced.</p>
+              <p>No HVSC yet? Click the download arrow next to Collection in the sidebar. Already have it? Choose its folder in Settings → Collection, or import Phosphor's in Settings → Advanced.</p>
             </li>
             <li>
               <span class="step-n">3</span>

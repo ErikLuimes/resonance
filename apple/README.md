@@ -1,8 +1,9 @@
 # Resonance — native macOS front-end
 
 A SwiftUI app for macOS 27 (Apple silicon) that plays SID music through the
-Phosphor engine. The Rust engine is shared with the Iced app; nothing under
-`../src` was changed to make this work.
+Phosphor engine, and through its own libsidplayfp player: reSIDfp, the
+default, and SIDLite direct. The Rust engine is shared with the Iced app;
+nothing under `../src` was changed to make this work.
 
 ## Build and run
 
@@ -88,7 +89,8 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
     rendered; the chips report their registers, envelopes and waveforms, so
     the visualizers get the real thing instead of `viz.rs`'s shadow reSID.
     The driver swaps player threads when switching to or from it. Pseudo
-    stereo (Widen mono tunes) isn't implemented on it.
+    stereo (Widen mono tunes) isn't implemented on it. reSIDfp is the
+    default engine; Settings → Playback lists all four.
   - `build.rs` — reads upstream's version from the root `Cargo.toml`, so
     `phosphor_version()` (shown in About Resonance) follows upstream merges.
 - **`residfp-sys/`** — libsidplayfp 3.1.2 (with its SIDLite chip) and
