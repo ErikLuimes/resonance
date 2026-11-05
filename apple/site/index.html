@@ -21,7 +21,7 @@
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <!-- ?v= changes with each site update, so a browser that cached the last
        one fetches the new files instead of mixing old and new. -->
-  <link rel="stylesheet" href="styles.css?v=20261105a">
+  <link rel="stylesheet" href="styles.css?v=20261105b">
   <link rel="modulepreload" href="js/main.js?v=20261104h">
   <script>
     // Sections fade in as main.js reveals them. If it never runs (a failed
@@ -185,6 +185,8 @@
           </article>
         </div>
 
+        <p class="chip-note" data-reveal>In the app, the inspector shows each voice like this: as a scope, as level bars with peak hold, or as its envelope.</p>
+
         <div class="chip-foot" data-reveal>
           <div class="waves">
             <span><svg viewBox="0 0 40 16" aria-hidden="true"><path d="M1 13 9 3l8 10 8-10 8 10 6-7.5"/></svg>TRI</span>
@@ -270,6 +272,19 @@
             <p>Every note becomes a point in 3D, placed by its timbre: the tune draws its own map as it plays.</p>
           </article>
         </div>
+        <!-- The presets' voices, from VoiceTheme.presets in the app. -->
+        <div class="theme-strip" data-reveal>
+          <p>Colour the voices in every visualizer, with a preset or your own three colours and background.</p>
+          <ul class="swatches">
+            <li><span class="dots" aria-hidden="true"><i style="background: #5ac8e8"></i><i style="background: #a27cf6"></i><i style="background: #f2a154"></i></span>Resonance</li>
+            <li><span class="dots" aria-hidden="true"><i style="background: #e2231a"></i><i style="background: #ffcc00"></i><i style="background: #1f6fc5"></i></span>C64</li>
+            <li><span class="dots" aria-hidden="true"><i style="background: #ff2020"></i><i style="background: #8b0a14"></i><i style="background: #9a9da6"></i></span>Noir</li>
+            <li><span class="dots" aria-hidden="true"><i style="background: #ff3b2f"></i><i style="background: #ff8c1a"></i><i style="background: #ffd25a"></i></span>Ember</li>
+            <li><span class="dots" aria-hidden="true"><i style="background: #2f6fdb"></i><i style="background: #15a39a"></i><i style="background: #8a4de0"></i></span>Abyss</li>
+            <li><span class="dots" aria-hidden="true"><i style="background: #39ff6e"></i><i style="background: #1fa84a"></i><i style="background: #c8ffd6"></i></span>Phosphor</li>
+            <li><span class="dots" aria-hidden="true"><i style="background: #ffffff"></i><i style="background: #a8a8a8"></i><i style="background: #5e5e5e"></i></span>Greyscale</li>
+          </ul>
+        </div>
       </div>
     </section>
 
@@ -287,8 +302,10 @@
           <ul class="checks">
             <li><svg class="i"><use href="#i-check"/></svg>The Home: the release, what's new, and the tunes you played last</li>
             <li><svg class="i"><use href="#i-check"/></svg>Curated playlists, from HVSC's Top 100 to the Grand Tour</li>
-            <li><svg class="i"><use href="#i-check"/></svg>STIL's stories, covers and composer notes, set to read</li>
+            <li><svg class="i"><use href="#i-check"/></svg>A card for each composer, with STIL's notes and all their tunes a click away</li>
+            <li><svg class="i"><use href="#i-check"/></svg>STIL's stories and covers set to read, and HVSC's known bugs on the tunes it names</li>
             <li><svg class="i"><use href="#i-check"/></svg>Song lengths and STIL from the release you have</li>
+            <li><svg class="i"><use href="#i-check"/></svg>Songlengths moves on at the right moment; unknown tunes get your default length</li>
           </ul>
         </div>
         <figure class="media" data-reveal>
@@ -343,22 +360,28 @@
         </div>
 
         <div class="bento">
-          <article class="tile tile-hero" data-reveal>
-            <div class="tile-icon"><svg class="i"><use href="#i-sparkle"/></svg></div>
-            <h3>Liquid Glass, all the way down</h3>
-            <p>A SwiftUI app with a sidebar, a sortable playlist, an inspector and a floating glass transport bar — the layout you know from Music, made for SID.</p>
-            <div class="tile-art glass-art" aria-hidden="true">
-              <div class="ga-bar">
-                <span class="ga-btn"></span><span class="ga-btn big"></span><span class="ga-btn"></span>
-                <span class="ga-line"><i></i></span>
-              </div>
+          <article class="tile tile-wide" data-reveal>
+            <div class="tile-stage">
+              <img class="stage-player" src="media/mini-player.png" width="386" height="399" loading="lazy"
+                   alt="The menu bar player: Ocean Loader 3 by Peter Clarke playing, with the next four tunes from Encore64">
             </div>
+            <h3>A player in the menu bar</h3>
+            <p>Click the icon, or press <kbd>⌃</kbd><kbd>⌥</kbd><kbd>⌘</kbd><kbd>P</kbd> in any app: the tune and its voices, the heart, the controls, what's next and Surprise Me. Close the window and the music plays on.</p>
           </article>
 
           <article class="tile tile-wide" data-reveal>
+            <div class="tile-stage">
+              <img class="stage-card" src="media/share-card.jpg" width="800" height="420" loading="lazy"
+                   alt="The preview card of a shared link: Commando by Rob Hubbard, 1985 Elite, with its sound fingerprint as nine coloured bars">
+            </div>
+            <h3>Share a tune</h3>
+            <p>A short link to any tune in HVSC. In Messages, Slack or Discord it shows who made it, when, and its sound fingerprint. A click opens it in Resonance, or offers the download. <a class="text-link" href="https://useresonance.app/t/bQGey6gxqfhT">See a shared tune</a></p>
+          </article>
+
+          <article class="tile" data-reveal>
             <div class="tile-icon" style="--c: var(--v3)"><svg class="i"><use href="#i-forward"/></svg></div>
             <h3>Scrub through a tune</h3>
-            <p>Something SID players almost never do. A SID tune is a small C64 program, not a recording, so there's nothing to jump to: Resonance runs it there silently, sixty times faster than it plays, and the bar shows the engine winding up to the point you chose. Drag, click, or use Control Center's slider.</p>
+            <p>A SID tune is a program, not a recording, so Resonance runs it there silently, sixty times faster than it plays.</p>
             <div class="seek-art" aria-hidden="true">
               <span class="sa-time left"></span>
               <span class="sa-lane">
@@ -369,85 +392,16 @@
             </div>
           </article>
 
-          <article class="tile tile-tall" data-reveal>
+          <article class="tile" data-reveal>
             <div class="tile-icon" style="--c: var(--v2)"><svg class="i"><use href="#i-dice"/></svg></div>
-            <h3>Surprise Me</h3>
-            <p>A radio of random tunes from all of HVSC, picked one ahead, never repeating anything you've heard since launch.</p>
-            <div class="dice-art" aria-hidden="true">
-              <span class="die d1"><svg class="i"><use href="#i-dice-fill"/></svg></span>
-              <span class="die d2"><svg class="i"><use href="#i-dice-fill"/></svg></span>
-              <span class="die d3"><svg class="i"><use href="#i-dice-fill"/></svg></span>
-            </div>
-            <p class="tile-keys"><kbd>⇧</kbd><kbd>⌘</kbd><kbd>R</kbd></p>
-          </article>
-
-          <article class="tile" data-reveal>
-            <div class="tile-icon" style="--c: var(--v1)"><svg class="i"><use href="#i-waveform"/></svg></div>
-            <h3>Every voice, live</h3>
-            <p>The inspector shows each voice as a scope, as level bars with peak hold, or as its envelope, with the note and waveform it's playing.</p>
-          </article>
-
-          <article class="tile" data-reveal>
-            <div class="tile-icon" style="--c: var(--v3)"><svg class="i"><use href="#i-quote"/></svg></div>
-            <h3>Who made it, and why</h3>
-            <p>A card for the composer, with STIL's notes on them and all their tunes a click away. Covers read “Cover of … by …”, STIL's stories are set as quotes, and HVSC's list of known bugs shows on the tunes it names.</p>
+            <h3>Surprise Me <kbd>⇧</kbd><kbd>⌘</kbd><kbd>R</kbd></h3>
+            <p>A radio of random tunes from all of HVSC, never repeating anything you've heard since launch.</p>
           </article>
 
           <article class="tile" data-reveal>
             <div class="tile-icon"><svg class="i"><use href="#i-keyboard"/></svg></div>
             <h3>Now Playing &amp; media keys</h3>
-            <p>Shows up in Control Center's Now Playing, with its position slider and 15-second skips, answers your keyboard's media keys, and puts every command in a Playback menu.</p>
-          </article>
-
-          <article class="tile" data-reveal>
-            <div class="tile-icon" style="--c: var(--v1)"><svg class="i"><use href="#i-cpu"/></svg></div>
-            <h3>Four engines</h3>
-            <p>reSIDfp, libsidplayfp's reference emulation, is the default. SIDLite direct is the lightest; both scrub. Phosphor's SIDLite and reSID are still there.</p>
-          </article>
-
-          <article class="tile" data-reveal>
-            <div class="tile-icon" style="--c: var(--v2)"><svg class="i"><use href="#i-headphones"/></svg></div>
-            <h3>Stereo, your way</h3>
-            <p>Plays 2SID and 3SID tunes, mirrors 2SID tunes into stereo, and widens mono ones: Subtle, Medium or Wide.</p>
-          </article>
-
-          <article class="tile tile-wide" data-reveal>
-            <div class="tile-icon" style="--c: var(--v3)"><svg class="i"><use href="#i-rows"/></svg></div>
-            <h3>Themes for the three voices</h3>
-            <p>Colour the voices in every visualizer: Resonance, C64, Noir, Ember, Abyss, Phosphor, Greyscale, or your own three colours and background.</p>
-          </article>
-
-          <article class="tile" data-reveal>
-            <div class="tile-icon" style="--c: var(--v1)"><svg class="i"><use href="#i-timer"/></svg></div>
-            <h3>Song lengths &amp; subtunes</h3>
-            <p>The Songlengths database moves on at the right moment; unknown tunes get your default length. Step through subtunes with <kbd>⌥</kbd><kbd>⌘</kbd><kbd>←</kbd> <kbd>→</kbd>.</p>
-          </article>
-
-          <article class="tile tile-full tile-split" data-reveal>
-            <div class="tile-text">
-              <div class="tile-icon" style="--c: var(--v1)"><svg class="i"><use href="#i-play"/></svg></div>
-              <h3>A player in the menu bar</h3>
-              <p>Click the icon, or press <kbd>⌃</kbd><kbd>⌥</kbd><kbd>⌘</kbd><kbd>P</kbd> in any app: the tune and its voices, the heart, the controls, what's next in the list it plays from, Surprise Me, and a link that opens the tune in Resonance. Close the window and the music plays on.</p>
-            </div>
-            <img class="tile-shot" src="media/mini-player.png" width="386" height="399" loading="lazy"
-                 alt="The menu bar player: Ocean Loader 3 by Peter Clarke playing, with the next four tunes from Encore64">
-          </article>
-
-          <article class="tile tile-full tile-split" data-reveal>
-            <div class="tile-text">
-              <div class="tile-icon" style="--c: var(--v2)"><svg class="i"><use href="#i-share"/></svg></div>
-              <h3>Share a tune</h3>
-              <p>Share… makes a short link to any tune in HVSC. Pasted into Messages, Slack or Discord, it shows the tune's card: who made it, when, and its sound fingerprint. A click opens it in Resonance, which finds it in your collection, even an older release, and offers the update if it's missing. No Resonance yet? The link's page has the download.</p>
-              <p><a class="text-link" href="https://useresonance.app/t/bQGey6gxqfhT">See a shared tune</a></p>
-            </div>
-            <img class="tile-shot tile-card" src="media/share-card.jpg" width="800" height="420" loading="lazy"
-                 alt="The preview card of a shared link: Commando by Rob Hubbard, 1985 Elite, with its sound fingerprint as nine coloured bars">
-          </article>
-
-          <article class="tile tile-wide" data-reveal>
-            <div class="tile-icon" style="--c: var(--v2)"><svg class="i"><use href="#i-link"/></svg></div>
-            <h3>Coming from Phosphor?</h3>
-            <p>Resonance is its own app, with its own favourites, history, playlists, settings and collection. One click imports Phosphor's settings, favourites, play history and HVSC collection. Nothing in Phosphor changes.</p>
+            <p>Control Center's position slider and 15-second skips, your keyboard's media keys, and every command in a Playback menu.</p>
           </article>
         </div>
       </div>
@@ -523,6 +477,17 @@
             flow straight into the Mac app. For the sound it adds its own player around libsidplayfp's
             reSIDfp, rendered straight into the audio output.
           </p>
+        </div>
+
+        <div class="sound-grid">
+          <article class="vis-card" style="--c: var(--v1)" data-reveal>
+            <h3>Four engines</h3>
+            <p>reSIDfp, libsidplayfp's reference emulation, is the default. SIDLite direct is the lightest; both scrub. Phosphor's SIDLite and reSID are still there.</p>
+          </article>
+          <article class="vis-card" style="--c: var(--v2)" data-reveal>
+            <h3>Stereo, your way</h3>
+            <p>Plays 2SID and 3SID tunes, mirrors 2SID tunes into stereo, and widens mono ones: Subtle, Medium or Wide.</p>
+          </article>
         </div>
 
         <div class="hood">
