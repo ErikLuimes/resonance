@@ -5,7 +5,7 @@ import PhosphorCore
 /// so someone who already has a collection skips the first, and a step added
 /// in a later version is all that existing users see of it.
 enum OnboardingStep: String, CaseIterable, Identifiable {
-    case collection, soundsLike, visualizers
+    case collection, smartPlaylists, soundsLike
 #if CSDB
     case scene
 #endif
@@ -15,8 +15,8 @@ enum OnboardingStep: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .collection: "Welcome to Resonance"
+        case .smartPlaylists: "Say What You'd Like to Hear"
         case .soundsLike: "Find What Sounds Alike"
-        case .visualizers: "See the Chip at Work"
 #if CSDB
         case .scene: "Follow the Scene"
 #endif
@@ -26,8 +26,8 @@ enum OnboardingStep: String, CaseIterable, Identifiable {
     var subtitle: String {
         switch self {
         case .collection: "A player for Commodore 64 music."
+        case .smartPlaylists: "Your words, your Mac. Nothing leaves it."
         case .soundsLike: "Nothing to set up. It works with the collection."
-        case .visualizers: "The SID chip, up close."
 #if CSDB
         case .scene: "Optional. Everything so far works without it."
 #endif
@@ -37,8 +37,8 @@ enum OnboardingStep: String, CaseIterable, Identifiable {
     var feature: String {
         switch self {
         case .collection: "Get the Collection"
+        case .smartPlaylists: "Smart Playlists"
         case .soundsLike: "Sounds Like"
-        case .visualizers: "Watch Every Voice"
 #if CSDB
         case .scene: "News from CSDb"
 #endif
@@ -49,10 +49,10 @@ enum OnboardingStep: String, CaseIterable, Identifiable {
         switch self {
         case .collection:
             "The High Voltage SID Collection holds more than 60,000 tunes, organised by composer and documented by volunteers since 1996."
+        case .smartPlaylists:
+            "Describe a mood, a composer, a year or a length in your own words, and Resonance makes the playlist from the collection."
         case .soundsLike:
             "Start from a tune you love and Resonance finds others that sound like it, by any composer. It compares how they sound and how they drive the SID chip."
-        case .visualizers:
-            "The SID chip plays three voices at once. While a tune plays, Resonance shows what each voice is doing, in time with the sound."
 #if CSDB
         case .scene:
             "The C64 scene still releases music. CSDb is its database. Turn this on for Scene Pulse, with new releases and parties, and for composers' groups and credits."
@@ -81,7 +81,7 @@ enum OnboardingStep: String, CaseIterable, Identifiable {
             if seen.contains(step.rawValue) { return false }
             switch step {
             case .collection: return !hasCollection && !isDownloading
-            case .soundsLike, .visualizers: return true
+            case .smartPlaylists, .soundsLike: return true
 #if CSDB
             case .scene: return !sceneAnswered
 #endif
@@ -129,7 +129,7 @@ struct OnboardingSheet: View {
                 OnboardingView(steps: store.welcomeSteps)
             }
         }
-        .frame(width: 720, height: 624)
+        .frame(width: 720, height: 648)
     }
 }
 
@@ -168,7 +168,7 @@ struct OnboardingView: View {
 
     private var page: some View {
         VStack(spacing: 0) {
-            Spacer(minLength: 28)
+            Spacer(minLength: 52)
             content
                 .id(step)
                 .transition(.opacity)
@@ -231,8 +231,8 @@ struct OnboardingView: View {
     private var picture: some View {
         switch step {
         case .collection: OnboardingSections()
+        case .smartPlaylists: OnboardingDescribe()
         case .soundsLike: OnboardingMatches()
-        case .visualizers: OnboardingBars()
 #if CSDB
         case .scene: Tile(size: 130, symbol: "antenna.radiowaves.left.and.right")
 #endif
@@ -251,7 +251,7 @@ struct OnboardingView: View {
                 AccentLink("Choose a Folder You Already Have") { choosingFolder = true }
                 AccentLink("Not Now") { advance() }
             }
-        case .soundsLike, .visualizers:
+        case .smartPlaylists, .soundsLike:
             primaryButton(isLast ? "Start Listening" : "Continue") { advance() }
 #if CSDB
         case .scene:
@@ -400,46 +400,65 @@ private struct OnboardingMatches: View {
     }
 }
 
-/// The real Bars visualizer's drawing, on its dark background, in the voice
-/// colours, with a made-up pattern: nothing is playing yet.
-private struct OnboardingBars: View {
+/// A real answer from Smart Playlists: the first two tunes and the last of a
+/// list "slow to intense" made in November 2026, from 0.07 to 0.95 in intensity.
+/// The field looks as it does while typing in it.
+private struct OnboardingDescribe: View {
     @Environment(\.voiceTheme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var meter = VoiceMeter()
 
-    /// Each voice's seconds per note, how hard each note hits, its notes and
-    /// its waveform.
-    private static let voices: [(period: Double, hits: [Float], notes: [String], waveform: String)] = [
-        (0.75, [1, 0.6, 0.85, 0.6], ["C-2", "C-2", "G-2", "A#2"], "PULSE"),
-        (0.25, [0.5, 0.35, 0.7, 0.35, 0.5, 0.8], ["C-4", "D#4", "G-4", "C-5", "G-4", "D#4"], "SAW"),
-        (1.5, [0.9, 0.7], ["G-5", "F-5"], "TRI"),
+    private let tunes: [(place: Int, title: String, byline: String)] = [
+        (1, "The Cry of Mankind", "Maciej Stankiewicz, 2003"),
+        (2, "Allt under himmelens fäste (v2)", "Linus Åkesson, 2011"),
+        (19, "Inhuman Race", "Péter Nagy-Miklós, 1999"),
     ]
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: VisualizerFeed.frameInterval, paused: reduceMotion)) { timeline in
-            let time = reduceMotion ? 0.2 : timeline.date.timeIntervalSinceReferenceDate
-            let _ = meter.update(levels: Self.voices.map { Self.level(of: $0, at: time) }, at: timeline.date)
-            Canvas { gc, size in
-                BarsVisualizer.drawBars(levels: meter.levels, peaks: meter.peaks, theme: theme, in: gc, size: size) { i, x, top in
-                    let voice = Self.voices[i]
-                    let note = voice.notes[Int(time / voice.period) % voice.notes.count]
-                    VoiceLabels.draw(note: note, waveform: voice.waveform, gate: true, color: theme.voice(i),
-                                     centeredAt: x, top: top, in: gc)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(theme.voice(0))
+                    .accessibilityHidden(true)
+                Text("slow to intense")
+                    .font(.system(size: 15))
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 20)
+            .frame(height: 40)
+            .background(Color(nsColor: .textBackgroundColor).opacity(0.55), in: .capsule)
+            .background {
+                SmartWalkingBorder(colors: (0..<3).map { NSColor(theme.voice($0)) }, isMoving: !reduceMotion)
+                    .padding(-SmartWalkingBorder.reach)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+            Text("Starts calm, ends intense.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .padding(.top, 8)
+                .padding(.leading, 20)
+                .padding(.bottom, 4)
+            ForEach(tunes, id: \.place) { tune in
+                Divider()
+                HStack(spacing: 12) {
+                    Text("\(tune.place)")
+                        .font(.callout)
+                        .monospacedDigit()
+                        .foregroundStyle(.tertiary)
+                        .frame(minWidth: 16, alignment: .trailing)
+                    Text(tune.title)
+                        .fontWeight(.semibold)
+                    Spacer(minLength: 12)
+                    Text(tune.byline)
+                        .foregroundStyle(.secondary)
                 }
+                .frame(maxHeight: .infinity)
             }
         }
-        .padding(14)
-        .frame(width: 400, height: OnboardingView.pictureHeight)
-        .background(theme.background.color, in: .rect(cornerRadius: 16))
-        .accessibilityHidden(true)
-    }
-
-    /// A hit that fades until the next note.
-    private static func level(of voice: (period: Double, hits: [Float], notes: [String], waveform: String), at time: Double) -> Float {
-        let beats = time / voice.period
-        let hit = voice.hits[Int(beats) % voice.hits.count]
-        let fade = 1 - Float(beats - beats.rounded(.down))
-        return hit * (0.25 + 0.75 * fade * fade)
+        // Room for the glow, under the subtitle.
+        .padding(.top, 8)
+        .frame(width: 500, height: OnboardingView.pictureHeight, alignment: .topLeading)
     }
 }
 
@@ -448,5 +467,5 @@ private struct OnboardingBars: View {
         .environment(PlayerStore.preview)
         .environment(LibraryStore(player: .preview))
         .voiceThemed()
-        .frame(width: 720, height: 624)
+        .frame(width: 720, height: 648)
 }

@@ -11,6 +11,9 @@ import SwiftUI
 /// It also makes a click on a row activate the table. A row's cells take the
 /// click themselves: the row gets selected, but the table only became active
 /// from a click beside the rows, so a selection often stayed inactive.
+///
+/// And a song table doesn't bounce sideways. SwiftUI's `Table` has no setting
+/// for that either, so it's set on the table's scroll view as it appears.
 enum SongTableStyle {
     /// Once, at launch.
     static func install() {
@@ -21,6 +24,7 @@ enum SongTableStyle {
         else { return }
         method_exchangeImplementations(original, ours)
         swap(NSTableRowView.self, #selector(NSTableRowView.draw(_:)), #selector(NSTableRowView.resonance_draw(_:)))
+        swapInherited(NSTableView.self, #selector(NSTableView.viewDidMoveToWindow), #selector(NSTableView.resonance_viewDidMoveToWindow))
         NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in
             activateTable(under: event)
             return event
@@ -30,6 +34,14 @@ enum SongTableStyle {
     private static func swap(_ type: AnyClass, _ original: Selector, _ ours: Selector) {
         guard let first = class_getInstanceMethod(type, original), let second = class_getInstanceMethod(type, ours) else { return }
         method_exchangeImplementations(first, second)
+    }
+
+    /// For a method `type` gets from its superclass. It gets its own copy first,
+    /// or the swap would change the superclass, and every view with it.
+    private static func swapInherited(_ type: AnyClass, _ original: Selector, _ ours: Selector) {
+        guard let inherited = class_getInstanceMethod(type, original) else { return }
+        class_addMethod(type, original, method_getImplementation(inherited), method_getTypeEncoding(inherited))
+        swap(type, original, ours)
     }
 
     private static func activateTable(under event: NSEvent) {
@@ -56,6 +68,13 @@ extension NSTableView {
     /// SwiftUI's class for a `Table`, not a `List`. Should it get another name
     /// in a later macOS, these tables simply go back to the system's ways.
     fileprivate var isSongTable: Bool { String(describing: type(of: self)) == "SwiftUIOutlineTableView" }
+
+    /// Swapped with `viewDidMoveToWindow()` at launch: calling this name runs
+    /// AppKit's original.
+    @objc fileprivate func resonance_viewDidMoveToWindow() {
+        resonance_viewDidMoveToWindow()
+        if isSongTable { enclosingScrollView?.horizontalScrollElasticity = .none }
+    }
 }
 
 extension NSTableRowView {
@@ -69,14 +88,17 @@ extension NSTableRowView {
     /// original. What's drawn here is under the row's cells.
     @objc fileprivate func resonance_draw(_ dirtyRect: NSRect) {
         resonance_draw(dirtyRect)
-        guard !isSelected, isInSongTable, containsPlayingMark(self) else { return }
+        guard !isSelected, isInSongTable, holdsCurrentMark else { return }
         NSColor.controlAccentColor.withAlphaComponent(SongTableStyle.playingOpacity).setFill()
         NSBezierPath(roundedRect: bounds.insetBy(dx: SongTableStyle.inset, dy: 0),
                      xRadius: SongTableStyle.radius, yRadius: SongTableStyle.radius).fill()
     }
 
-    private func containsPlayingMark(_ view: NSView) -> Bool {
-        view is PlayingRowMark.Mark || view.subviews.contains(where: containsPlayingMark)
+    /// Whether this is the row that's playing.
+    var holdsCurrentMark: Bool { containsCurrentMark(self) }
+
+    private func containsCurrentMark(_ view: NSView) -> Bool {
+        (view as? PlayingRowMark.Mark)?.isCurrent == true || view.subviews.contains(where: containsCurrentMark)
     }
 
     /// Swapped with `drawSelection(in:)` at launch: calling this name runs
@@ -107,14 +129,24 @@ extension NSTableRowView {
     }
 }
 
-/// Goes in the cell of the row that's playing, and tells the row to draw its
-/// wash. The row looks for it as it draws, so a row reused while scrolling
-/// can't keep a wash from before.
+/// Goes in a row's cell, and tells the row whether to draw its wash. The row
+/// looks for it as it draws, so a row reused while scrolling can't keep a wash
+/// from before. It's in every row, and only its value changes: when it came and
+/// went, the row could redraw while SwiftUI was still removing it, find it, and
+/// keep the wash until something else redrew the row.
 struct PlayingRowMark: NSViewRepresentable {
+    let isCurrent: Bool
+
     func makeNSView(context: Context) -> Mark { Mark() }
-    func updateNSView(_ mark: Mark, context: Context) {}
+    func updateNSView(_ mark: Mark, context: Context) { mark.isCurrent = isCurrent }
 
     final class Mark: NSView {
+        var isCurrent = false {
+            didSet {
+                if isCurrent != oldValue { redrawRow() }
+            }
+        }
+
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
         override func viewWillMove(toWindow newWindow: NSWindow?) {
@@ -127,12 +159,17 @@ struct PlayingRowMark: NSViewRepresentable {
             redrawRow()
         }
 
-        /// Soon: when it's leaving, it's still in the row just now.
+        /// Soon: when it's leaving, it's still in the row just now, and a value
+        /// arrives in the middle of SwiftUI's update.
         private func redrawRow() {
+            guard let row else { return }
+            Task { @MainActor in row.needsDisplay = true }
+        }
+
+        private var row: NSView? {
             var view = superview
             while let candidate = view, !(candidate is NSTableRowView) { view = candidate.superview }
-            guard let row = view else { return }
-            Task { @MainActor in row.needsDisplay = true }
+            return view
         }
     }
 }

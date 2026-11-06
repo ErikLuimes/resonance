@@ -22,6 +22,7 @@ let soundOn = false;
 // placeholder stands in for a few seconds.
 
 const CHAPTERS = [
+  { slug: 'smart-playlists', title: 'Smart Playlists', text: 'Say what you\'d like to hear, and get the playlist.' },
   { slug: 'sounds-like', title: 'Sounds Like', text: 'Play a tune, and see the ones in HVSC that sound most like it.' },
   { slug: 'now-playing', title: 'Now Playing', text: 'Halo, Particles, Radial and the Sound Map, driven by the chip itself.' },
   { slug: 'library', title: 'All of HVSC', text: '60,000 tunes, composers by name, one search for everything.' },

@@ -3,7 +3,7 @@
 #
 #   apple/scripts/site-videos.sh <recording.mov> <name> [start-seconds] [length-seconds]
 #
-# <name> is the slot on the page: sounds-like, now-playing, library and
+# <name> is the slot on the page: smart-playlists, sounds-like, now-playing, library and
 # playlists (the hero's tour chapters, each shown again in its own section
 # further down) or hvsc-update. Writes apple/site/media/<name>.mp4 (H.264,
 # which every current browser plays) and <name>.jpg (the poster, from the

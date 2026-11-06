@@ -266,6 +266,21 @@ struct SmartSentenceParserTests {
         #expect(minutes >= 1 && minutes <= 1440)
     }
 
+    /// The sentences the website promises.
+    @Test func theWebsitesSentences() throws {
+        let chill = try #require(parser.parse("Chill Galway from the 80s, until 9PM"))
+        #expect(chill.energy == .calm)
+        #expect(chill.composerFolder == "Galway_Martin")
+        #expect(chill.fromYear == 1980)
+        #expect(chill.toYear == 1989)
+        #expect(chill.until != nil)
+        #expect(try #require(parser.parse("Slow to intense")).shape == .rising)
+        let commando = try #require(parser.parse("Like Commando, each over 3 minutes"))
+        #expect(commando.tuneName?.lowercased() == "commando")
+        #expect(commando.minMinutes == 3)
+        #expect(try #require(parser.parse("New to me")).unlikeHeard)
+    }
+
     @Test func untilWithAMood() throws {
         let parsed = try #require(parser.parse("calm music until midnight"))
         #expect(parsed.energy == .calm)

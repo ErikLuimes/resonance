@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Resonance — SID music, native to your Mac</title>
-  <meta name="description" content="Resonance is a native macOS player for Commodore 64 SID music. All of the High Voltage SID Collection, Sounds Like discovery from each tune's sound fingerprint, Now Playing visualizers, playlists and Liquid Glass. Its own app, built on Phosphor's open-source engine.">
+  <meta name="description" content="Resonance is a native macOS player for Commodore 64 SID music. All of the High Voltage SID Collection, Smart Playlists from a sentence, Sounds Like discovery from each tune's sound fingerprint, Now Playing visualizers, playlists and Liquid Glass. Its own app, built on Phosphor's open-source engine.">
   <meta name="theme-color" content="#07080d">
   <meta name="color-scheme" content="dark">
 
@@ -86,6 +86,7 @@
         <span>Resonance</span>
       </a>
       <div class="nav-links">
+        <a href="#smart">Smart Playlists</a>
         <a href="#sound">Sounds Like</a>
         <a href="#now-playing">Now Playing</a>
         <a href="#features">Features</a>
@@ -199,6 +200,36 @@
             Recognise the bars? They're the app icon: three voices, each with its peak-hold cap.
           </p>
         </div>
+      </div>
+    </section>
+
+    <!-- Smart Playlists. Each sentence below is checked in SmartPlaylistTests. -->
+    <section class="section" id="smart">
+      <div class="container showcase">
+        <div class="showcase-copy" data-reveal>
+          <p class="kicker">Smart Playlists</p>
+          <h2>Say what you'd like to hear.<br><span class="grad">Get the playlist.</span></h2>
+          <p class="section-lede">
+            Type a sentence in your own words. Resonance reads it on your Mac and builds the list
+            from all of HVSC, using how each tune actually sounds.
+          </p>
+          <ul class="checks">
+            <li><svg class="i"><use href="#i-check"/></svg>“Chill Galway from the 80s, until 9PM”</li>
+            <li><svg class="i"><use href="#i-check"/></svg>“Slow to intense”, and the list builds in that order</li>
+            <li><svg class="i"><use href="#i-check"/></svg>“Like Commando, each over 3 minutes”</li>
+            <li><svg class="i"><use href="#i-check"/></svg>“New to me”: tunes unlike what you usually play</li>
+          </ul>
+        </div>
+        <figure class="media" data-reveal>
+            <div class="media-soon" aria-hidden="true">
+              <svg class="i"><use href="#i-sparkle"/></svg>
+              <span>Smart Playlists</span>
+              <small>Video coming soon</small>
+            </div>
+            <video data-video muted loop playsinline preload="none" poster="media/smart-playlists.jpg" aria-label="Smart Playlists in Resonance">
+              <source src="media/smart-playlists.mp4" type="video/mp4">
+            </video>
+          </figure>
       </div>
     </section>
 

@@ -13,7 +13,12 @@ struct OnboardingTests {
                                seen: seen, sceneAnswered: sceneAnswered)
     }
 
-    private var core: [OnboardingStep] { [.collection, .soundsLike, .visualizers] }
+    private var core: [OnboardingStep] { [.collection, .smartPlaylists, .soundsLike] }
+
+    /// Someone who went through the welcome when it ended on the visualizers.
+    @Test func aNewStepIsAllThatExistingUsersSee() {
+        #expect(pending(hasCollection: true, seen: ["collection", "soundsLike", "visualizers"], sceneAnswered: true) == [.smartPlaylists])
+    }
 
     @Test func aCollectionOrADownloadSkipsTheFirstStep() {
         #expect(!pending(hasCollection: true).contains(.collection))
@@ -29,7 +34,7 @@ struct OnboardingTests {
     @Test func theHelpMenuIgnoresWhatWasSeen() {
         let all = OnboardingStep.all(hasCollection: true, isDownloading: false)
         #expect(all.contains(.soundsLike))
-        #expect(all.contains(.visualizers))
+        #expect(all.contains(.smartPlaylists))
         #expect(!all.contains(.collection))
     }
 
@@ -37,9 +42,9 @@ struct OnboardingTests {
         let name = "OnboardingTests.\(UUID())"
         let defaults = try #require(UserDefaults(suiteName: name))
         defer { defaults.removePersistentDomain(forName: name) }
-        OnboardingStep.visualizers.markSeen(in: defaults)
+        OnboardingStep.smartPlaylists.markSeen(in: defaults)
         OnboardingStep.soundsLike.markSeen(in: defaults)
-        #expect(Set(defaults.stringArray(forKey: Pref.onboardingSeen) ?? []) == ["visualizers", "soundsLike"])
+        #expect(Set(defaults.stringArray(forKey: Pref.onboardingSeen) ?? []) == ["smartPlaylists", "soundsLike"])
     }
 
 #if CSDB

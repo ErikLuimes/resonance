@@ -44,9 +44,7 @@ struct RowPlayCell: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background {
             RowHoverReader(isHovered: $isHovered)
-            if isCurrent {
-                PlayingRowMark()
-            }
+            PlayingRowMark(isCurrent: isCurrent)
         }
     }
 
