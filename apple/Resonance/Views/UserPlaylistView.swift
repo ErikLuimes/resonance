@@ -111,41 +111,71 @@ struct PlaylistHeader: View {
     let play: () -> Void
 
     var body: some View {
-        HStack(alignment: .center, spacing: 16) {
-            Image(systemName: isFavourites ? "heart.fill" : "music.note.list")
-                .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.92))
-                .frame(width: 76, height: 76)
-                .background(
-                    LinearGradient(
-                        colors: isFavourites
-                            ? [Color(red: 1, green: 0.42, blue: 0.55), Color(red: 0.78, green: 0.25, blue: 0.62)]
-                            : [Color(red: 0.42, green: 0.48, blue: 1), Color(red: 155 / 255, green: 107 / 255, blue: 1.0)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    in: .rect(cornerRadius: 17)
-                )
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.title2.weight(.bold))
-                    .lineLimit(1)
-                Text(tunes.map { $0 == 1 ? "1 tune" : "\($0.formatted()) tunes" } ?? "…")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+        // One row while the title fits whole, else the controls drop below
+        // it, so they never squeeze the title. ViewThatFits picks the first
+        // whose ideal width fits; the second gets narrower with the column.
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: 16) {
+                picture
+                titles.fixedSize(horizontal: true, vertical: false)
+                Spacer(minLength: 12)
+                controls
             }
-            Spacer(minLength: 12)
-            if (tunes ?? 0) > 0 {
-                ListFilterField(text: $filter)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .center, spacing: 16) {
+                    picture
+                    titles
+                    Spacer(minLength: 0)
+                }
+                HStack(spacing: 12) {
+                    Spacer(minLength: 0)
+                    controls
+                }
             }
-            Button(action: play) {
-                Label("Play", systemImage: "play.fill")
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled((tunes ?? 0) == 0)
-            .fixedSize()
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
+    }
+
+    private var picture: some View {
+        Image(systemName: isFavourites ? "heart.fill" : "music.note.list")
+            .font(.system(size: 30, weight: .semibold))
+            .foregroundStyle(.white.opacity(0.92))
+            .frame(width: 76, height: 76)
+            .background(
+                LinearGradient(
+                    colors: isFavourites
+                        ? [Color(red: 1, green: 0.42, blue: 0.55), Color(red: 0.78, green: 0.25, blue: 0.62)]
+                        : [Color(red: 0.42, green: 0.48, blue: 1), Color(red: 155 / 255, green: 107 / 255, blue: 1.0)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: .rect(cornerRadius: 17)
+            )
+    }
+
+    private var titles: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.title2.weight(.bold))
+                .lineLimit(1)
+            Text(tunes.map { $0 == 1 ? "1 tune" : "\($0.formatted()) tunes" } ?? "…")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+    }
+
+    @ViewBuilder
+    private var controls: some View {
+        if (tunes ?? 0) > 0 {
+            ListFilterField(text: $filter)
+        }
+        Button(action: play) {
+            Label("Play", systemImage: "play.fill")
+        }
+        .buttonStyle(.borderedProminent)
+        .disabled((tunes ?? 0) == 0)
+        .fixedSize()
     }
 }
