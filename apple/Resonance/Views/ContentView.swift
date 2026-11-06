@@ -21,6 +21,8 @@ enum SidebarItem: Hashable {
     /// One of Phosphor's published playlists, by its file name.
     case curated(String)
     case favourites
+    /// Making a playlist from a recipe.
+    case smartPlaylist
     /// One of your playlists, by its file name.
     case userPlaylist(String)
 }
@@ -327,6 +329,9 @@ struct ContentView: View {
                     .tag(SidebarItem.recent)
             }
             Section {
+                Label("Smart Playlist", systemImage: "wand.and.stars")
+                    .modifier(RefusesFiles())
+                    .tag(SidebarItem.smartPlaylist)
                 SidebarLabel("Favourites", systemImage: "heart", playing: playing(.favourites),
                              count: playlists.favourites?.count)
                     .modifier(PlaylistDrop(target: .favourites))
@@ -514,6 +519,8 @@ struct ContentView: View {
         case .csdbDownloads:
             CSDbDownloadsView()
 #endif
+        case .smartPlaylist:
+            SmartPlaylistView()
         case .favourites:
             UserPlaylistView(playlist: nil)
         case .userPlaylist(let id):

@@ -282,6 +282,13 @@ impl Store {
         rows.collect()
     }
 
+    /// Each collection path's MD5.
+    pub fn md5_by_path(&self) -> rusqlite::Result<Vec<(String, String)>> {
+        let mut stmt = self.conn.prepare("SELECT path, md5 FROM tunes")?;
+        let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
+        rows.collect()
+    }
+
     /// Whether the published audio embeddings are here.
     pub fn has_embeddings(&self) -> rusqlite::Result<bool> {
         self.conn.query_row("SELECT EXISTS (SELECT 1 FROM embeddings)", [], |r| r.get(0))

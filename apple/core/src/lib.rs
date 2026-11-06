@@ -91,6 +91,7 @@ mod library;
 mod residfp_player;
 pub(crate) mod session;
 mod share;
+mod smart;
 mod viz;
 
 pub use ffi::*;

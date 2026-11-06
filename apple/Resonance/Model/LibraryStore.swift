@@ -56,6 +56,8 @@ final class LibraryStore {
     /// the playlist that's playing, a Home playlist card); the window
     /// clears it.
     var shownSection: SidebarItem?
+    /// The Smart Playlist pane's recipe.
+    var smartSettings = SmartSettings()
     /// How often Surprise Me was started; the toolbar's dice wiggles on each.
     private(set) var surprises = 0
 

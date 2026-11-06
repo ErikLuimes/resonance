@@ -651,6 +651,16 @@ impl Library {
             .collect()
     }
 
+    /// Every indexed tune with its category (empty until `warm_indexes` has
+    /// run).
+    pub fn all_entries(&self) -> Vec<(HvscCategory, HvscIndexEntry)> {
+        let inner = self.lock();
+        CATEGORIES
+            .iter()
+            .flat_map(|&c| inner.index(c).iter().map(move |e| (c, e.clone())))
+            .collect()
+    }
+
     /// Load (or build) every category's index, so `pick_blocking` covers all
     /// of HVSC and needs no walk.
     pub async fn warm_indexes(&self) {

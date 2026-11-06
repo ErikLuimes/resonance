@@ -152,6 +152,16 @@ impl Fingerprint {
     }
 }
 
+/// Where `Fingerprint::features` keeps what smart playlists read.
+pub(crate) mod feature_index {
+    pub const NOTES: usize = 4;
+    pub const ARPS: usize = 5;
+    pub const DIGI: usize = 13;
+    pub const NOISE: usize = 15;
+    /// The three voice levels, loudest first.
+    pub const LEVELS: usize = 19;
+}
+
 const BASE_FEATURES: usize = 22;
 /// Instrument shape, filter character, chip and how notes move; see `Extras`.
 pub(crate) const EXTRA: usize = 19;

@@ -7,3 +7,5 @@ Sounds Like's method and benchmark: design/similarity/README.md; change it only 
 Scrubbing (seek) research and plan: design/scrubbing/README.md; the measurements come from apple/residfp-sys/examples/seek_bench.rs.
 
 Learned song lengths (tunes outside HVSC): design/songlengths/README.md; change the detection only against apple/core/examples/songlength_bench.rs.
+
+Smart playlists' reasoning and checks: design/smart-playlists/README.md; change the choosing only against apple/core/examples/smart_bench.rs.

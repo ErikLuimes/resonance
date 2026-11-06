@@ -7,11 +7,12 @@ mod scan;
 mod similar;
 mod store;
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-pub(crate) use extract::{tag, Fingerprint, BINS};
+pub(crate) use extract::{feature_index, tag, Fingerprint, BINS, FEATURES};
 pub(crate) use scan::{ScanTune, Scanner};
 pub(crate) use similar::Index;
 pub(crate) use store::{EMBEDDING_SET, EXTRACTOR_VERSION};
@@ -130,6 +131,10 @@ impl Fingerprints {
     /// to it (at most once a minute while it runs, unless `seed`, a
     /// collection path, was scanned since, so a tune just fingerprinted
     /// finds its matches). Blocking.
+    pub fn md5_by_path(&self) -> HashMap<String, String> {
+        self.read(|s| s.md5_by_path()).unwrap_or_default().into_iter().collect()
+    }
+
     pub fn index_for(&self, seed: Option<&str>) -> Arc<Index> {
         let revision = self.scanner.revision();
         let mut slot = self.index.lock().unwrap_or_else(|p| p.into_inner());

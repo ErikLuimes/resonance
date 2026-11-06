@@ -7,7 +7,7 @@ struct HelpTopic: Identifiable, Hashable {
     enum ID: String, CaseIterable {
         case gettingStarted, soundsLike
         case library, nowPlaying, visualizers
-        case playlists, favourites, dragAndDrop
+        case smartPlaylists, playlists, favourites, dragAndDrop
         case shortcuts, settings, troubleshooting
     }
 
@@ -252,6 +252,27 @@ extension HelpTopic {
                 .link(.settings(.appearance)),
             ],
             related: [.nowPlaying, .settings]
+        ),
+        HelpTopic(
+            id: .smartPlaylists, group: .yourMusic,
+            title: "Smart Playlists", symbol: "wand.and.stars",
+            summary: "Make a playlist from a recipe: like a tune, never heard, chill to intense, or new to you.",
+            blocks: [
+                .paragraph("**Smart Playlist** in the sidebar makes a list from how tunes sound, how long they are and what you've played. Pick a start, change the settings, and the list follows. Everything happens on your Mac."),
+                .heading("The four starts"),
+                .bullets([
+                    "**Like This Tune**: the tunes that sound closest to one you choose. **Very Close**, **Close** and **Loose** go through the closest 50, 200 or 1,000.",
+                    "**Other Versions** also adds tunes with the same name, since versions of a piece can sound quite different.",
+                    "**Never Heard**: the tunes you haven't played, shuffled.",
+                    "**Chill to Intense**: calm tunes that build towards the end. Intensity comes from how many notes play, the drums, how loud it is and the arpeggios.",
+                    "**New to Me**: tunes unlike what you've played. It needs a little history first.",
+                ]),
+                .heading("Describing what you want"),
+                .paragraph("Type a sentence such as “over 2 minutes and similar to Commando” or “slow chill music for an hour”. It fills in the settings, so you can see and change what it understood."),
+                .heading("Keeping a list"),
+                .paragraph("**Save as Playlist** keeps the tunes as one of your playlists. It stays as it is then, and **Generate Again** makes a new pick."),
+            ],
+            related: [.soundsLike, .playlists]
         ),
         HelpTopic(
             id: .playlists, group: .yourMusic,

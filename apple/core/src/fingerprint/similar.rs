@@ -225,6 +225,30 @@ impl Index {
         scored
     }
 
+    /// Each file's start song as (path, features before standardising).
+    pub fn start_songs(&self) -> Vec<(&str, &[f32; FEATURES])> {
+        self.by_path.iter().map(|(path, &i)| (path.as_str(), &self.rows[i].features)).collect()
+    }
+
+    /// How alike each file's start song is to the average of `group`'s, by
+    /// the features alone: embeddings all lie close together, which an
+    /// average blurs further. Empty when none of `group` is in the index.
+    pub fn likeness_to_group(&self, group: &[&str]) -> HashMap<&str, f32> {
+        let mut centre = vec![0f32; FEATURES];
+        let mut count = 0;
+        for path in group {
+            if let Some(&i) = self.by_path.get(*path) {
+                add(&mut centre, &self.vectors[i]);
+                count += 1;
+            }
+        }
+        if count == 0 {
+            return HashMap::new();
+        }
+        normalise(&mut centre);
+        self.by_path.iter().map(|(path, &i)| (path.as_str(), dot(&self.vectors[i], &centre))).collect()
+    }
+
     /// How alike two files sound (their start songs), −1…1; None when
     /// either hasn't been scanned.
     pub fn score(&self, a: &str, b: &str) -> Option<f32> {

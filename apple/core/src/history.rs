@@ -40,6 +40,11 @@ pub(crate) fn heard_count() -> usize {
     HeardDb::load().heard.len()
 }
 
+/// The MD5s of every tune ever played.
+pub(crate) fn heard_set() -> HashSet<String> {
+    HeardDb::load().heard
+}
+
 /// Empty the recently played list.
 pub(crate) fn clear_recent() {
     RecentlyPlayed::default().save();

@@ -18,6 +18,8 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
     case recentlyPlayed
     /// A tune's Sounds Like list, by the tune's title.
     case soundsLike(title: String)
+    /// A Smart Playlist not saved, by its title.
+    case smart(title: String)
     case surprise
     case shuffleCollection
     /// Files dropped or opened, outside any list.
@@ -42,6 +44,7 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .search(let query): "Search “\(query)”"
         case .recentlyPlayed: "Recently Played"
         case .soundsLike(let title): "Sounds like \(title)"
+        case .smart(let title): title
         case .surprise: "Surprise Me"
         case .shuffleCollection: "Shuffle Collection"
         case .files: "Files"
@@ -70,6 +73,7 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .search: "Search"
         case .recentlyPlayed: "History"
         case .soundsLike: "Sounds like"
+        case .smart: "Smart Playlist"
         case .surprise: "Random tunes from HVSC"
         case .shuffleCollection: "All of HVSC, shuffled"
         case .files: "Added files"
@@ -89,6 +93,7 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .search: "magnifyingglass"
         case .recentlyPlayed: "clock"
         case .soundsLike: "waveform"
+        case .smart: "wand.and.stars"
         case .surprise: "dice"
         case .shuffleCollection: "shuffle"
         case .files: "doc"
@@ -108,6 +113,7 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .favourites: .favourites
         case .playlist(let id, _): .userPlaylist(id)
         case .curated(let playlist): .curated(playlist.file)
+        case .smart: .smartPlaylist
         case .recentlyPlayed: .recent
 #if CSDB
         case .scene: .scene

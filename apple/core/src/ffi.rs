@@ -28,6 +28,7 @@ use crate::player::pseudo_stereo::DetuneStrength;
 use crate::player::{PlayState, TrackInfo};
 use crate::playlist::{PlaylistEntry, RepeatMode};
 use crate::session;
+use crate::smart;
 use crate::viz;
 
 // ── Records and enums ────────────────────────────────────────────────────────
@@ -547,6 +548,212 @@ pub struct SimilarTune {
     pub subtune: u16,
     /// Cosine similarity of the two fingerprints, −1…1.
     pub score: f32,
+}
+
+/// How a smart playlist chooses and orders its tunes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum SmartKind {
+    /// The closest to `seed`, closest first.
+    Like,
+    /// Shuffled.
+    Shuffle,
+    /// Chill, then rising in intensity.
+    Rising,
+    /// Different from what's been played, shuffled.
+    Different,
+}
+
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct SmartRecipe {
+    pub kind: SmartKind,
+    /// The tune `Like` starts from.
+    pub seed: Option<String>,
+    pub seed_subtune: Option<u16>,
+    /// How far down the list of closest tunes `Like` goes.
+    pub top: u32,
+    /// `Like` also takes the other tunes with the seed's name.
+    pub other_versions: bool,
+    /// Shortest tune, in seconds; 0 for any.
+    pub min_secs: u32,
+    pub only_unheard: bool,
+    /// How long it plays, in seconds; None for every tune that fits.
+    pub total_secs: Option<u32>,
+    /// A different number gives a different pick.
+    pub shuffle: u64,
+}
+
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct SmartTune {
+    pub item: HvscTuneItem,
+    /// Here for its name, as another version of the seed, not for its sound.
+    pub is_version: bool,
+    pub heard: bool,
+    /// How intense against the rest, 0–1, where a recipe worked it out.
+    pub intensity: Option<f32>,
+}
+
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct SmartPlaylist {
+    pub tunes: Vec<SmartTune>,
+    pub total_secs: u64,
+    /// How many tunes the recipe chose from.
+    pub pool: u32,
+    /// How many different tunes have been played.
+    pub heard: u32,
+    /// `Different` can't say yet: too little has been played.
+    pub needs_more_history: bool,
+    /// The scan hasn't reached `seed` yet.
+    pub seed_not_scanned: bool,
+}
+
+struct SmartPick {
+    path: String,
+    subtune: Option<u16>,
+    is_version: bool,
+    heard: bool,
+    intensity: Option<f32>,
+}
+
+#[derive(Default)]
+struct SmartChoice {
+    picks: Vec<SmartPick>,
+    pool: usize,
+    heard: usize,
+    needs_more_history: bool,
+    seed_not_scanned: bool,
+}
+
+/// Every tune in the indexes, with what the fingerprints and the heard list
+/// know about it.
+fn smart_tunes(
+    root: &Path,
+    library: &Library,
+    fps: &fingerprint::Fingerprints,
+    seed: Option<&str>,
+) -> (Vec<smart::Tune>, std::collections::HashSet<String>) {
+    use fingerprint::{feature_index as fi, Index};
+    let index: std::sync::Arc<Index> = fps.index_for(seed);
+    let md5s = fps.md5_by_path();
+    let heard_md5 = crate::history::heard_set();
+    let heard: std::collections::HashSet<String> =
+        md5s.iter().filter(|(_, m)| heard_md5.contains(*m)).map(|(p, _)| p.clone()).collect();
+    let heard_paths: Vec<&str> = heard.iter().map(String::as_str).collect();
+    let to_heard = index.likeness_to_group(&heard_paths);
+    let features: std::collections::HashMap<&str, &[f32; fingerprint::FEATURES]> =
+        index.start_songs().into_iter().collect();
+    let tunes = library
+        .all_entries()
+        .iter()
+        .filter_map(|(_, entry)| {
+            let path = collection_path(root, &entry.path)?;
+            let found = features.get(path.as_str());
+            let mut tune = smart::Tune {
+                title: entry.title.clone(),
+                author: entry.author_raw.clone(),
+                secs: entry.duration_secs.unwrap_or(0),
+                heard: heard.contains(&path),
+                scanned: found.is_some(),
+                to_heard: to_heard.get(path.as_str()).copied().unwrap_or(0.0),
+                ..smart::Tune::default()
+            };
+            if let Some(f) = found {
+                tune.notes = f[fi::NOTES].exp() - 1.0;
+                tune.arps = f[fi::ARPS].exp() - 1.0;
+                tune.drums = f[fi::NOISE].exp() - 1.0;
+                tune.digi = f[fi::DIGI];
+                tune.peak = f[fi::LEVELS];
+                tune.loudness = f[fi::LEVELS] + f[fi::LEVELS + 1] + f[fi::LEVELS + 2];
+            }
+            tune.path = path;
+            Some(tune)
+        })
+        .collect();
+    (tunes, heard)
+}
+
+fn smart_choose(
+    recipe: &SmartRecipe,
+    root: &Path,
+    seed: Option<&str>,
+    library: &Library,
+    fps: &fingerprint::Fingerprints,
+    similar: &[SimilarTune],
+) -> SmartChoice {
+    use rand::SeedableRng;
+    let (mut tunes, heard) = smart_tunes(root, library, fps, seed);
+    let mut rng = rand::rngs::StdRng::seed_from_u64(recipe.shuffle);
+    let mut choice = SmartChoice { heard: heard.len(), ..SmartChoice::default() };
+    let fits = |t: &smart::Tune| t.secs >= recipe.min_secs && (!recipe.only_unheard || !t.heard);
+    let pick = |t: &smart::Tune, rated: bool| SmartPick {
+        path: t.path.clone(),
+        subtune: None,
+        is_version: false,
+        heard: t.heard,
+        intensity: rated.then_some(t.intensity),
+    };
+    match recipe.kind {
+        SmartKind::Like => {
+            let Some(seed) = seed else { return choice };
+            if similar.is_empty() {
+                choice.seed_not_scanned = true;
+            }
+            if recipe.other_versions {
+                let title = tunes.iter().find(|t| t.path == seed).map(|t| t.title.clone()).unwrap_or_default();
+                for version in smart::versions(&title, seed, &tunes) {
+                    if version.secs >= recipe.min_secs {
+                        choice.picks.push(SmartPick { is_version: true, ..pick(version, false) });
+                    }
+                }
+            }
+            let by_path: std::collections::HashMap<&str, &smart::Tune> =
+                tunes.iter().map(|t| (t.path.as_str(), t)).collect();
+            let already: std::collections::HashSet<String> = choice.picks.iter().map(|p| p.path.clone()).collect();
+            for found in similar {
+                let Some(rel) = collection_path(root, Path::new(&found.item.path)) else { continue };
+                let Some(tune) = by_path.get(rel.as_str()) else { continue };
+                if fits(tune) && !already.contains(&rel) {
+                    choice.picks.push(SmartPick { subtune: Some(found.subtune), ..pick(tune, false) });
+                }
+            }
+            choice.pool = similar.len();
+            if let Some(total) = recipe.total_secs {
+                let mut elapsed = 0u32;
+                choice.picks.retain(|p| {
+                    let more = elapsed < total;
+                    elapsed += by_path.get(p.path.as_str()).map_or(0, |t| t.secs);
+                    more
+                });
+            }
+        }
+        SmartKind::Shuffle => {
+            use rand::seq::SliceRandom;
+            let mut order: Vec<usize> = (0..tunes.len()).filter(|&i| fits(&tunes[i])).collect();
+            choice.pool = order.len();
+            order.shuffle(&mut rng);
+            choice.picks =
+                smart::fill(order, &tunes, recipe.total_secs).into_iter().map(|i| pick(&tunes[i], false)).collect();
+        }
+        SmartKind::Rising => {
+            let (order, pool) =
+                smart::rising(&mut tunes, recipe.total_secs.unwrap_or(3600), recipe.only_unheard, &mut rng);
+            choice.pool = pool;
+            choice.picks = order.into_iter().map(|i| pick(&tunes[i], true)).collect();
+        }
+        SmartKind::Different => {
+            use rand::seq::SliceRandom;
+            if heard.len() < smart::MIN_HISTORY {
+                choice.needs_more_history = true;
+                return choice;
+            }
+            let mut order = smart::different(&tunes);
+            order.retain(|&i| tunes[i].secs >= recipe.min_secs);
+            choice.pool = order.len();
+            order.shuffle(&mut rng);
+            choice.picks =
+                smart::fill(order, &tunes, recipe.total_secs).into_iter().map(|i| pick(&tunes[i], false)).collect();
+        }
+    }
+    choice
 }
 
 // ── PlayerCore ───────────────────────────────────────────────────────────────
@@ -1496,6 +1703,86 @@ impl PlayerCore {
             })
             .take(want)
             .collect())
+    }
+
+    /// Make a smart playlist. Song lengths, the fingerprints and the heard
+    /// list decide; nothing leaves the Mac.
+    pub async fn smart_playlist(&self, recipe: SmartRecipe) -> Result<SmartPlaylist, HvscError> {
+        let root = self.library.root().ok_or(HvscError::NoRoot)?;
+        self.library.warm_indexes().await;
+        let library = self.library.clone();
+        let fps = self.fingerprints.clone();
+        let seed_rel = recipe.seed.as_deref().and_then(|s| collection_path(&root, Path::new(s)));
+        let similar = match (recipe.kind, recipe.seed.clone()) {
+            (SmartKind::Like, Some(seed)) => self.similar_tunes(seed, recipe.seed_subtune, recipe.top).await?,
+            _ => Vec::new(),
+        };
+        let root_for_tunes = root.clone();
+        let chosen = tokio::task::spawn_blocking(move || {
+            smart_choose(&recipe, &root_for_tunes, seed_rel.as_deref(), &library, &fps, &similar)
+        })
+        .await
+        .map_err(|e| HvscError::Io { message: e.to_string() })?;
+        let paths: Vec<PathBuf> = chosen.picks.iter().map(|p| root.join(&p.path)).collect();
+        let items = self.library.tunes_at(paths).await?;
+        let mut by_path: std::collections::HashMap<PathBuf, HvscTuneItem> = items
+            .into_iter()
+            .map(|(category, entry, author)| {
+                let item = HvscTuneItem::from_index(&entry, category.into());
+                let item = if author.is_empty() { item } else { HvscTuneItem { author, ..item } };
+                (entry.path, item)
+            })
+            .collect();
+        let tunes: Vec<SmartTune> = chosen
+            .picks
+            .into_iter()
+            .filter_map(|p| {
+                let mut item = by_path.remove(&root.join(&p.path))?;
+                if let Some(subtune) = p.subtune {
+                    item.start_song = subtune;
+                }
+                Some(SmartTune { item, is_version: p.is_version, heard: p.heard, intensity: p.intensity })
+            })
+            .collect();
+        let total_secs = tunes.iter().map(|t| u64::from(t.item.duration_secs.unwrap_or(0))).sum();
+        Ok(SmartPlaylist {
+            tunes,
+            total_secs,
+            pool: chosen.pool as u32,
+            heard: chosen.heard as u32,
+            needs_more_history: chosen.needs_more_history,
+            seed_not_scanned: chosen.seed_not_scanned,
+        })
+    }
+
+    /// Tunes whose title holds every word of `name`, for picking a tune by
+    /// name ("Second Reality" finds "2nd Reality").
+    pub async fn smart_find_tunes(&self, name: String, limit: u32) -> Vec<HvscTuneItem> {
+        self.library.warm_indexes().await;
+        let library = self.library.clone();
+        let paths: Vec<PathBuf> = tokio::task::spawn_blocking(move || {
+            let tunes: Vec<smart::Tune> = library
+                .all_entries()
+                .iter()
+                .map(|(_, e)| smart::Tune {
+                    path: e.path.to_string_lossy().into_owned(),
+                    title: e.title.clone(),
+                    author: e.author_raw.clone(),
+                    ..smart::Tune::default()
+                })
+                .collect();
+            smart::find_by_name(&name, &tunes, limit as usize).iter().map(|t| PathBuf::from(&t.path)).collect()
+        })
+        .await
+        .unwrap_or_default();
+        let items = self.library.tunes_at(paths).await.unwrap_or_default();
+        items
+            .into_iter()
+            .map(|(category, entry, author)| {
+                let item = HvscTuneItem::from_index(&entry, category.into());
+                if author.is_empty() { item } else { HvscTuneItem { author, ..item } }
+            })
+            .collect()
     }
 
     /// The tune at `path` as something to share (its MD5 and HVSC path),
