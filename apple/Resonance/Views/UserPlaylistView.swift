@@ -1,8 +1,8 @@
 import SwiftUI
 import PhosphorCore
 
-/// Favourites, or one of your playlists: a header with its name, count and
-/// Play, then its tunes. Tunes can be taken out of a playlist (a favourite
+/// Favourites, or one of your playlists: a header with its name and count, then
+/// its tunes. Tunes can be taken out of a playlist (a favourite
 /// is un-hearted instead).
 struct UserPlaylistView: View {
     /// Nil for Favourites.
@@ -54,7 +54,8 @@ struct UserPlaylistView: View {
                              // Favourites keep the order they were hearted in.
                              onPlace: playlist == nil || !query.isEmpty ? nil : { files, offset in
                                  place(files, at: offset, among: shown)
-                             })
+                             },
+                             actions: AnyView(listActions(rows)))
                     .overlay {
                         if !query.isEmpty && shown.isEmpty {
                             ContentUnavailableView.search(text: query)
@@ -68,9 +69,13 @@ struct UserPlaylistView: View {
     }
 
     private var header: some View {
-        let rows = playlists.rows[id]
-        return PlaylistHeader(title: source.name, tunes: rows?.count, isFavourites: playlist == nil, filter: $filter) {
-            library.play(rows ?? [], from: source)
+        PlaylistHeader(title: source.name, tunes: playlists.rows[id]?.count, isFavourites: playlist == nil)
+    }
+
+    private func listActions(_ rows: [LibraryRow]) -> some View {
+        Group {
+            ListFilterField(text: $filter)
+            ListPlayButton { library.play(rows, from: source) }
         }
     }
 
@@ -100,82 +105,42 @@ struct UserPlaylistView: View {
     }
 }
 
-/// The header of a list of your own: its picture, name and tune count, the
-/// list's filter, and Play.
+/// The header of a list of your own: its picture, name and tune count. What
+/// you can do with it is in the row below, with the others' (`ListBar`).
 struct PlaylistHeader: View {
     let title: String
     /// Nil until the list has loaded.
     let tunes: Int?
     var isFavourites = false
-    @Binding var filter: String
-    let play: () -> Void
 
     var body: some View {
-        // One row while the title fits whole, else the controls drop below
-        // it, so they never squeeze the title. ViewThatFits picks the first
-        // whose ideal width fits; the second gets narrower with the column.
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .center, spacing: 16) {
-                picture
-                titles.fixedSize(horizontal: true, vertical: false)
-                Spacer(minLength: 12)
-                controls
+        HStack(alignment: .center, spacing: 16) {
+            Image(systemName: isFavourites ? "heart.fill" : "music.note.list")
+                .font(.system(size: 30, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.92))
+                .frame(width: 76, height: 76)
+                .background(
+                    LinearGradient(
+                        colors: isFavourites
+                            ? [Color(red: 1, green: 0.42, blue: 0.55), Color(red: 0.78, green: 0.25, blue: 0.62)]
+                            : [Color(red: 0.42, green: 0.48, blue: 1), Color(red: 155 / 255, green: 107 / 255, blue: 1.0)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    in: .rect(cornerRadius: 17)
+                )
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.title2.weight(.bold))
+                    .lineLimit(1)
+                Text(tunes.map { $0 == 1 ? "1 tune" : "\($0.formatted()) tunes" } ?? "…")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .center, spacing: 16) {
-                    picture
-                    titles
-                    Spacer(minLength: 0)
-                }
-                HStack(spacing: 12) {
-                    Spacer(minLength: 0)
-                    controls
-                }
-            }
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
-    }
-
-    private var picture: some View {
-        Image(systemName: isFavourites ? "heart.fill" : "music.note.list")
-            .font(.system(size: 30, weight: .semibold))
-            .foregroundStyle(.white.opacity(0.92))
-            .frame(width: 76, height: 76)
-            .background(
-                LinearGradient(
-                    colors: isFavourites
-                        ? [Color(red: 1, green: 0.42, blue: 0.55), Color(red: 0.78, green: 0.25, blue: 0.62)]
-                        : [Color(red: 0.42, green: 0.48, blue: 1), Color(red: 155 / 255, green: 107 / 255, blue: 1.0)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                in: .rect(cornerRadius: 17)
-            )
-    }
-
-    private var titles: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.title2.weight(.bold))
-                .lineLimit(1)
-            Text(tunes.map { $0 == 1 ? "1 tune" : "\($0.formatted()) tunes" } ?? "…")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
-    }
-
-    @ViewBuilder
-    private var controls: some View {
-        if (tunes ?? 0) > 0 {
-            ListFilterField(text: $filter)
-        }
-        Button(action: play) {
-            Label("Play", systemImage: "play.fill")
-        }
-        .buttonStyle(.borderedProminent)
-        .disabled((tunes ?? 0) == 0)
-        .fixedSize()
     }
 }

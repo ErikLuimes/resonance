@@ -230,6 +230,11 @@ impl Index {
         self.by_path.iter().map(|(path, &i)| (path.as_str(), &self.rows[i].features)).collect()
     }
 
+    /// A file's start song as `flow` compares them.
+    pub fn sound_of(&self, path: &str) -> Option<&[f32; FEATURES]> {
+        self.by_path.get(path).map(|&i| &self.vectors[i])
+    }
+
     /// How alike each file's start song is to the average of `group`'s, by
     /// the features alone: embeddings all lie close together, which an
     /// average blurs further. Empty when none of `group` is in the index.

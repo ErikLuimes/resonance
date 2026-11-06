@@ -19,6 +19,15 @@ const PEAK: f64 = 0.95;
 /// piece: "Tune", "Intro" and the like.
 const MAX_VERSIONS: usize = 12;
 
+/// How energetic a whole list should be.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Energy {
+    Any,
+    Calm,
+    Medium,
+    Intense,
+}
+
 #[derive(Debug, Clone, Default)]
 pub(crate) struct Tune {
     pub path: String,
@@ -44,6 +53,27 @@ pub(crate) struct Tune {
     pub to_heard: f32,
     /// Where it ranks in `intensities`' pool, 0–1.
     pub intensity: f32,
+    /// The folder a MUSICIANS tune is in, "Hubbard_Rob"; the section's otherwise.
+    pub folder: String,
+    pub year: Option<u16>,
+    /// Sound traits, in `SOUNDS` order.
+    pub sounds: [f32; SOUNDS],
+    pub is_8580: bool,
+    /// How many SID chips it uses; 0 until it's scanned.
+    pub chips: u8,
+}
+
+/// Arpeggios, filter, drums, bass, pulse width, samples, ring mod and sync.
+pub(crate) const SOUNDS: usize = 8;
+
+/// What counts as having plenty of each sound: the top quarter of the music,
+/// or the top half when already down to a few composers' tunes.
+pub(crate) fn plenty(tunes: &[Tune], narrowed: bool) -> [f32; SOUNDS] {
+    std::array::from_fn(|k| {
+        let mut values: Vec<f32> = tunes.iter().filter(|t| t.is_music()).map(|t| t.sounds[k]).collect();
+        values.sort_by(f32::total_cmp);
+        values.get(values.len() * if narrowed { 2 } else { 3 } / 4).copied().unwrap_or(0.0)
+    })
 }
 
 impl Tune {
@@ -56,6 +86,17 @@ impl Tune {
     /// Calm: few notes, hardly any drums, in the lower part of the pool.
     fn is_chill(&self) -> bool {
         self.notes <= 3.5 && self.drums < 1.0 && self.intensity < 0.2
+    }
+
+    /// Whether it suits a list that's calm or intense throughout. Wider than
+    /// `is_chill`, which has an hour's arc to keep from sounding busy.
+    pub fn fits_energy(&self, energy: Energy) -> bool {
+        match energy {
+            Energy::Any => true,
+            Energy::Calm => self.notes <= 6.0 && self.intensity < 0.35,
+            Energy::Medium => (0.35..0.6).contains(&self.intensity),
+            Energy::Intense => self.intensity >= 0.6,
+        }
     }
 }
 
@@ -94,10 +135,16 @@ fn fits_arc(t: &Tune) -> bool {
 
 /// About `total` seconds that stay chill, then climb: at most one tune per
 /// composer while there are others to pick. Returns indexes into `tunes`, in
-/// playing order, and how many tunes it chose from.
-pub(crate) fn rising(tunes: &mut [Tune], total: u32, only_unheard: bool, rng: &mut impl Rng) -> (Vec<usize>, usize) {
-    let pool: Vec<usize> =
-        (0..tunes.len()).filter(|&i| fits_arc(&tunes[i]) && (!only_unheard || !tunes[i].heard)).collect();
+/// playing order, and how many tunes it chose from. Only `allowed` tunes count,
+/// and intensity is against those: the calmest of one composer's are their
+/// calm ones, however they'd rank against everybody.
+pub(crate) fn rising(
+    tunes: &mut [Tune],
+    total: u32,
+    allowed: &dyn Fn(&Tune) -> bool,
+    rng: &mut impl Rng,
+) -> (Vec<usize>, usize) {
+    let pool: Vec<usize> = (0..tunes.len()).filter(|&i| fits_arc(&tunes[i]) && allowed(&tunes[i])).collect();
     if pool.is_empty() {
         return (Vec::new(), 0);
     }
@@ -134,6 +181,35 @@ pub(crate) fn rising(tunes: &mut [Tune], total: u32, only_unheard: bool, rng: &m
     (chosen, pool.len())
 }
 
+/// Taking turns between the calm third and the intense third of what's
+/// `allowed`, for about `total` seconds. Returns the order and the pool's size.
+pub(crate) fn alternating(
+    tunes: &mut [Tune],
+    total: u32,
+    allowed: &dyn Fn(&Tune) -> bool,
+    rng: &mut impl Rng,
+) -> (Vec<usize>, usize) {
+    let pool: Vec<usize> = (0..tunes.len()).filter(|&i| fits_arc(&tunes[i]) && allowed(&tunes[i])).collect();
+    if pool.is_empty() {
+        return (Vec::new(), 0);
+    }
+    rate_intensity(tunes, &pool);
+    let mut sorted = pool.clone();
+    sorted.sort_by(|&a, &b| tunes[a].intensity.total_cmp(&tunes[b].intensity));
+    let third = sorted.len().div_ceil(3);
+    let (calm, intense) = (&sorted[..third], &sorted[sorted.len() - third..]);
+    let (mut chosen, mut used, mut authors, mut elapsed) = (Vec::new(), HashSet::new(), HashSet::new(), 0u32);
+    while elapsed < total {
+        let side = if chosen.len() % 2 == 0 { calm } else { intense };
+        let Some(i) = pick_new(side, &used, &authors, tunes, rng) else { break };
+        used.insert(i);
+        authors.insert(tunes[i].author.clone());
+        chosen.push(i);
+        elapsed += tunes[i].secs;
+    }
+    (chosen, pool.len())
+}
+
 /// A random unused candidate, by a composer not used yet if there is one.
 fn pick_new(
     candidates: &[usize],
@@ -156,6 +232,47 @@ pub(crate) fn different(tunes: &[Tune]) -> Vec<usize> {
     pool.sort_by(|&a, &b| tunes[b].to_heard.total_cmp(&tunes[a].to_heard));
     let (from, to) = (pool.len() * 3 / 4, pool.len() * 19 / 20);
     pool[from..to].to_vec()
+}
+
+/// Every tune that's music, for rating against the whole collection.
+pub(crate) fn music(tunes: &[Tune]) -> Vec<usize> {
+    (0..tunes.len()).filter(|&i| tunes[i].is_music()).collect()
+}
+
+/// Too slight for a list of a set length: jingles, and tunes that scanned as
+/// silence. "All" still has them, as it says.
+pub(crate) fn is_slight(t: &Tune) -> bool {
+    t.secs < 60 || (t.scanned && t.peak <= 0.02)
+}
+
+/// Order tunes so each leads into the next: from the first, always the closest
+/// to the one before by another composer, or by anyone once only theirs are
+/// left. `sounds` holds each tune's unit vector, where it has one; those
+/// without one go last, as they came.
+pub(crate) fn flow(sounds: &[Option<&[f32]>], authors: &[&str]) -> Vec<usize> {
+    let mut left: Vec<usize> = (0..sounds.len()).filter(|&i| sounds[i].is_some()).collect();
+    let unknown: Vec<usize> = (0..sounds.len()).filter(|&i| sounds[i].is_none()).collect();
+    let mut order = Vec::with_capacity(sounds.len());
+    if !left.is_empty() {
+        order.push(left.remove(0));
+    }
+    while let Some(&last) = order.last() {
+        let here = sounds[last].unwrap_or(&[]);
+        let closeness = |i: usize| -> f32 {
+            sounds[i].map_or(f32::MIN, |s| s.iter().zip(here).map(|(a, b)| a * b).sum())
+        };
+        let best = |only_others: bool| {
+            left.iter()
+                .enumerate()
+                .filter(|(_, &i)| !only_others || authors[i] != authors[last])
+                .max_by(|a, b| closeness(*a.1).total_cmp(&closeness(*b.1)))
+                .map(|(k, _)| k)
+        };
+        let Some(next) = best(true).or_else(|| best(false)) else { break };
+        order.push(left.remove(next));
+    }
+    order.extend(unknown);
+    order
 }
 
 /// Cut `order` once it plays for `total` seconds; everything when None.
@@ -187,11 +304,29 @@ pub(crate) fn name_words(name: &str) -> Vec<String> {
         .collect()
 }
 
-/// A title's words without what marks one part of a piece: "2nd Reality (part
-/// 2)" and "2nd Reality" are both "2nd reality".
+/// Whether a title holds every word of `wanted`, whole: "love" isn't "glove"
+/// or "lovely".
+pub(crate) fn title_has(title: &str, wanted: &[String]) -> bool {
+    let words = name_words(title);
+    wanted.iter().all(|w| words.contains(w))
+}
+
+/// Where a tune goes in a list asked for by title: the title itself before
+/// those that only hold it, each oldest first, more often the original.
+pub(crate) fn title_rank(tune: &Tune, wanted: &str) -> (bool, u16) {
+    (piece_words(&tune.title) != piece_words(wanted), tune.year.unwrap_or(u16::MAX))
+}
+
+/// A title's words without what marks one part of a piece or a leading "The":
+/// "2nd Reality (part 2)" and "2nd Reality" are both "2nd reality", and "The
+/// Last Ninja" is "last ninja".
 fn piece_words(title: &str) -> Vec<String> {
     let head = title.split('(').next().unwrap_or(title);
-    name_words(head)
+    let mut words = name_words(head);
+    if words.len() > 1 && matches!(words[0].as_str(), "the" | "a" | "an") {
+        words.remove(0);
+    }
+    words
 }
 
 /// The other tunes that are versions of `title`, by name. Too many matches
@@ -210,9 +345,11 @@ pub(crate) fn versions<'a>(title: &str, seed_path: &str, tunes: &'a [Tune]) -> V
     }
 }
 
-/// Tunes whose title holds every word of `name`, exact pieces first.
+/// Tunes with a title word starting with each word of `name`, so "2nd reali"
+/// finds "2nd Reality" while it's being typed: exact pieces first, then titles
+/// starting that way.
 pub(crate) fn find_by_name<'a>(name: &str, tunes: &'a [Tune], limit: usize) -> Vec<&'a Tune> {
-    let wanted = name_words(name);
+    let wanted = piece_words(name);
     if wanted.is_empty() {
         return Vec::new();
     }
@@ -220,10 +357,17 @@ pub(crate) fn find_by_name<'a>(name: &str, tunes: &'a [Tune], limit: usize) -> V
         .iter()
         .filter(|t| {
             let words = name_words(&t.title);
-            wanted.iter().all(|w| words.contains(w))
+            wanted.iter().all(|w| words.iter().any(|word| word.starts_with(w.as_str())))
         })
         .collect();
-    found.sort_by_key(|t| (piece_words(&t.title) != wanted, t.title.clone(), t.author.clone()));
+    found.sort_by_key(|t| {
+        let words = piece_words(&t.title);
+        let starts = words.len() >= wanted.len()
+            && wanted.iter().zip(&words).all(|(w, word)| word.starts_with(w.as_str()));
+        // The oldest of a title first: more often the original than a cover.
+        let same = words == wanted;
+        (!same, !starts, words, t.year.unwrap_or(u16::MAX), t.author.clone())
+    });
     found.truncate(limit);
     found
 }
@@ -275,7 +419,7 @@ mod tests {
     #[test]
     fn rising_reaches_the_length_stays_calm_then_climbs() {
         let mut tunes = spread(2000);
-        let (order, pool) = rising(&mut tunes, 3600, false, &mut StdRng::seed_from_u64(1));
+        let (order, pool) = rising(&mut tunes, 3600, &|_| true, &mut StdRng::seed_from_u64(1));
         assert_eq!(pool, 2000);
         let total: u32 = order.iter().map(|&i| tunes[i].secs).sum();
         assert!((3600..3800).contains(&total), "{total}");
@@ -288,7 +432,7 @@ mod tests {
     #[test]
     fn rising_repeats_no_tune_or_composer_while_it_can() {
         let mut tunes = spread(2000);
-        let (order, _) = rising(&mut tunes, 3600, false, &mut StdRng::seed_from_u64(2));
+        let (order, _) = rising(&mut tunes, 3600, &|_| true, &mut StdRng::seed_from_u64(2));
         let authors: HashSet<&str> = order.iter().map(|&i| tunes[i].author.as_str()).collect();
         assert_eq!(authors.len(), order.len());
     }
@@ -296,7 +440,7 @@ mod tests {
     #[test]
     fn rising_stops_when_the_pool_runs_out() {
         let mut tunes = spread(3);
-        let (order, _) = rising(&mut tunes, 3600, false, &mut StdRng::seed_from_u64(3));
+        let (order, _) = rising(&mut tunes, 3600, &|_| true, &mut StdRng::seed_from_u64(3));
         assert_eq!(order.len(), 3);
     }
 
@@ -309,16 +453,48 @@ mod tests {
             tune("untitled", "<?>"),
             tune("good", "Good"),
         ];
-        let (order, pool) = rising(&mut tunes, 100, false, &mut StdRng::seed_from_u64(4));
+        let (order, pool) = rising(&mut tunes, 100, &|_| true, &mut StdRng::seed_from_u64(4));
         assert_eq!(pool, 1);
         assert_eq!(order, vec![4]);
     }
 
     #[test]
-    fn only_unheard_keeps_heard_tunes_out_of_the_arc() {
+    fn only_allowed_tunes_make_the_arc() {
         let mut tunes = vec![Tune { heard: true, ..tune("heard", "Heard") }, tune("new", "New")];
-        let (order, _) = rising(&mut tunes, 100, true, &mut StdRng::seed_from_u64(5));
+        let (order, _) = rising(&mut tunes, 100, &|t| !t.heard, &mut StdRng::seed_from_u64(5));
         assert_eq!(order, vec![1]);
+    }
+
+    #[test]
+    fn alternating_takes_turns() {
+        let mut tunes = spread(300);
+        let (order, _) = alternating(&mut tunes, 1200, &|_| true, &mut StdRng::seed_from_u64(6));
+        assert!(order.len() >= 6);
+        for (k, &i) in order.iter().enumerate() {
+            if k % 2 == 0 {
+                assert!(tunes[i].intensity < 0.4);
+            } else {
+                assert!(tunes[i].intensity > 0.6);
+            }
+        }
+    }
+
+    #[test]
+    fn the_last_ninja_is_last_ninja() {
+        let tunes = vec![
+            Tune { year: Some(2009), ..tune("later", "Last Ninja") },
+            Tune { year: Some(1987), ..tune("original", "The Last Ninja") },
+        ];
+        assert_eq!(find_by_name("last ninja", &tunes, 8)[0].path, "original");
+    }
+
+    #[test]
+    fn energy_splits_calm_from_intense() {
+        let mut tunes = spread(100);
+        let pool: Vec<usize> = (0..100).collect();
+        rate_intensity(&mut tunes, &pool);
+        assert!(tunes[1].fits_energy(Energy::Calm) && !tunes[1].fits_energy(Energy::Intense));
+        assert!(tunes[99].fits_energy(Energy::Intense) && !tunes[99].fits_energy(Energy::Calm));
     }
 
     #[test]
@@ -355,6 +531,80 @@ mod tests {
         let found = find_by_name("Second Reality", &tunes, 8);
         let paths: Vec<&str> = found.iter().map(|t| t.path.as_str()).collect();
         assert_eq!(paths, vec!["eye", "kb2"]);
+    }
+
+    #[test]
+    fn flow_goes_to_the_closest_next() {
+        let (a, b, c): (&[f32], &[f32], &[f32]) = (&[1.0, 0.0], &[0.0, 1.0], &[0.9, 0.1]);
+        let sounds = [Some(a), Some(b), Some(c)];
+        assert_eq!(flow(&sounds, &["x", "y", "z"]), vec![0, 2, 1]);
+    }
+
+    #[test]
+    fn flow_keeps_a_composer_apart_while_it_can() {
+        let (a, b, c): (&[f32], &[f32], &[f32]) = (&[1.0, 0.0], &[0.99, 0.0], &[0.0, 1.0]);
+        let sounds = [Some(a), Some(b), Some(c)];
+        // The closest is by the same composer, so the other goes between.
+        assert_eq!(flow(&sounds, &["x", "x", "y"]), vec![0, 2, 1]);
+    }
+
+    #[test]
+    fn flow_puts_tunes_it_cant_compare_last() {
+        let a: &[f32] = &[1.0];
+        assert_eq!(flow(&[None, Some(a)], &["x", "y"]), vec![1, 0]);
+    }
+
+    #[test]
+    fn slight_tunes_are_short_or_silent() {
+        assert!(is_slight(&Tune { secs: 22, ..tune("a", "A") }));
+        assert!(is_slight(&Tune { peak: 0.0, ..tune("a", "A") }));
+        assert!(!is_slight(&tune("a", "A")));
+    }
+
+    #[test]
+    fn asking_for_a_title_puts_it_first_oldest_first() {
+        let exact_new = Tune { year: Some(2020), ..tune("a", "Airwolf") };
+        let exact_old = Tune { year: Some(1987), ..tune("b", "Airwolf") };
+        let remix = Tune { year: Some(1985), ..tune("c", "Airwolf Remix") };
+        assert!(title_rank(&exact_old, "airwolf") < title_rank(&exact_new, "airwolf"));
+        assert!(title_rank(&exact_new, "airwolf") < title_rank(&remix, "airwolf"));
+    }
+
+    #[test]
+    fn a_title_holds_whole_words() {
+        let wanted = name_words("techno");
+        assert!(title_has("Techno Death", &wanted));
+        assert!(title_has("My TECHNO Mix", &wanted));
+        assert!(!title_has("Technology", &wanted));
+        assert!(title_has("2nd Reality", &name_words("second reality")));
+    }
+
+    #[test]
+    fn part_of_a_word_finds_a_title_while_typing() {
+        let tunes = vec![
+            tune("other", "A 2nd Reality Check"),
+            tune("eye", "2nd Reality"),
+            tune("no", "Realm"),
+            tune("no2", "Unreal"),
+        ];
+        let paths = |name: &str| -> Vec<String> {
+            find_by_name(name, &tunes, 8).iter().map(|t| t.path.clone()).collect()
+        };
+        assert_eq!(paths("2nd reali"), vec!["eye", "other"]);
+        assert_eq!(paths("reali"), vec!["eye", "other"]);
+        assert_eq!(paths("real"), vec!["no", "eye", "other"]);
+    }
+
+    #[test]
+    fn the_oldest_of_a_title_comes_first() {
+        let tunes = vec![
+            Tune { year: Some(2001), ..tune("cover", "Comic Bakery") },
+            Tune { year: None, ..tune("unknown", "Comic Bakery") },
+            Tune { year: Some(1986), ..tune("original", "Comic Bakery") },
+        ];
+        let found = find_by_name("comic bakery", &tunes, 8);
+        assert_eq!(found[0].path, "original");
+        assert_eq!(found[2].path, "unknown");
     }
 
     #[test]

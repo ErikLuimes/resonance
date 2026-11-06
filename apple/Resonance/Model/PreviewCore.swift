@@ -226,6 +226,8 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
         SmartPlaylist(tunes: [], totalSecs: 0, pool: 0, heard: 0, needsMoreHistory: false, seedNotScanned: false)
     }
     func smartFindTunes(name: String, limit: UInt32) async -> [HvscTuneItem] { [] }
+    func smartComposers() async -> [SmartComposer] { [] }
+    func smartTitles() async -> [String] { [] }
     func similarity(seed: String, paths: [String]) async -> [Float?] { paths.map { _ in nil } }
     func hasEmbeddings() async -> Bool { false }
     func downloadEmbeddings() async throws -> UInt32 { 0 }

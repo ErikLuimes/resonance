@@ -160,6 +160,15 @@ pub(crate) mod feature_index {
     pub const NOISE: usize = 15;
     /// The three voice levels, loudest first.
     pub const LEVELS: usize = 19;
+    pub const FILTER: usize = 7;
+    pub const RING: usize = 11;
+    pub const SYNC: usize = 12;
+    pub const PULSE_WIDTH: usize = 14;
+    pub const PULSE_BASS: usize = 16;
+    /// Whether the header asks for an 8580: `Extras::finish`'s eleventh.
+    pub const IS_8580: usize = 22 + 10;
+    /// How many SID chips it uses: the twelfth.
+    pub const CHIPS: usize = 22 + 11;
 }
 
 const BASE_FEATURES: usize = 22;

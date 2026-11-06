@@ -37,6 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         TuneDrag.install()
         SongTableStyle.install()
         SpaceKey.start(store)
+        ClickAwayFocus.start()
         miniPlayer = MiniPlayer(store: store, library: library, playlists: playlists)
         fingerprints.startPolling()
         nowPlaying = NowPlayingController(store: store)

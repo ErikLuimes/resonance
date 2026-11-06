@@ -1,4 +1,5 @@
 import SwiftUI
+import PhosphorCore
 
 /// The playlist as a sortable, searchable table. Sorting and filtering only
 /// change the view (like the Iced app); dragging rows reorders the playlist
@@ -14,16 +15,21 @@ struct PlaylistView: View {
     @SceneStorage("PlaylistColumns") private var columns = TableColumnCustomization<TrackRow>()
     /// The list's own filter.
     @State private var filter = ""
+    /// The sounds that are on; a tune must have them all.
+    @State private var sound = Set<SoundTag>()
 
     var body: some View {
         VStack(spacing: 0) {
-            PlaylistHeader(title: "My Playlist", tunes: store.rows.count, filter: $filter) {
-                store.play(index: 0)
-            }
+            PlaylistHeader(title: "My Playlist", tunes: store.rows.count)
             Divider()
             if store.rows.isEmpty {
                 emptyState
             } else {
+                ListBar(sound: $sound, showsSound: store.rows.contains { fingerprints.fingerprint($0.id) != nil },
+                        shown: displayedRows.count, total: store.rows.count) {
+                    ListFilterField(text: $filter)
+                    ListPlayButton { store.play(index: 0) }
+                }
                 table
                     .task(id: store.rows.map(\.id)) { fingerprints.load(store.rows.map(\.id)) }
             }
@@ -117,7 +123,7 @@ struct PlaylistView: View {
         // Over the table rather than instead of it, so the column headers
         // (and any widths the user dragged) stay put while typing.
         .overlay {
-            if displayedRows.isEmpty {
+            if displayedRows.isEmpty, !query.isEmpty {
                 ContentUnavailableView.search(text: query)
             }
         }
@@ -146,19 +152,22 @@ struct PlaylistView: View {
     private var query: String { filter.trimmingCharacters(in: .whitespaces) }
 
     private var displayedRows: [TrackRow] {
-        let filtered = query.isEmpty
-            ? store.rows
-            : store.rows.filter {
-                $0.title.localizedStandardContains(query)
-                    || $0.author.localizedStandardContains(query)
-                    || $0.released.localizedStandardContains(query)
+        let filtered = store.rows.filter { row in
+            if !query.isEmpty, !(row.title.localizedStandardContains(query)
+                || row.author.localizedStandardContains(query)
+                || row.released.localizedStandardContains(query)) {
+                return false
             }
+            guard !sound.isEmpty else { return true }
+            guard let print = fingerprints.fingerprint(row.id) else { return false }
+            return sound.isSubset(of: print.tags)
+        }
         return filtered.sorted(using: sortOrder)
     }
 
     /// Reordering is only meaningful when the view shows playlist order.
     private var isInPlaylistOrder: Bool {
-        query.isEmpty && sortOrder.first?.keyPath == \TrackRow.index && sortOrder.first?.order == .forward
+        query.isEmpty && sound.isEmpty && sortOrder.first?.keyPath == \TrackRow.index && sortOrder.first?.order == .forward
     }
 
     private func rows(for ids: Set<TrackRow.ID>) -> [TrackRow] {

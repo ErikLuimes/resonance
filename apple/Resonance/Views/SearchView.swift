@@ -120,7 +120,10 @@ struct SearchView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ZStack {
-                    resultsPage
+                    VStack(spacing: 0) {
+                        SmartSearchOffer(query: query)
+                        resultsPage
+                    }
                         .opacity(opened == nil ? 1 : 0)
                         .allowsHitTesting(opened == nil)
                         .accessibilityHidden(opened != nil)

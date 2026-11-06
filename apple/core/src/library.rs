@@ -651,6 +651,30 @@ impl Library {
             .collect()
     }
 
+    /// Each MUSICIANS tune's folder and header author, for reading composers'
+    /// names and nicknames. The first call reads the headers; see `crediting`.
+    pub async fn musician_credits(&self) -> Result<Vec<(String, String)>, LibraryError> {
+        self.ensure_credits().await?;
+        let inner = self.inner.clone();
+        let credits = self.credits.clone();
+        blocking(move || {
+            let inner = lock(&inner);
+            let credits = lock_credits(&credits);
+            let Some(credits) = credits.as_ref() else { return Vec::new() };
+            CATEGORIES
+                .iter()
+                .enumerate()
+                .filter(|(_, &c)| c == HvscCategory::Musicians)
+                .flat_map(|(slot, &c)| {
+                    inner.index(c).iter().zip(&credits.authors[slot])
+                        .map(|(entry, author)| (entry.author_raw.clone(), author.clone()))
+                        .collect::<Vec<_>>()
+                })
+                .collect()
+        })
+        .await
+    }
+
     /// Every indexed tune with its category (empty until `warm_indexes` has
     /// run).
     pub fn all_entries(&self) -> Vec<(HvscCategory, HvscIndexEntry)> {

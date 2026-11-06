@@ -559,16 +559,68 @@ pub enum SmartKind {
     Shuffle,
     /// Chill, then rising in intensity.
     Rising,
+    /// Intense, then winding down.
+    Falling,
+    /// Taking turns between calm and intense.
+    Alternating,
     /// Different from what's been played, shuffled.
     Different,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum SmartEnergy {
+    Any,
+    Calm,
+    Medium,
+    Intense,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum SmartSection {
+    Any,
+    Games,
+    Demos,
+    NotGames,
+    NotDemos,
+}
+
+/// A sound a tune can have plenty of. In `smart::SOUNDS` order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Enum)]
+pub enum SmartSound {
+    Arpeggios,
+    Filter,
+    Drums,
+    Bass,
+    PulseWidth,
+    Samples,
+    RingMod,
+    Sync,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Enum)]
+pub enum SmartChip {
+    Any,
+    Mos6581,
+    Mos8580,
+}
+
+/// A composer's name and MUSICIANS folder, for reading sentences.
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct SmartComposer {
+    /// As their tunes' headers give it, without a nickname: "Johan Åstrand".
+    pub name: String,
+    pub folder: String,
+    /// What else they go by: "Zyron".
+    pub aliases: Vec<String>,
+    /// How many tunes they have, which settles who a shared name means.
+    pub tunes: u32,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct SmartRecipe {
     pub kind: SmartKind,
-    /// The tune `Like` starts from.
-    pub seed: Option<String>,
-    pub seed_subtune: Option<u16>,
+    /// The tunes `Like` starts from: more than one take turns.
+    pub seeds: Vec<String>,
     /// How far down the list of closest tunes `Like` goes.
     pub top: u32,
     /// `Like` also takes the other tunes with the seed's name.
@@ -578,6 +630,23 @@ pub struct SmartRecipe {
     pub only_unheard: bool,
     /// How long it plays, in seconds; None for every tune that fits.
     pub total_secs: Option<u32>,
+    /// Only titles with these words.
+    pub title_words: Option<String>,
+    /// Only these MUSICIANS folders, "Hubbard_Rob".
+    pub composers: Vec<String>,
+    /// Has plenty of each of these.
+    pub sounds: Vec<SmartSound>,
+    pub chip: SmartChip,
+    /// Uses at least and at most this many SID chips.
+    pub min_chips: Option<u8>,
+    pub max_chips: Option<u8>,
+    /// How many tunes at most.
+    pub max_tunes: Option<u32>,
+    pub from_year: Option<u16>,
+    pub to_year: Option<u16>,
+    pub section: SmartSection,
+    /// How energetic the list is throughout (`Shuffle`).
+    pub energy: SmartEnergy,
     /// A different number gives a different pick.
     pub shuffle: u64,
 }
@@ -604,6 +673,59 @@ pub struct SmartPlaylist {
     pub needs_more_history: bool,
     /// The scan hasn't reached `seed` yet.
     pub seed_not_scanned: bool,
+}
+
+/// Folders and header authors into composers. A header like "Johan Åstrand
+/// (Zyron)" gives a name and a nickname; one crediting several people, like
+/// "A & B", says nothing about either. Other names in a folder are mostly the
+/// credits of covers, and a nickname on a few tunes a one-off, so a nickname
+/// counts from a tenth of the folder's tunes.
+fn smart_composers_from(credits: &[(String, String)]) -> Vec<SmartComposer> {
+    use std::collections::BTreeMap;
+    #[derive(Default)]
+    struct Folder {
+        tunes: u32,
+        names: BTreeMap<String, u32>,
+        nicknames: BTreeMap<String, u32>,
+    }
+    let mut folders: BTreeMap<&str, Folder> = BTreeMap::new();
+    for (folder, author) in credits {
+        let entry = folders.entry(folder).or_default();
+        entry.tunes += 1;
+        if author.is_empty() || author.contains(['&', ',', '<', '?']) {
+            continue;
+        }
+        let (name, nickname) = match author.split_once('(') {
+            Some((name, rest)) => (name.trim(), rest.split(')').next().map(str::trim)),
+            None => (author.trim(), None),
+        };
+        if !name.is_empty() {
+            *entry.names.entry(name.to_string()).or_insert(0) += 1;
+        }
+        if let Some(nickname) = nickname.filter(|n| !n.is_empty()) {
+            *entry.nicknames.entry(nickname.to_string()).or_insert(0) += 1;
+        }
+    }
+    folders
+        .into_iter()
+        .map(|(folder, entry)| {
+            let name = entry.names.iter().max_by_key(|(_, &n)| n).map(|(n, _)| n.clone());
+            let mut aliases: Vec<String> = entry
+                .nicknames
+                .iter()
+                .filter(|(_, &n)| n * 10 >= entry.tunes)
+                .map(|(nickname, _)| nickname.clone())
+                .collect();
+            // The folder's own spelling too: "Huelsbeck, Chris" is "Hülsbeck".
+            aliases.push(display_name(folder));
+            SmartComposer {
+                name: name.unwrap_or_else(|| display_name(folder)),
+                folder: folder.to_string(),
+                aliases,
+                tunes: entry.tunes,
+            }
+        })
+        .collect()
 }
 
 struct SmartPick {
@@ -650,6 +772,8 @@ fn smart_tunes(
             let mut tune = smart::Tune {
                 title: entry.title.clone(),
                 author: entry.author_raw.clone(),
+                folder: entry.author_raw.clone(),
+                year: entry.released.get(..4).and_then(|y| y.parse().ok()),
                 secs: entry.duration_secs.unwrap_or(0),
                 heard: heard.contains(&path),
                 scanned: found.is_some(),
@@ -663,6 +787,12 @@ fn smart_tunes(
                 tune.digi = f[fi::DIGI];
                 tune.peak = f[fi::LEVELS];
                 tune.loudness = f[fi::LEVELS] + f[fi::LEVELS + 1] + f[fi::LEVELS + 2];
+                tune.is_8580 = f[fi::IS_8580] > 0.5;
+                tune.chips = f[fi::CHIPS].round() as u8;
+                tune.sounds = [
+                    f[fi::ARPS], f[fi::FILTER], f[fi::NOISE], f[fi::PULSE_BASS],
+                    f[fi::PULSE_WIDTH], f[fi::DIGI], f[fi::RING], f[fi::SYNC],
+                ];
             }
             tune.path = path;
             Some(tune)
@@ -681,9 +811,65 @@ fn smart_choose(
 ) -> SmartChoice {
     use rand::SeedableRng;
     let (mut tunes, heard) = smart_tunes(root, library, fps, seed);
+    let index = fps.index_for(seed);
+    // Each tune leading into the next, for lists small enough to be listened
+    // through; comparing every pair of 60,000 wouldn't be noticed anyway.
+    let arrange = |order: Vec<usize>, tunes: &[smart::Tune]| -> Vec<usize> {
+        if order.len() > 500 {
+            return order;
+        }
+        let sounds: Vec<Option<&[f32]>> =
+            order.iter().map(|&i| index.sound_of(&tunes[i].path).map(|s| s.as_slice())).collect();
+        let authors: Vec<&str> = order.iter().map(|&i| tunes[i].author.as_str()).collect();
+        smart::flow(&sounds, &authors).into_iter().map(|k| order[k]).collect()
+    };
     let mut rng = rand::rngs::StdRng::seed_from_u64(recipe.shuffle);
     let mut choice = SmartChoice { heard: heard.len(), ..SmartChoice::default() };
-    let fits = |t: &smart::Tune| t.secs >= recipe.min_secs && (!recipe.only_unheard || !t.heard);
+    let title_words = recipe.title_words.as_deref().map(smart::name_words);
+    let plenty = smart::plenty(&tunes, !recipe.composers.is_empty());
+    let wanted_sounds: Vec<usize> = recipe
+        .sounds
+        .iter()
+        .map(|s| match s {
+            SmartSound::Arpeggios => 0,
+            SmartSound::Filter => 1,
+            SmartSound::Drums => 2,
+            SmartSound::Bass => 3,
+            SmartSound::PulseWidth => 4,
+            SmartSound::Samples => 5,
+            SmartSound::RingMod => 6,
+            SmartSound::Sync => 7,
+        })
+        .collect();
+    let fits = |t: &smart::Tune| {
+        t.secs >= recipe.min_secs
+            && (wanted_sounds.is_empty() || (t.scanned && wanted_sounds.iter().all(|&k| t.sounds[k] >= plenty[k].max(1e-6))))
+            && recipe.min_chips.is_none_or(|n| t.scanned && t.chips >= n)
+            && recipe.max_chips.is_none_or(|n| t.scanned && t.chips <= n)
+            && match recipe.chip {
+                SmartChip::Any => true,
+                SmartChip::Mos6581 => t.scanned && !t.is_8580,
+                SmartChip::Mos8580 => t.scanned && t.is_8580,
+            }
+            && title_words.as_ref().is_none_or(|w| smart::title_has(&t.title, w))
+            && (!recipe.only_unheard || !t.heard)
+            && (recipe.composers.is_empty() || (t.path.starts_with("MUSICIANS/") && recipe.composers.contains(&t.folder)))
+            && recipe.from_year.is_none_or(|y| t.year.is_some_and(|tune| tune >= y))
+            && recipe.to_year.is_none_or(|y| t.year.is_some_and(|tune| tune <= y))
+            && match recipe.section {
+                SmartSection::Any => true,
+                SmartSection::Games => t.path.starts_with("GAMES/"),
+                SmartSection::Demos => t.path.starts_with("DEMOS/"),
+                SmartSection::NotGames => !t.path.starts_with("GAMES/"),
+                SmartSection::NotDemos => !t.path.starts_with("DEMOS/"),
+            }
+    };
+    let energy = match recipe.energy {
+        SmartEnergy::Any => smart::Energy::Any,
+        SmartEnergy::Calm => smart::Energy::Calm,
+        SmartEnergy::Medium => smart::Energy::Medium,
+        SmartEnergy::Intense => smart::Energy::Intense,
+    };
     let pick = |t: &smart::Tune, rated: bool| SmartPick {
         path: t.path.clone(),
         subtune: None,
@@ -697,6 +883,18 @@ fn smart_choose(
             if similar.is_empty() {
                 choice.seed_not_scanned = true;
             }
+            // Against the seed, so "slower" means slower than that tune.
+            if energy != smart::Energy::Any {
+                let pool = smart::music(&tunes);
+                smart::rate_intensity(&mut tunes, &pool);
+            }
+            let seed_intensity = tunes.iter().find(|t| t.path == seed).map_or(0.5, |t| t.intensity);
+            let suits = |t: &smart::Tune| match energy {
+                smart::Energy::Any => true,
+                smart::Energy::Calm => t.scanned && t.intensity < seed_intensity,
+                smart::Energy::Intense => t.scanned && t.intensity > seed_intensity,
+                smart::Energy::Medium => t.scanned && t.fits_energy(energy),
+            };
             if recipe.other_versions {
                 let title = tunes.iter().find(|t| t.path == seed).map(|t| t.title.clone()).unwrap_or_default();
                 for version in smart::versions(&title, seed, &tunes) {
@@ -711,8 +909,11 @@ fn smart_choose(
             for found in similar {
                 let Some(rel) = collection_path(root, Path::new(&found.item.path)) else { continue };
                 let Some(tune) = by_path.get(rel.as_str()) else { continue };
-                if fits(tune) && !already.contains(&rel) {
+                if fits(tune) && suits(tune) && !already.contains(&rel) {
                     choice.picks.push(SmartPick { subtune: Some(found.subtune), ..pick(tune, false) });
+                    if choice.picks.len() >= recipe.top as usize {
+                        break;
+                    }
                 }
             }
             choice.pool = similar.len();
@@ -727,15 +928,49 @@ fn smart_choose(
         }
         SmartKind::Shuffle => {
             use rand::seq::SliceRandom;
-            let mut order: Vec<usize> = (0..tunes.len()).filter(|&i| fits(&tunes[i])).collect();
+            let rated = energy != smart::Energy::Any;
+            if rated {
+                let pool = smart::music(&tunes);
+                smart::rate_intensity(&mut tunes, &pool);
+            }
+            let mut order: Vec<usize> = (0..tunes.len())
+                .filter(|&i| fits(&tunes[i]) && (!rated || (tunes[i].scanned && tunes[i].fits_energy(energy))))
+                .filter(|&i| recipe.total_secs.is_none() || !smart::is_slight(&tunes[i]))
+                .collect();
             choice.pool = order.len();
             order.shuffle(&mut rng);
-            choice.picks =
-                smart::fill(order, &tunes, recipe.total_secs).into_iter().map(|i| pick(&tunes[i], false)).collect();
+            // One composer's fast tunes read best fastest first.
+            let by_title = recipe.title_words.as_deref();
+            let ranked = by_title.is_some() || (rated && !recipe.composers.is_empty());
+            if let Some(wanted) = by_title {
+                order.sort_by_key(|&i| smart::title_rank(&tunes[i], wanted));
+            } else if ranked {
+                order.sort_by(|&a, &b| {
+                    let ordered = tunes[a].intensity.total_cmp(&tunes[b].intensity);
+                    if energy == smart::Energy::Intense { ordered.reverse() } else { ordered }
+                });
+            }
+            let order = smart::fill(order, &tunes, recipe.total_secs);
+            let order = if ranked { order } else { arrange(order, &tunes) };
+            choice.picks = order.into_iter().map(|i| pick(&tunes[i], rated)).collect();
         }
-        SmartKind::Rising => {
-            let (order, pool) =
-                smart::rising(&mut tunes, recipe.total_secs.unwrap_or(3600), recipe.only_unheard, &mut rng);
+        SmartKind::Alternating => {
+            let total = recipe.total_secs.or(recipe.max_tunes.map(|n| n * 240)).unwrap_or(3600);
+            let (order, pool) = smart::alternating(&mut tunes, total, &fits, &mut rng);
+            choice.pool = pool;
+            choice.picks = order.into_iter().map(|i| pick(&tunes[i], true)).collect();
+        }
+        SmartKind::Rising | SmartKind::Falling => {
+            let total = recipe.total_secs.or(recipe.max_tunes.map(|n| n * 240)).unwrap_or(3600);
+            let (order, pool) = smart::rising(&mut tunes, total, &fits, &mut rng);
+            // The calm stretch has no order of its own, so it can flow; the
+            // climb's order is the point.
+            let calm = order.iter().take_while(|&&i| tunes[i].intensity < 0.2).count();
+            let mut order: Vec<usize> =
+                arrange(order[..calm].to_vec(), &tunes).into_iter().chain(order[calm..].iter().copied()).collect();
+            if recipe.kind == SmartKind::Falling {
+                order.reverse();
+            }
             choice.pool = pool;
             choice.picks = order.into_iter().map(|i| pick(&tunes[i], true)).collect();
         }
@@ -746,12 +981,15 @@ fn smart_choose(
                 return choice;
             }
             let mut order = smart::different(&tunes);
-            order.retain(|&i| tunes[i].secs >= recipe.min_secs);
+            order.retain(|&i| fits(&tunes[i]));
             choice.pool = order.len();
             order.shuffle(&mut rng);
-            choice.picks =
-                smart::fill(order, &tunes, recipe.total_secs).into_iter().map(|i| pick(&tunes[i], false)).collect();
+            let order = arrange(smart::fill(order, &tunes, recipe.total_secs), &tunes);
+            choice.picks = order.into_iter().map(|i| pick(&tunes[i], false)).collect();
         }
+    }
+    if let Some(most) = recipe.max_tunes {
+        choice.picks.truncate(most as usize);
     }
     choice
 }
@@ -1712,11 +1950,41 @@ impl PlayerCore {
         self.library.warm_indexes().await;
         let library = self.library.clone();
         let fps = self.fingerprints.clone();
-        let seed_rel = recipe.seed.as_deref().and_then(|s| collection_path(&root, Path::new(s)));
-        let similar = match (recipe.kind, recipe.seed.clone()) {
-            (SmartKind::Like, Some(seed)) => self.similar_tunes(seed, recipe.seed_subtune, recipe.top).await?,
-            _ => Vec::new(),
-        };
+        let seed_rel = recipe.seeds.first().and_then(|s| collection_path(&root, Path::new(s)));
+        // Narrowing happens after, so it needs the whole list to narrow.
+        let narrows = !recipe.composers.is_empty()
+            || !recipe.sounds.is_empty()
+            || recipe.energy != SmartEnergy::Any
+            || recipe.chip != SmartChip::Any
+            || recipe.min_chips.is_some()
+            || recipe.max_chips.is_some()
+            || recipe.section != SmartSection::Any
+            || recipe.only_unheard
+            || recipe.min_secs > 0;
+        let wanted = if narrows { 100_000 } else { recipe.top };
+        let mut similar = Vec::new();
+        if recipe.kind == SmartKind::Like {
+            let mut lists = Vec::new();
+            for seed in &recipe.seeds {
+                lists.push(self.similar_tunes(seed.clone(), None, wanted).await?.into_iter());
+            }
+            // Taking turns, closest first, so each seed is heard.
+            let mut seen = std::collections::HashSet::new();
+            loop {
+                let mut any = false;
+                for list in &mut lists {
+                    if let Some(tune) = list.next() {
+                        any = true;
+                        if seen.insert(tune.item.path.clone()) {
+                            similar.push(tune);
+                        }
+                    }
+                }
+                if !any {
+                    break;
+                }
+            }
+        }
         let root_for_tunes = root.clone();
         let chosen = tokio::task::spawn_blocking(move || {
             smart_choose(&recipe, &root_for_tunes, seed_rel.as_deref(), &library, &fps, &similar)
@@ -1755,6 +2023,26 @@ impl PlayerCore {
         })
     }
 
+    /// Every composer with a MUSICIANS folder, for reading sentences: the
+    /// name their tunes' headers give most, and any nickname those hold.
+    pub async fn smart_composers(&self) -> Vec<SmartComposer> {
+        let credits = self.library.musician_credits().await.unwrap_or_default();
+        tokio::task::spawn_blocking(move || smart_composers_from(&credits)).await.unwrap_or_default()
+    }
+
+    /// Every distinct title, for recognising one in a sentence.
+    pub async fn smart_titles(&self) -> Vec<String> {
+        self.library.warm_indexes().await;
+        let library = self.library.clone();
+        tokio::task::spawn_blocking(move || {
+            let titles: std::collections::BTreeSet<String> =
+                library.all_entries().iter().map(|(_, e)| e.title.clone()).collect();
+            titles.into_iter().collect()
+        })
+        .await
+        .unwrap_or_default()
+    }
+
     /// Tunes whose title holds every word of `name`, for picking a tune by
     /// name ("Second Reality" finds "2nd Reality").
     pub async fn smart_find_tunes(&self, name: String, limit: u32) -> Vec<HvscTuneItem> {
@@ -1768,6 +2056,7 @@ impl PlayerCore {
                     path: e.path.to_string_lossy().into_owned(),
                     title: e.title.clone(),
                     author: e.author_raw.clone(),
+                    year: e.released.get(..4).and_then(|y| y.parse().ok()),
                     ..smart::Tune::default()
                 })
                 .collect();

@@ -58,6 +58,8 @@ final class LibraryStore {
     var shownSection: SidebarItem?
     /// The Smart Playlist pane's recipe.
     var smartSettings = SmartSettings()
+    /// Built the first time a sentence is read, from the collection's names.
+    var smartParser: SmartSentenceParser?
     /// How often Surprise Me was started; the toolbar's dice wiggles on each.
     private(set) var surprises = 0
 

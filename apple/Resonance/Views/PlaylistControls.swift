@@ -198,6 +198,112 @@ struct AddToMenu: View {
     }
 }
 
+/// The row under a list's header: the Sound menu on the left, what the list does
+/// on the right.
+/// It's the same on every list.
+struct ListBar<Actions: View, Extra: View>: View {
+    @Binding var sound: Set<SoundTag>
+    /// Whether any tune here has a fingerprint to filter by.
+    var showsSound = true
+    /// How many are shown and in all, while Sound narrows them.
+    var shown = 0
+    var total = 0
+    @ViewBuilder var actions: Actions
+    /// A line under it, such as what the list is sorted by.
+    @ViewBuilder var extra: Extra
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                if showsSound { SoundMenu(selection: $sound) }
+                if !sound.isEmpty {
+                    Text("\(shown.formatted()) of \(total.formatted()) tunes")
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .fixedSize()
+                    AccentLink("Clear") { sound = [] }
+                        .fixedSize()
+                }
+                Spacer(minLength: 8)
+                actions
+            }
+            extra
+        }
+        .font(.callout)
+        .controlSize(.small)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.bar)
+    }
+}
+
+extension ListBar where Extra == EmptyView {
+    init(sound: Binding<Set<SoundTag>>, showsSound: Bool = true, shown: Int = 0, total: Int = 0,
+         @ViewBuilder actions: () -> Actions) {
+        self.init(sound: sound, showsSound: showsSound, shown: shown, total: total, actions: actions, extra: { EmptyView() })
+    }
+}
+
+/// A list's sounds to narrow it by, any number of them; a tune must have them
+/// all. A pill that names what's on.
+struct SoundMenu: View {
+    @Binding var selection: Set<SoundTag>
+
+    private var title: String {
+        switch selection.count {
+        case 0: "Sound"
+        case 1: selection.first?.name ?? "Sound"
+        default: "Sound: \(selection.count)"
+        }
+    }
+
+    var body: some View {
+        let menu = Menu {
+            ForEach(SoundTag.filters, id: \.self) { tag in
+                Toggle(tag.name, isOn: Binding(
+                    get: { selection.contains(tag) },
+                    set: { on in
+                        if on { selection.insert(tag) } else { selection.remove(tag) }
+                    }
+                ))
+            }
+            if !selection.isEmpty {
+                Divider()
+                Button("Clear") { selection = [] }
+            }
+        } label: {
+            Label(title, systemImage: "line.3.horizontal.decrease")
+        }
+        .menuStyle(.button)
+        .buttonBorderShape(.capsule)
+        .fixedSize()
+        .help("Show only tunes with these sounds")
+        if selection.isEmpty {
+            menu.buttonStyle(.bordered)
+        } else {
+            menu.buttonStyle(.borderedProminent)
+        }
+    }
+}
+
+/// A list's Play: small, and the same everywhere.
+struct ListPlayButton: View {
+    var title = "Play"
+    var isDisabled = false
+    let play: () -> Void
+
+    var body: some View {
+        Button(action: play) {
+            Label(title, systemImage: "play.fill")
+        }
+        .buttonStyle(.borderedProminent)
+        .disabled(isDisabled)
+        .fixedSize()
+    }
+}
+
 /// The small field that narrows the list it sits on, and nothing else. The
 /// window's search field is for finding things anywhere.
 struct ListFilterField: View {

@@ -401,13 +401,15 @@ struct LibraryTable: View {
     var onPlace: (([String], Int) -> Void)? = nil
     /// When each row last played, for a Played column (the history).
     var played: [LibraryRow.ID: String]? = nil
+    /// What the list does, after Sound in the row above it: filter, Play.
+    var actions: AnyView? = nil
 
     @Environment(LibraryStore.self) private var library
     @Environment(PlayerStore.self) private var player
     @Environment(FingerprintStore.self) private var fingerprints
     @State private var selection = Set<LibraryRow.ID>()
     @State private var sortOrder: [KeyPathComparator<LibraryRow>] = []
-    /// The Sound chips that are on; a tune must have them all.
+    /// The sounds that are on; a tune must have them all.
     @State private var soundFilter = Set<SoundTag>()
     /// Find Similar's tune, which the list is sorted by likeness to, and
     /// how alike each row sounds to it (0–1).
@@ -443,26 +445,15 @@ struct LibraryTable: View {
 
     // MARK: Sound
 
-    /// The Sound chips, and while Find Similar sorts the list, what it's
-    /// sorted by. Only once any row here has a fingerprint.
+    /// The Sound menu and what the list does, and while Find Similar sorts the
+    /// list, what it's sorted by. Sound only once any row has a fingerprint.
     @ViewBuilder
     private var soundBar: some View {
-        if rows.contains(where: { fingerprints.fingerprint($0.id) != nil }) {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
-                    Text("Sound")
-                        .foregroundStyle(.secondary)
-                    ForEach(SoundTag.filters, id: \.self) { tag in
-                        chip(tag)
-                    }
-                    Spacer(minLength: 8)
-                    if !soundFilter.isEmpty {
-                        Text("\(shownRows.count) of \(rows.count) tunes")
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                        AccentLink("Clear") { soundFilter = [] }
-                    }
-                }
+        let hasFingerprints = rows.contains(where: { fingerprints.fingerprint($0.id) != nil })
+        if hasFingerprints || actions != nil {
+            ListBar(sound: $soundFilter, showsSound: hasFingerprints, shown: shownRows.count, total: rows.count) {
+                actions
+            } extra: {
                 if let seed = similarTo {
                     HStack(spacing: 6) {
                         Text("Sorted by how alike they sound to \u{201C}\(seed.title)\u{201D}")
@@ -472,27 +463,6 @@ struct LibraryTable: View {
                     }
                 }
             }
-            .font(.callout)
-            .controlSize(.small)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.bar)
-        }
-    }
-
-    @ViewBuilder
-    private func chip(_ tag: SoundTag) -> some View {
-        let on = soundFilter.contains(tag)
-        let button = Button(tag.name) {
-            if on { soundFilter.remove(tag) } else { soundFilter.insert(tag) }
-        }
-        .buttonBorderShape(.capsule)
-        .accessibilityAddTraits(on ? .isSelected : [])
-        if on {
-            button.buttonStyle(.borderedProminent)
-        } else {
-            button.buttonStyle(.bordered)
         }
     }
 
@@ -510,7 +480,7 @@ struct LibraryTable: View {
         Task { proxy.scrollTo(path, anchor: .center) }
     }
 
-    /// Songs, Length, STIL and Played: apart from `table`'s columns, which
+    /// Songs, Length, STIL, SIDs and Played: apart from `table`'s columns, which
     /// a builder (and the type checker) can't take all at once.
     @TableColumnBuilder<LibraryRow, KeyPathComparator<LibraryRow>>
     private var trailingColumns: some TableColumnContent<LibraryRow, KeyPathComparator<LibraryRow>> {
@@ -534,6 +504,14 @@ struct LibraryTable: View {
             }
             .width(36)
             .customizationID("stil")
+            .defaultVisibility(.hidden)
+            TableColumn("SIDs") { row in
+                Text(fingerprints.fingerprint(row.id).map { "\($0.chips)" } ?? "—")
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            .width(36)
+            .customizationID("sids")
             .defaultVisibility(.hidden)
             if let played {
                 TableColumn("Played") { row in
@@ -622,6 +600,10 @@ struct LibraryTable: View {
                 }
                 if ids.count == 1, let row = chosen(ids).first, fingerprints.fingerprint(row.id) != nil {
                     Button("Find Similar") { findSimilar(row) }
+                    Button("Make a Playlist Like This") {
+                        library.describeTune(.init(path: row.id, title: row.title, author: row.author))
+                        library.shownSection = .smartPlaylist
+                    }
                 }
                 Divider()
                 if ids.count == 1, let id = ids.first, let link = webLink?(id) {
@@ -646,7 +628,7 @@ struct LibraryTable: View {
         }
     }
 
-    /// The rows as shown: filtered by the Sound chips, then sorted by a
+    /// The rows as shown: filtered by Sound, then sorted by a
     /// column or by likeness to Find Similar's tune (it first, unscanned
     /// tunes last).
     private var shownRows: [LibraryRow] {

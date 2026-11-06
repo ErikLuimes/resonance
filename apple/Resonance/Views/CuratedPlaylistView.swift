@@ -45,7 +45,7 @@ struct CuratedPlaylistView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .some(let rows?):
-            LibraryTable(rows: filtered(rows), source: .curated(playlist))
+            LibraryTable(rows: filtered(rows), source: .curated(playlist), actions: AnyView(listActions))
                 .overlay {
                     if !query.isEmpty && filtered(rows).isEmpty {
                         ContentUnavailableView.search(text: query)
@@ -57,8 +57,7 @@ struct CuratedPlaylistView: View {
     // MARK: Header
 
     private var header: some View {
-        @Bindable var store = store
-        return HStack(alignment: .center, spacing: 16) {
+        HStack(alignment: .center, spacing: 16) {
             PlaylistArtwork(name: playlist.name, size: 76)
             VStack(alignment: .leading, spacing: 4) {
                 Text("Curated Playlist")
@@ -80,30 +79,27 @@ struct CuratedPlaylistView: View {
                     .foregroundStyle(.tertiary)
                     .monospacedDigit()
             }
-            Spacer(minLength: 12)
-            if !rows.isEmpty {
-                ListFilterField(text: $filter)
-            }
-            HStack(spacing: 8) {
-                Button {
-                    play()
-                } label: {
-                    Label(isPlaying ? "Play Again" : "Play", systemImage: "play.fill")
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(rows.isEmpty)
-                // The player's own shuffle, the same one as the player
-                // bar's button: it applies to the playlist playing now too.
-                Toggle(isOn: $store.shuffle) {
-                    Label("Shuffle", systemImage: "shuffle")
-                }
-                .toggleStyle(.button)
-                .help(store.shuffle ? "Shuffle: On" : "Shuffle: Off")
-            }
-            .fixedSize()
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
+    }
+
+    /// What the list does, in the row with Sound.
+    private var listActions: some View {
+        @Bindable var store = store
+        return Group {
+            ListFilterField(text: $filter)
+            ListPlayButton(title: isPlaying ? "Play Again" : "Play", isDisabled: rows.isEmpty) { play() }
+            // The player's own shuffle, the same one as the player bar's
+            // button: it applies to the playlist playing now too.
+            Toggle(isOn: $store.shuffle) {
+                Label("Shuffle", systemImage: "shuffle")
+            }
+            .toggleStyle(.button)
+            .help(store.shuffle ? "Shuffle: On" : "Shuffle: Off")
+            .fixedSize()
+        }
     }
 
     /// "210 tunes · 11 hr 4 min", the length once the rows are in (tunes

@@ -1,0 +1,138 @@
+# Sentences people would type into Smart Playlist's Describe, written by the
+# user on 2026-11-06. Groups are "# name".
+
+# By composer
+Make me a playlist of Rob Hubbard SIDs.
+Play all the best Martin Galway tunes.
+Give me a mix of Ben Daglish and Anthony Lees.
+Jeroen Tel only, please.
+Something from Chris Hülsbeck.
+Tim Follin tracks, especially the more complex ones.
+Matt Gray / Last Ninja 2 style stuff.
+Fred Gray and Mark Cooksey.
+David Whittaker chiptunes.
+Reyn Ouwehand or Maniacs of Noise.
+Any good Hubbard from the mid-80s.
+Galway loading music and title screens.
+
+# By game or tune
+Playlist based on Commando by Rob Hubbard.
+Songs similar to Last Ninja.
+Wizball and other Galway classics.
+International Karate, Sanxion, Delta.
+Monty on the Run and Auf Wiedersehen Monty.
+Cybernoid and Cybernoid II.
+The Last Ninja trilogy.
+Great Giana Sisters soundtrack vibes.
+Ghouls 'n' Ghosts and Ghosts 'n' Goblins.
+Ocean loader music.
+Play the HVSC top 100.
+Stuff from Delta, Knucklebusters, Crazy Comets.
+
+# Mood, tempo and feel
+Slow SID tunes.
+Fast, energetic C64 music.
+Alternative / experimental SID tracks.
+Chill, slow, atmospheric SIDs.
+High-energy action game music.
+Moody and dark Commodore 64 tunes.
+Happy, upbeat, playful SIDs.
+Driving, fast-paced tracks for working.
+Slow and melancholic.
+Alternative demoscene stuff, not just games.
+Relaxing slow SIDs mixed with a few faster ones.
+Dark and moody, like Nemesis the Warlock or Parallax.
+Fast arpeggio-heavy tracks.
+Slow, filtered, atmospheric pieces.
+Alternative / non-mainstream SID styles.
+
+# Similarity
+Songs that sound like Commando.
+Tunes similar to Wizball.
+Anything that fingerprints close to Last Ninja.
+Playlists of tracks with the same vibe as Monty on the Run.
+Find SIDs similar to this one: Commando
+More like Sanxion and International Karate.
+Tracks with similar rhythm and filter usage to Galway.
+Songs that match the style of Hubbard's drum patterns.
+Similar to Cybernoid II but a bit slower.
+Fingerprinted matches for Delta.
+Anything close to the Last Ninja 3 theme.
+SIDs that feel like the same composer even if they're not.
+
+# Source, type and technical
+Game music only, no demos.
+Demoscene SIDs.
+Loading music and crack intros.
+6581 SID chip preference.
+8580 style if available.
+Classic 1980s game soundtracks.
+Later scene productions.
+Music disks and compilations.
+Only tracks from HVSC.
+Include some local files I have.
+Mix HVSC with my local SID collection.
+Prefer real SID rips over modern ones.
+
+# Length and structure
+A 30-minute SID playlist.
+About 20 tracks.
+One hour of continuous C64 music.
+Short playlist, 10 songs max.
+Long background playlist.
+Shuffle the best SIDs.
+Top-rated HVSC tunes only.
+Random selection of good ones.
+A playlist that starts slow and gets faster.
+Alternate between slow and fast.
+
+# Combined
+Fast Rob Hubbard tracks similar to Commando.
+Slow Martin Galway atmospheric pieces.
+Alternative demoscene SIDs that are not too fast.
+Playlist of games I used to play: Last Ninja, Wizball, Delta, plus similar songs.
+Energetic action music from the mid-80s, mostly Hubbard and Tel.
+Moody slow SIDs mixed with a few local files.
+Something like International Karate but slower.
+Fast racing or platformer style SIDs.
+Dark alternative tracks from the scene.
+Classic game themes and then songs that sound similar.
+A chill evening playlist of slow SIDs from HVSC.
+High-energy mix of Tel, Hubbard, and Follin.
+Include my local tracks that match the fingerprint of Last Ninja.
+Slow and alternative SIDs only, no pure action stuff.
+Playlists based on fingerprint similarity to this local file.
+
+# Casual
+Gimme some good C64 music.
+SID playlist, please.
+Best Commodore 64 tunes.
+Chiptunes from the 80s.
+Something nostalgic from HVSC.
+Play SIDs.
+Make a playlist that sounds like my childhood.
+Rob Hubbard bangers.
+More like that last one.
+Slow ones today.
+Fast and loud.
+Anything alternative.
+Mix it with my local SIDs.
+Find similar songs.
+Playlist for coding.
+Background SIDs, not too intense.
+The classics and stuff that sounds like them.
+Whatever is most similar to Wizball.
+
+# Advanced
+Exclude demos, only commercial games.
+Prefer 6581 filter character.
+Songs that use heavy pulse-width modulation.
+Tracks with strong bass and drums like Hubbard.
+Atmospheric filtered pieces like Galway.
+Alternative SIDs that don't follow typical game structures.
+Local files first, then fill with similar HVSC tracks.
+Playlist of subtunes from multi-subtune SIDs.
+Only tracks rated highly in the old HVSC top 100.
+Something between slow and fast, mid-tempo.
+SIDs that fingerprint closest to my local collection.
+Generate a playlist, then suggest similar alternatives.

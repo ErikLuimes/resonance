@@ -10,7 +10,8 @@
 use std::collections::HashSet;
 
 use phosphor_apple::{
-    CoreConfig, Engine, PlaybackOptions, PlayerCore, Repeat, SmartKind, SmartPlaylist, SmartRecipe,
+    CoreConfig, Engine, PlaybackOptions, PlayerCore, Repeat, SmartChip, SmartEnergy, SmartKind, SmartPlaylist, SmartRecipe,
+    SmartSection,
 };
 
 fn main() {
@@ -35,13 +36,23 @@ fn main() {
     });
     let recipe = |kind, shuffle| SmartRecipe {
         kind,
-        seed: None,
-        seed_subtune: None,
+        seeds: Vec::new(),
         top: 200,
         other_versions: false,
         min_secs: 0,
         only_unheard: kind == SmartKind::Different,
         total_secs: Some(3600),
+        title_words: None,
+        composers: Vec::new(),
+        sounds: Vec::new(),
+        chip: SmartChip::Any,
+        min_chips: None,
+        max_chips: None,
+        max_tunes: None,
+        from_year: None,
+        to_year: None,
+        section: SmartSection::Any,
+        energy: SmartEnergy::Any,
         shuffle,
     };
     let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
