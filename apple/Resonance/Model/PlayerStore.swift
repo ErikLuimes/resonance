@@ -167,6 +167,8 @@ final class PlayerStore {
 
     /// Set by menu commands; the main window presents the file importer.
     var isImporting = false
+    /// The welcome sheet's steps; empty while it's closed.
+    var welcomeSteps: [OnboardingStep] = []
 
     /// The main window's Now Playing mode: the Halo and the playing tune
     /// over the whole window, instead of the library.

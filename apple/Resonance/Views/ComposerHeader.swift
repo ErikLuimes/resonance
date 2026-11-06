@@ -69,7 +69,7 @@ struct ComposerHeader: View {
 #if CSDB
     @Environment(CSDbStore.self) private var csdb
     @Environment(\.openURL) private var openURL
-    @AppStorage(Pref.csdbEnabled) private var csdbEnabled = true
+    @AppStorage(Pref.csdbEnabled) private var csdbEnabled = false
     @AppStorage(Pref.csdbTrivia) private var showsTrivia = false
     @AppStorage(Pref.composerPhotos) private var showsPhotos = false
 
@@ -429,7 +429,7 @@ struct ComposerPortrait: View {
     var cornerRadius: CGFloat = 12
 
 #if CSDB
-    @AppStorage(Pref.csdbEnabled) private var csdbEnabled = true
+    @AppStorage(Pref.csdbEnabled) private var csdbEnabled = false
     @AppStorage(Pref.composerPhotos) private var showsPhotos = false
     @Environment(CSDbStore.self) private var csdb
 

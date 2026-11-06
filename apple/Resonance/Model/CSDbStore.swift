@@ -276,7 +276,7 @@ final class CSDbStore {
 
     /// The Settings switch: while it's off, nothing goes to csdb.dk.
     var isEnabled: Bool {
-        UserDefaults.standard.object(forKey: Pref.csdbEnabled) as? Bool ?? true
+        UserDefaults.standard.object(forKey: Pref.csdbEnabled) as? Bool ?? false
     }
 
     /// Loads the three feeds, from disk when they are fresh. `force` skips

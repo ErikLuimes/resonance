@@ -25,7 +25,7 @@ struct ResonanceApp: App {
             AboutCommands()
             UpdateCommands(updater: appDelegate.updater)
             MiniPlayerCommands()
-            HelpCommands()
+            HelpCommands(store: appDelegate.store)
             PlaybackCommands(store: appDelegate.store, library: appDelegate.library)
             #if DEBUG
             RecordingCommands()

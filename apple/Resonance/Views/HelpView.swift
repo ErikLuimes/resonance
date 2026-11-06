@@ -218,9 +218,12 @@ private struct Keycap: View {
 
 /// The Help menu: Resonance Help, and the website and issue tracker.
 struct HelpCommands: Commands {
+    let store: PlayerStore
+
     var body: some Commands {
         CommandGroup(replacing: .help) {
             HelpButton()
+            WelcomeButton(store: store)
             Divider()
             Link("Resonance Website", destination: URL(string: "https://erikluimes.github.io/resonance/")!)
             Link("Report a Problem", destination: URL(string: "https://github.com/ErikLuimes/resonance/issues")!)
@@ -233,6 +236,22 @@ struct HelpCommands: Commands {
         var body: some View {
             Button("Resonance Help") { openWindow(id: HelpView.windowID) }
                 .keyboardShortcut("?", modifiers: .command)
+        }
+    }
+
+    /// Goes through the welcome again.
+    private struct WelcomeButton: View {
+        let store: PlayerStore
+        @Environment(\.openWindow) private var openWindow
+
+        var body: some View {
+            Button("Welcome to Resonance") {
+                store.welcomeSteps = OnboardingStep.all(
+                    hasCollection: store.hasCollection,
+                    isDownloading: store.hvscSync?.running == true
+                )
+                openWindow(id: "main")
+            }
         }
     }
 }

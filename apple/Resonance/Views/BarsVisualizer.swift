@@ -37,13 +37,28 @@ struct BarsVisualizer: View {
     private static let gap: CGFloat = 6
 
     private func draw(levels: [Double], peaks: [Double], voices: [VizVoice], in gc: GraphicsContext, size: CGSize) {
+        Self.drawBars(levels: levels, peaks: peaks, theme: theme, in: gc, size: size) { i, x, top in
+            VoiceLabels.draw(i < voices.count ? voices[i] : nil, color: theme.voice(i), centeredAt: x, top: top, in: gc)
+        }
+    }
+
+    /// The bars themselves, also drawn by the welcome. `label` draws what's
+    /// under voice `i`, given the voice's centre and the labels' top.
+    static func drawBars(
+        levels: [Double],
+        peaks: [Double],
+        theme: VoiceTheme,
+        in gc: GraphicsContext,
+        size: CGSize,
+        label: (_ voice: Int, _ centerX: CGFloat, _ top: CGFloat) -> Void
+    ) {
         let count = levels.count
         guard count > 0 else { return }
-        let width = (size.width - Self.gap * CGFloat(count - 1)) / CGFloat(count)
+        let width = (size.width - gap * CGFloat(count - 1)) / CGFloat(count)
         let barHeight = size.height - VoiceLabels.height
 
         for i in 0..<count {
-            let x = CGFloat(i) * (width + Self.gap)
+            let x = CGFloat(i) * (width + gap)
             let color = theme.voice(i)
 
             // Faint slot so silent voices stay visible.
@@ -58,8 +73,7 @@ struct BarsVisualizer: View {
             gc.fill(Path(CGRect(x: x, y: max(peakY - 2, 0), width: width, height: 2)),
                     with: .color(.white.opacity(0.8)))
 
-            VoiceLabels.draw(i < voices.count ? voices[i] : nil, color: color,
-                             centeredAt: x + width / 2, top: barHeight, in: gc)
+            label(i, x + width / 2, barHeight)
         }
     }
 }

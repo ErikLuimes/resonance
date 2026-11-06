@@ -26,6 +26,8 @@ nonisolated enum Pref {
     /// Per extractor version: a set of another version's fingerprints doesn't count.
     static let fingerprintSetImported = "fingerprintSetImported.x2"
     static let menuBarPlayer = "menuBarPlayer"
+    /// The welcome steps already been through.
+    static let onboardingSeen = "onboardingSeen"
 #if CSDB
     /// Whether Resonance shows the scene from CSDb, and so talks to csdb.dk.
     static let csdbEnabled = "csdbEnabled"

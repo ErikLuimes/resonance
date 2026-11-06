@@ -129,10 +129,10 @@ private struct DownloadProgress: View {
             Text(extracting ? "Extracting the Collection" : "Downloading the Collection")
                 .font(.title2.weight(.semibold))
 
-            if let fraction, !label.isEmpty {
+            if let fraction, !sync.progressText.isEmpty {
                 HStack(spacing: 12) {
                     ProgressView(value: fraction)
-                    Text(label)
+                    Text(sync.progressText)
                         .font(.callout)
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
@@ -150,17 +150,19 @@ private struct DownloadProgress: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+}
 
-    /// The bar's caption: files while the archive extracts, bytes while it
-    /// streams; empty before the server announces a total.
-    private var label: String {
-        if sync.filesTotal > 0 {
-            return "\(sync.filesDone.formatted()) of \(sync.filesTotal.formatted()) files"
+extension HvscSyncStatus {
+    /// Files while the archive extracts, bytes while it streams; empty
+    /// before the server announces a total.
+    var progressText: String {
+        if filesTotal > 0 {
+            return "\(filesDone.formatted()) of \(filesTotal.formatted()) files"
         }
-        if sync.bytesTotal > 0 {
+        if bytesTotal > 0 {
             let mb = Double(1024 * 1024)
-            let done = (Double(sync.bytesDone) / mb).formatted(.number.precision(.fractionLength(1)))
-            let total = (Double(sync.bytesTotal) / mb).formatted(.number.precision(.fractionLength(1)))
+            let done = (Double(bytesDone) / mb).formatted(.number.precision(.fractionLength(1)))
+            let total = (Double(bytesTotal) / mb).formatted(.number.precision(.fractionLength(1)))
             return "\(done) MB of \(total) MB"
         }
         return ""
@@ -1332,7 +1334,7 @@ private struct PlaylistsSheet: View {
 }
 
 /// The collection's icon: the voice palette's purple and teal on a tile.
-private struct Tile: View {
+struct Tile: View {
     var size: CGFloat
     var symbol: String
 
@@ -1393,7 +1395,7 @@ private struct ReleaseCounts: Codable, Equatable {
     }
 }
 
-private enum Palette {
+enum Palette {
     static let teal = Color(red: 63 / 255, green: 208 / 255, blue: 232 / 255)
     static let purple = Color(red: 155 / 255, green: 107 / 255, blue: 1.0)
     static let orange = Color(red: 1.0, green: 154 / 255, blue: 60 / 255)

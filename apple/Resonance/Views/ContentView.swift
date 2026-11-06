@@ -64,7 +64,7 @@ enum StartPage: String, CaseIterable, Identifiable {
     /// Where the window opens, as things are set now.
     static var opening: SidebarItem {
 #if CSDB
-        let enabled = UserDefaults.standard.object(forKey: Pref.csdbEnabled) as? Bool ?? true
+        let enabled = UserDefaults.standard.object(forKey: Pref.csdbEnabled) as? Bool ?? false
         return saved().item(csdbEnabled: enabled)
 #else
         return saved().item(csdbEnabled: false)
@@ -97,7 +97,7 @@ struct ContentView: View {
     @State private var isSidebarDropTargeted = false
     @AppStorage("sidebar.curatedExpanded") private var curatedExpanded = true
 #if CSDB
-    @AppStorage(Pref.csdbEnabled) private var csdbEnabled = true
+    @AppStorage(Pref.csdbEnabled) private var csdbEnabled = false
 #endif
     /// The collection folder the Home was last opened for on its own.
     @AppStorage(Pref.homeShownForRoot) private var homeShownForRoot = ""
@@ -143,6 +143,14 @@ struct ContentView: View {
                     .transition(.asymmetric(insertion: .move(edge: .bottom), removal: .identity))
                     .zIndex(2)
             }
+        }
+        // On the root, as the library has its own sheet. It waits for a shared
+        // tune's: a window shows one sheet at a time.
+        .sheet(isPresented: Binding(
+            get: { !store.welcomeSteps.isEmpty && store.sharedTune == nil },
+            set: { if !$0 { store.welcomeSteps = [] } }
+        )) {
+            OnboardingSheet()
         }
         .onChange(of: store.isShowingNowPlaying) { _, showing in
             if showing {

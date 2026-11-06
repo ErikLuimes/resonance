@@ -598,7 +598,7 @@ nonisolated enum DiskUsage {
 /// its badge shows.
 #if CSDB
 private struct SceneSettings: View {
-    @AppStorage(Pref.csdbEnabled) private var enabled = true
+    @AppStorage(Pref.csdbEnabled) private var enabled = false
     @AppStorage(Pref.csdbTrivia) private var showsTrivia = false
     @AppStorage(Pref.composerPhotos) private var showsPhotos = false
 
@@ -628,7 +628,7 @@ private struct SceneSettings: View {
 private struct StartPageSettings: View {
     @AppStorage(Pref.startPage) private var startPage = StartPage.myPlaylist
 #if CSDB
-    @AppStorage(Pref.csdbEnabled) private var csdbEnabled = true
+    @AppStorage(Pref.csdbEnabled) private var csdbEnabled = false
 #endif
 
     var body: some View {

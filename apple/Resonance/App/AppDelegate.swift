@@ -25,6 +25,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         fingerprints = FingerprintStore(player: store)
         playlists = PlaylistsStore(player: store)
         super.init()
+        // Before the window's first frame, so the library never flashes first.
+        if !Self.isRunningTests {
+            store.welcomeSteps = OnboardingStep.pendingAtLaunch(store: store)
+        }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
