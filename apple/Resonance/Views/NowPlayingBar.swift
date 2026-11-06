@@ -111,18 +111,7 @@ struct NowPlayingBar: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
-            ProgressRow(
-                elapsed: store.elapsed,
-                duration: store.duration,
-                durationIsEstimate: store.durationIsEstimate,
-                hasSubtunes: store.hasSubtunes,
-                canSeek: store.canSeek,
-                isPlaying: store.isPlaying,
-                engine: store.engine,
-                seeking: store.seeking,
-                seekPosition: store.seekPosition,
-                seek: { store.seek(to: $0) }
-            )
+            ProgressRow()
         }
     }
 
@@ -304,19 +293,22 @@ private struct SurpriseBadge: View {
 /// Elapsed / length with the bar. It scrubs on the engines that can seek
 /// (reSIDfp and SIDLite direct); on the other two the tune plays in real
 /// time only, and a click on the bar explains.
+///
+/// It reads the store itself, so the clock's many updates a second stop here.
+/// Handed down from the bar, they rebuilt the bar and its glass each time.
 private struct ProgressRow: View {
-    let elapsed: TimeInterval
-    let duration: TimeInterval?
-    let durationIsEstimate: Bool
-    let hasSubtunes: Bool
-    let canSeek: Bool
-    let isPlaying: Bool
-    let engine: Engine
-    let seeking: Bool
-    let seekPosition: TimeInterval?
-    let seek: (TimeInterval) -> Void
-
+    @Environment(PlayerStore.self) private var store
     @State private var preview: TimeInterval?
+
+    private var elapsed: TimeInterval { store.elapsed }
+    private var duration: TimeInterval? { store.duration }
+    private var durationIsEstimate: Bool { store.durationIsEstimate }
+    private var hasSubtunes: Bool { store.hasSubtunes }
+    private var canSeek: Bool { store.canSeek }
+    private var isPlaying: Bool { store.isPlaying }
+    private var engine: Engine { store.engine }
+    private var seeking: Bool { store.seeking }
+    private var seekPosition: TimeInterval? { store.seekPosition }
 
     private static let how = "Drag or click to a point in the tune. The sound pauses while the engine runs there, about a second per minute of tune."
 
@@ -335,7 +327,7 @@ private struct ProgressRow: View {
                 seeking: seeking,
                 seekPosition: seekPosition,
                 preview: $preview,
-                seek: seek
+                seek: { store.seek(to: $0) }
             )
             // The row's height, so the thin bar is easy to hit.
             .frame(height: 14)
