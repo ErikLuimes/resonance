@@ -272,6 +272,26 @@ fn store_round_trips_by_path_and_start_song() {
 }
 
 #[test]
+fn tag_counts_go_by_each_tunes_start_song() {
+    let store = Store::in_memory().unwrap();
+    let mut fp = scan_tune(&psid(1, 1), 1, 4.0, &|| false).unwrap().unwrap();
+    let both = tag::ARPEGGIOS | tag::DIGI;
+    fp.tags = both;
+    for (path, md5) in [("A/one.sid", "one"), ("A/two.sid", "two")] {
+        store.set_tune(path, md5, 2, 2).unwrap();
+        store.mark_scanning(md5, 2).unwrap();
+        store.save(md5, 2, &fp).unwrap();
+    }
+    fp.tags = tag::RING_MOD;
+    // Another song of a tune doesn't count, nor does a song of no known tune.
+    store.mark_scanning("one", 1).unwrap();
+    store.save("one", 1, &fp).unwrap();
+    store.mark_scanning("elsewhere", 1).unwrap();
+    store.save("elsewhere", 1, &fp).unwrap();
+    assert_eq!(store.tag_counts().unwrap(), vec![(both, 2)]);
+}
+
+#[test]
 fn an_interrupted_scan_is_retried_then_given_up_on() {
     let store = Store::in_memory().unwrap();
     store.mark_scanning("abc", 1).unwrap();

@@ -5,11 +5,11 @@ import PhosphorCore
 /// shuffle it, and its tunes in a table like the rest of the library.
 struct CuratedPlaylistView: View {
     let playlist: HvscPlaylist
-    /// The window search field's text for this section.
-    let search: String
 
     @Environment(PlayerStore.self) private var store
     @Environment(LibraryStore.self) private var library
+    /// The list's own filter.
+    @State private var filter = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -81,6 +81,9 @@ struct CuratedPlaylistView: View {
                     .monospacedDigit()
             }
             Spacer(minLength: 12)
+            if !rows.isEmpty {
+                ListFilterField(text: $filter)
+            }
             HStack(spacing: 8) {
                 Button {
                     play()
@@ -120,7 +123,7 @@ struct CuratedPlaylistView: View {
 
     private var rows: [LibraryRow] { (library.playlistTunes[playlist.file] ?? nil) ?? [] }
 
-    private var query: String { search.trimmingCharacters(in: .whitespaces) }
+    private var query: String { filter.trimmingCharacters(in: .whitespaces) }
 
     private func filtered(_ rows: [LibraryRow]) -> [LibraryRow] {
         guard !query.isEmpty else { return rows }
@@ -202,8 +205,7 @@ struct PlaylistArtwork: View {
 
 #Preview {
     CuratedPlaylistView(
-        playlist: HvscPlaylist(name: "Epic C64 SID Collection", file: "epic.m3u", description: "Big tunes.", tracks: 210),
-        search: ""
+        playlist: HvscPlaylist(name: "Epic C64 SID Collection", file: "epic.m3u", description: "Big tunes.", tracks: 210)
     )
     .environment(PlayerStore.preview)
     .environment(LibraryStore(player: .preview))

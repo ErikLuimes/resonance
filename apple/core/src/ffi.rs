@@ -454,6 +454,14 @@ pub enum SoundTag {
     VibratoLeads,
 }
 
+/// How common a sound is across the collection.
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct SoundTagShare {
+    pub tag: SoundTag,
+    /// The share of the fingerprinted tunes' start songs that have it, 0–1.
+    pub share: f32,
+}
+
 /// Share of the sounding time per waveform, 0–1; they sum to 1 (or 0 for
 /// a silent tune).
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
@@ -1361,6 +1369,28 @@ impl PlayerCore {
         .unwrap_or_default()
     }
 
+    /// How common each sound is across the collection's fingerprinted tunes;
+    /// empty while none are.
+    pub async fn sound_tag_shares(&self) -> Vec<SoundTagShare> {
+        let fps = self.fingerprints.clone();
+        tokio::task::spawn_blocking(move || {
+            let counts = fps.tag_counts();
+            let total: u32 = counts.iter().map(|(_, tunes)| tunes).sum();
+            if total == 0 {
+                return Vec::new();
+            }
+            sound_tag_bits()
+                .into_iter()
+                .map(|(bit, tag)| {
+                    let with: u32 = counts.iter().filter(|(tags, _)| tags & bit != 0).map(|(_, tunes)| tunes).sum();
+                    SoundTagShare { tag, share: with as f32 / total as f32 }
+                })
+                .collect()
+        })
+        .await
+        .unwrap_or_default()
+    }
+
     /// One subtune's fingerprint (the start song when `subtune` is None).
     pub async fn fingerprint(&self, path: String, subtune: Option<u16>) -> Option<TuneFingerprint> {
         let rel = collection_path(&self.library.root()?, Path::new(&path))?;
@@ -1791,20 +1821,25 @@ fn collection_path(root: &Path, path: &Path) -> Option<String> {
     (!parts.is_empty()).then(|| parts.join("/"))
 }
 
+/// Each sound tag with its bit in a stored fingerprint.
+fn sound_tag_bits() -> [(u32, SoundTag); 8] {
+    use fingerprint::tag;
+    [
+        (tag::ARPEGGIOS, SoundTag::Arpeggios),
+        (tag::FILTER_SWEEPS, SoundTag::FilterSweeps),
+        (tag::NOISE_DRUMS, SoundTag::NoiseDrums),
+        (tag::RING_MOD, SoundTag::RingMod),
+        (tag::SYNC_LEADS, SoundTag::SyncLeads),
+        (tag::DIGI, SoundTag::DigiSamples),
+        (tag::PULSE_BASS, SoundTag::PulseBass),
+        (tag::VIBRATO, SoundTag::VibratoLeads),
+    ]
+}
+
 impl TuneFingerprint {
     fn new(subtune: u16, fp: &fingerprint::Fingerprint) -> Self {
-        use fingerprint::tag;
-        let tags = [
-            (tag::ARPEGGIOS, SoundTag::Arpeggios),
-            (tag::FILTER_SWEEPS, SoundTag::FilterSweeps),
-            (tag::NOISE_DRUMS, SoundTag::NoiseDrums),
-            (tag::RING_MOD, SoundTag::RingMod),
-            (tag::SYNC_LEADS, SoundTag::SyncLeads),
-            (tag::DIGI, SoundTag::DigiSamples),
-            (tag::PULSE_BASS, SoundTag::PulseBass),
-            (tag::VIBRATO, SoundTag::VibratoLeads),
-        ]
-        .into_iter()
+        let tags = sound_tag_bits()
+            .into_iter()
         .filter(|(bit, _)| fp.tags & bit != 0)
         .map(|(_, t)| t)
         .collect();

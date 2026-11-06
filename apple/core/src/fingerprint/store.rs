@@ -388,6 +388,19 @@ impl Store {
         Ok(())
     }
 
+    /// How many tunes' start songs have each combination of tags, under the
+    /// current extractor.
+    pub fn tag_counts(&self) -> rusqlite::Result<Vec<(u32, u32)>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT COALESCE(f.tags, 0), COUNT(*) FROM tunes t
+             JOIN fingerprints f ON f.md5 = t.md5 AND f.subtune = t.start_song
+             WHERE f.status = 1 AND f.version = ?1
+             GROUP BY COALESCE(f.tags, 0)",
+        )?;
+        let rows = stmt.query_map(params![EXTRACTOR_VERSION], |r| Ok((r.get(0)?, r.get(1)?)))?;
+        rows.collect()
+    }
+
     /// Subtunes scanned and given up on, under the current extractor.
     pub fn counts(&self) -> rusqlite::Result<(u32, u32)> {
         self.conn.query_row(

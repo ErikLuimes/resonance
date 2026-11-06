@@ -7,11 +7,11 @@ import PhosphorCore
 struct UserPlaylistView: View {
     /// Nil for Favourites.
     let playlist: UserPlaylist?
-    /// The window search field's text for this list.
-    let search: String
 
     @Environment(PlaylistsStore.self) private var playlists
     @Environment(LibraryStore.self) private var library
+    /// The list's own filter.
+    @State private var filter = ""
 
     private var id: String { playlist?.id ?? PlaylistsStore.favouritesID }
     private var source: PlaybackSource {
@@ -68,47 +68,10 @@ struct UserPlaylistView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .center, spacing: 16) {
-            Image(systemName: playlist == nil ? "heart.fill" : "music.note.list")
-                .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.92))
-                .frame(width: 76, height: 76)
-                .background(
-                    LinearGradient(
-                        colors: playlist == nil
-                            ? [Color(red: 1, green: 0.42, blue: 0.55), Color(red: 0.78, green: 0.25, blue: 0.62)]
-                            : [Color(red: 0.42, green: 0.48, blue: 1), Color(red: 155 / 255, green: 107 / 255, blue: 1.0)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    in: .rect(cornerRadius: 17)
-                )
-            VStack(alignment: .leading, spacing: 4) {
-                Text(source.name)
-                    .font(.title2.weight(.bold))
-                    .lineLimit(1)
-                Text(subtitle)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 12)
-            Button {
-                library.play(playlists.rows[id] ?? [], from: source)
-            } label: {
-                Label("Play", systemImage: "play.fill")
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled((playlists.rows[id] ?? []).isEmpty)
-            .fixedSize()
+        let rows = playlists.rows[id]
+        return PlaylistHeader(title: source.name, tunes: rows?.count, isFavourites: playlist == nil, filter: $filter) {
+            library.play(rows ?? [], from: source)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
-    }
-
-    private var subtitle: String {
-        let count = playlists.rows[id]?.count
-        let tunes = count.map { $0 == 1 ? "1 tune" : "\($0.formatted()) tunes" } ?? "…"
-        return tunes
     }
 
     /// Dropped at `offset` of the rows shown: before that row's file, or
@@ -126,7 +89,7 @@ struct UserPlaylistView: View {
         }
     }
 
-    private var query: String { search.trimmingCharacters(in: .whitespaces) }
+    private var query: String { filter.trimmingCharacters(in: .whitespaces) }
 
     private func filtered(_ rows: [LibraryRow]) -> [LibraryRow] {
         guard !query.isEmpty else { return rows }
@@ -134,5 +97,55 @@ struct UserPlaylistView: View {
             $0.item.title.localizedCaseInsensitiveContains(query)
                 || $0.item.author.localizedCaseInsensitiveContains(query)
         }
+    }
+}
+
+/// The header of a list of your own: its picture, name and tune count, the
+/// list's filter, and Play.
+struct PlaylistHeader: View {
+    let title: String
+    /// Nil until the list has loaded.
+    let tunes: Int?
+    var isFavourites = false
+    @Binding var filter: String
+    let play: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 16) {
+            Image(systemName: isFavourites ? "heart.fill" : "music.note.list")
+                .font(.system(size: 30, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.92))
+                .frame(width: 76, height: 76)
+                .background(
+                    LinearGradient(
+                        colors: isFavourites
+                            ? [Color(red: 1, green: 0.42, blue: 0.55), Color(red: 0.78, green: 0.25, blue: 0.62)]
+                            : [Color(red: 0.42, green: 0.48, blue: 1), Color(red: 155 / 255, green: 107 / 255, blue: 1.0)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    in: .rect(cornerRadius: 17)
+                )
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.title2.weight(.bold))
+                    .lineLimit(1)
+                Text(tunes.map { $0 == 1 ? "1 tune" : "\($0.formatted()) tunes" } ?? "…")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 12)
+            if (tunes ?? 0) > 0 {
+                ListFilterField(text: $filter)
+            }
+            Button(action: play) {
+                Label("Play", systemImage: "play.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled((tunes ?? 0) == 0)
+            .fixedSize()
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
     }
 }

@@ -25,6 +25,12 @@ nonisolated enum Pref {
     /// Per extractor version: a set of another version's fingerprints doesn't count.
     static let fingerprintSetImported = "fingerprintSetImported.x2"
     static let menuBarPlayer = "menuBarPlayer"
+    /// Whether Resonance shows the scene from CSDb, and so talks to csdb.dk.
+    static let csdbEnabled = "csdbEnabled"
+    /// Whether composers' CSDb trivia shows. Off by default: it's unverified.
+    static let csdbTrivia = "csdbTrivia"
+    /// Whether composer profiles look for a photo on Wikimedia Commons.
+    static let composerPhotos = "composerPhotos"
 }
 
 nonisolated extension PlaybackOptions {
@@ -146,11 +152,6 @@ nonisolated extension HvscCategory {
         case .games: "gamecontroller"
         case .demos: "sparkles.tv"
         }
-    }
-
-    /// Games and Demos are split into alphabetical sections, not authors.
-    var groupNoun: String {
-        self == .musicians ? "authors" : "sections"
     }
 }
 

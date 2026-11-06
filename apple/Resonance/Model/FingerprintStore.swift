@@ -17,6 +17,9 @@ final class FingerprintStore {
     private(set) var status: FingerprintScanStatus?
     /// "Sounds like" for a tune's start song, by path; absent until loaded.
     private(set) var similar: [String: [SimilarTune]] = [:]
+    /// How common each sound is across the collection, 0–1; empty until asked
+    /// for, or while nothing's fingerprinted.
+    private(set) var tagShares: [SoundTag: Double] = [:]
     /// Downloading the published fingerprint set: whether it's under way,
     /// how many fingerprints it added, or why it failed.
     private(set) var setDownload = SetDownload.idle
@@ -239,6 +242,13 @@ final class FingerprintStore {
         return out
     }
 
+    /// How common each sound is across the collection, as it stands now.
+    func loadTagShares() async {
+        let found = await core.soundTagShares()
+        let shares = Dictionary(found.map { ($0.tag, Double($0.share)) }, uniquingKeysWith: { first, _ in first })
+        if shares != tagShares { tagShares = shares }
+    }
+
     /// The tunes in all of HVSC that sound most like the one at `path`.
     func loadSimilar(_ path: String) async {
         guard similar[path]?.isEmpty != false else { return }
@@ -251,6 +261,7 @@ final class FingerprintStore {
 
 nonisolated extension SoundTag {
     static let filters: [SoundTag] = [.arpeggios, .filterSweeps, .noiseDrums, .ringMod, .syncLeads, .digiSamples]
+    static let all: [SoundTag] = filters + [.pulseBass, .vibratoLeads]
 
     var name: String {
         switch self {

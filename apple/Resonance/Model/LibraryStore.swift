@@ -29,9 +29,6 @@ final class LibraryStore {
     /// The composers who sound like one, by folder path; absent until
     /// loaded.
     private(set) var similarComposers: [String: [SimilarComposer]] = [:]
-    /// Search all of HVSC: the browser switches its scope to all of it
-    /// once it shows, then clears this.
-    var searchesAllHvsc = false
     /// An author the browser should show (the composer card's link, or a
     /// tune STIL links to). The window switches to its category and the
     /// browser selects the author, then hands the tune on to
@@ -338,7 +335,7 @@ final class LibraryStore {
     }
 
     func loadSimilarComposers(_ path: String) async {
-        let found = await core.similarComposers(authorPath: path, limit: 3)
+        let found = await core.similarComposers(authorPath: path, limit: 6)
         similarComposers[path] = found
     }
 
@@ -369,13 +366,6 @@ final class LibraryStore {
         name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
             .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
             .map(String.init)
-    }
-
-    /// Open a composer's (or section's) tunes in the browser, leaving any
-    /// search.
-    func showComposer(_ path: String, in category: HvscCategory) {
-        reveal = LibraryReveal(authorPath: path, tunePath: "", category: category)
-        shownSection = .hvsc(category)
     }
 
     /// Show where the playing tune comes from: `source`'s sidebar section,
@@ -525,13 +515,6 @@ nonisolated struct Composer: Equatable, Sendable {
     let name: String
     /// A real name, handle or co-authors; see `LibraryStore.subtitle`.
     var subtitle: String? = nil
-
-    /// "RH": the first letters of the first and last word of the name.
-    var initials: String {
-        let words = name.split(whereSeparator: { !$0.isLetter && !$0.isNumber })
-        let picked = words.count > 1 ? [words[0], words[words.count - 1]] : words
-        return String(picked.compactMap(\.first)).uppercased()
-    }
 }
 
 /// An author (or section) the browser should show, from the composer

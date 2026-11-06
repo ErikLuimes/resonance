@@ -197,3 +197,35 @@ struct AddToMenu: View {
         Task { await playlists.add(files, to: target) }
     }
 }
+
+/// The small field that narrows the list it sits on, and nothing else. The
+/// window's search field is for finding things anywhere.
+struct ListFilterField: View {
+    @Binding var text: String
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "line.3.horizontal.decrease")
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            TextField("Filter this list", text: $text)
+                .textFieldStyle(.plain)
+            if !text.isEmpty {
+                Button {
+                    text = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Clear the filter")
+                .accessibilityLabel("Clear the filter")
+            }
+        }
+        .font(.callout)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .frame(minWidth: 110, maxWidth: 170)
+        .background(.fill.tertiary, in: .rect(cornerRadius: 7))
+    }
+}

@@ -292,7 +292,7 @@ struct AccentLink: View {
 /// Who wrote what's playing: their name, a way to all their tunes, and
 /// STIL's note on them when it has one, set like the tune's notes, the
 /// tunes it names leading to the browser. On the same fill as the cards
-/// around it; the monogram is where a photo would go.
+/// around it. What else is known about them is in the header over their tunes.
 private struct ComposerCard: View {
     let composer: Composer
     let tunePath: String
@@ -302,7 +302,8 @@ private struct ComposerCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                monogram
+                ComposerPortrait(name: composer.name, cornerRadius: 9)
+                    .frame(width: 44, height: 44)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(composer.name)
                         .font(.headline)
@@ -343,25 +344,11 @@ private struct ComposerCard: View {
             }
         }
     }
-
-    private var monogram: some View {
-        ZStack {
-            Circle().fill(.background)
-            if composer.initials.isEmpty {
-                Image(systemName: "person.fill")
-            } else {
-                Text(composer.initials)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-            }
-        }
-        .foregroundStyle(.tint)
-        .frame(width: 44, height: 44)
-        .accessibilityHidden(true)
-    }
 }
 
 #Preview {
     NowPlayingInspector()
+        .environment(CSDbStore())
         .environment(PlayerStore.preview)
         .environment(LibraryStore(player: .preview))
         .environment(FingerprintStore(player: .preview))

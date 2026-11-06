@@ -4,11 +4,10 @@ import PhosphorCore
 /// The play history: the last 100 different tunes played, newest first,
 /// and how much of HVSC has been heard so far.
 struct RecentlyPlayedView: View {
-    /// The window search field's text for this section.
-    let search: String
-
     @Environment(PlayerStore.self) private var store
     @Environment(LibraryStore.self) private var library
+    /// The list's own filter.
+    @State private var filter = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -80,6 +79,9 @@ struct RecentlyPlayedView: View {
                 }
             }
             Spacer(minLength: 12)
+            if !rows.isEmpty {
+                ListFilterField(text: $filter)
+            }
             Button {
                 library.play(rows, from: .recentlyPlayed)
             } label: {
@@ -106,7 +108,7 @@ struct RecentlyPlayedView: View {
 
     private var rows: [LibraryRow] { library.recent?.map(\.row) ?? [] }
 
-    private var query: String { search.trimmingCharacters(in: .whitespaces) }
+    private var query: String { filter.trimmingCharacters(in: .whitespaces) }
 
     private func filtered(_ rows: [LibraryRow]) -> [LibraryRow] {
         guard !query.isEmpty else { return rows }
@@ -119,7 +121,7 @@ struct RecentlyPlayedView: View {
 }
 
 #Preview {
-    RecentlyPlayedView(search: "")
+    RecentlyPlayedView()
         .environment(PlayerStore.preview)
         .environment(LibraryStore(player: .preview))
         .environment(FingerprintStore(player: .preview))

@@ -24,6 +24,10 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
     case files
     /// A tune someone shared a link to.
     case shared
+    /// A release played from CSDb.
+    case scene
+    /// The list of tunes downloaded from CSDb.
+    case csdbDownloads
 
     /// "Rob Hubbard", "Search “commando”".
     var name: String {
@@ -40,6 +44,8 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .shuffleCollection: "Shuffle Collection"
         case .files: "Files"
         case .shared: "Shared Link"
+        case .scene: "Scene Pulse"
+        case .csdbDownloads: "Downloads"
         }
     }
 
@@ -64,6 +70,7 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .shuffleCollection: "All of HVSC, shuffled"
         case .files: "Added files"
         case .shared: "Opened from"
+        case .scene, .csdbDownloads: "From CSDb"
         }
     }
 
@@ -80,6 +87,8 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .shuffleCollection: "shuffle"
         case .files: "doc"
         case .shared: "link"
+        case .scene: "antenna.radiowaves.left.and.right"
+        case .csdbDownloads: "arrow.down.circle"
         }
     }
 
@@ -92,6 +101,8 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .playlist(let id, _): .userPlaylist(id)
         case .curated(let playlist): .curated(playlist.file)
         case .recentlyPlayed: .recent
+        case .scene: .scene
+        case .csdbDownloads: .csdbDownloads
         default: nil
         }
     }

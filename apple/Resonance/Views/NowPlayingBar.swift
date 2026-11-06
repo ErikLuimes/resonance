@@ -116,6 +116,7 @@ struct NowPlayingBar: View {
                 duration: store.duration,
                 hasSubtunes: store.hasSubtunes,
                 canSeek: store.canSeek,
+                isPlaying: store.isPlaying,
                 engine: store.engine,
                 seeking: store.seeking,
                 seekPosition: store.seekPosition,
@@ -307,6 +308,7 @@ private struct ProgressRow: View {
     let duration: TimeInterval?
     let hasSubtunes: Bool
     let canSeek: Bool
+    let isPlaying: Bool
     let engine: Engine
     let seeking: Bool
     let seekPosition: TimeInterval?
@@ -325,6 +327,7 @@ private struct ProgressRow: View {
                 elapsed: elapsed,
                 duration: duration,
                 canSeek: canSeek,
+                isPlaying: isPlaying,
                 engine: engine,
                 hasSubtunes: hasSubtunes,
                 seeking: seeking,

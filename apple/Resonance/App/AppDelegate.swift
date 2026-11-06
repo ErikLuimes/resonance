@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let library: LibraryStore
     let fingerprints: FingerprintStore
     let playlists: PlaylistsStore
+    let csdb = CSDbStore()
     let updater = Updater()
     private var nowPlaying: NowPlayingController?
     private var activity: PlaybackActivity?
@@ -28,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         store.startPolling()
         guard !Self.isRunningTests else { return }
         TuneDrag.install()
+        SongTableStyle.install()
         SpaceKey.start(store)
         miniPlayer = MiniPlayer(store: store, library: library, playlists: playlists)
         fingerprints.startPolling()

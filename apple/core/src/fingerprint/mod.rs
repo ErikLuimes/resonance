@@ -120,6 +120,12 @@ impl Fingerprints {
         self.read(|s| s.by_path(rel, subtune)).flatten()
     }
 
+    /// How many tunes' start songs have each combination of tags, as
+    /// (tags, tunes). Blocking.
+    pub fn tag_counts(&self) -> Vec<(u32, u32)> {
+        self.read(|s| s.tag_counts()).unwrap_or_default()
+    }
+
     /// The similarity index, rebuilt from the store when the scan has added
     /// to it (at most once a minute while it runs, unless `seed`, a
     /// collection path, was scanned since, so a tune just fingerprinted

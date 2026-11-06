@@ -11,10 +11,15 @@ import SwiftUI
 /// While the engine runs to the target, the fill there turns grey (where
 /// you'll land) and a solid fill races up to it from where the run started:
 /// the emulation's real position (`seekPosition`), like a tape winding.
+///
+/// A tune missing from HVSC's song lengths, such as a new release from CSDb,
+/// has no duration, so no position to show. The system's indeterminate bar
+/// stands in while it plays, and the plain track while it's paused.
 struct ScrubBar: View {
     let elapsed: TimeInterval
     let duration: TimeInterval?
     let canSeek: Bool
+    let isPlaying: Bool
     /// The engine playing, for the note when it can't seek.
     let engine: Engine
     /// The tune has more than one song: the note mentions stepping between them.
@@ -72,8 +77,18 @@ struct ScrubBar: View {
         GeometryReader { proxy in
             let width = proxy.size.width
             ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(onDark ? Color.white.opacity(0.15) : Color.primary.opacity(0.12))
+                if duration == nil, isPlaying {
+                    ProgressView()
+                        .progressViewStyle(.linear)
+                        .controlSize(.small)
+                        // Grey: it says it's playing, not how far along.
+                        .tint(onDark ? Color.white.opacity(0.5) : Color.gray)
+                        .labelsHidden()
+                        .frame(width: width)
+                } else {
+                    Capsule()
+                        .fill(onDark ? Color.white.opacity(0.15) : Color.primary.opacity(0.12))
+                }
                 if let target {
                     Capsule()
                         .fill(targetColor)
@@ -89,7 +104,7 @@ struct ScrubBar: View {
             }
             .frame(height: 4)
             .frame(maxHeight: .infinity, alignment: .center)
-            .opacity(duration == nil ? 0.4 : 1)
+            .opacity(duration == nil && !isPlaying ? 0.4 : 1)
             .contentShape(.rect)
             .gesture(
                 DragGesture(minimumDistance: 0)

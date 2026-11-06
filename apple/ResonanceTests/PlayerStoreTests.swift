@@ -33,7 +33,8 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     static let stoppedSnapshot = Snapshot(
         state: .stopped, currentIndex: nil, queueActive: false, surpriseActive: false, shuffleCollectionActive: false, track: nil,
         elapsedMs: 0, durationMs: nil,
-        shuffle: false, repeat: .off, engine: .reSidFp, playlistRevision: 0, trackRevision: 0,
+        shuffle: false, repeat: .off, engine: .reSidFp, canSeek: false, seeking: false, seekPositionMs: nil,
+        playlistRevision: 0, trackRevision: 0,
         loading: nil, error: nil, hvscIndexing: [], hvscTreeRevision: 0
     )
 
@@ -156,6 +157,7 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     func set(composers: [HvscComposer]) { lock.withLock { _composers = composers } }
     func hvscComposers(category: HvscCategory) async throws -> [HvscComposer] { lock.withLock { _composers } }
     func similarComposers(authorPath: String, limit: UInt32) async -> [SimilarComposer] { [] }
+    func soundTagShares() async -> [SoundTagShare] { [] }
     private var _favourites: [String] = []
     func favoritePaths() async -> [String] { lock.withLock { _favourites } }
     func setFavorite(path: String, favorite: Bool) async throws {
@@ -244,6 +246,7 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     func setVolume(volume: Float) { record("volume \(volume)") }
     func shutdown() { record("shutdown") }
     func stop() { record("stop") }
+    func seek(positionMs: UInt64) { record("seek") }
 }
 
 @MainActor
@@ -751,12 +754,9 @@ struct LibraryStoreTests {
         #expect(composer?.subtitle == "Alexander Rotzsch")
     }
 
-    @Test func composersAreNamedAndInitialledAsSpoken() {
+    @Test func composersAreNamedAsSpoken() {
         #expect(LibraryStore.spokenName("Hubbard, Rob") == "Rob Hubbard")
         #expect(LibraryStore.spokenName("Agemixer") == "Agemixer")
-        #expect(Composer(authorPath: "", name: "Thomas E. Petersen").initials == "TP")
-        #expect(Composer(authorPath: "", name: "Agemixer").initials == "A")
-        #expect(Composer(authorPath: "", name: "<?>").initials == "")
     }
 
     @Test func stilIsLoadedOncePerPathAndParsedHere() async throws {

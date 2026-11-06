@@ -17,7 +17,10 @@ struct SettingsView: View {
                 }
             }
             Tab("Collection", systemImage: "folder", value: .collection) {
-                SettingsPane { CollectionSettings() }
+                SettingsPane {
+                    CollectionSettings()
+                    SceneSettings()
+                }
             }
             Tab("History", systemImage: "clock.arrow.circlepath", value: .history) {
                 SettingsPane { HistorySettings() }
@@ -75,7 +78,7 @@ private struct PlaybackSettings: View {
         } header: {
             Text("Playback")
         } footer: {
-            Text("The default length is used for tunes missing from the Songlengths database. 0 means play until silence.")
+            Text("Resonance works out the length of tunes missing from the Songlengths database by itself, in the background. The default length is used until then, and for tunes it can't work out. 0 means play until silence.")
         }
 
         Section {
@@ -587,6 +590,32 @@ nonisolated enum DiskUsage {
 
 /// The visualizers' colour theme: a preset or your own colours, and whether
 /// its badge shows.
+private struct SceneSettings: View {
+    @AppStorage(Pref.csdbEnabled) private var enabled = true
+    @AppStorage(Pref.csdbTrivia) private var showsTrivia = false
+    @AppStorage(Pref.composerPhotos) private var showsPhotos = false
+
+    var body: some View {
+        Section {
+            Toggle("Show the C64 scene from CSDb", isOn: $enabled)
+        } footer: {
+            Text("Scene Pulse and composers' CSDb details. Resonance only contacts csdb.dk while this is on.")
+        }
+        Section {
+            Toggle("Show CSDb trivia about composers", isOn: $showsTrivia)
+                .disabled(!enabled)
+        } footer: {
+            Text("Trivia is written by CSDb's users and shown as they wrote it. It's unverified, may be wrong or out of date, and can include claims about real people. It doesn't come from Resonance or HVSC.")
+        }
+        Section {
+            Toggle("Show composer photos from Wikimedia Commons", isOn: $showsPhotos)
+                .disabled(!enabled)
+        } footer: {
+            Text("Experimental. Composer profiles look for a freely licensed photo through Wikipedia, and credit its author. Few composers have one, and a match by name can be the wrong person. Resonance only contacts Wikipedia and Wikimedia Commons while this is on.")
+        }
+    }
+}
+
 private struct MenuBarSettings: View {
     @AppStorage(Pref.menuBarPlayer) private var showsMenuBarPlayer = true
 

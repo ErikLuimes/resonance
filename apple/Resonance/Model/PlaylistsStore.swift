@@ -236,6 +236,33 @@ final class PlaylistsStore {
         write(read(playlist).filter { !ids.contains($0) }, to: playlist)
     }
 
+    // MARK: Tunes in several lists
+
+    /// Rows for files that aren't in any list, from their headers.
+    func tunes(from files: [String]) async -> [LibraryRow] {
+        await core.tunesFromFiles(paths: files).map(LibraryRow.init)
+    }
+
+    /// The names of the lists holding any of `files`.
+    func lists(holding files: Set<String>) -> [String] {
+        var names: [String] = []
+        if !files.isDisjoint(with: favouriteSet) { names.append("Favourites") }
+        if player.rows.contains(where: { files.contains($0.id) }) { names.append("My Playlist") }
+        names += playlists.filter { !files.isDisjoint(with: read($0)) }.map(\.name)
+        return names
+    }
+
+    /// Takes `files` out of every list.
+    func takeOut(_ files: Set<String>) async {
+        for playlist in playlists where !files.isDisjoint(with: read(playlist)) {
+            remove(files, from: playlist)
+        }
+        for path in files where isFavourite(path) {
+            await setFavourite(path, false)
+        }
+        player.remove(indices: player.rows.filter { files.contains($0.id) }.map(\.index))
+    }
+
     // MARK: Favourites
 
     func isFavourite(_ path: String) -> Bool { favouriteSet.contains(path) }

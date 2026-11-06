@@ -12,11 +12,15 @@ struct PlaylistView: View {
     /// Which columns show (the header's menu), kept per window. Title,
     /// Author, Released and Length by default; the rest are a right-click away.
     @SceneStorage("PlaylistColumns") private var columns = TableColumnCustomization<TrackRow>()
-    /// The window search field's text for the playlist.
-    let search: String
+    /// The list's own filter.
+    @State private var filter = ""
 
     var body: some View {
-        Group {
+        VStack(spacing: 0) {
+            PlaylistHeader(title: "My Playlist", tunes: store.rows.count, filter: $filter) {
+                store.play(index: 0)
+            }
+            Divider()
             if store.rows.isEmpty {
                 emptyState
             } else {
@@ -29,14 +33,9 @@ struct PlaylistView: View {
     private var table: some View {
         Table(of: TrackRow.self, selection: $selection, sortOrder: $sortOrder, columnCustomization: $columns) {
             TableColumn("#", value: \.index) { row in
-                if row.index == store.currentIndex {
-                    Image(systemName: store.isPlaying ? "speaker.wave.2.fill" : "speaker.fill")
-                        .foregroundStyle(.tint)
-                } else {
-                    Text("\(row.index + 1)")
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
+                RowPlayCell(isCurrent: row.index == store.currentIndex, isPlaying: store.isPlaying, isSelected: selection.contains(row.id),
+                            number: row.index + 1, feed: store.visualizer,
+                            play: { store.play(index: row.index) }, playPause: { store.playPause() })
             }
             .width(36)
             .customizationID("number")
@@ -47,8 +46,10 @@ struct PlaylistView: View {
             }
             .width(min: 160, ideal: 320)
             .customizationID("title")
-            TableColumn("Author", value: \.author)
-                .customizationID("author")
+            TableColumn("Author", value: \.author) { row in
+                AuthorCell(author: row.author)
+            }
+            .customizationID("author")
             TableColumn("Released", value: \.released)
                 .customizationID("released")
             TableColumn("Sound") { row in
@@ -97,6 +98,7 @@ struct PlaylistView: View {
                 }
             }
         }
+        .alternatingRowBackgrounds(.disabled)
         .contextMenu(forSelectionType: TrackRow.ID.self) { ids in
             if !ids.isEmpty {
                 Button("Play") { play(ids) }
@@ -135,14 +137,13 @@ struct PlaylistView: View {
             Button("Add Files…") { store.isImporting = true }
                 .buttonStyle(.glassProminent)
         }
-        // The whole pane, so the header stays on top and the play bar at
-        // the bottom.
+        // The whole pane, so the play bar stays at the bottom.
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: Rows
 
-    private var query: String { search.trimmingCharacters(in: .whitespaces) }
+    private var query: String { filter.trimmingCharacters(in: .whitespaces) }
 
     private var displayedRows: [TrackRow] {
         let filtered = query.isEmpty
@@ -187,7 +188,7 @@ struct PlaylistView: View {
 }
 
 #Preview {
-    PlaylistView(search: "")
+    PlaylistView()
         .environment(PlayerStore.preview)
         .frame(width: 800, height: 400)
 }

@@ -2,86 +2,54 @@ import SwiftUI
 import PhosphorCore
 
 /// One HVSC category: authors (or alphabetical sections) on the left, the
-/// selected one's tunes on the right; typing in the window's search field
-/// switches to ranked results from this category or all of HVSC.
+/// selected one's tunes on the right. Only for browsing: search has its own
+/// place (`SearchView`), so this never changes shape.
 ///
-/// Nothing here touches the toolbar (search field, scopes, subtitle): a
-/// toolbar that changes when the sidebar selection changes made SwiftUI
-/// re-run the window layout until AppKit aborted the app.
+/// Nothing here touches the toolbar (search field, subtitle): a toolbar that
+/// changes when the sidebar selection changes made SwiftUI re-run the window
+/// layout until AppKit aborted the app.
 struct HVSCBrowserView: View {
     let category: HvscCategory
-    /// The window search field's text for this category.
-    let search: String
 
     @Environment(LibraryStore.self) private var library
-    @Environment(PlayerStore.self) private var player
     @State private var selectedAuthor: String?
     /// A composer without a folder whose credited tunes show instead of an
     /// author's (the inspector's link).
     @State private var creditedName: String?
     /// Scrolls the author list to an author the inspector's link revealed.
     @State private var authorScroll: AuthorScroll?
-    @State private var scope = SearchScope.category
-    @State private var results: HvscSearchResult?
-    @State private var searchError: String?
-
-    enum SearchScope: Hashable {
-        case category, all
-    }
-
-    private var query: String { search.trimmingCharacters(in: .whitespaces) }
 
     var body: some View {
-        Group {
-            if query.isEmpty {
-                // Not HSplitView: its panes' minimum widths become AppKit
-                // constraints that fight the window's own split view
-                // (sidebar / content / inspector) until AppKit aborts the
-                // app. A fixed author column can't conflict.
-                HStack(spacing: 0) {
-                    AuthorList(category: category, selection: $selectedAuthor, scrollTarget: authorScroll)
-                        .frame(width: 240)
-                        // A column separator through the title bar, like the
-                        // window's own: a Divider stopped at the title bar,
-                        // and its glass faded the top of it.
-                        .overlay(alignment: .trailing) {
-                            Rectangle()
-                                .fill(.separator)
-                                .frame(width: 1)
-                                .ignoresSafeArea()
-                        }
-                    authorTunes
-                        .frame(minWidth: 0, maxWidth: .infinity)
+        // Not HSplitView: its panes' minimum widths become AppKit
+        // constraints that fight the window's own split view
+        // (sidebar / content / inspector) until AppKit aborts the
+        // app. A fixed author column can't conflict.
+        HStack(spacing: 0) {
+            AuthorList(category: category, selection: $selectedAuthor, scrollTarget: authorScroll)
+                .frame(width: 240)
+                // A column separator through the title bar, like the
+                // window's own: a Divider stopped at the title bar,
+                // and its glass faded the top of it.
+                .overlay(alignment: .trailing) {
+                    Rectangle()
+                        .fill(.separator)
+                        .frame(width: 1)
+                        .ignoresSafeArea()
                 }
-            } else {
-                searchResults
-            }
-        }
-        .task(id: SearchRequest(query: query, scope: scope)) { await runSearch() }
-        .task(id: player.hvscTreeRevision) {
-            for c in searchedCategories {
-                await library.loadAuthors(c)
-                await library.loadComposers(c)
-            }
+            authorTunes
+                .frame(minWidth: 0, maxWidth: .infinity)
         }
         .onChange(of: library.reveal, initial: true) { applyReveal() }
-        // Search all of HVSC, from another list's search.
-        .onChange(of: library.searchesAllHvsc, initial: true) {
-            guard library.searchesAllHvsc else { return }
-            scope = .all
-            library.searchesAllHvsc = false
-        }
         .onChange(of: library.credits, initial: true) { applyCredits() }
-        .onChange(of: query) { applyCredits() }
         .onChange(of: selectedAuthor) { _, author in
             if author != nil { creditedName = nil }
         }
     }
 
     /// Follow the composer card's link for a composer without a folder:
-    /// once the window has cleared the search, list their tunes.
+    /// list their tunes.
     private func applyCredits() {
-        guard let request = library.credits, request.category == category, query.isEmpty else { return }
+        guard let request = library.credits, request.category == category else { return }
         selectedAuthor = nil
         creditedName = request.name
         library.credits = nil
@@ -122,184 +90,6 @@ struct HVSCBrowserView: View {
     private func authorName(_ path: String) -> String {
         library.authors[category]?.first { $0.path == path }?.displayName ?? URL(filePath: path).lastPathComponent
     }
-
-    // MARK: Search
-
-    private struct SearchRequest: Hashable {
-        let query: String
-        let scope: SearchScope
-    }
-
-    private func runSearch() async {
-        guard !query.isEmpty else {
-            results = nil
-            searchError = nil
-            return
-        }
-        // Debounce: a newer keystroke cancels this task before it searches.
-        try? await Task.sleep(for: .milliseconds(150))
-        guard !Task.isCancelled else { return }
-        do {
-            let found = try await library.search(query, scope: scope == .all ? nil : category)
-            guard !Task.isCancelled else { return }
-            results = found
-            searchError = nil
-        } catch is CancellationError {
-        } catch {
-            searchError = LibraryStore.message(for: error)
-        }
-    }
-
-    private var searchResults: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                // Finder's scope bar: a small control with its label, a
-                // setting rather than the page's main thing. (Not
-                // .searchScopes: the toolbar must stay the same per section.)
-                HStack(spacing: 6) {
-                    Text("Search in")
-                        .foregroundStyle(.secondary)
-                    Picker("Search in", selection: $scope) {
-                        Text(category.displayName).tag(SearchScope.category)
-                        Text("All HVSC").tag(SearchScope.all)
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .controlSize(.small)
-                    // Capsules, like Now Playing's large picker (only the
-                    // large size has them by default).
-                    .buttonBorderShape(.capsule)
-                    .fixedSize()
-                }
-                .font(.callout)
-                if let results, !isIndexing, searchError == nil, !results.items.isEmpty {
-                    Text(resultsSummary(results))
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .frame(minWidth: 0, maxWidth: .infinity)
-            .background(.bar)
-            Divider()
-            // Filling the rest keeps the scope bar at the top: an empty
-            // state's own height let the whole stack float to the middle.
-            resultsBody
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-    }
-
-    @ViewBuilder
-    private var resultsBody: some View {
-        if let searchError {
-            ContentUnavailableView("Search Failed", systemImage: "exclamationmark.triangle", description: Text(searchError))
-        } else if let results, !isIndexing {
-            if results.items.isEmpty {
-                ContentUnavailableView.search(text: query)
-            } else {
-                LibraryTable(rows: results.items.map(LibraryRow.init), source: .search(query: query))
-                    .safeAreaInset(edge: .top, spacing: 0) { matchingComposers }
-            }
-        } else {
-            VStack(spacing: 10) {
-                ProgressView()
-                Text(isIndexing ? "Indexing \(indexingNames)…" : "Searching…")
-                    .foregroundStyle(.secondary)
-                if isIndexing {
-                    Text("The first search builds an index of the collection; later ones are instant.")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-        }
-    }
-
-    /// The composers (or sections) the search names, above its tunes:
-    /// clicking one opens it, as does Return on the first.
-    @ViewBuilder
-    private var matchingComposers: some View {
-        let found = searchedCategories.flatMap { c in library.composers(matching: query, in: c, limit: 500).map { (c, $0) } }
-        if !found.isEmpty {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(category == .musicians || scope == .all ? "Composers" : category.groupNoun.capitalized)
-                    if found.count > Self.composerRows {
-                        Text(found.count.formatted())
-                            .monospacedDigit()
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 6)
-                // All of them, for browsing: a few rows tall, scrolling
-                // through the rest.
-                if found.count > Self.composerRows {
-                    ScrollView {
-                        composerRows(found)
-                    }
-                    .frame(height: 210)
-                } else {
-                    composerRows(found)
-                }
-                Text("Tunes")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.top, 6)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.bar)
-        }
-    }
-
-    /// How many composers show before their list scrolls.
-    private static let composerRows = 5
-
-    private func composerRows(_ found: [(HvscCategory, HvscAuthorItem)]) -> some View {
-        LazyVStack(alignment: .leading, spacing: 2) {
-            ForEach(found, id: \.1.path) { (c, author) in
-                Button {
-                    library.showComposer(author.path, in: c)
-                } label: {
-                    ComposerRowLabel(author: author, summary: library.composers[c]?[author.path], showsCategory: scope == .all ? c : nil)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
-    private var searchedCategories: [HvscCategory] {
-        scope == .all ? HvscCategory.allCases : [category]
-    }
-
-    private var isIndexing: Bool {
-        player.hvscIndexing.contains { searchedCategories.contains($0) }
-    }
-
-    private var indexingNames: String {
-        player.hvscIndexing
-            .filter { searchedCategories.contains($0) }
-            .map(\.displayName)
-            .formatted(.list(type: .and))
-    }
-
-    private func resultsSummary(_ r: HvscSearchResult) -> String {
-        let total = r.totalMatches.formatted()
-        let indexed = r.indexed.formatted()
-        return r.totalMatches > UInt32(r.items.count)
-            ? "Best \(r.items.count) of \(total) matches among \(indexed) tunes"
-            : "\(total) matches among \(indexed) tunes"
-    }
 }
 
 // MARK: - Author list
@@ -312,8 +102,7 @@ private struct AuthorScroll: Equatable {
 }
 
 /// Authors (or sections) grouped under their letter folder, each with its
-/// real name and tune count. The window's search finds them by name
-/// (`matchingComposers`).
+/// real name and tune count.
 private struct AuthorList: View {
     let category: HvscCategory
     @Binding var selection: String?
@@ -392,19 +181,17 @@ private struct AuthorList: View {
 
 /// An author's row: the folder's name, the person their headers name
 /// under it, and how many tunes there are.
-private struct ComposerRowLabel: View {
+struct ComposerRowLabel: View {
     let author: HvscAuthorItem
     let summary: HvscComposer?
-    /// Names the section, in results from all of HVSC.
-    var showsCategory: HvscCategory? = nil
 
     var body: some View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 0) {
                 Text(author.displayName)
                     .lineLimit(1)
-                if let subtitle {
-                    Text(subtitle)
+                if let realName = summary?.realName {
+                    Text(realName)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -418,11 +205,6 @@ private struct ComposerRowLabel: View {
                     .foregroundStyle(.secondary)
             }
         }
-    }
-
-    private var subtitle: String? {
-        let parts = [summary?.realName, showsCategory?.displayName].compactMap(\.self)
-        return parts.isEmpty ? nil : parts.joined(separator: ", ")
     }
 }
 
@@ -494,7 +276,7 @@ struct HvscDownloadView: View {
 
 // MARK: - Author tunes
 
-private struct AuthorTunes: View {
+struct AuthorTunes: View {
     let authorPath: String
     let authorName: String
     let category: HvscCategory
@@ -508,8 +290,18 @@ private struct AuthorTunes: View {
             if let rows = library.tunes[authorPath] {
                 LibraryTable(rows: rows, source: source, hidesAuthor: category == .musicians)
                     .safeAreaInset(edge: .top, spacing: 0) {
-                        ComposerCard(authorPath: authorPath, name: authorName, category: category,
-                                     rows: rows, source: source, openComposer: openComposer)
+                        Group {
+                            if category == .musicians {
+                                ComposerHeader(authorPath: authorPath, name: authorName, rows: rows,
+                                               source: source, openComposer: openComposer)
+                            } else {
+                                SectionHeader(name: authorName, category: category, rows: rows, source: source)
+                            }
+                        }
+                        // The same material as the title bar above it and the
+                        // sound bar below, so the top of the pane reads as one
+                        // surface.
+                        .background(.bar)
                     }
             } else {
                 ProgressView()
@@ -520,109 +312,6 @@ private struct AuthorTunes: View {
     }
 
     private var source: PlaybackSource { .folder(name: authorName, category: category) }
-}
-
-/// The composer (or section) over their tunes: who they are, how much and
-/// when, play buttons, and the composers who sound most like them.
-private struct ComposerCard: View {
-    let authorPath: String
-    let name: String
-    let category: HvscCategory
-    let rows: [LibraryRow]
-    let source: PlaybackSource
-    let openComposer: (String) -> Void
-
-    @Environment(LibraryStore.self) private var library
-
-    var body: some View {
-        let summary = library.composers[category]?[authorPath]
-        HStack(alignment: .top, spacing: 14) {
-            // The inspector's composer card's monogram, larger.
-            ZStack {
-                Circle().fill(.background)
-                Text(initials)
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-            }
-            .foregroundStyle(.tint)
-            .frame(width: 52, height: 52)
-            .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 6) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(name)
-                        .font(.title3.weight(.semibold))
-                        .lineLimit(1)
-                    Text(facts(summary))
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                HStack(spacing: 8) {
-                    Button("Play", systemImage: "play.fill") { library.play(rows, from: source) }
-                        .buttonStyle(.borderedProminent)
-                    Button("Shuffle", systemImage: "shuffle") { library.play(rows.shuffled(), from: source) }
-                    AddToButton(files: rows.map(\.id))
-                }
-                .controlSize(.small)
-                .disabled(rows.isEmpty)
-            }
-            Spacer(minLength: 12)
-            if category == .musicians, let similar = library.similarComposers[authorPath], !similar.isEmpty {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Sounds similar")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    ForEach(similar.prefix(3), id: \.path) { other in
-                        HStack {
-                            AccentLink(displayName(other.path)) { openComposer(other.path) }
-                                .lineLimit(1)
-                            Spacer(minLength: 6)
-                            Text(Double(max(other.score, 0)), format: .percent.precision(.fractionLength(0)))
-                                .font(.caption)
-                                .monospacedDigit()
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                .font(.callout)
-                .frame(width: 170)
-            }
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        // A card like the inspector's composer card, set off from the
-        // window's title bar and the tune list.
-        .background(.fill.quaternary, in: .rect(cornerRadius: 12))
-        .padding(.horizontal, 12)
-        .padding(.top, 10)
-        .padding(.bottom, 6)
-        // The same material as the title bar above it and the sound bar
-        // below, so the top of the pane reads as one surface.
-        .background(.bar)
-        .task(id: authorPath) {
-            guard category == .musicians else { return }
-            await library.loadSimilarComposers(authorPath)
-        }
-    }
-
-    private var initials: String {
-        let words = name.split(whereSeparator: { !$0.isLetter && !$0.isNumber })
-        return words.prefix(2).compactMap(\.first).map(String.init).joined().uppercased()
-    }
-
-    /// "Ari Yliaho, 124 tunes, 1988–2021".
-    private func facts(_ summary: HvscComposer?) -> String {
-        var parts: [String] = []
-        if let real = summary?.realName { parts.append(real) }
-        parts.append(rows.count == 1 ? "1 tune" : "\(rows.count.formatted()) tunes")
-        if let first = summary?.firstYear, let last = summary?.lastYear {
-            parts.append(first == last ? "\(first)" : "\(first)–\(last)")
-        }
-        return parts.joined(separator: ", ")
-    }
-
-    private func displayName(_ path: String) -> String {
-        library.authors[.musicians]?.first { $0.path == path }?.displayName ?? URL(filePath: path).lastPathComponent
-    }
 }
 
 // MARK: - Credited tunes
@@ -700,6 +389,10 @@ struct LibraryTable: View {
     /// Removes rows from the list shown (one of your playlists).
     var onRemove: ((Set<LibraryRow.ID>) -> Void)? = nil
     var removeTitle = "Remove from Playlist"
+    /// The Delete key removes the selection too.
+    var removesOnDeleteKey = false
+    /// A menu item's title and page for a row, where it has one.
+    var webLink: ((LibraryRow.ID) -> (title: String, url: URL)?)? = nil
     /// Every row is by one composer, who the header above names.
     var hidesAuthor = false
     /// Puts dragged tunes (moved within the list, or from another) before
@@ -855,11 +548,8 @@ struct LibraryTable: View {
     private var table: some View {
         Table(of: LibraryRow.self, selection: $selection, sortOrder: $sortOrder, columnCustomization: $columns) {
             TableColumn("") { row in
-                if isCurrent(row) {
-                    Image(systemName: player.isPlaying ? "speaker.wave.2.fill" : "speaker.fill")
-                        .foregroundStyle(.tint)
-                        .accessibilityLabel(player.isPlaying ? "Playing" : "Paused")
-                }
+                RowPlayCell(isCurrent: isCurrent(row), isPlaying: player.isPlaying, isSelected: selection.contains(row.id),
+                            feed: player.visualizer, play: { play([row.id]) }, playPause: { player.playPause() })
             }
             .width(22)
             .customizationID("playing")
@@ -870,8 +560,10 @@ struct LibraryTable: View {
             .width(min: 160, ideal: 320)
             .customizationID("title")
             if !hidesAuthor {
-                TableColumn("Author", value: \.author)
-                    .customizationID("author")
+                TableColumn("Author", value: \.author) { row in
+                    AuthorCell(author: row.author)
+                }
+                .customizationID("author")
             }
             TableColumn("Year", value: \.year)
                 .width(44)
@@ -917,6 +609,7 @@ struct LibraryTable: View {
                 }
             }
         }
+        .alternatingRowBackgrounds(.disabled)
         .contextMenu(forSelectionType: LibraryRow.ID.self) { ids in
             if !ids.isEmpty {
                 Button("Play") { play(ids) }
@@ -931,6 +624,9 @@ struct LibraryTable: View {
                     Button("Find Similar") { findSimilar(row) }
                 }
                 Divider()
+                if ids.count == 1, let id = ids.first, let link = webLink?(id) {
+                    Button(link.title) { NSWorkspace.shared.open(link.url) }
+                }
                 Button("Show in Finder") {
                     NSWorkspace.shared.activateFileViewerSelecting(chosen(ids).map(\.url))
                 }
@@ -938,6 +634,7 @@ struct LibraryTable: View {
         } primaryAction: { ids in
             play(ids)
         }
+        .onDeleteCommand(perform: removesOnDeleteKey && onRemove != nil && !selection.isEmpty ? { onRemove?(selection) } : nil)
     }
 
     private func play(_ ids: Set<LibraryRow.ID>) {
@@ -988,7 +685,8 @@ struct LibraryTable: View {
 }
 
 #Preview {
-    HVSCBrowserView(category: .musicians, search: "")
+    HVSCBrowserView(category: .musicians)
+        .environment(CSDbStore())
         .environment(PlayerStore.preview)
         .environment(LibraryStore(player: .preview))
         .environment(FingerprintStore(player: .preview))

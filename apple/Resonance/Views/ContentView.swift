@@ -4,12 +4,18 @@ import PhosphorCore
 
 /// What the sidebar can show. Favorites and Recent slot in here later.
 enum SidebarItem: Hashable {
+    /// Search's own place: everything in HVSC that matches.
+    case search
     case playlist
     /// The play history.
     case recent
     /// The HVSC Home: the collection's header row in the sidebar.
     case hvscHome
     case hvsc(HvscCategory)
+    /// The C64 scene, from CSDb.
+    case scene
+    /// The tunes downloaded from CSDb.
+    case csdbDownloads
     /// One of Phosphor's published playlists, by its file name.
     case curated(String)
     case favourites
@@ -21,16 +27,27 @@ struct ContentView: View {
     @Environment(PlayerStore.self) private var store
     @Environment(LibraryStore.self) private var library
     @Environment(PlaylistsStore.self) private var playlists
+    @Environment(CSDbStore.self) private var csdb
     @Environment(\.openWindow) private var openWindow
     @State private var sidebarSelection: SidebarItem? = .playlist
     @State private var showInspector = true
     @State private var isDropTargeted = false
     @State private var isSidebarDropTargeted = false
     @AppStorage("sidebar.curatedExpanded") private var curatedExpanded = true
+    @AppStorage(Pref.csdbEnabled) private var csdbEnabled = true
     /// The collection folder the Home was last opened for on its own.
     @AppStorage(Pref.homeShownForRoot) private var homeShownForRoot = ""
-    /// Each sidebar section keeps its own search text.
-    @State private var searches: [SidebarItem: String] = [:]
+    /// The search field's text, the same from every section.
+    @State private var searchQuery = ""
+    /// The last section that isn't Search. It stays in the window under
+    /// Search, so clearing the field finds it just as it was.
+    @State private var browsedSection = SidebarItem.playlist
+    /// Typing opened Search, so clearing the field goes back. (Search opened
+    /// from its sidebar row stays when the field empties.)
+    @State private var returnsWhenCleared = false
+    /// Goes up with each press of Return in the search field.
+    @State private var submittedSearches = 0
+    @FocusState private var isSearchFieldFocused: Bool
     /// Now Playing is in the window: while it shows, and while it slides away.
     @State private var isNowPlayingMounted = false
     @State private var isNowPlayingLeaving = false
@@ -139,7 +156,8 @@ struct ContentView: View {
         // section used to bring its own (the HVSC one with scope buttons),
         // so the toolbar changed on every sidebar click — which made SwiftUI
         // re-run the window layout until AppKit aborted the app.
-        .searchable(text: searchText, placement: .toolbar, prompt: "Search")
+        .searchable(text: searchText, placement: .toolbar, prompt: "Search tunes, composers and games")
+        .searchFocused($isSearchFieldFocused)
         .onSubmit(of: .search) { submitSearch() }
         .fileImporter(
             isPresented: $store.isImporting,
@@ -189,31 +207,46 @@ struct ContentView: View {
             sidebarSelection = .userPlaylist(id)
             playlists.revealing = nil
         }
-        // The inspector's author link (or a tune STIL links to): its
-        // section, with no search, so the author list shows.
+        // Any other row closes the search, whether clicked or following a link.
+        .onChange(of: sidebarSelection) { _, selection in
+            if selection == .search {
+                isSearchFieldFocused = true
+            } else if let selection {
+                browsedSection = selection
+                returnsWhenCleared = false
+                searchQuery = ""
+            }
+        }
+        // The inspector's author link (or a tune STIL links to): its section.
         .onChange(of: library.reveal) { _, reveal in
             guard let reveal else { return }
-            searches[.hvsc(reveal.category)] = ""
             sidebarSelection = .hvsc(reveal.category)
         }
-        // For a composer without a folder: the tune's section, with no
-        // search, so the browser can list their tunes.
         // The inspector's playlist link, a Home playlist card.
         .onChange(of: library.shownSection) { _, section in
             guard let section else { return }
-            searches[section] = ""
             sidebarSelection = section
             library.shownSection = nil
         }
+        // Scene switched off in Settings while it's showing.
+        .onChange(of: csdbEnabled) { _, enabled in
+            if !enabled, sidebarSelection == .scene { sidebarSelection = .hvscHome }
+        }
+        // For a composer without a folder: the tune's section, so the browser
+        // can list their tunes.
         .onChange(of: library.credits) { _, credits in
             guard let credits else { return }
-            searches[.hvsc(credits.category)] = ""
             sidebarSelection = .hvsc(credits.category)
         }
     }
 
     private var sidebar: some View {
         List(selection: $sidebarSelection) {
+            Section {
+                Label("Search", systemImage: "magnifyingglass")
+                    .modifier(RefusesFiles())
+                    .tag(SidebarItem.search)
+            }
             Section("Library") {
                 SidebarLabel("Recently Played", systemImage: "clock", playing: playing(.recent))
                     .modifier(RefusesFiles())
@@ -264,6 +297,20 @@ struct ContentView: View {
                     }
                 }
             }
+            // Downloads stay while CSDb is off: they play without it.
+            if csdbEnabled || !csdb.downloadedIDs.isEmpty {
+                Section("CSDb") {
+                    if csdbEnabled {
+                        SidebarLabel("Scene Pulse", systemImage: "antenna.radiowaves.left.and.right", playing: playing(.scene))
+                            .modifier(RefusesFiles())
+                            .tag(SidebarItem.scene)
+                    }
+                    SidebarLabel("Downloads", systemImage: "arrow.down.circle", playing: playing(.csdbDownloads),
+                                 count: csdb.downloadedIDs.count)
+                        .modifier(RefusesFiles())
+                        .tag(SidebarItem.csdbDownloads)
+                }
+            }
             if store.hasCollection, let curated = store.hvscInfo?.playlists, !curated.isEmpty {
                 Section("Curated Playlists", isExpanded: $curatedExpanded) {
                     ForEach(curated, id: \.file) { playlist in
@@ -294,34 +341,11 @@ struct ContentView: View {
 
     private var section: SidebarItem { sidebarSelection ?? .playlist }
 
-    /// The search typed in a list outside HVSC, which it can take to all of
-    /// HVSC; nil in the HVSC sections, which search it themselves.
-    private var searchAllQuery: String? {
-        if case .hvsc = section { return nil }
-        let query = searchText.wrappedValue.trimmingCharacters(in: .whitespaces)
-        return query.isEmpty || !store.hasCollection ? nil : query
-    }
+    private var trimmedQuery: String { searchQuery.trimmingCharacters(in: .whitespaces) }
 
-    /// Search all of HVSC for `query`, in Musicians' results.
-    private func searchAllHvsc(_ query: String) {
-        searches[section] = ""
-        searches[.hvsc(.musicians)] = query
-        library.searchesAllHvsc = true
-        sidebarSelection = .hvsc(.musicians)
-    }
-
-    /// Return in the search field: in an HVSC section, open the composer
-    /// it names first; elsewhere, search all of HVSC.
+    /// Return in the search field opens the top result.
     private func submitSearch() {
-        let query = searchText.wrappedValue.trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty else { return }
-        if case .hvsc(let category) = section {
-            if let first = library.composers(matching: query, in: category, limit: 1).first {
-                library.showComposer(first.path, in: category)
-            }
-        } else if store.hasCollection {
-            searchAllHvsc(query)
-        }
+        if section == .search, !trimmedQuery.isEmpty { submittedSearches += 1 }
     }
 
     /// Whether `item` is the list that's playing, for the sidebar's speaker.
@@ -329,10 +353,22 @@ struct ContentView: View {
         store.isPlaying && store.source?.section == item
     }
 
+    /// The first keystroke goes to Search, from anywhere; clearing the field
+    /// comes back.
     private var searchText: Binding<String> {
         Binding(
-            get: { searches[section, default: ""] },
-            set: { searches[section] = $0 }
+            get: { searchQuery },
+            set: { text in
+                searchQuery = text
+                let isEmpty = text.trimmingCharacters(in: .whitespaces).isEmpty
+                if !isEmpty, section != .search {
+                    returnsWhenCleared = true
+                    sidebarSelection = .search
+                } else if isEmpty, section == .search, returnsWhenCleared {
+                    returnsWhenCleared = false
+                    sidebarSelection = browsedSection
+                }
+            }
         )
     }
 
@@ -341,24 +377,6 @@ struct ContentView: View {
     @ViewBuilder
     private var detail: some View {
         detailContent
-            // Outside HVSC the search only filters the list shown; this
-            // takes it to all of HVSC.
-            .safeAreaInset(edge: .top, spacing: 0) {
-                if let query = searchAllQuery {
-                    Button {
-                        searchAllHvsc(query)
-                    } label: {
-                        Label("Search all of HVSC for “\(query)”", systemImage: "magnifyingglass")
-                            .lineLimit(1)
-                    }
-                    .buttonStyle(.borderless)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
-                    .frame(maxWidth: .infinity)
-                    .background(.bar)
-                    .help("Return does this too")
-                }
-            }
             // The column's minimum width must not follow its content
             // (see NowPlayingBar): pin it, and let content adapt.
             .frame(minWidth: 0, maxWidth: .infinity)
@@ -379,34 +397,55 @@ struct ContentView: View {
             }
     }
 
-    @ViewBuilder
+    /// The section, with Search over it while that's open. The section stays
+    /// in place underneath, so its selection, scroll position and filter are
+    /// all still there when the search closes.
     private var detailContent: some View {
-        switch section {
+        let searching = section == .search
+        return ZStack {
+            sectionContent(searching ? browsedSection : section)
+                .opacity(searching ? 0 : 1)
+                .allowsHitTesting(!searching)
+                .accessibilityHidden(searching)
+            if searching {
+                SearchView(query: trimmedQuery, submissions: submittedSearches)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func sectionContent(_ item: SidebarItem) -> some View {
+        switch item {
+        case .search:
+            EmptyView()
         case .playlist:
-            PlaylistView(search: searchText.wrappedValue)
+            PlaylistView()
         case .recent:
-            RecentlyPlayedView(search: searchText.wrappedValue)
+            RecentlyPlayedView()
         case .hvscHome:
             HVSCHomeView { category in
-                searches[.hvsc(category)] = ""
                 sidebarSelection = .hvsc(category)
             }
         case .hvsc(let category):
             // A fresh view (and selection) per category.
-            HVSCBrowserView(category: category, search: searchText.wrappedValue)
+            HVSCBrowserView(category: category)
                 .id(category)
+        case .scene:
+            SceneView()
+        case .csdbDownloads:
+            CSDbDownloadsView()
         case .favourites:
-            UserPlaylistView(playlist: nil, search: searchText.wrappedValue)
+            UserPlaylistView(playlist: nil)
         case .userPlaylist(let id):
             if let playlist = playlists.playlist(id) {
-                UserPlaylistView(playlist: playlist, search: searchText.wrappedValue)
+                UserPlaylistView(playlist: playlist)
                     .id(id)
             } else {
                 ContentUnavailableView("Playlist Not Found", systemImage: "music.note.list")
             }
         case .curated(let file):
             if let playlist = store.hvscInfo?.playlists.first(where: { $0.file == file }) {
-                CuratedPlaylistView(playlist: playlist, search: searchText.wrappedValue)
+                CuratedPlaylistView(playlist: playlist)
                     .id(file)
             } else {
                 ContentUnavailableView("Playlist Not Found", systemImage: "music.note.list")

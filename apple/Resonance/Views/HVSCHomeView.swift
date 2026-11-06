@@ -213,8 +213,28 @@ private struct CollectionHome: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
+            VStack(spacing: 0) {
                 hero
+                content
+            }
+        }
+        .onGeometryChange(for: CGFloat.self) { min($0.size.width, 1200) - 48 } action: { width = $0 }
+        // The history gains each play before the core reports the track.
+        .task(id: store.trackRevision) { await library.loadRecent() }
+        .task { await playUpdate() }
+        .sheet(isPresented: $showAllPlaylists) {
+            PlaylistsSheet(playlists: info.playlists)
+        }
+        .sheet(isPresented: $showAnnouncement) {
+            if let update = info.update {
+                AnnouncementSheet(update: update)
+            }
+        }
+    }
+
+    /// What's below the hero, which has the pane's whole width.
+    private var content: some View {
+            VStack(alignment: .leading, spacing: 28) {
                 browse
                 if wide {
                     // Equal heights: the row is as tall as its tallest
@@ -236,22 +256,10 @@ private struct CollectionHome: View {
                 extras
             }
             .padding(.horizontal, 24)
-            .padding(.vertical, 20)
+            .padding(.top, 28)
+            .padding(.bottom, 20)
             .frame(maxWidth: 1200)
             .frame(maxWidth: .infinity)
-        }
-        .onGeometryChange(for: CGFloat.self) { min($0.size.width, 1200) - 48 } action: { width = $0 }
-        // The history gains each play before the core reports the track.
-        .task(id: store.trackRevision) { await library.loadRecent() }
-        .task { await playUpdate() }
-        .sheet(isPresented: $showAllPlaylists) {
-            PlaylistsSheet(playlists: info.playlists)
-        }
-        .sheet(isPresented: $showAnnouncement) {
-            if let update = info.update {
-                AnnouncementSheet(update: update)
-            }
-        }
     }
 
     private var wide: Bool { width >= 820 }
@@ -327,9 +335,11 @@ private struct CollectionHome: View {
                 stats(compact: true)
             }
         }
-        .padding(.horizontal, 28)
-        .padding(.vertical, 26)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 24)
+        .padding(.top, 26)
+        .padding(.bottom, 22)
+        // As tall as the Scene Pulse header, or more when the stats drop below.
+        .frame(maxWidth: .infinity, minHeight: 270, alignment: .bottomLeading)
         .background {
             ZStack {
                 LinearGradient(
@@ -339,6 +349,10 @@ private struct CollectionHome: View {
                 )
                 HeroWaves()
                     .opacity(0.55)
+                // Fading into the page, like the Scene Pulse header.
+                LinearGradient(stops: [.init(color: .clear, location: 0.55),
+                                       .init(color: Color(nsColor: .windowBackgroundColor), location: 1)],
+                               startPoint: .top, endPoint: .bottom)
             }
             .allowsHitTesting(false)
         }
@@ -356,11 +370,7 @@ private struct CollectionHome: View {
             // Starts and ends outside the hero, which clips it.
             .allowsHitTesting(false)
         }
-        .clipShape(.rect(cornerRadius: 22))
-        .overlay {
-            RoundedRectangle(cornerRadius: 22)
-                .strokeBorder(.separator)
-        }
+        .clipped()
     }
 
     private func heroIdentity(compact: Bool = false) -> some View {
@@ -751,25 +761,44 @@ private struct CollectionHome: View {
         sub: String? = nil,
         @ViewBuilder trailing: () -> Trailing
     ) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(title)
-                .font(.system(size: 17, weight: .bold))
-            if let sub {
-                Text(sub)
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            Spacer(minLength: 8)
-            trailing()
-                .font(.caption.weight(.semibold))
-        }
+        SectionTitle(title, sub: sub, trailing: trailing)
     }
 }
 
 // MARK: - Home parts
 
+/// A section's title above its card, with what's on the right.
+struct SectionTitle<Trailing: View>: View {
+    let title: String
+    let sub: String?
+    @ViewBuilder let trailing: Trailing
+
+    init(_ title: String, sub: String? = nil, @ViewBuilder trailing: () -> Trailing = { EmptyView() }) {
+        self.title = title
+        self.sub = sub
+        self.trailing = trailing()
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text(title)
+                .font(.system(size: 17, weight: .bold))
+                .lineLimit(1)
+            if let sub {
+                Text(sub)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            trailing
+                .font(.caption.weight(.semibold))
+        }
+    }
+}
+
 /// The flat card every Home panel sits on: a faint fill with a hairline.
-private struct CardBackground: ViewModifier {
+struct CardBackground: ViewModifier {
     var radius: CGFloat = 16
     var highlighted = false
 
@@ -785,7 +814,7 @@ private struct CardBackground: ViewModifier {
 }
 
 /// A titled panel: the disks, reference and about cards.
-private struct Panel<Content: View>: View {
+struct Panel<Content: View>: View {
     let title: String
     let meta: String?
     @ViewBuilder let content: Content
@@ -1371,6 +1400,7 @@ private enum Palette {
 
 #Preview {
     HVSCHomeView()
+        .environment(CSDbStore())
         .environment(PlayerStore.preview)
         .environment(LibraryStore(player: .preview))
         .environment(FingerprintStore(player: .preview))
