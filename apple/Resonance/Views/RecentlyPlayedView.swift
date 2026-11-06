@@ -36,7 +36,8 @@ struct RecentlyPlayedView: View {
                 LibraryTable(
                     rows: rows,
                     source: .recentlyPlayed,
-                    played: Dictionary(recent.map { ($0.row.id, $0.playedText) }, uniquingKeysWith: { first, _ in first })
+                    played: Dictionary(recent.map { ($0.row.id, $0.playedText) }, uniquingKeysWith: { first, _ in first }),
+                    actions: AnyView(listActions)
                 )
                 .overlay {
                     if !query.isEmpty && rows.isEmpty {
@@ -78,21 +79,18 @@ struct RecentlyPlayedView: View {
                         .monospacedDigit()
                 }
             }
-            Spacer(minLength: 12)
-            if !rows.isEmpty {
-                ListFilterField(text: $filter)
-            }
-            Button {
-                library.play(rows, from: .recentlyPlayed)
-            } label: {
-                Label("Play", systemImage: "play.fill")
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(rows.isEmpty)
-            .fixedSize()
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
+    }
+
+    /// What the list does, in the row with Sound.
+    private var listActions: some View {
+        Group {
+            ListFilterField(text: $filter)
+            ListPlayButton { library.play(rows, from: .recentlyPlayed) }
+        }
     }
 
     /// "You've heard 2,431 of 61,157 HVSC tunes (4%)."
