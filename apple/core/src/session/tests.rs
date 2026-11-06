@@ -33,6 +33,101 @@ fn rsid(name: &str) -> PlaylistEntry {
     }
 }
 
+/// A database listing `md5` at 100 s, as `SonglengthDb::load` would.
+fn hvsc_db(md5: &str) -> SonglengthDb {
+    let mut db = SonglengthDb::new();
+    db.entries.insert(md5.to_string(), vec![100]);
+    db
+}
+
+fn learned(md5: &str, lengths: &[Option<u32>]) -> Arc<LearnedLengths> {
+    let store = Arc::new(LearnedLengths::default());
+    store.set_for_test(md5, lengths);
+    store
+}
+
+#[test]
+fn a_learned_length_fills_in_what_hvsc_does_not_know() {
+    let mut h = Harness::new(vec![entry("a", 2, None), entry("b", 1, None)]);
+    h.session.set_learned(learned("md5-a", &[Some(150), Some(30)]));
+    h.session.set_songlength_db(hvsc_db("md5-b"));
+    assert_eq!(h.session.playlist.entries[0].duration_secs, Some(150));
+    assert_eq!(h.session.playlist.entries[1].duration_secs, Some(100));
+}
+
+#[test]
+fn hvsc_wins_over_a_learned_length() {
+    let mut h = Harness::new(vec![entry("a", 1, None)]);
+    h.session.set_learned(learned("md5-a", &[Some(150)]));
+    h.session.set_songlength_db(hvsc_db("md5-a"));
+    assert_eq!(h.session.playlist.entries[0].duration_secs, Some(100));
+    h.session.learned_length_arrived("md5-a");
+    assert_eq!(h.session.playlist.entries[0].duration_secs, Some(100));
+    assert!(h.session.tunes_to_analyze().is_empty());
+}
+
+#[test]
+fn a_learned_length_replaces_the_default_length() {
+    let options = Options { default_song_length_secs: 300, ..Options::default() };
+    let mut h = Harness::with_options(vec![entry("a", 1, None), entry("b", 1, None)], options);
+    assert_eq!(h.session.playlist.entries[0].duration_secs, Some(300));
+    h.session.set_learned(learned("md5-a", &[Some(150)]));
+    let revision = h.session.playlist_revision;
+    h.session.learned_length_arrived("md5-a");
+    assert_eq!(h.session.playlist.entries[0].duration_secs, Some(150));
+    assert_eq!(h.session.playlist.entries[1].duration_secs, Some(300), "only that tune");
+    assert!(h.session.playlist_revision > revision, "the UI hears of it");
+}
+
+#[test]
+fn a_subtune_with_no_answer_keeps_the_default_length() {
+    let options = Options { default_song_length_secs: 300, ..Options::default() };
+    let mut h = Harness::with_options(vec![entry("a", 1, None)], options);
+    h.session.set_learned(learned("md5-a", &[None]));
+    h.session.learned_length_arrived("md5-a");
+    assert_eq!(h.session.playlist.entries[0].duration_secs, Some(300));
+}
+
+#[test]
+fn an_answer_does_not_cut_off_the_tune_that_is_past_it() {
+    let mut h = Harness::new(vec![entry("a", 1, None)]);
+    h.session.play_index(0, h.t0);
+    h.session.status.state = PlayState::Playing;
+    h.session.status.elapsed = Duration::from_secs(200);
+    h.session.set_learned(learned("md5-a", &[Some(150)]));
+    h.session.learned_length_arrived("md5-a");
+    assert_eq!(h.session.playlist.entries[0].duration_secs, None);
+
+    // Not past it: the tune gets the length at once.
+    h.session.status.elapsed = Duration::from_secs(100);
+    h.session.learned_length_arrived("md5-a");
+    assert_eq!(h.session.playlist.entries[0].duration_secs, Some(150));
+    assert!(h.session.current_length_is_estimate());
+}
+
+#[test]
+fn only_tunes_nothing_knows_get_analyzed_and_mus_never() {
+    let mut mus = entry("m", 1, None);
+    mus.path = PathBuf::from("/own/m.mus");
+    let mut h = Harness::new(vec![entry("known", 1, None), entry("new", 3, None), mus]);
+    h.session.set_songlength_db(hvsc_db("md5-known"));
+    let jobs = h.session.tunes_to_analyze();
+    assert_eq!(jobs.len(), 1);
+    assert_eq!(jobs[0].0.md5, "md5-new");
+    assert_eq!(jobs[0].0.songs, 3);
+    assert!(!jobs[0].1, "not playing");
+
+    h.session.play_index(1, h.t0);
+    assert!(h.session.tunes_to_analyze()[0].1, "playing: goes first");
+}
+
+#[test]
+fn the_next_subtune_gets_its_learned_length() {
+    let mut h = Harness::new(vec![entry("a", 2, None)]);
+    h.session.set_learned(learned("md5-a", &[Some(20), Some(45)]));
+    assert_eq!(h.session.subtune_length(Some("md5-a"), 2), Some(45));
+}
+
 struct Harness {
     session: Session,
     player: Receiver<PlayerCmd>,

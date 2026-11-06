@@ -20,7 +20,9 @@ nonisolated struct TrackRow: Identifiable, Hashable, Sendable {
     var length: Int { item.durationSecs.map(Int.init) ?? .max }
 
     var lengthText: String {
-        item.durationSecs.map { Duration.seconds($0).formatted(.time(pattern: .minuteSecond)) } ?? "—"
+        item.durationSecs.map {
+            (item.durationIsEstimate ? "~" : "") + Duration.seconds($0).formatted(.time(pattern: .minuteSecond))
+        } ?? "—"
     }
 
     var songsText: String {

@@ -576,6 +576,8 @@ nonisolated struct LibraryRow: Identifiable, Hashable, Sendable {
     var stilSort: Int { item.hasStil ? 0 : 1 }
 
     var lengthText: String {
-        item.durationSecs.map { Duration.seconds($0).formatted(.time(pattern: .minuteSecond)) } ?? "—"
+        item.durationSecs.map {
+            (item.durationIsEstimate ? "~" : "") + Duration.seconds($0).formatted(.time(pattern: .minuteSecond))
+        } ?? "—"
     }
 }

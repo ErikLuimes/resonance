@@ -19,6 +19,7 @@ use std::time::{Duration, Instant};
 use crossbeam_channel::{select, unbounded, Receiver, Sender};
 
 use crate::databases::{self, Databases, SharedDatabases};
+use crate::learned::{Analyzer, LearnedLengths};
 use crate::library::{Library, LibraryError};
 use crate::player::{self, PlayState, PlayerCmd, PlayerStatus};
 use crate::playlist::{self, LoadingProgress, PlaylistEntry, RepeatMode};
@@ -92,6 +93,8 @@ pub(crate) struct SessionView {
     pub current: Option<usize>,
     /// Length of the playing subtune, from whichever list it's in.
     pub current_duration_secs: Option<u32>,
+    /// That length is one Resonance worked out.
+    pub current_duration_is_estimate: bool,
     pub queue_active: bool,
     /// The queue is Surprise Me's radio.
     pub surprise_active: bool,
@@ -122,6 +125,8 @@ pub(crate) struct StartConfig {
     pub databases: SharedDatabases,
     /// Where Surprise Me's picks come from.
     pub library: Library,
+    /// Lengths worked out for tunes the databases don't list.
+    pub learned: Arc<LearnedLengths>,
 }
 
 pub(crate) struct Driver {
@@ -140,6 +145,7 @@ impl Driver {
                 status: PlayerStatus::default(),
                 current: None,
                 current_duration_secs: None,
+                current_duration_is_estimate: false,
                 queue_active: false,
                 surprise_active: false,
                 shuffle_collection_active: false,
@@ -530,6 +536,7 @@ struct State {
     published_playlist: (u64, Arc<Vec<PlaylistEntry>>),
     databases: SharedDatabases,
     viz: VizCapture,
+    analyzer: Analyzer,
 }
 
 fn run(
@@ -552,6 +559,8 @@ fn run(
     session.records_history = true;
     session.set_shuffle(start.shuffle);
     session.set_repeat(start.repeat);
+    session.set_learned(start.learned.clone());
+    let (learned_tx, learned_rx) = unbounded();
 
     let progress = LoadingProgress::default();
     let (loader, loaded) = spawn_loader(progress.clone(), start.library);
@@ -573,6 +582,7 @@ fn run(
         published_playlist: (u64::MAX, Arc::new(Vec::new())),
         databases: start.databases,
         viz,
+        analyzer: Analyzer::new(start.learned, learned_tx),
     };
 
     loop {
@@ -604,6 +614,12 @@ fn run(
                 recv(loaded) -> msg => {
                     if let Ok(result) = msg {
                         st.apply_loaded(result);
+                        st.analyze_new_tunes();
+                    }
+                }
+                recv(learned_rx) -> msg => {
+                    if let Ok(md5) = msg {
+                        st.session.learned_length_arrived(&md5);
                     }
                 }
                 default(wait) => {}
@@ -762,6 +778,13 @@ impl State {
         }
     }
 
+    /// Have the lengths worked out of whatever just landed in the lists.
+    fn analyze_new_tunes(&mut self) {
+        for (job, playing) in self.session.tunes_to_analyze() {
+            self.analyzer.request(job, playing);
+        }
+    }
+
     /// The player thread died (its status channel disconnected): start a
     /// fresh one on the same engine so the app keeps working.
     fn respawn_player(&mut self) {
@@ -818,6 +841,7 @@ impl State {
                 status: s.status.clone(),
                 current: s.playlist_current(),
                 current_duration_secs: s.current_entry().and_then(|e| e.duration_secs),
+                current_duration_is_estimate: s.current_length_is_estimate(),
                 queue_active: s.queue_active(),
                 surprise_active: s.radio_active(),
                 shuffle_collection_active: s.shuffle_collection_active(),

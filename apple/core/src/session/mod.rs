@@ -17,6 +17,7 @@ mod tests;
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crossbeam_channel::Sender;
@@ -41,6 +42,7 @@ fn friendly_load_error(error: &str, path: &Path) -> String {
         format!("{name} didn't play: {error}.")
     }
 }
+use crate::learned::{LearnedLengths, LengthJob};
 use crate::playlist::{Playlist, PlaylistEntry, RepeatMode, SonglengthDb};
 
 /// Software engines only. "auto" and "usb" would make `create_engine` try
@@ -115,6 +117,8 @@ pub struct Session {
     /// it belongs to a track or subtune we've already moved away from.
     pub(crate) status: PlayerStatus,
     songlength_db: Option<SonglengthDb>,
+    /// What Resonance worked out itself, for tunes the database doesn't list.
+    learned: Arc<LearnedLengths>,
     hvsc_root: Option<PathBuf>,
     pub(crate) options: Options,
     pub(crate) engine: Engine,
@@ -194,6 +198,7 @@ impl Session {
             records_history: false,
             status: PlayerStatus::default(),
             songlength_db: None,
+            learned: Arc::default(),
             hvsc_root,
             options,
             engine,
@@ -730,11 +735,13 @@ impl Session {
         self.active_changed();
     }
 
-    /// Songlength DB entry for `song` (1-based), else the default length.
+    /// Songlength DB entry for `song` (1-based), else what Resonance worked
+    /// out, else the default length.
     /// The lookup + fallback that main.rs repeats in three places.
     fn subtune_length(&self, md5: Option<&str>, song: u16) -> Option<u32> {
         let subtune = song.saturating_sub(1) as usize;
         md5.and_then(|m| self.songlength_db.as_ref()?.lookup(m, subtune))
+            .or_else(|| self.learned.lookup(md5?, subtune))
             .or_else(|| {
                 let d = self.options.default_song_length_secs;
                 (d > 0).then_some(d)
@@ -902,12 +909,77 @@ impl Session {
         self.playlist_revision += 1;
     }
 
+    /// Use these learned lengths from now on.
+    pub fn set_learned(&mut self, learned: Arc<LearnedLengths>) {
+        self.learned = learned;
+    }
+
+    /// New answers came in for the tune with this MD5. The tune playing keeps
+    /// the length it has if it's already past the new one: it shouldn't jump
+    /// to the next tune because of a background job.
+    pub fn learned_length_arrived(&mut self, md5: &str) {
+        let active_is_queue = self.queue.is_some();
+        let elapsed = self.status.elapsed.as_secs();
+        let db = self.songlength_db.as_ref();
+        let root = self.hvsc_root.as_deref();
+        let learned = &self.learned;
+        let apply = |list: &mut Playlist, active: bool| {
+            let current = if active { list.current } else { None };
+            for (i, entry) in list.entries.iter_mut().enumerate() {
+                if entry.md5.as_deref() != Some(md5) || hvsc_knows(db, entry, root) {
+                    continue;
+                }
+                let subtune = entry.selected_song.saturating_sub(1) as usize;
+                let Some(secs) = learned.lookup(md5, subtune) else { continue };
+                if current != Some(i) || elapsed < u64::from(secs) {
+                    entry.duration_secs = Some(secs);
+                }
+            }
+        };
+        apply(&mut self.playlist, !active_is_queue);
+        if let Some(queue) = &mut self.queue {
+            apply(queue, true);
+        }
+        self.playlist_revision += 1;
+    }
+
+    /// The tunes in the lists whose length nothing knows, each with whether
+    /// it's the one playing.
+    pub fn tunes_to_analyze(&self) -> Vec<(LengthJob, bool)> {
+        let db = self.songlength_db.as_ref();
+        let root = self.hvsc_root.as_deref();
+        let current = self.current_entry().map(|e| e.path.clone());
+        self.playlist
+            .entries
+            .iter()
+            .chain(self.queue.iter().flat_map(|q| q.entries.iter()))
+            .filter(|e| !is_mus(&e.path) && !hvsc_knows(db, e, root))
+            .filter_map(|e| {
+                let job = LengthJob {
+                    path: e.path.clone(),
+                    md5: e.md5.clone()?,
+                    songs: e.songs,
+                    first_song: e.selected_song,
+                };
+                Some((job, current.as_ref() == Some(&e.path)))
+            })
+            .collect()
+    }
+
+    /// The playing subtune's length is one Resonance worked out.
+    pub fn current_length_is_estimate(&self) -> bool {
+        self.current_entry().is_some_and(|e| {
+            self.learned.is_estimate(e.md5.as_deref(), e.selected_song, e.duration_secs)
+        })
+    }
+
     /// `fill_lengths` with the session's databases and settings, for a list
     /// that isn't (yet) the session's.
     fn fill_lengths_of(&self, list: &mut Playlist) {
         fill_lengths(
             list,
             self.songlength_db.as_ref(),
+            &self.learned,
             self.hvsc_root.as_deref(),
             self.options.default_song_length_secs,
         );
@@ -918,9 +990,9 @@ impl Session {
         let db = self.songlength_db.as_ref();
         let root = self.hvsc_root.as_deref();
         let default_secs = self.options.default_song_length_secs;
-        fill_lengths(&mut self.playlist, db, root, default_secs);
+        fill_lengths(&mut self.playlist, db, &self.learned, root, default_secs);
         if let Some(queue) = &mut self.queue {
-            fill_lengths(queue, db, root, default_secs);
+            fill_lengths(queue, db, &self.learned, root, default_secs);
         }
     }
 }
@@ -936,19 +1008,40 @@ fn radio_repeat(mode: RepeatMode) -> RepeatMode {
 }
 
 /// main.rs `apply_songlengths` for one list: DB durations for entries that
-/// have none, then the default length for whatever is still unknown.
+/// have none, then what Resonance worked out, then the default length for
+/// whatever is still unknown. A learned length replaces whatever else a tune
+/// outside the database has: a session restored from disk has its default
+/// length saved with it.
 fn fill_lengths(
     list: &mut Playlist,
     db: Option<&SonglengthDb>,
+    learned: &LearnedLengths,
     hvsc_root: Option<&Path>,
     default_secs: u32,
 ) {
     if let Some(db) = db {
         db.apply_to_playlist(list, hvsc_root);
     }
+    for entry in &mut list.entries {
+        if hvsc_knows(db, entry, hvsc_root) {
+            continue;
+        }
+        let subtune = entry.selected_song.saturating_sub(1) as usize;
+        if let Some(secs) = entry.md5.as_deref().and_then(|m| learned.lookup(m, subtune)) {
+            entry.duration_secs = Some(secs);
+        }
+    }
     if default_secs > 0 {
         apply_default_length(list, default_secs);
     }
+}
+
+/// HVSC's database has this tune, by MD5 or by its place in the collection.
+fn hvsc_knows(db: Option<&SonglengthDb>, entry: &PlaylistEntry, root: Option<&Path>) -> bool {
+    db.is_some_and(|db| {
+        let subtune = entry.selected_song.saturating_sub(1) as usize;
+        db.lookup_with_path_fallback(entry.md5.as_deref(), &entry.path, root, subtune).is_some()
+    })
 }
 
 /// main.rs `apply_default_length`. MUS files are skipped — their endings

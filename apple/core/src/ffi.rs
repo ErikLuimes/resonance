@@ -22,6 +22,7 @@ use crate::driver::{Command, Driver, Published, StartConfig};
 use crate::hvsc_browser::{self, HvscAuthor, HvscIndexEntry, HvscTune};
 use crate::hvsc_info::{self, HvscInfo};
 use crate::hvsc_sync::{self, HvscSyncEvent, HvscSyncHandle};
+use crate::learned::LearnedLengths;
 use crate::library::{Library, LibraryError};
 use crate::player::pseudo_stereo::DetuneStrength;
 use crate::player::{PlayState, TrackInfo};
@@ -141,6 +142,9 @@ pub struct PlaylistItem {
     pub is_pal: bool,
     pub num_sids: u32,
     pub md5: Option<String>,
+    /// `duration_secs` is one Resonance worked out, not HVSC's.
+    #[uniffi(default = false)]
+    pub duration_is_estimate: bool,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -178,6 +182,9 @@ pub struct Snapshot {
     pub elapsed_ms: u64,
     /// Length of the current subtune, if known.
     pub duration_ms: Option<u64>,
+    /// That length is one Resonance worked out, not HVSC's.
+    #[uniffi(default = false)]
+    pub duration_is_estimate: bool,
     pub shuffle: bool,
     pub repeat: Repeat,
     pub engine: Engine,
@@ -380,12 +387,16 @@ pub struct HvscTuneItem {
     pub songs: u16,
     /// The tune's default subtune (1-based).
     pub start_song: u16,
-    /// Length of the start subtune, if the Songlengths database knows it.
+    /// Length of the start subtune, if the Songlengths database knows it,
+    /// or for a tune outside it, if Resonance has worked it out.
     pub duration_secs: Option<u32>,
     pub has_stil: bool,
     /// Unknown in search results (the index doesn't store it).
     pub is_rsid: Option<bool>,
     pub category: HvscCategory,
+    /// `duration_secs` is one Resonance worked out, not HVSC's.
+    #[uniffi(default = false)]
+    pub duration_is_estimate: bool,
 }
 
 /// A bug HVSC's bugged-tunes list reports on a tune.
@@ -570,6 +581,8 @@ pub struct PlayerCore {
     latest_hvsc: Mutex<Option<u32>>,
     /// The sound fingerprints, in `fingerprints.sqlite` next to the session.
     fingerprints: Arc<Fingerprints>,
+    /// Lengths worked out for tunes outside HVSC, next to the session too.
+    learned: Arc<LearnedLengths>,
 }
 
 /// The collection metadata behind the key, cloned into the cache.
@@ -592,6 +605,9 @@ impl PlayerCore {
         let fingerprints = Arc::new(Fingerprints::new(
             Path::new(&config.session_path).with_file_name("fingerprints.sqlite"),
         ));
+        let learned = Arc::new(LearnedLengths::load(
+            Path::new(&config.session_path).with_file_name("learned_songlengths.md5"),
+        ));
         let databases = databases::shared();
         let library = Library::new(hvsc_root.clone(), databases.clone());
         let driver = Driver::start(StartConfig {
@@ -604,6 +620,7 @@ impl PlayerCore {
             hvsc_root,
             databases: databases.clone(),
             library: library.clone(),
+            learned: learned.clone(),
         });
         Arc::new(Self {
             driver,
@@ -614,6 +631,7 @@ impl PlayerCore {
             hvsc_info_cache: Mutex::new(None),
             latest_hvsc: Mutex::new(None),
             fingerprints,
+            learned,
         })
     }
 
@@ -754,6 +772,7 @@ impl PlayerCore {
             track: status.track_info.as_ref().map(TrackDetails::from),
             elapsed_ms: status.elapsed.as_millis() as u64,
             duration_ms,
+            duration_is_estimate: view.current_duration_is_estimate,
             shuffle: view.shuffle,
             repeat: view.repeat.into(),
             engine: view.engine.into(),
@@ -892,7 +911,10 @@ impl PlayerCore {
         self.published()
             .playlist
             .iter()
-            .map(PlaylistItem::from)
+            .map(|e| PlaylistItem {
+                duration_is_estimate: self.learned.is_estimate(e.md5.as_deref(), e.selected_song, e.duration_secs),
+                ..PlaylistItem::from(e)
+            })
             .collect()
     }
 
@@ -1115,7 +1137,7 @@ impl PlayerCore {
         Ok(hits
             .into_iter()
             .map(|(category, e, has_stil, played_at)| RecentTune {
-                item: HvscTuneItem::from_file(category, e, has_stil),
+                item: HvscTuneItem::from_file(category, e, has_stil, &self.learned),
                 played_at,
             })
             .collect())
@@ -1128,7 +1150,7 @@ impl PlayerCore {
             .files(paths.into_iter().map(PathBuf::from).collect())
             .await
             .into_iter()
-            .map(|(category, e, has_stil)| HvscTuneItem::from_file(category, e, has_stil))
+            .map(|(category, e, has_stil)| HvscTuneItem::from_file(category, e, has_stil, &self.learned))
             .collect()
     }
 
@@ -1754,7 +1776,16 @@ impl From<&HvscAuthor> for HvscAuthorItem {
 
 impl HvscTuneItem {
     /// A tune read from its file (`Library::files`, the history).
-    fn from_file(category: Option<hvsc_browser::HvscCategory>, e: PlaylistEntry, has_stil: bool) -> Self {
+    fn from_file(
+        category: Option<hvsc_browser::HvscCategory>,
+        e: PlaylistEntry,
+        has_stil: bool,
+        learned: &LearnedLengths,
+    ) -> Self {
+        let subtune = e.selected_song.saturating_sub(1) as usize;
+        let duration_secs = e
+            .duration_secs
+            .or_else(|| learned.lookup(e.md5.as_deref()?, subtune));
         HvscTuneItem {
             path: e.path.to_string_lossy().into_owned(),
             title: e.title,
@@ -1762,7 +1793,8 @@ impl HvscTuneItem {
             released: e.released,
             songs: e.songs,
             start_song: e.selected_song,
-            duration_secs: e.duration_secs,
+            duration_secs,
+            duration_is_estimate: learned.is_estimate(e.md5.as_deref(), e.selected_song, duration_secs),
             has_stil,
             is_rsid: Some(e.is_rsid),
             // Outside the collection: filed with the musicians, where the
@@ -1791,6 +1823,7 @@ impl HvscTuneItem {
             songs: e.songs,
             start_song: e.selected_song,
             duration_secs: e.duration_secs,
+            duration_is_estimate: false,
             has_stil: t.has_stil,
             is_rsid: Some(e.is_rsid),
             category: category.into(),
@@ -1806,6 +1839,7 @@ impl HvscTuneItem {
             songs: e.songs,
             start_song: 1,
             duration_secs: e.duration_secs,
+            duration_is_estimate: false,
             has_stil: e.has_stil,
             is_rsid: None,
             category,
@@ -1968,6 +2002,7 @@ impl From<&PlaylistEntry> for PlaylistItem {
             is_pal: e.is_pal,
             num_sids: e.num_sids as u32,
             md5: e.md5.clone(),
+            duration_is_estimate: false,
         }
     }
 }

@@ -82,14 +82,14 @@ struct NowPlayingInspector: View {
                 Text(released)
                     .foregroundStyle(.secondary)
             }
-            let duration = store.duration.map { Duration.seconds($0).formatted(.time(pattern: .minuteSecond)) }
+            let duration = store.duration.map { (store.durationIsEstimate ? "~" : "") + Duration.seconds($0).formatted(.time(pattern: .minuteSecond)) }
             if duration != nil || track.songs > 1 {
                 // Each fact keeps to one line; there's room for both.
                 HStack(spacing: 14) {
                     if let duration {
                         Label(duration, systemImage: "clock")
                             .fixedSize()
-                            .help("Length")
+                            .help(store.durationIsEstimate ? "Length, worked out by Resonance: this tune isn't in HVSC's song lengths" : "Length")
                     }
                     if track.songs > 1 {
                         Label("Song \(track.currentSong) of \(track.songs)", systemImage: "list.number")

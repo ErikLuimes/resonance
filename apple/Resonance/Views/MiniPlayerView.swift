@@ -88,7 +88,7 @@ struct MiniPlayerView: View {
             HStack {
                 Text(Self.time(shown))
                 Spacer()
-                Text(store.duration.map { "−" + Self.time(max($0 - shown, 0)) } ?? "--:--")
+                Text(store.duration.map { (store.durationIsEstimate ? "~" : "") + "−" + Self.time(max($0 - shown, 0)) } ?? "--:--")
             }
             .opacity(store.seeking && preview == nil ? 0.55 : 1)
             .font(.caption)

@@ -332,7 +332,7 @@ extension HelpTopic {
                 .heading("Playback"),
                 .bullets([
                     "**Engine**: four software emulations, all following each tune's header for PAL or NTSC and the chip model. **reSIDfp**, the default, is the most accurate: libsidplayfp's reference C64 and chip emulation. **SIDLite direct** is a compact chip model, the lightest on the processor. These two can scrub within a tune. **SIDLite** is the same compact chip through Phosphor's original player, and **reSID** the older cycle-by-cycle model, the heaviest; both play in real time only. Changing the engine restarts the tune.",
-                    "**Skip RSID tunes**, and the **default song length** for tunes missing from the Songlengths database (0 plays until silence).",
+                    "**Skip RSID tunes**, and the **default song length** for tunes whose length isn't known (0 plays until silence).",
                     "**Stereo**: play 2SID tunes in mirrored stereo, and widen mono tunes: Subtle, Medium or Wide.",
                 ]),
                 .link(.settings(.playback)),
@@ -368,7 +368,7 @@ extension HelpTopic {
                 .heading("Sounds Like says a tune isn't fingerprinted"),
                 .paragraph("The scan hasn't reached it yet. Check Settings → Collection: is the scan paused? Click **Download** next to Published set to fetch the fingerprints of all of HVSC. If some tunes couldn't be scanned, **Retry** tries them again."),
                 .heading("A tune stops too soon, or plays on and on"),
-                .paragraph("Song lengths come from HVSC's Songlengths database. Tunes it doesn't know play for the default song length in Settings → Playback. Some tunes sound different on another engine: try switching between SIDLite, reSIDfp, SIDLite direct and reSID."),
+                .paragraph("Song lengths come from HVSC's Songlengths database. For tunes it doesn't know, such as CSDb downloads, Resonance works the length out in the background by running the tune and listening for it to end or start over; those lengths show with a ~ and can be off. Until then, or if it can't tell, a tune plays for the default song length in Settings → Playback. Some tunes sound different on another engine: try switching between SIDLite, reSIDfp, SIDLite direct and reSID."),
                 .heading("The HVSC download stopped"),
                 .paragraph("Click **Retry** in the message at the top of the window. A download that was cancelled starts over from Download next to Collection."),
                 .heading("Coming from Phosphor"),

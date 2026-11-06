@@ -277,7 +277,7 @@ private struct Transport: View {
             Text(clock(preview ?? store.seekPosition ?? store.elapsed))
                 .opacity(store.seeking && preview == nil ? 0.55 : 1)
             progress
-            Text(store.duration.map(clock) ?? "--:--")
+            Text(store.duration.map { (store.durationIsEstimate ? "~" : "") + clock($0) } ?? "--:--")
         }
         .font(.callout)
         .monospacedDigit()

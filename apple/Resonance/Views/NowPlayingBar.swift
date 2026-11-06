@@ -114,6 +114,7 @@ struct NowPlayingBar: View {
             ProgressRow(
                 elapsed: store.elapsed,
                 duration: store.duration,
+                durationIsEstimate: store.durationIsEstimate,
                 hasSubtunes: store.hasSubtunes,
                 canSeek: store.canSeek,
                 isPlaying: store.isPlaying,
@@ -306,6 +307,7 @@ private struct SurpriseBadge: View {
 private struct ProgressRow: View {
     let elapsed: TimeInterval
     let duration: TimeInterval?
+    let durationIsEstimate: Bool
     let hasSubtunes: Bool
     let canSeek: Bool
     let isPlaying: Bool
@@ -338,11 +340,17 @@ private struct ProgressRow: View {
             // The row's height, so the thin bar is easy to hit.
             .frame(height: 14)
             .help(canSeek ? Self.how : "The \(engine.displayName) engine can't scrub. Click for why.")
-            Text(duration.map(format) ?? "--:--")
+            Text(duration.map { (durationIsEstimate ? "~" : "") + format($0) } ?? "--:--")
+                .help(lengthHelp)
         }
         .font(.caption)
         .monospacedDigit()
         .foregroundStyle(.secondary)
+    }
+
+    private var lengthHelp: String {
+        if duration == nil { return "This tune isn't in HVSC's song lengths, and Resonance hasn't worked its length out yet." }
+        return durationIsEstimate ? "This tune isn't in HVSC's song lengths. Resonance worked this length out by running the tune, so it may be off." : ""
     }
 
     private func format(_ t: TimeInterval) -> String {

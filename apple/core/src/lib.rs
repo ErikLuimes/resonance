@@ -86,6 +86,7 @@ mod fingerprint;
 mod ffi;
 mod history;
 mod hvsc_info;
+mod learned;
 mod library;
 mod residfp_player;
 pub(crate) mod session;
@@ -93,6 +94,7 @@ mod share;
 mod viz;
 
 pub use ffi::*;
+pub use learned::{estimate_length, LengthEstimate, LengthMethod};
 pub use share::{build_share_index, ShareIndex, ShareIndexTune, ShareableTune, SharedTuneMatch};
 pub use hvsc_info::{HvscDisk, HvscInfo, HvscPlaylist, HvscUpdate};
 

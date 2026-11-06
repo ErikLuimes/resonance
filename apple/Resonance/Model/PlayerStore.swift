@@ -43,6 +43,8 @@ final class PlayerStore {
     private(set) var nowPlaying: TrackDetails?
     private(set) var elapsed: TimeInterval = 0
     private(set) var duration: TimeInterval?
+    /// Resonance worked `duration` out itself: the tune isn't in HVSC's song lengths.
+    private(set) var durationIsEstimate = false
     /// The engine can seek within a tune (reSIDfp and SIDLite direct).
     private(set) var canSeek = false
     /// A seek is running: `elapsed` already says where; the audio is silent
@@ -272,6 +274,7 @@ final class PlayerStore {
         update(\.nowPlaying, s.track)
         update(\.elapsed, TimeInterval(s.elapsedMs) / 1000)
         update(\.duration, s.durationMs.map { TimeInterval($0) / 1000 })
+        update(\.durationIsEstimate, s.durationIsEstimate)
         update(\.canSeek, s.canSeek)
         update(\.seeking, s.seeking)
         update(\.seekPosition, s.seekPositionMs.map { TimeInterval($0) / 1000 })
