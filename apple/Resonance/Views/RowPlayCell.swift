@@ -20,6 +20,7 @@ struct RowPlayCell: View {
     let playPause: () -> Void
 
     @State private var isHovered = false
+    @Environment(\.sectionIsCovered) private var isCovered
 
     /// The tint would vanish on the selection.
     private var style: AnyShapeStyle {
@@ -28,7 +29,7 @@ struct RowPlayCell: View {
 
     var body: some View {
         ZStack {
-            if isHovered {
+            if isHovered, !isCovered {
                 button
             } else if isCurrent {
                 VoiceBars(feed: feed, isActive: isPlaying)
@@ -74,12 +75,13 @@ struct VoiceBars: View {
     let isActive: Bool
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.sectionIsCovered) private var isCovered
     @State private var meter = RowVoiceMeter()
 
     var body: some View {
         // A small thing in a list: half the visualizers' rate looks the same.
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: !isActive || reduceMotion)) { context in
-            let frame = isActive && !reduceMotion ? feed.latest() : nil
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: !isActive || reduceMotion || isCovered)) { context in
+            let frame = isActive && !reduceMotion && !isCovered ? feed.latest() : nil
             let reading = meter.update(levels: frame?.chips.first?.voices.map { Double($0.envLevel) }, at: context.date)
             Canvas { canvas, size in
                 Self.draw(reading, in: &canvas, size: size)

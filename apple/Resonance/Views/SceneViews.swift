@@ -179,6 +179,7 @@ struct SceneFeatureHeader: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.controlActiveState) private var activeState
+    @Environment(\.sectionIsCovered) private var isCovered
     @State private var shown = 0
     @State private var isHovered = false
     @State private var width: CGFloat = 900
@@ -243,7 +244,7 @@ struct SceneFeatureHeader: View {
     private var pager: some View {
         if !features.isEmpty {
             SceneFeaturePager(count: features.count, label: features[index].typeName(today: .now), shown: $shown,
-                              isPaused: isHovered || activeState != .key, moves: !reduceMotion)
+                              isPaused: isHovered || activeState != .key || isCovered, moves: !reduceMotion)
                 .padding(.trailing, 24)
                 .padding(.bottom, 24)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
@@ -546,6 +547,7 @@ private struct SceneFeatureCover: View {
 struct CSDbLiveStatus: View {
     @Environment(CSDbStore.self) private var csdb
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.sectionIsCovered) private var isCovered
 
     /// Two feed lifetimes: one missed check is no reason to stop saying live.
     private var isLive: Bool {
@@ -561,8 +563,8 @@ struct CSDbLiveStatus: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
-        .task {
-            while !Task.isCancelled {
+        .task(id: isCovered) {
+            while !Task.isCancelled, !isCovered {
                 await csdb.refresh()
                 try? await Task.sleep(for: .seconds(300))
             }
@@ -620,6 +622,7 @@ private struct NewsLink<Label: View>: View {
     @Environment(\.openURL) private var openURL
     @State private var hovering = false
     @State private var showsDetail = false
+    @Environment(\.sectionIsCovered) private var isCovered
 
     var body: some View {
         Button {
@@ -632,8 +635,8 @@ private struct NewsLink<Label: View>: View {
         .buttonStyle(.plain)
         .pointerStyle(.link)
         .onHover { hovering = $0 }
-        .task(id: hovering) {
-            guard hovering else {
+        .task(id: hovering && !isCovered) {
+            guard hovering, !isCovered else {
                 showsDetail = false
                 return
             }
@@ -643,7 +646,7 @@ private struct NewsLink<Label: View>: View {
             await csdb.loadNewsDetail(item)
         }
         .background {
-            HoverPopover(isPresented: showsDetail, edge: arrowEdge) {
+            HoverPopover(isPresented: showsDetail && !isCovered, edge: arrowEdge) {
                 NewsDetail(item: item)
                     .environment(csdb)
             }

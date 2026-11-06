@@ -1209,9 +1209,10 @@ private struct ReferenceRow: View {
 /// view, so its redraws never touch the hero's buttons.
 private struct HeroWaves: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.sectionIsCovered) private var isCovered
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { timeline in
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion || isCovered)) { timeline in
             let phase = reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate
             Canvas { context, size in
                 let waves: [(y: Double, frequency: Double, color: Color)] = [

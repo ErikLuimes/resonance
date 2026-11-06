@@ -76,6 +76,13 @@ enum StartPage: String, CaseIterable, Identifiable {
     }
 }
 
+extension EnvironmentValues {
+    /// Search is over this section: it's kept, but mustn't animate, fetch or
+    /// react to a pointer it can't be seen under. Clicks are already stopped,
+    /// but hovers aren't, nor do timers know.
+    @Entry var sectionIsCovered = false
+}
+
 struct ContentView: View {
     @Environment(PlayerStore.self) private var store
     @Environment(LibraryStore.self) private var library
@@ -460,7 +467,8 @@ struct ContentView: View {
 
     /// The section, with Search over it while that's open. The section stays
     /// in place underneath, so its selection, scroll position and filter are
-    /// all still there when the search closes.
+    /// all still there when the search closes; it only rests meanwhile (see
+    /// `sectionIsCovered`). Any other section replaces it outright.
     private var detailContent: some View {
         let searching = section == .search
         return ZStack {
@@ -468,6 +476,7 @@ struct ContentView: View {
                 .opacity(searching ? 0 : 1)
                 .allowsHitTesting(!searching)
                 .accessibilityHidden(searching)
+                .environment(\.sectionIsCovered, searching)
             if searching {
                 SearchView(query: trimmedQuery, submissions: submittedSearches)
             }

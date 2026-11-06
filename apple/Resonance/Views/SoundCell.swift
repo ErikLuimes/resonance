@@ -17,6 +17,7 @@ struct SoundCell: View {
     @State private var showsCard = false
     @State private var hovering = false
     @State private var overCard = false
+    @Environment(\.sectionIsCovered) private var isCovered
 
     var body: some View {
         Group {
@@ -45,11 +46,13 @@ struct SoundCell: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .onChange(of: isCovered) { if isCovered { showsCard = false } }
     }
 
     /// Open after the pointer rests on the barcode a moment; close a moment
     /// after it has left both the barcode and the card.
     private func updateCard() {
+        guard !isCovered else { return }
         let wanted = hovering || overCard
         Task {
             try? await Task.sleep(for: .milliseconds(wanted ? 550 : 250))
