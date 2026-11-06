@@ -31,6 +31,10 @@ and "2nd Reality" are one piece. A title with more than 12 matches is generic
 ("Tune", "Intro"), so it has none. Real cover detection, finding a cover with
 another name, is a different feature, and not attempted.
 
+Versions only get past the similarity rank, not what was asked for. "Like
+Commando, dual SID" gave 4 one-SID versions before they had to fit too, and
+gives none now. `smart_bench` checks this on that sentence.
+
 Spelled-out ordinals meet digits, so "Second Reality" finds "2nd Reality". That
 tune isn't in HVSC under the name of the demo it remakes.
 

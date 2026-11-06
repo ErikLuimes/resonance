@@ -437,9 +437,23 @@ struct SmartPlaylistView: View {
                                        description: Text("Resonance hasn't learned how this tune sounds yet. Try another one, or come back when the scan has reached it."))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if rows.isEmpty {
-                ContentUnavailableView("No Tunes Fit", systemImage: "music.note.list",
-                                       description: Text("Try asking for a little less."))
+                if let instead = settings.understood?.likeInstead(of: settings.sentence) {
+                    ContentUnavailableView {
+                        Label("No Tunes Fit", systemImage: "music.note.list")
+                    } description: {
+                        Text("No tune by that name fits, but some that sound like it may.")
+                    } actions: {
+                        Button("Try “\(instead)”") {
+                            typed = instead
+                            Task { await library.describe(instead, isFinal: true) }
+                        }
+                    }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ContentUnavailableView("No Tunes Fit", systemImage: "music.note.list",
+                                           description: Text("Try asking for a little less."))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             } else {
                 LibraryTable(rows: shownRows, source: .smart(title: settings.title), actions: AnyView(listActions))
                     .overlay {

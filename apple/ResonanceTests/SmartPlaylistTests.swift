@@ -357,6 +357,39 @@ struct SmartSentenceParserTests {
         #expect(parsed.tuneNames.isEmpty)
     }
 
+    @Test(arguments: ["play commando with dual sid", "play commando dual sid", "play dual sid commando",
+                      "play commando on dual sid", "play commando with only dual sid", "play commando in 2sid"])
+    func playATitleWithAChipCount(sentence: String) throws {
+        let parsed = try #require(parser.parse(sentence))
+        #expect(parsed.titleWords == "commando")
+        #expect(parsed.minChips == 2)
+        #expect(parsed.maxChips == 2)
+    }
+
+    /// What's offered has to read as what it says.
+    @Test(arguments: [("play commando with dual sid", "like commando with dual sid"),
+                      ("Play Commando dual SID please.", "like Commando dual SID"),
+                      ("play dual sid commando", "like dual sid commando")])
+    func whenATuneDoesNotFitItOffersWhatSoundsLikeIt(sentence: String, offered: String) throws {
+        let parsed = try #require(parser.parse(sentence))
+        #expect(parsed.likeInstead(of: sentence) == offered)
+        let instead = try #require(parser.parse(offered))
+        #expect(instead.tuneName?.lowercased() == "commando")
+        #expect(instead.titleWords == nil)
+        #expect(instead.minChips == 2)
+        #expect(instead.maxChips == 2)
+    }
+
+    @Test func wordsInATitleAreNotATuneToSoundLike() throws {
+        let sentence = "dual sid tunes with love in the title"
+        #expect(try #require(parser.parse(sentence)).likeInstead(of: sentence) == nil)
+    }
+
+    @Test func aTitleEndingInSuchAWordKeepsIt() throws {
+        let parser = SmartSentenceParser(composers: [], titles: ["Born With", "Commando"])
+        #expect(try #require(parser.parse("play born with")).titleWords == "born with")
+    }
+
     @Test func playIsNotAlwaysATitle() throws {
         #expect(try #require(parser.parse("play rob hubbard")).composerFolder == "Hubbard_Rob")
         #expect(parser.parse("play something") == nil)

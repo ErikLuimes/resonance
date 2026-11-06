@@ -129,7 +129,41 @@ fn main() {
             let heard: usize = different.iter().map(|l| l.tunes.iter().filter(|t| t.heard).count()).sum();
             println!("  heard tunes picked: {heard}");
         }
+
+        // What's asked for holds for other versions too: they're added by name.
+        let seed = format!("{}/MUSICIANS/H/Hubbard_Rob/Commando.sid", args[0]);
+        let dual = core
+            .smart_playlist(SmartRecipe { seeds: vec![seed], other_versions: true, min_chips: Some(2), ..recipe(SmartKind::Like, 0) })
+            .await
+            .expect("a playlist");
+        let single: Vec<&str> =
+            dual.tunes.iter().filter(|t| sid_chips(&t.item.path) < 2).map(|t| t.item.path.as_str()).collect();
+        let versions = dual.tunes.iter().filter(|t| t.is_version).count();
+        println!("Like Commando, dual SID: {} tunes, {versions} other versions, {} with one SID", dual.tunes.len(), single.len());
+        for chips in [None, Some(1), Some(2), Some(3)] {
+            let named = core
+                .smart_playlist(SmartRecipe {
+                    title_words: Some("commando".to_string()),
+                    total_secs: None,
+                    min_chips: chips,
+                    max_chips: chips,
+                    ..recipe(SmartKind::Shuffle, 0)
+                })
+                .await
+                .expect("a playlist");
+            let wrong = named.tunes.iter().filter(|t| chips.is_some_and(|n| sid_chips(&t.item.path) != n)).count();
+            let titles: Vec<String> = named.tunes.iter().take(4).map(|t| format!("{} ({})", t.item.title, sid_chips(&t.item.path))).collect();
+            println!("Commando in the title, {chips:?} SIDs: {} tunes, {wrong} with another count: {titles:?}", named.tunes.len());
+        }
     });
+}
+
+/// How many SIDs a tune's header asks for: the second and third chip's
+/// addresses are in the header from versions 3 and 4.
+fn sid_chips(path: &str) -> u8 {
+    let Ok(bytes) = std::fs::read(path) else { return 0 };
+    let version = u16::from_be_bytes([bytes[4], bytes[5]]);
+    1 + u8::from(version >= 3 && bytes[0x7A] != 0) + u8::from(version >= 4 && bytes[0x7B] != 0)
 }
 
 fn print_lengths(lists: &[SmartPlaylist]) {

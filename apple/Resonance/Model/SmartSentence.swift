@@ -26,6 +26,8 @@ nonisolated struct SmartUnderstanding: Hashable, Sendable {
     var tuneNames: [String] = []
     /// Words the title must have: "with love in the title".
     var titleWords: String?
+    /// Those words were a tune's name, not words to look for: "play Commando".
+    var titleIsATune = false
     var sounds: [SmartSound] = []
     var chip = SmartChip.any
     /// How many SID chips a tune uses: 2 and 2 for "dual SID", 2 and nil for
@@ -60,6 +62,16 @@ nonisolated struct SmartUnderstanding: Hashable, Sendable {
         energy != .any || shape != .steady || onlyUnheard || unlikeHeard || totalMinutes != nil || minMinutes != nil
             || fromYear != nil || toYear != nil || section != .any || justShuffle
             || !sounds.isEmpty || chip != .any || minChips != nil || maxChips != nil || maxTunes != nil || composers.count > 1 || tuneNames.count > 1
+    }
+
+    /// What to try when a tune by that name doesn't fit the rest of `sentence`:
+    /// no Commando is dual SID, but "like Commando dual SID" finds what is.
+    func likeInstead(of sentence: String) -> String? {
+        guard titleIsATune else { return nil }
+        var rest = sentence.trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
+        rest.replace(/^(?:please\s+)?(?:play|put\s+on|give\s+me|i\s+want|find|search\s+for)\s+(?:me\s+)?/.ignoresCase(), with: "")
+        rest.replace(/\s+please$/.ignoresCase(), with: "")
+        return "like \(rest)"
     }
 
     private static func list(_ items: [String]) -> String {
@@ -542,14 +554,24 @@ nonisolated final class SmartSentenceParser: @unchecked Sendable {
         let lead = /^\s*(?:please\s+)?(?:play|put\s+on|give\s+me|i\s+want|find|search\s+for)\s+(?:me\s+)?(.+?)[\s.!?]*(?:\s+please)?[\s.!?]*$/
         guard let match = text.firstMatch(of: lead) else { return }
         let name = String(match.1)
-        let words = Self.words(name)
+        let said = Self.words(name)
+        var words = said
+        // What led to a fact already taken out: "play Commando with dual SID".
+        while let last = words.last, Self.leadsToAFact.contains(last), !everyTitle.contains(words.joined(separator: " ")) {
+            words.removeLast()
+        }
         let moodWords = Set(Self.moods.values.flatMap { $0 })
         guard !words.isEmpty, everyTitle.contains(words.joined(separator: " ")), composers[words.joined(separator: " ")] == nil,
               // "Slow music" is a mood; "Crazy Comets" is a title.
               words.contains(where: { !Self.plainWords.contains($0) && !moodWords.contains($0) }) else { return }
-        result.titleWords = name.trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
+        result.titleWords = words.count == said.count
+            ? name.trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
+            : words.joined(separator: " ")
+        result.titleIsATune = true
         text = ""
     }
+
+    private static let leadsToAFact: Set<String> = ["with", "on", "in", "as", "using", "for", "at", "over", "only", "just"]
 
     /// What follows "like", "similar to" and so on, up to where the sentence
     /// moves on, split where it names several: "like Sanxion and Delta". A name
@@ -700,6 +722,7 @@ nonisolated final class SmartSentenceParser: @unchecked Sendable {
                 // Finding what sounds like it takes "like".
                 if length == words.count, telling >= 1, result.composers.isEmpty {
                     result.titleWords = key
+                    result.titleIsATune = true
                     return
                 }
                 if telling >= 2 {

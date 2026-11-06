@@ -898,7 +898,8 @@ fn smart_choose(
             if recipe.other_versions {
                 let title = tunes.iter().find(|t| t.path == seed).map(|t| t.title.clone()).unwrap_or_default();
                 for version in smart::versions(&title, seed, &tunes) {
-                    if version.secs >= recipe.min_secs {
+                    // Found by name, but what was asked for still holds.
+                    if fits(version) && suits(version) {
                         choice.picks.push(SmartPick { is_version: true, ..pick(version, false) });
                     }
                 }
