@@ -12,10 +12,12 @@ enum SidebarItem: Hashable {
     /// The HVSC Home: the collection's header row in the sidebar.
     case hvscHome
     case hvsc(HvscCategory)
+#if CSDB
     /// The C64 scene, from CSDb.
     case scene
     /// The tunes downloaded from CSDb.
     case csdbDownloads
+#endif
     /// One of Phosphor's published playlists, by its file name.
     case curated(String)
     case favourites
@@ -23,25 +25,80 @@ enum SidebarItem: Hashable {
     case userPlaylist(String)
 }
 
+/// What Resonance opens on (Settings → Appearance).
+enum StartPage: String, CaseIterable, Identifiable {
+    case myPlaylist, favourites, recentlyPlayed, hvscHome, musicians
+#if CSDB
+    case scenePulse
+#endif
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .myPlaylist: "My Playlist"
+        case .favourites: "Favourites"
+        case .recentlyPlayed: "Recently Played"
+        case .hvscHome: "HVSC Home"
+        case .musicians: "Musicians"
+#if CSDB
+        case .scenePulse: "Scene Pulse"
+#endif
+        }
+    }
+
+    /// Where it is in the sidebar. Scene Pulse isn't there with CSDb off.
+    func item(csdbEnabled: Bool) -> SidebarItem {
+        switch self {
+        case .myPlaylist: .playlist
+        case .favourites: .favourites
+        case .recentlyPlayed: .recent
+        case .hvscHome: .hvscHome
+        case .musicians: .hvsc(.musicians)
+#if CSDB
+        case .scenePulse: csdbEnabled ? .scene : .hvscHome
+#endif
+        }
+    }
+
+    /// Where the window opens, as things are set now.
+    static var opening: SidebarItem {
+#if CSDB
+        let enabled = UserDefaults.standard.object(forKey: Pref.csdbEnabled) as? Bool ?? true
+        return saved().item(csdbEnabled: enabled)
+#else
+        return saved().item(csdbEnabled: false)
+#endif
+    }
+
+    static func saved(in defaults: UserDefaults = .standard) -> StartPage {
+        defaults.string(forKey: Pref.startPage).flatMap(StartPage.init) ?? .myPlaylist
+    }
+}
+
 struct ContentView: View {
     @Environment(PlayerStore.self) private var store
     @Environment(LibraryStore.self) private var library
     @Environment(PlaylistsStore.self) private var playlists
+#if CSDB
     @Environment(CSDbStore.self) private var csdb
+#endif
     @Environment(\.openWindow) private var openWindow
-    @State private var sidebarSelection: SidebarItem? = .playlist
+    @State private var sidebarSelection: SidebarItem? = StartPage.opening
     @State private var showInspector = true
     @State private var isDropTargeted = false
     @State private var isSidebarDropTargeted = false
     @AppStorage("sidebar.curatedExpanded") private var curatedExpanded = true
+#if CSDB
     @AppStorage(Pref.csdbEnabled) private var csdbEnabled = true
+#endif
     /// The collection folder the Home was last opened for on its own.
     @AppStorage(Pref.homeShownForRoot) private var homeShownForRoot = ""
     /// The search field's text, the same from every section.
     @State private var searchQuery = ""
     /// The last section that isn't Search. It stays in the window under
     /// Search, so clearing the field finds it just as it was.
-    @State private var browsedSection = SidebarItem.playlist
+    @State private var browsedSection = StartPage.opening
     /// Typing opened Search, so clearing the field goes back. (Search opened
     /// from its sidebar row stays when the field empties.)
     @State private var returnsWhenCleared = false
@@ -228,10 +285,12 @@ struct ContentView: View {
             sidebarSelection = section
             library.shownSection = nil
         }
+#if CSDB
         // Scene switched off in Settings while it's showing.
         .onChange(of: csdbEnabled) { _, enabled in
             if !enabled, sidebarSelection == .scene { sidebarSelection = .hvscHome }
         }
+#endif
         // For a composer without a folder: the tune's section, so the browser
         // can list their tunes.
         .onChange(of: library.credits) { _, credits in
@@ -297,6 +356,7 @@ struct ContentView: View {
                     }
                 }
             }
+#if CSDB
             // Downloads stay while CSDb is off: they play without it.
             if csdbEnabled || !csdb.downloadedIDs.isEmpty {
                 Section("CSDb") {
@@ -311,6 +371,7 @@ struct ContentView: View {
                         .tag(SidebarItem.csdbDownloads)
                 }
             }
+#endif
             if store.hasCollection, let curated = store.hvscInfo?.playlists, !curated.isEmpty {
                 Section("Curated Playlists", isExpanded: $curatedExpanded) {
                     ForEach(curated, id: \.file) { playlist in
@@ -430,10 +491,12 @@ struct ContentView: View {
             // A fresh view (and selection) per category.
             HVSCBrowserView(category: category)
                 .id(category)
+#if CSDB
         case .scene:
             SceneView()
         case .csdbDownloads:
             CSDbDownloadsView()
+#endif
         case .favourites:
             UserPlaylistView(playlist: nil)
         case .userPlaylist(let id):

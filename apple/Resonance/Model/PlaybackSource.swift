@@ -24,10 +24,12 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
     case files
     /// A tune someone shared a link to.
     case shared
+#if CSDB
     /// A release played from CSDb.
     case scene
     /// The list of tunes downloaded from CSDb.
     case csdbDownloads
+#endif
 
     /// "Rob Hubbard", "Search “commando”".
     var name: String {
@@ -44,8 +46,10 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .shuffleCollection: "Shuffle Collection"
         case .files: "Files"
         case .shared: "Shared Link"
+#if CSDB
         case .scene: "Scene Pulse"
         case .csdbDownloads: "Downloads"
+#endif
         }
     }
 
@@ -70,7 +74,9 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .shuffleCollection: "All of HVSC, shuffled"
         case .files: "Added files"
         case .shared: "Opened from"
+#if CSDB
         case .scene, .csdbDownloads: "From CSDb"
+#endif
         }
     }
 
@@ -87,8 +93,10 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .shuffleCollection: "shuffle"
         case .files: "doc"
         case .shared: "link"
+#if CSDB
         case .scene: "antenna.radiowaves.left.and.right"
         case .csdbDownloads: "arrow.down.circle"
+#endif
         }
     }
 
@@ -101,8 +109,10 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .playlist(let id, _): .userPlaylist(id)
         case .curated(let playlist): .curated(playlist.file)
         case .recentlyPlayed: .recent
+#if CSDB
         case .scene: .scene
         case .csdbDownloads: .csdbDownloads
+#endif
         default: nil
         }
     }

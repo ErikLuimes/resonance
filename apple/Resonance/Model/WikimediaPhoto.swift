@@ -1,3 +1,5 @@
+#if CSDB // Debug builds only until CSDb's admins have had their say.
+
 import AppKit
 
 /// A composer's photo from Wikimedia Commons, with what its license asks for.
@@ -110,3 +112,5 @@ extension CSDbStore {
         }
     }
 }
+
+#endif

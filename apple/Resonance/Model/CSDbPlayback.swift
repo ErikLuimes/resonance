@@ -1,3 +1,5 @@
+#if CSDB // Debug builds only until CSDb's admins have had their say.
+
 import Foundation
 
 /// What a release offers to play: a tune already in HVSC, or a .sid to
@@ -267,3 +269,5 @@ extension CSDbStore {
         URL.applicationSupportDirectory.appending(path: "Resonance/CSDb", directoryHint: .isDirectory)
     }
 }
+
+#endif

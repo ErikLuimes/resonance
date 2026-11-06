@@ -1,3 +1,5 @@
+#if CSDB // Debug builds only until CSDb's admins have had their say.
+
 import Foundation
 import Observation
 
@@ -523,3 +525,5 @@ enum CSDbFeeds {
         return formatter.date(from: text)
     }
 }
+
+#endif

@@ -571,12 +571,12 @@ struct LibraryTable: View {
             TableColumn("Released", value: \.released)
                 .customizationID("releasedFull")
                 .defaultVisibility(.hidden)
-            TableColumn("Sound") { row in
+            TableColumn("Fingerprint") { row in
                 SoundCell(fingerprints: fingerprints, path: row.id, title: row.title, subtitle: row.author,
                           length: row.item.durationSecs == nil ? nil : row.lengthText,
                           onPlay: { play([row.id]) }, onFindSimilar: { findSimilar(row) })
             }
-            .width(72)
+            .width(84)
             .customizationID("sound")
             if similarTo != nil {
                 TableColumn("Match") { row in
@@ -686,7 +686,9 @@ struct LibraryTable: View {
 
 #Preview {
     HVSCBrowserView(category: .musicians)
+#if CSDB
         .environment(CSDbStore())
+#endif
         .environment(PlayerStore.preview)
         .environment(LibraryStore(player: .preview))
         .environment(FingerprintStore(player: .preview))

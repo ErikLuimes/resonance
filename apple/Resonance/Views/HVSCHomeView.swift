@@ -1400,7 +1400,9 @@ private enum Palette {
 
 #Preview {
     HVSCHomeView()
+#if CSDB
         .environment(CSDbStore())
+#endif
         .environment(PlayerStore.preview)
         .environment(LibraryStore(player: .preview))
         .environment(FingerprintStore(player: .preview))

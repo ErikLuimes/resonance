@@ -19,18 +19,21 @@ nonisolated enum Pref {
     static let themeBadge = "themeBadge"
     static let fingerprintScanPaused = "fingerprintScanPaused"
     static let settingsTab = "settingsTab"
+    static let startPage = "startPage"
     static let homeShownForRoot = "homeShownForRoot"
     static let homeSeenRelease = "homeSeenRelease"
     static let playlistsRecent = "playlistsRecent"
     /// Per extractor version: a set of another version's fingerprints doesn't count.
     static let fingerprintSetImported = "fingerprintSetImported.x2"
     static let menuBarPlayer = "menuBarPlayer"
+#if CSDB
     /// Whether Resonance shows the scene from CSDb, and so talks to csdb.dk.
     static let csdbEnabled = "csdbEnabled"
     /// Whether composers' CSDb trivia shows. Off by default: it's unverified.
     static let csdbTrivia = "csdbTrivia"
     /// Whether composer profiles look for a photo on Wikimedia Commons.
     static let composerPhotos = "composerPhotos"
+#endif
 }
 
 nonisolated extension PlaybackOptions {

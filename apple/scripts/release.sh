@@ -114,10 +114,24 @@ else
     NAME="Resonance-$VERSION-unsigned"
 fi
 
+# Releases leave CSDb out (the CSDB flag is Debug's) until its admins have had
+# their say. Debug work can't break that build unnoticed: the tests run without
+# the flag here, and the archive is checked for the addresses below.
+echo "Testing without CSDb…"
+xcodebuild test -quiet -project Resonance.xcodeproj -scheme Resonance -configuration Debug \
+    -destination 'platform=macOS' -derivedDataPath "$OUT/no-csdb" \
+    -clonedSourcePackagesDirPath "$PACKAGES" SWIFT_ACTIVE_COMPILATION_CONDITIONS=DEBUG
+
 echo "Archiving (the Rust core builds in release mode; this takes a few minutes)…"
 xcodebuild archive -quiet -project Resonance.xcodeproj -scheme Resonance -configuration Release \
     -destination 'generic/platform=macOS' -archivePath "$OUT/Resonance.xcarchive" \
     -clonedSourcePackagesDirPath "$PACKAGES" "${SIGNING[@]}" "${UPDATES[@]}"
+
+if strings "$OUT/Resonance.xcarchive/Products/Applications/Resonance.app/Contents/MacOS/Resonance" \
+    | grep -qE 'csdb\.dk|wikipedia\.org|wikimedia\.org'; then
+    echo "error: CSDb or Wikimedia addresses in a release build" >&2
+    exit 1
+fi
 
 if [ -n "$IDENTITY" ]; then
     cat > "$OUT/ExportOptions.plist" <<EOF

@@ -1,3 +1,5 @@
+#if CSDB // Debug builds only until CSDb's admins have had their say.
+
 import Foundation
 import Testing
 @testable import Resonance
@@ -364,3 +366,5 @@ struct CSDbFeedTests {
         #expect(WikimediaPhotos.credit(fromMetadata: metadata("Fair use")) == nil)
     }
 }
+
+#endif

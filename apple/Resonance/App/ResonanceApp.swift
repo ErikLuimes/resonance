@@ -12,7 +12,9 @@ struct ResonanceApp: App {
                 .environment(appDelegate.library)
                 .environment(appDelegate.fingerprints)
                 .environment(appDelegate.playlists)
+#if CSDB
                 .environment(appDelegate.csdb)
+#endif
                 .voiceThemed()
         }
         .defaultSize(width: 1100, height: 680)

@@ -59,6 +59,14 @@ struct SearchView: View {
     }
 
     /// What can be in your lists without being in HVSC.
+#if CSDB
+    private var downloads: Set<Int> { csdb.downloadedIDs }
+    private var downloadedFiles: [String] { csdb.downloadedFiles() }
+#else
+    private var downloads: Set<Int> { [] }
+    private var downloadedFiles: [String] { [] }
+#endif
+
     private struct LocalFiles: Hashable {
         let playlist: [String]
         let downloads: Set<Int>
@@ -80,7 +88,9 @@ struct SearchView: View {
     @Environment(LibraryStore.self) private var library
     @Environment(PlayerStore.self) private var player
     @Environment(PlaylistsStore.self) private var playlists
+#if CSDB
     @Environment(CSDbStore.self) private var csdb
+#endif
 
     @State private var filter = Filter.all
     /// All of HVSC. The last results stay until new ones are in, so nothing
@@ -130,8 +140,8 @@ struct SearchView: View {
                                   summaries: library.composers[.musicians]?.count ?? 0)) {
             composers = library.composers(matching: query, in: .musicians, limit: 500)
         }
-        .task(id: LocalFiles(playlist: player.rows.map(\.id), downloads: csdb.downloadedIDs)) {
-            let files = player.rows.map(\.id) + csdb.downloadedFiles()
+        .task(id: LocalFiles(playlist: player.rows.map(\.id), downloads: downloads)) {
+            let files = player.rows.map(\.id) + downloadedFiles
             let found = await playlists.tunes(from: Array(Set(files)))
             localTunes = found.filter { library.category(of: $0.id) == nil }
                 .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }

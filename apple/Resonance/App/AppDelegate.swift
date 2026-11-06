@@ -7,7 +7,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let library: LibraryStore
     let fingerprints: FingerprintStore
     let playlists: PlaylistsStore
+#if CSDB
     let csdb = CSDbStore()
+#endif
     let updater = Updater()
     private var nowPlaying: NowPlayingController?
     private var activity: PlaybackActivity?

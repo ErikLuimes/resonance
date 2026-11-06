@@ -1,3 +1,5 @@
+#if CSDB // Debug builds only until CSDb's admins have had their say.
+
 import Foundation
 
 /// A scener on CSDb, as the composer cards show them: where they're from,
@@ -499,3 +501,5 @@ extension CSDbStore {
         if let data = try? JSONEncoder().encode(saved) { try? data.write(to: savedFile, options: .atomic) }
     }
 }
+
+#endif

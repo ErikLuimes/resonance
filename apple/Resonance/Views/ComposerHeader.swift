@@ -37,9 +37,11 @@ nonisolated enum ComposerFacts {
 nonisolated enum ComposerInfoCard: Hashable {
     case similar
     case note
+#if CSDB
     case newest
     case results
     case trivia
+#endif
 }
 
 // MARK: - The header
@@ -64,6 +66,7 @@ struct ComposerHeader: View {
     let openComposer: (String) -> Void
 
     @Environment(LibraryStore.self) private var library
+#if CSDB
     @Environment(CSDbStore.self) private var csdb
     @Environment(\.openURL) private var openURL
     @AppStorage(Pref.csdbEnabled) private var csdbEnabled = true
@@ -72,6 +75,10 @@ struct ComposerHeader: View {
 
     /// With CSDb switched off there may be nothing to say beyond the name.
     private var hasBio: Bool { csdbEnabled || realName != nil }
+#else
+    private var hasBio: Bool { realName != nil }
+    private var isLookingUp: Bool { false }
+#endif
 
     /// "Galway, Martin" stays in the sorted list; here it's "Martin Galway".
     private var shownName: String { LibraryStore.spokenName(name) }
@@ -84,6 +91,7 @@ struct ComposerHeader: View {
         ComposerFacts.tunes(rows.count, firstYear: summary?.firstYear.map(Int.init), lastYear: summary?.lastYear.map(Int.init))
     }
 
+#if CSDB
     /// What CSDb might know them by: the HVSC name, then a real name.
     private var lookupNames: [String] { [name] + [summary?.realName].compactMap { $0 } }
 
@@ -93,21 +101,24 @@ struct ComposerHeader: View {
 
     private var isLookingUp: Bool { csdbEnabled && csdb.lookup(for: [name]) == .loading }
 
-    private var note: STILEntry? { library.stil[authorPath] ?? nil }
-
-    private var similar: [SimilarComposer] { library.similarComposers[authorPath] ?? [] }
-
     private var photo: WikimediaPhoto? {
         csdbEnabled && showsPhotos ? csdb.composerPhotos[shownName] : nil
     }
+#endif
+
+    private var note: STILEntry? { library.stil[authorPath] ?? nil }
+
+    private var similar: [SimilarComposer] { library.similarComposers[authorPath] ?? [] }
 
     private var cards: [ComposerInfoCard] {
         var cards: [ComposerInfoCard] = []
         if !similar.isEmpty { cards.append(.similar) }
         if note != nil { cards.append(.note) }
+#if CSDB
         if profile?.latestMusic != nil { cards.append(.newest) }
         if !(profile?.results ?? []).isEmpty { cards.append(.results) }
         if showsTrivia, profile?.triviaText() != nil { cards.append(.trivia) }
+#endif
         return cards
     }
 
@@ -122,18 +133,21 @@ struct ComposerHeader: View {
         }
         .task(id: authorPath) { await library.loadSimilarComposers(authorPath) }
         .task(id: authorPath) { await library.loadStil(path: authorPath) }
+#if CSDB
         .task(id: "\(csdbEnabled) \(lookupNames)") { await csdb.loadProfile(for: lookupNames) }
         // Whose tune their newest credit is, and whether it's in HVSC, before
         // anyone presses Play.
         .task(id: profile?.latestMusic?.id) {
             if let id = profile?.latestMusic?.id { try? await csdb.files(ofRelease: id) }
         }
+#endif
     }
 
     // MARK: The bio
 
     private var bio: some View {
         VStack(alignment: .leading, spacing: 8) {
+#if CSDB
             if isLookingUp {
                 HStack(spacing: 6) {
                     ProgressView()
@@ -142,16 +156,20 @@ struct ComposerHeader: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            if realName != nil || profile != nil {
+#endif
+            if hasFacts {
                 Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 4) {
                     headerFact("Real name", realName)
+#if CSDB
                     headerFact("Country", profile?.country)
                     headerFact("Also known as", profile?.aka)
                     headerFact(profile?.groups.count == 1 ? "Group" : "Groups",
                                profile.flatMap { ComposerFacts.groups($0.groups, formed: $0.groupFormed) })
                     headerFact("Formerly", profile.flatMap(former))
+#endif
                 }
             }
+#if CSDB
             if let profile {
                 // The name in use, then the others they've gone by, then what
                 // they do. One name needs no chip: it's under the picture.
@@ -181,9 +199,13 @@ struct ComposerHeader: View {
                     .lineLimit(2)
                     .help("Open the photo's page on Wikimedia Commons")
             }
+#endif
         }
         .font(.callout)
     }
+
+#if CSDB
+    private var hasFacts: Bool { realName != nil || profile != nil }
 
     private func former(_ profile: CSDbProfile) -> String? {
         guard !profile.formerGroups.isEmpty else { return nil }
@@ -197,6 +219,9 @@ struct ComposerHeader: View {
         search?.queryItems = [.init(name: "seinsel", value: "all"), .init(name: "search", value: shownName)]
         return search?.url
     }
+#else
+    private var hasFacts: Bool { realName != nil }
+#endif
 
     // MARK: The cards
 
@@ -222,6 +247,7 @@ struct ComposerHeader: View {
                 }
                 .font(.callout)
             }
+#if CSDB
         case .newest:
             if let profile, let release = profile.latestMusic {
                 newestCard(release, by: profile)
@@ -251,9 +277,11 @@ struct ComposerHeader: View {
                 }
                 .font(.callout)
             }
+#endif
         }
     }
 
+#if CSDB
     /// "Just released" only while it is: an old credit is just their newest.
     private func newestCard(_ release: CSDbCredit, by profile: CSDbProfile) -> some View {
         let age = release.daysOld
@@ -353,6 +381,7 @@ struct ComposerHeader: View {
         }
         return text
     }
+#endif
 }
 
 // MARK: - Parts
@@ -399,6 +428,7 @@ struct ComposerPortrait: View {
     var looksUpPhoto = true
     var cornerRadius: CGFloat = 12
 
+#if CSDB
     @AppStorage(Pref.csdbEnabled) private var csdbEnabled = true
     @AppStorage(Pref.composerPhotos) private var showsPhotos = false
     @Environment(CSDbStore.self) private var csdb
@@ -406,6 +436,7 @@ struct ComposerPortrait: View {
     private var photo: WikimediaPhoto? {
         csdbEnabled && showsPhotos ? csdb.composerPhotos[name] : nil
     }
+#endif
 
     var body: some View {
         let seed = name.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) % 360 }
@@ -423,6 +454,7 @@ struct ComposerPortrait: View {
                     RadialGradient(colors: [second, .clear], center: UnitPoint(x: 0.75, y: 0.72),
                                    startRadius: 0, endRadius: reach * 0.6)
                 }
+#if CSDB
                 if let photo {
                     // Faces sit high in portraits.
                     Image(nsImage: photo.image)
@@ -431,18 +463,22 @@ struct ComposerPortrait: View {
                         .frame(width: size.width, height: size.height, alignment: .top)
                         .clipped()
                 }
+#endif
             }
         }
         .clipShape(.rect(cornerRadius: cornerRadius))
-        .help(photo.map { "Photo: \($0.credit)" } ?? "")
         .accessibilityHidden(true)
+#if CSDB
+        .help(photo.map { "Photo: \($0.credit)" } ?? "")
         .task(id: "\(csdbEnabled) \(showsPhotos) \(name)") {
             guard looksUpPhoto else { return }
             await csdb.loadPhoto(names: [name] + [realName].compactMap { $0 })
         }
+#endif
     }
 }
 
+#if CSDB
 struct SceneChip: View {
     let text: String
     var highlighted = false
@@ -462,3 +498,4 @@ struct SceneChip: View {
             }
     }
 }
+#endif

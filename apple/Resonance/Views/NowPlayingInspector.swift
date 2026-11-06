@@ -348,7 +348,9 @@ private struct ComposerCard: View {
 
 #Preview {
     NowPlayingInspector()
+#if CSDB
         .environment(CSDbStore())
+#endif
         .environment(PlayerStore.preview)
         .environment(LibraryStore(player: .preview))
         .environment(FingerprintStore(player: .preview))

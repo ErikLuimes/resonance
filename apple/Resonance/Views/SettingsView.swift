@@ -12,16 +12,19 @@ struct SettingsView: View {
             }
             Tab("Appearance", systemImage: "paintpalette", value: .appearance) {
                 SettingsPane {
+                    StartPageSettings()
                     MenuBarSettings()
                     ThemeSettings()
                 }
             }
-            Tab("Collection", systemImage: "folder", value: .collection) {
-                SettingsPane {
-                    CollectionSettings()
-                    SceneSettings()
-                }
+            Tab("HVSC", systemImage: "waveform", value: .collection) {
+                SettingsPane { CollectionSettings() }
             }
+#if CSDB
+            Tab("CSDb", systemImage: "antenna.radiowaves.left.and.right", value: .csdb) {
+                SettingsPane { SceneSettings() }
+            }
+#endif
             Tab("History", systemImage: "clock.arrow.circlepath", value: .history) {
                 SettingsPane { HistorySettings() }
             }
@@ -34,6 +37,9 @@ struct SettingsView: View {
 
 enum SettingsTab: String {
     case playback, appearance, collection, history, advanced
+#if CSDB
+    case csdb
+#endif
 }
 
 /// A tab's grouped form, as tall as its content: the window resizes to
@@ -324,7 +330,7 @@ private struct FingerprintSettings: View {
         } header: {
             Text("Sound Fingerprints")
         } footer: {
-            Text("Resonance plays every tune silently in the background to learn how it sounds, for the Sound column and Sounds Like. It picks up where it left off, and takes a few hours for all of HVSC. The published set (about 42 MB) has the fingerprints of all of HVSC already; Resonance downloads it the first time, and the scan fills in the rest.")
+            Text("Resonance plays every tune silently in the background to learn how it sounds, for the Fingerprint column and Sounds Like. It picks up where it left off, and takes a few hours for all of HVSC. The published set (about 42 MB) has the fingerprints of all of HVSC already; Resonance downloads it the first time, and the scan fills in the rest.")
         }
         .confirmationDialog("Rebuild all fingerprints?", isPresented: $confirmingRebuild) {
             Button("Rebuild") { Task { await fingerprints.rebuild() } }
@@ -590,6 +596,7 @@ nonisolated enum DiskUsage {
 
 /// The visualizers' colour theme: a preset or your own colours, and whether
 /// its badge shows.
+#if CSDB
 private struct SceneSettings: View {
     @AppStorage(Pref.csdbEnabled) private var enabled = true
     @AppStorage(Pref.csdbTrivia) private var showsTrivia = false
@@ -612,6 +619,35 @@ private struct SceneSettings: View {
                 .disabled(!enabled)
         } footer: {
             Text("Experimental. Composer profiles look for a freely licensed photo through Wikipedia, and credit its author. Few composers have one, and a match by name can be the wrong person. Resonance only contacts Wikipedia and Wikimedia Commons while this is on.")
+        }
+    }
+}
+
+#endif
+
+private struct StartPageSettings: View {
+    @AppStorage(Pref.startPage) private var startPage = StartPage.myPlaylist
+#if CSDB
+    @AppStorage(Pref.csdbEnabled) private var csdbEnabled = true
+#endif
+
+    var body: some View {
+        Section {
+            Picker("Start page", selection: $startPage) {
+                ForEach(StartPage.allCases) { page in
+                    Text(page.title).tag(page)
+                }
+            }
+        } footer: {
+#if CSDB
+            Text(startPage == .scenePulse && !csdbEnabled
+                 ? "CSDb is switched off, so Resonance opens on the HVSC Home instead."
+                 : "What Resonance shows when it opens.")
+                .foregroundStyle(.secondary)
+#else
+            Text("What Resonance shows when it opens.")
+                .foregroundStyle(.secondary)
+#endif
         }
     }
 }

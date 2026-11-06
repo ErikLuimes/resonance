@@ -1,3 +1,5 @@
+#if CSDB // Debug builds only until CSDb's admins have had their say.
+
 import SwiftUI
 import AppKit
 
@@ -1287,3 +1289,5 @@ struct CSDbDownloadsView: View {
         }
     }
 }
+
+#endif

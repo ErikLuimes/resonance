@@ -52,12 +52,12 @@ struct PlaylistView: View {
             .customizationID("author")
             TableColumn("Released", value: \.released)
                 .customizationID("released")
-            TableColumn("Sound") { row in
+            TableColumn("Fingerprint") { row in
                 SoundCell(fingerprints: fingerprints, path: row.id, title: row.title, subtitle: row.author,
                           length: row.item.durationSecs == nil ? nil : row.lengthText,
                           onPlay: { store.play(index: row.index) })
             }
-            .width(72)
+            .width(84)
             .customizationID("sound")
             TableColumn("Length", value: \.length) { row in
                 Text(row.lengthText).monospacedDigit()

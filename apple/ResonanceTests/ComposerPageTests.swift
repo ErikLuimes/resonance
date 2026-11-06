@@ -38,10 +38,10 @@ struct ComposerCarouselTests {
     }
 
     @Test func cardsFillPagesInOrder() {
-        let cards: [ComposerInfoCard] = [.similar, .note, .newest, .results, .trivia]
+        let cards = [1, 2, 3, 4, 5]
         #expect(HeaderCards.pages(cards, perPage: 1).count == 5)
-        #expect(HeaderCards.pages(cards, perPage: 2) == [[.similar, .note], [.newest, .results], [.trivia]])
-        #expect(HeaderCards.pages([ComposerInfoCard](), perPage: 2).isEmpty)
+        #expect(HeaderCards.pages(cards, perPage: 2) == [[1, 2], [3, 4], [5]])
+        #expect(HeaderCards.pages([Int](), perPage: 2).isEmpty)
     }
 }
 
@@ -74,5 +74,28 @@ struct VoiceMeterTests {
         let reading = RowVoiceMeter().update(levels: [0], at: start)
         #expect(reading.bars.count == 3)
         #expect(reading.bars.allSatisfy { $0 > 0 })
+    }
+}
+
+struct StartPageTests {
+    @Test func opensOnWhatWasChosen() {
+        #expect(StartPage.favourites.item(csdbEnabled: true) == .favourites)
+        #expect(StartPage.musicians.item(csdbEnabled: true) == .hvsc(.musicians))
+    }
+
+#if CSDB
+    @Test func scenePulseFallsBackWithCSDbOff() {
+        #expect(StartPage.scenePulse.item(csdbEnabled: true) == .scene)
+        #expect(StartPage.scenePulse.item(csdbEnabled: false) == .hvscHome)
+    }
+#endif
+
+    @Test func myPlaylistUntilChosen() {
+        let defaults = UserDefaults(suiteName: "StartPage.\(UUID().uuidString)")!
+        #expect(StartPage.saved(in: defaults) == .myPlaylist)
+        defaults.set("favourites", forKey: Pref.startPage)
+        #expect(StartPage.saved(in: defaults) == .favourites)
+        defaults.set("gone", forKey: Pref.startPage)
+        #expect(StartPage.saved(in: defaults) == .myPlaylist)
     }
 }
