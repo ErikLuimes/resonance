@@ -2,7 +2,8 @@
 //! the code being the tune's 12-character share code (`tune::short_code`;
 //! a whole MD5 works too):
 //! the page carries Open Graph tags so chat apps show a preview card, and
-//! hands the tune to the app through `resonance://`.
+//! hands the tune to the app through `resonance://`. The association file
+//! lets macOS open those links in the app directly.
 //!
 //! Environment:
 //!   INDEX         the tune index (default /data/index.json), built with
@@ -14,6 +15,7 @@
 //!                 folder per card version and HVSC release, so a new index
 //!                 or look renders them again. Old folders can be deleted.
 //!   FONT_DIR      extra fonts for the cards (the system's are loaded too)
+//!   APPLE_APP_ID  the app its links open, <team id>.<bundle identifier>
 
 mod card;
 mod page;
@@ -38,6 +40,7 @@ struct App {
     /// Rendered cards, `<md5>-<subtune>.jpg`; None when it can't be made.
     card_dir: Option<PathBuf>,
     generic_card: Vec<u8>,
+    apple_app_id: String,
 }
 
 #[derive(Deserialize)]
@@ -60,6 +63,7 @@ async fn main() {
         download: env("DOWNLOAD_URL", "https://erikluimes.github.io/resonance/"),
         card_dir: card_dir(&env("CARD_DIR", "/data/cards"), index.hvsc),
         generic_card: card::jpeg(&card::svg(None, None)).expect("the generic card renders"),
+        apple_app_id: env("APPLE_APP_ID", "R4D8QN85WK.app.useresonance.resonance"),
         index,
     });
     eprintln!(
@@ -84,11 +88,26 @@ fn router(app: Arc<App>) -> Router {
         .route("/card/{file}", get(tune_card))
         .route("/card.jpg", get(generic_card))
         .route("/healthz", get(|| async { "ok" }))
+        // Answered here, not redirected: Apple's fetch doesn't follow redirects.
+        .route("/.well-known/apple-app-site-association", get(app_site_association))
         // The domain's other addresses lead to the website: its root, and
         // anything else typed or linked there. Temporary, so a site of its
         // own can take the root later.
         .fallback(|State(app): State<Arc<App>>| async move { Redirect::temporary(&app.download) })
         .with_state(app)
+}
+
+/// Tells macOS that Resonance opens this server's tune links, and only those.
+async fn app_site_association(State(app): State<Arc<App>>) -> Response {
+    let body = serde_json::json!({
+        "applinks": {
+            "details": [{
+                "appIDs": [app.apple_app_id],
+                "components": [{ "/": "/t/*", "comment": "Shared tunes" }],
+            }],
+        },
+    });
+    ([(header::CONTENT_TYPE, "application/json")], body.to_string()).into_response()
 }
 
 async fn tune_page(State(app): State<Arc<App>>, Path(raw): Path<String>, Query(q): Query<LinkQuery>) -> Response {
@@ -186,6 +205,7 @@ mod tests {
             download: "https://erikluimes.github.io/resonance/".into(),
             card_dir: None,
             generic_card: vec![0xFF, 0xD8, 0xFF],
+            apple_app_id: "TEAM.app.useresonance.resonance".into(),
         }))
     }
 
@@ -200,6 +220,19 @@ mod tests {
             assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT, "{path}");
             assert_eq!(response.headers()[header::LOCATION], "https://erikluimes.github.io/resonance/");
         }
+    }
+
+    #[tokio::test]
+    async fn the_association_file_names_the_app_and_only_tune_links() {
+        let response = get("/.well-known/apple-app-site-association").await;
+        assert_eq!(response.status(), StatusCode::OK, "Apple's fetch doesn't follow redirects");
+        assert_eq!(response.headers()[header::CONTENT_TYPE], "application/json");
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let file: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let details = &file["applinks"]["details"][0];
+        assert_eq!(details["appIDs"][0], "TEAM.app.useresonance.resonance");
+        assert_eq!(details["components"].as_array().unwrap().len(), 1);
+        assert_eq!(details["components"][0]["/"], "/t/*");
     }
 
     #[tokio::test]

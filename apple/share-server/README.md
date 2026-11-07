@@ -19,6 +19,10 @@ for the start song:
   rendered with resvg the first time it's asked for and kept on disk in
   `CARD_DIR`.
 - `GET /card.jpg` — Resonance's own card.
+- `GET /.well-known/apple-app-site-association` — tells macOS the app opens
+  `/t/*` links directly. Apple's servers fetch it, and don't follow redirects,
+  so a proxy or firewall mustn't redirect or challenge them there. A new
+  version can take a day to reach Macs, through Apple's cache.
 - `GET /healthz`. Everything else (`/`, `/download`, …) redirects to the website (`DOWNLOAD_URL`), so the domain leads there.
 
 Everything it shows comes from the tune index; it fetches nothing.
@@ -65,6 +69,7 @@ cards are rendered on every request instead. Settings, as environment variables:
 | `PORT` | `8080` | |
 | `CARD_DIR` | `/data/cards` | rendered cards, in a folder per card version and HVSC release (`v1-hvsc85`); delete old folders after a new index or look |
 | `FONT_DIR` | | extra fonts for the cards (the image has Inter) |
+| `APPLE_APP_ID` | `R4D8QN85WK.app.useresonance.resonance` | the app its links open: team ID, then bundle identifier |
 
 The app's Release builds share `https://useresonance.app` links (the
 `SHARE_BASE_URL` build setting), so that's the `BASE_URL`. A website at
