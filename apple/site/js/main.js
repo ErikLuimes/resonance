@@ -254,6 +254,35 @@ for (const video of $$('video[data-video]')) {
   videos.observe(video);
 }
 
+// Integrations: the list switches the screenshot. A screenshot shows once it
+// has loaded; until then, or with no file yet, the placeholder.
+for (const img of $$('.media-still img')) {
+  const ready = () => img.closest('.media').classList.add('is-ready');
+  if (img.complete && img.naturalWidth) ready();
+  else img.addEventListener('load', ready, { once: true });
+}
+for (const list of $$('[data-integrations] [role="tablist"]')) {
+  const tabs = $$('[role="tab"]', list);
+  const select = (tab, focus = false) => {
+    for (const other of tabs) {
+      const on = other === tab;
+      other.setAttribute('aria-selected', on);
+      other.tabIndex = on ? 0 : -1;
+      document.getElementById(other.getAttribute('aria-controls')).hidden = !on;
+    }
+    if (focus) tab.focus();
+  };
+  tabs.forEach((tab, i) => {
+    tab.addEventListener('click', () => select(tab));
+    tab.addEventListener('keydown', (event) => {
+      const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[event.key];
+      if (!step) return;
+      event.preventDefault();
+      select(tabs[(i + step + tabs.length) % tabs.length], true);
+    });
+  });
+}
+
 // Sound: every video starts muted (browsers only autoplay muted video);
 // the Sound button on any of them turns sound on for all, and only the one
 // playing is heard.

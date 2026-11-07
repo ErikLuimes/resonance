@@ -90,7 +90,7 @@
         <a href="#sound">Sounds Like</a>
         <a href="#now-playing">Now Playing</a>
         <a href="#features">Features</a>
-        <a href="#library">Library</a>
+        <a href="#integrations">Integrations</a>
         <a href="#under-the-hood">Under the hood</a>
       </div>
       <a class="nav-cta" href="#download">Download</a>
@@ -336,7 +336,7 @@
             <li><svg class="i"><use href="#i-check"/></svg>A card for each composer, with STIL's notes and all their tunes a click away</li>
             <li><svg class="i"><use href="#i-check"/></svg>STIL's stories and covers set to read, and HVSC's known bugs on the tunes it names</li>
             <li><svg class="i"><use href="#i-check"/></svg>Song lengths and STIL from the release you have</li>
-            <li><svg class="i"><use href="#i-check"/></svg>Songlengths moves on at the right moment; unknown tunes get your default length</li>
+            <li><svg class="i"><use href="#i-check"/></svg>Songlengths moves on at the right moment; for tunes outside it, Resonance works out the length in the background</li>
           </ul>
         </div>
         <figure class="media" data-reveal>
@@ -438,6 +438,97 @@
       </div>
     </section>
 
+    <!-- Integrations -->
+    <section class="section" id="integrations">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="kicker">Integrations</p>
+          <h2>Resonance, from anywhere<br><span class="grad">on your Mac.</span></h2>
+          <p class="section-lede">The app plays everything. All of these reach the same player, so the window, the terminal and every shortcut stay in step.</p>
+        </div>
+
+        <div class="integrations" data-integrations data-reveal>
+          <div class="integration-list" role="tablist" aria-label="Integrations" aria-orientation="vertical">
+            <button type="button" role="tab" id="tab-terminal" aria-controls="panel-terminal" aria-selected="true"><strong>The terminal app</strong><span>Playlists, Sounds Like, fire and a skull</span></button>
+            <button type="button" role="tab" id="tab-assistants" aria-controls="panel-assistants" aria-selected="false" tabindex="-1"><strong>Claude and other assistants</strong><span>Ask for what you'd like to hear</span></button>
+            <button type="button" role="tab" id="tab-raycast" aria-controls="panel-raycast" aria-selected="false" tabindex="-1"><strong>Raycast</strong><span>Eleven commands, no window</span></button>
+            <button type="button" role="tab" id="tab-siri" aria-controls="panel-siri" aria-selected="false" tabindex="-1"><strong>Siri and Shortcuts</strong><span>“Surprise me in Resonance”</span></button>
+            <button type="button" role="tab" id="tab-spotlight" aria-controls="panel-spotlight" aria-selected="false" tabindex="-1"><strong>Spotlight and Quick Look</strong><span>Find a tune, or press Space on one</span></button>
+            <button type="button" role="tab" id="tab-dock" aria-controls="panel-dock" aria-selected="false" tabindex="-1"><strong>Dock and notifications</strong><span>The controls, and how far it's got</span></button>
+            <button type="button" role="tab" id="tab-commands" aria-controls="panel-commands" aria-selected="false" tabindex="-1"><strong>Commands and zsh</strong><span>A remote control for scripts</span></button>
+          </div>
+
+          <div class="integration-panels">
+            <div class="integration-panel" role="tabpanel" id="panel-terminal" aria-labelledby="tab-terminal">
+              <figure class="media media-still">
+                <div class="media-soon" aria-hidden="true"><svg class="i"><use href="#i-waveform"/></svg><span>The terminal app</span><small>Screenshot coming soon</small></div>
+                <img src="media/integration-terminal.png" alt="The Resonance terminal app, with playlists, a list of tunes and their fingerprints, and the three voices" loading="lazy">
+              </figure>
+              <p>Run <code>resonance</code> for your playlists, search, Sounds Like and the three voices. Then take the music full screen: fire, Tesla coils, a pool, and a skull that chomps on the hits. Install it from Settings → Integrations.</p>
+            </div>
+
+            <div class="integration-panel" role="tabpanel" id="panel-assistants" aria-labelledby="tab-assistants" hidden>
+              <figure class="media media-still">
+                <div class="media-soon" aria-hidden="true"><svg class="i"><use href="#i-sparkle"/></svg><span>Claude and other assistants</span><small>Screenshot coming soon</small></div>
+                <img src="media/integration-assistants.png" alt="Asking Claude for something like Commando but darker, and Resonance playing the result" loading="lazy">
+              </figure>
+              <p>Ask for “something like Commando but darker”. An assistant can search, play, make playlists and start a drift, but it can't delete a playlist. To connect Claude Code, run <code>claude mcp add resonance -- resonance mcp</code>.</p>
+            </div>
+
+            <div class="integration-panel" role="tabpanel" id="panel-raycast" aria-labelledby="tab-raycast" hidden>
+              <figure class="media media-still">
+                <div class="media-soon" aria-hidden="true"><svg class="i"><use href="#i-search"/></svg><span>Raycast</span><small>Screenshot coming soon</small></div>
+                <img src="media/integration-raycast.png" alt="Searching tunes in Raycast, with each tune's fingerprint beside it" loading="lazy">
+              </figure>
+              <p>Search tunes, describe a sound, open your playlists and control what's playing, with a hotkey for the ones you use most. Each tune shows its fingerprint, and <kbd>⌘</kbd><kbd>L</kbd> finds what sounds like it.</p>
+            </div>
+
+            <div class="integration-panel" role="tabpanel" id="panel-siri" aria-labelledby="tab-siri" hidden>
+              <figure class="media media-still">
+                <div class="media-soon" aria-hidden="true"><svg class="i"><use href="#i-mic"/></svg><span>Siri and Shortcuts</span><small>Screenshot coming soon</small></div>
+                <img src="media/integration-shortcuts.png" alt="Resonance's actions in the Shortcuts app" loading="lazy">
+              </figure>
+              <p>Say “Surprise me in Resonance”, “Drift from this tune in Resonance” or “Play Favourites in Resonance”. The Shortcuts app has the same actions, for your own shortcuts and automations.</p>
+            </div>
+
+            <div class="integration-panel" role="tabpanel" id="panel-spotlight" aria-labelledby="tab-spotlight" hidden>
+              <figure class="media media-still">
+                <div class="media-soon" aria-hidden="true"><svg class="i"><use href="#i-search"/></svg><span>Spotlight and Quick Look</span><small>Screenshot coming soon</small></div>
+                <img src="media/integration-spotlight.png" alt="Quick Look showing a SID file's title, composer, release and subtunes" loading="lazy">
+              </figure>
+              <p>Spotlight finds the collection's tunes by title and composer: click one to play it. In Finder, select a SID file and press <kbd>Space</kbd> to see its title, composer, release and subtunes.</p>
+            </div>
+
+            <div class="integration-panel" role="tabpanel" id="panel-dock" aria-labelledby="tab-dock" hidden>
+              <figure class="media media-still">
+                <div class="media-soon" aria-hidden="true"><svg class="i"><use href="#i-play"/></svg><span>Dock and notifications</span><small>Screenshot coming soon</small></div>
+                <img src="media/integration-dock.png" alt="Resonance's Dock menu with the tune playing, its controls, Play Something Like This and Surprise Me" loading="lazy">
+              </figure>
+              <p>Control-click the Dock icon for the tune and its controls. The icon shows how far a download or a scan has got, and a notification says when it ends while Resonance is in the background.</p>
+            </div>
+
+            <div class="integration-panel" role="tabpanel" id="panel-commands" aria-labelledby="tab-commands" hidden>
+              <div class="code">
+                <button class="copy" type="button" aria-label="Copy commands"><svg class="i"><use href="#i-copy"/></svg><span>Copy</span></button>
+<pre><code><span class="c"># Play something you may not know</span>
+resonance surprise
+
+<span class="c"># A list from words</span>
+resonance describe fast arpeggios from 1987
+
+<span class="c"># Everything by Hubbard, into a playlist</span>
+resonance search hubbard | resonance playlist add Hubbard
+
+<span class="c"># Choose from a list, for use inside other commands</span>
+resonance playlist add "Late Night" $(resonance pick --multi)</code></pre>
+              </div>
+              <p>Anything that answers takes <code>--json</code>. The <a class="text-link" href="https://github.com/ErikLuimes/resonance/tree/main/apple/cli/zsh">zsh plugin</a> adds completions, short commands, what's playing for your prompt, and <code>rdone make release</code> for a surprise when something slow ends.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Library -->
     <section class="section" id="library">
       <div class="container library">
@@ -446,15 +537,15 @@
           <h2>60,000 tunes.<br><span class="grad">One search field.</span></h2>
           <p class="section-lede">
             Musicians, Games and Demos live in the sidebar, composers by handle and real name, with
-            their tune count and years. Or just type: composers come first, then tunes, ranked across a
-            category or all of HVSC, and typos still find their tune.
+            their tune count and years. Or just type, from anywhere: the top result and the first tunes, then composers,
+            games, demos and playlists from all of HVSC, and typos still find their tune.
           </p>
           <ul class="checks">
-            <li><svg class="i"><use href="#i-check"/></svg>Composers first, by name or handle, in any order: “tel jeroen”</li>
+            <li><svg class="i"><use href="#i-check"/></svg>Composers by name or handle, in any order: “tel jeroen”</li>
             <li><svg class="i"><use href="#i-check"/></svg>The most prolific first: “jeroen” puts Jeroen Tel on top</li>
             <li><svg class="i"><use href="#i-check"/></svg>Spelled either way: “second reality” finds 2nd Reality</li>
             <li><svg class="i"><use href="#i-check"/></svg>Accent-insensitive: “hulsbeck” finds Hülsbeck</li>
-            <li><svg class="i"><use href="#i-check"/></svg>From any playlist, one step searches all of HVSC</li>
+            <li><svg class="i"><use href="#i-check"/></svg>Clear the search and you're back where you were</li>
           </ul>
         </div>
 
@@ -616,7 +707,7 @@
             <li>
               <span class="step-n">2</span>
               <h3>Get the collection</h3>
-              <p>No HVSC yet? Click the download arrow next to Collection in the sidebar. Already have it? Choose its folder in Settings → Collection, or import Phosphor's in Settings → Advanced.</p>
+              <p>No HVSC yet? Click the download arrow next to Collection in the sidebar. Already have it? Choose its folder in Settings → HVSC, or import Phosphor's in Settings → Advanced.</p>
             </li>
             <li>
               <span class="step-n">3</span>
@@ -656,11 +747,11 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
         <div class="faq" data-reveal>
           <details>
             <summary>Do I need Phosphor installed?</summary>
-            <p>No. Resonance is its own app, with Phosphor's engine built in, and it downloads HVSC itself. Already use Phosphor? Settings → Advanced → Import from Phosphor brings over its settings, favourites, play history and HVSC collection. Nothing in Phosphor changes, and the two can run side by side.</p>
+            <p>No. Resonance is its own app, with Phosphor's engine built in, and it downloads HVSC itself. Already have HVSC from Phosphor? Choose that folder in Settings → HVSC. The two apps can run side by side.</p>
           </details>
           <details>
             <summary>Do I need my own copy of HVSC?</summary>
-            <p>No. Click the download arrow next to Collection in the sidebar and Resonance fetches the newest release of the High Voltage SID Collection, free, from an HVSC mirror. When a new release comes out it says so, and updates in one click. Already have a copy? Choose it in Settings → Collection.</p>
+            <p>No. Click the download arrow next to Collection in the sidebar and Resonance fetches the newest release of the High Voltage SID Collection, free, from an HVSC mirror. When a new release comes out it says so, and updates in one click. Already have a copy? Choose it in Settings → HVSC.</p>
           </details>
           <details>
             <summary>Can I play my own SID files?</summary>
@@ -668,7 +759,7 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
           </details>
           <details>
             <summary>Can it play through a USBSID-Pico or an Ultimate 64?</summary>
-            <p>Not yet. Resonance plays through software emulation: reSIDfp, SIDLite or reSID. For real hardware, use <a href="https://sandlbn.github.io/Phosphor/">Phosphor</a>.</p>
+            <p>No. Resonance plays through software emulation: reSIDfp, SIDLite direct, SIDLite or reSID. For real hardware, use <a href="https://sandlbn.github.io/Phosphor/">Phosphor</a>.</p>
           </details>
           <details>
             <summary>Which Macs does it run on?</summary>
@@ -680,7 +771,7 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
           </details>
           <details>
             <summary>How long does fingerprinting take?</summary>
-            <p>Hardly any time: the first time, Resonance imports the published fingerprint set (about 37 MB), which covers all of HVSC, so Sounds Like works straight away. A background scan at low priority fills in anything it doesn't cover; you can pause it in Settings → Collection.</p>
+            <p>Hardly any time: the first time, Resonance imports the published fingerprint set (about 42 MB), which covers all of HVSC, so Sounds Like works straight away. A background scan at low priority fills in anything it doesn't cover; you can pause it in Settings → HVSC.</p>
           </details>
           <details>
             <summary>Why does the sound stop for a moment when I scrub?</summary>

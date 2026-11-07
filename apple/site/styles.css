@@ -894,11 +894,51 @@ html.js [data-reveal].in { opacity: 1; transform: none; }
 /* The sound, above the architecture in Under the hood. */
 .sound-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 28px; }
 
+/* Integrations: a list that switches one large screenshot. */
+.integrations { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; align-items: start; }
+.integration-list { display: flex; flex-direction: column; gap: 4px; }
+.integration-list button {
+  display: block;
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.integration-list button strong { display: block; color: var(--text); font-size: 15px; font-weight: 600; }
+.integration-list button:hover { background: var(--surface); }
+.integration-list button[aria-selected="true"] { border-color: var(--line-2); background: var(--surface-2); }
+.integration-panel > p { margin: 16px 2px 0; color: var(--muted); font-size: 15px; }
+.integration-panel .code pre { margin: 0; }
+.media-still img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.5s var(--ease);
+}
+.media-still.is-ready img { opacity: 1; }
+.media.media-still.is-ready .media-sound { display: none; }
+
 @media (max-width: 1080px) {
   .nav-links a:nth-child(5) { display: none; }
 }
 
 @media (max-width: 980px) {
+  .integrations { grid-template-columns: minmax(0, 1fr); }
+  .integration-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .integration-list button { padding: 9px 12px; }
+  .integration-list button span { display: none; }
+  .integration-list button:last-child { grid-column: 1 / -1; }
   .bento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tile,
   .tile-wide { grid-column: span 1; }
