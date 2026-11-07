@@ -199,8 +199,9 @@ struct AddToMenu: View {
 }
 
 /// The row under a list's header: the Sound menu on the left, what the list does
-/// on the right.
-/// It's the same on every list.
+/// on the right. It's the same on every list. In a narrow pane the actions keep
+/// just their icons, all but Play, and it never asks for more width than the
+/// pane has: that would push the panes beside it out of line.
 struct ListBar<Actions: View, Extra: View>: View {
     @Binding var sound: Set<SoundTag>
     /// Whether any tune here has a fingerprint to filter by.
@@ -214,19 +215,25 @@ struct ListBar<Actions: View, Extra: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                if showsSound { SoundMenu(selection: $sound) }
-                if !sound.isEmpty {
-                    Text("\(shown.formatted()) of \(total.formatted()) tunes")
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                        .lineLimit(1)
-                        .fixedSize()
-                    AccentLink("Clear") { sound = [] }
-                        .fixedSize()
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    soundControls
+                    Spacer(minLength: 8)
+                    actions
                 }
-                Spacer(minLength: 8)
-                actions
+                HStack(spacing: 8) {
+                    soundControls
+                    Spacer(minLength: 0)
+                    actions
+                        .labelStyle(BarIconLabelStyle())
+                }
+                HStack(spacing: 6) {
+                    soundControls
+                        .labelStyle(BarIconLabelStyle())
+                    Spacer(minLength: 0)
+                    actions
+                        .labelStyle(BarIconLabelStyle())
+                }
             }
             extra
         }
@@ -234,8 +241,38 @@ struct ListBar<Actions: View, Extra: View>: View {
         .controlSize(.small)
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+        .clipped()
         .background(.bar)
+    }
+
+    @ViewBuilder
+    private var soundControls: some View {
+        if showsSound { SoundMenu(selection: $sound) }
+        if !sound.isEmpty {
+            Text("\(shown.formatted()) of \(total.formatted()) tunes")
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .lineLimit(1)
+                .fixedSize()
+            AccentLink("Clear") { sound = [] }
+                .fixedSize()
+        }
+    }
+}
+
+/// Just the icon, as tall as the same button with words: `.iconOnly` is shorter,
+/// which stood out beside the others. The hidden title holds the height.
+private struct BarIconLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 0) {
+            configuration.title
+                .lineLimit(1)
+                .fixedSize()
+                .frame(width: 0)
+                .hidden()
+            configuration.icon
+        }
     }
 }
 
@@ -297,10 +334,43 @@ struct ListPlayButton: View {
     var body: some View {
         Button(action: play) {
             Label(title, systemImage: "play.fill")
+                .labelStyle(.titleAndIcon)
         }
         .buttonStyle(.borderedProminent)
         .disabled(isDisabled)
         .fixedSize()
+    }
+}
+
+/// What a composer's or section's list does, in the row with Sound: add all of
+/// its tunes, narrow it, or play them all, whatever the filter shows. Play is
+/// last, as on every list, and the player bar says whether it's shuffled.
+struct TuneListActions: View {
+    @Binding var filter: String
+    let rows: [LibraryRow]
+    let source: PlaybackSource
+
+    @Environment(LibraryStore.self) private var library
+
+    var body: some View {
+        AddToButton(files: rows.map(\.id))
+            .disabled(rows.isEmpty)
+            .fixedSize()
+        ListFilterField(text: $filter)
+        ListPlayButton(isDisabled: rows.isEmpty) { library.play(rows, from: source) }
+    }
+}
+
+extension [LibraryRow] {
+    /// The tunes a list's filter leaves.
+    func matching(filter: String) -> [LibraryRow] {
+        let query = filter.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return self }
+        return self.filter {
+            $0.title.localizedStandardContains(query)
+                || $0.author.localizedStandardContains(query)
+                || $0.released.localizedStandardContains(query)
+        }
     }
 }
 
@@ -331,7 +401,7 @@ struct ListFilterField: View {
         .font(.callout)
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .frame(minWidth: 110, maxWidth: 170)
+        .frame(minWidth: 60, maxWidth: 170)
         .background(.fill.tertiary, in: .rect(cornerRadius: 7))
     }
 }

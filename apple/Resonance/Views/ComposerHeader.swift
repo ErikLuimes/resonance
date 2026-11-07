@@ -3,8 +3,8 @@ import PhosphorCore
 import STILKit
 import SwiftUI
 
-// What's above a composer's tunes: their picture, name and play controls, what
-// HVSC and CSDb say about them, and a carousel of everything else.
+// What's above a composer's tunes: their picture and name, who sounds like them,
+// and cards for how they sound and what HVSC and CSDb say about them.
 
 // MARK: - Facts
 
@@ -26,6 +26,18 @@ nonisolated enum ComposerFacts {
         return "\(names), formed \(formed)"
     }
 
+    /// How a composer reads: "Hubbard, Rob" is "Rob Hubbard". A folder that puts
+    /// a handle before the name, "Red, Kimmel Jeroen", reads better as the real
+    /// name it holds, "Jeroen Kimmel". Other names stay: "The Mad Axeman" isn't
+    /// hiding one.
+    static func shownName(_ displayName: String, realName: String?) -> String {
+        let spoken = LibraryStore.spokenName(displayName)
+        guard let realName else { return spoken }
+        let real = Set(LibraryStore.nameWords(realName))
+        let folder = Set(LibraryStore.nameWords(spoken))
+        return real.count >= 2 && real.isSubset(of: folder) && real.count < folder.count ? realName : spoken
+    }
+
     /// A real name, unless it only repeats what they're shown as.
     static func realName(_ realName: String?, shownAs name: String) -> String? {
         guard let realName else { return nil }
@@ -35,7 +47,7 @@ nonisolated enum ComposerFacts {
 
 /// The carousel's cards for a composer.
 nonisolated enum ComposerInfoCard: Hashable {
-    case similar
+    case sound
     case note
 #if CSDB
     case newest
@@ -46,11 +58,12 @@ nonisolated enum ComposerInfoCard: Hashable {
 
 // MARK: - The header
 
-/// A composer's header: their picture, what HVSC and CSDb know about them, and
-/// cards for the rest. Nothing CSDb says, or says late, can move the tunes below.
+/// A composer's header: their picture, who sounds like them, and cards for the
+/// rest. Nothing CSDb says, or says late, can move the tunes below.
 ///
-/// Cards HVSC and the fingerprints can fill come first and CSDb's after them,
-/// so what arrives late only adds pages to the right of where you are.
+/// Sound comes first, and is always there: every composer has a sound, and most
+/// have no photo or biography. HVSC's card and CSDb's come after it, so what
+/// arrives late only adds pages to the right of where you are.
 ///
 /// CSDb's trivia is only a card if switched on in Settings, and says it's
 /// unverified: its users write it unreviewed, accusations about named people
@@ -66,6 +79,7 @@ struct ComposerHeader: View {
     let openComposer: (String) -> Void
 
     @Environment(LibraryStore.self) private var library
+    @Environment(FingerprintStore.self) private var fingerprints
 #if CSDB
     @Environment(CSDbStore.self) private var csdb
     @Environment(\.openURL) private var openURL
@@ -74,10 +88,9 @@ struct ComposerHeader: View {
     @AppStorage(Pref.composerPhotos) private var showsPhotos = false
 
     /// With CSDb switched off there may be nothing to say beyond the name.
-    private var hasBio: Bool { csdbEnabled || realName != nil }
+    private var hasBio: Bool { csdbEnabled }
 #else
-    private var hasBio: Bool { realName != nil }
-    private var isLookingUp: Bool { false }
+    private var hasBio: Bool { false }
 #endif
 
     /// "Galway, Martin" stays in the sorted list; here it's "Martin Galway".
@@ -85,7 +98,9 @@ struct ComposerHeader: View {
 
     private var summary: HvscComposer? { library.composers[.musicians]?[authorPath] }
 
-    private var realName: String? { ComposerFacts.realName(summary?.realName, shownAs: shownName) }
+    private var title: String { ComposerFacts.shownName(name, realName: summary?.realName) }
+
+    private var realName: String? { ComposerFacts.realName(summary?.realName, shownAs: title) }
 
     private var tuneCount: String {
         ComposerFacts.tunes(rows.count, firstYear: summary?.firstYear.map(Int.init), lastYear: summary?.lastYear.map(Int.init))
@@ -108,11 +123,8 @@ struct ComposerHeader: View {
 
     private var note: STILEntry? { library.stil[authorPath] ?? nil }
 
-    private var similar: [SimilarComposer] { library.similarComposers[authorPath] ?? [] }
-
     private var cards: [ComposerInfoCard] {
-        var cards: [ComposerInfoCard] = []
-        if !similar.isEmpty { cards.append(.similar) }
+        var cards: [ComposerInfoCard] = [.sound]
         if note != nil { cards.append(.note) }
 #if CSDB
         if profile?.latestMusic != nil { cards.append(.newest) }
@@ -123,9 +135,11 @@ struct ComposerHeader: View {
     }
 
     var body: some View {
-        LargeHeader(title: shownName, detail: tuneCount, rows: rows, source: source,
-                    hasBio: hasBio, expectsCards: isLookingUp, cards: cards) {
-            ComposerPortrait(name: shownName, realName: summary?.realName)
+        LargeHeader(title: title, detail: tuneCount, extra: realName.map { "Real name: \($0)" },
+                    hasBio: hasBio, cards: cards) {
+            ComposerPortrait(name: shownName, realName: summary?.realName, cornerRadius: 17)
+        } below: {
+            SimilarComposerChips(authorPath: authorPath, openComposer: openComposer)
         } bio: {
             bio
         } card: { card in
@@ -133,6 +147,7 @@ struct ComposerHeader: View {
         }
         .task(id: authorPath) { await library.loadSimilarComposers(authorPath) }
         .task(id: authorPath) { await library.loadStil(path: authorPath) }
+        .task(id: authorPath) { await fingerprints.loadTagShares() }
 #if CSDB
         .task(id: "\(csdbEnabled) \(lookupNames)") { await csdb.loadProfile(for: lookupNames) }
         // Whose tune their newest credit is, and whether it's in HVSC, before
@@ -159,7 +174,6 @@ struct ComposerHeader: View {
 #endif
             if hasFacts {
                 Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 4) {
-                    headerFact("Real name", realName)
 #if CSDB
                     headerFact("Country", profile?.country)
                     headerFact("Also known as", profile?.aka)
@@ -205,7 +219,7 @@ struct ComposerHeader: View {
     }
 
 #if CSDB
-    private var hasFacts: Bool { realName != nil || profile != nil }
+    private var hasFacts: Bool { profile != nil }
 
     private func former(_ profile: CSDbProfile) -> String? {
         guard !profile.formerGroups.isEmpty else { return nil }
@@ -220,7 +234,7 @@ struct ComposerHeader: View {
         return search?.url
     }
 #else
-    private var hasFacts: Bool { realName != nil }
+    private var hasFacts: Bool { false }
 #endif
 
     // MARK: The cards
@@ -228,13 +242,11 @@ struct ComposerHeader: View {
     @ViewBuilder
     private func card(_ card: ComposerInfoCard) -> some View {
         switch card {
-        case .similar:
-            HeaderCard("Sounds Similar") {
-                ScrollView(.vertical) {
-                    SimilarComposers(authorPath: authorPath, openComposer: openComposer)
-                }
-                .font(.callout)
-            }
+        case .sound:
+            // The list below asks for its rows' fingerprints; they arrive here too.
+            let tags = rows.compactMap { fingerprints.fingerprint($0.id)?.tags }
+            SoundSharesCard(shares: SectionFacts.soundShares(tags: tags, overall: fingerprints.tagShares, limit: 4),
+                            scanned: tags.count, tunes: rows.count)
         case .note:
             HeaderCard("HVSC Note") {
                 ScrollView(.vertical) {
@@ -386,32 +398,58 @@ struct ComposerHeader: View {
 
 // MARK: - Parts
 
-/// The composers who sound most like one, with how much.
-struct SimilarComposers: View {
+/// The composers who sound most like one, each next to how much, as far as two
+/// rows go. Nothing while there are none, so the header doesn't promise any.
+struct SimilarComposerChips: View {
     let authorPath: String
     let openComposer: (String) -> Void
 
     @Environment(LibraryStore.self) private var library
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(library.similarComposers[authorPath] ?? [], id: \.path) { other in
-                HStack {
-                    AccentLink(displayName(other.path)) { openComposer(other.path) }
-                        .lineLimit(1)
-                    Spacer(minLength: 6)
-                    Text(Double(max(other.score, 0)), format: .percent.precision(.fractionLength(0)))
-                        .font(.caption)
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
+        let similar = library.similarComposers[authorPath] ?? []
+        if !similar.isEmpty {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("SOUNDS SIMILAR")
+                    .font(.caption2.weight(.semibold))
+                    .tracking(0.8)
+                    .foregroundStyle(.secondary)
+                FlowLayout(spacing: 5) {
+                    ForEach(similar, id: \.path) { chip($0) }
                 }
+                .frame(maxHeight: 50, alignment: .topLeading)
+                .clipped()
             }
         }
     }
 
+    private func chip(_ other: SimilarComposer) -> some View {
+        let name = displayName(other.path)
+        return Button {
+            openComposer(other.path)
+        } label: {
+            HStack(spacing: 5) {
+                Text(name)
+                    .foregroundStyle(.tint)
+                    .lineLimit(1)
+                Text(Double(max(other.score, 0)), format: .percent.precision(.fractionLength(0)))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 3)
+            .background(.fill.quaternary, in: .capsule)
+            .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .help("Show \(name)")
+    }
+
     private func displayName(_ path: String) -> String {
         let listed = library.authors[.musicians]?.first { $0.path == path }?.displayName
-        return LibraryStore.spokenName(listed ?? URL(filePath: path).lastPathComponent)
+        return ComposerFacts.shownName(listed ?? URL(filePath: path).lastPathComponent,
+                                       realName: library.composers[.musicians]?[path]?.realName)
     }
 }
 

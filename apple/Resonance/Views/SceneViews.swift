@@ -840,20 +840,6 @@ struct CSDbPlaySlot: View {
     }
 }
 
-extension View {
-    /// A release row's background: the playing row's accent wash, as in a song
-    /// table, or a hint of a click to come.
-    func csdbRowBackground(isCurrent: Bool, isHovered: Bool) -> some View {
-        background {
-            if isCurrent {
-                RoundedRectangle(cornerRadius: 8).fill(.tint.opacity(0.16))
-            } else if isHovered {
-                RoundedRectangle(cornerRadius: 8).fill(.fill.tertiary)
-            }
-        }
-    }
-}
-
 /// A music release: cover, title, group, format and date. A click plays it.
 private struct ReleaseRow: View {
     let release: CSDbRelease

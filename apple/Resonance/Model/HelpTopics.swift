@@ -5,7 +5,7 @@ import Foundation
 /// `**bold**` and `*italic*` are Markdown.
 struct HelpTopic: Identifiable, Hashable {
     enum ID: String, CaseIterable {
-        case gettingStarted, soundsLike
+        case gettingStarted, soundsLike, readingFingerprints
         case library, nowPlaying, visualizers
         case smartPlaylists, playlists, favourites, dragAndDrop
         case shortcuts, settings, troubleshooting
@@ -56,6 +56,10 @@ enum HelpBlock: Hashable {
     case note(title: String, text: String, link: HelpLink? = nil)
     /// Keys and what they do.
     case shortcuts([HelpShortcut])
+    /// The barcode's bars, each drawn on its own beside what it means.
+    case traitKey([HelpTrait])
+    /// Tunes drawn as a sphere and a barcode, side by side.
+    case fingerprintExamples([HelpFingerprintExample])
     case link(HelpLink)
 
     var text: [String] {
@@ -64,6 +68,8 @@ enum HelpBlock: Hashable {
         case .bullets(let items), .steps(let items): items
         case .note(let title, let text, _): [title, text]
         case .shortcuts(let shortcuts): shortcuts.flatMap { [$0.keys, $0.action] }
+        case .traitKey(let traits): traits.flatMap { [$0.trait.name, $0.meaning] }
+        case .fingerprintExamples(let examples): examples.map(\.caption)
         case .link: []
         }
     }
@@ -72,6 +78,19 @@ enum HelpBlock: Hashable {
 struct HelpShortcut: Hashable {
     let keys: String
     let action: String
+}
+
+struct HelpTrait: Hashable {
+    let trait: SoundTrait
+    let meaning: String
+}
+
+/// A made-up tune: its nine traits, in `SoundTrait` order, and its share of
+/// triangle, saw, pulse and noise.
+struct HelpFingerprintExample: Hashable {
+    let caption: String
+    let traits: [Float]
+    let mix: [Float]
 }
 
 /// A link in an article: to a tab of Settings, or another topic.
@@ -156,13 +175,59 @@ extension HelpTopic {
                     "Control-click a tune and choose **Find Similar** to sort the list by how alike the others sound to it. Click **Clear** above the list, or sort by a column, to undo it.",
                     "The **Sound** chips above a list keep only the tunes that have all the sounds you pick: Arpeggios, Filter sweeps, Noise drums, Ring mod, Sync leads and Digi samples.",
                 ]),
+                .link(.topic(.readingFingerprints)),
                 .heading("Composers who sound alike"),
                 .paragraph("Open a composer in Musicians: their card names the three composers who sound most like them, each a link to their tunes."),
                 .note(title: "Not fingerprinted yet?",
                       text: "Settings → HVSC shows how far the scan has got, and lets you pause it or download the published set again. The scan runs at low priority and picks up where it left off.",
                       link: .settings(.collection)),
             ],
-            related: [.gettingStarted, .library, .nowPlaying]
+            related: [.readingFingerprints, .gettingStarted, .library, .nowPlaying]
+        ),
+        HelpTopic(
+            id: .readingFingerprints, group: .start,
+            title: "Reading a Fingerprint", symbol: "barcode",
+            summary: "What the bars of the barcode and the shape of the sphere tell you.",
+            blocks: [
+                .paragraph("Resonance measures up to three minutes of each tune, by watching what it asks the SID chip to do. It draws nine of those measurements as a **barcode** in tune lists and as a **sphere** on the Sounds Like card and the barcode's hover card."),
+                .fingerprintExamples([
+                    HelpFingerprintExample(caption: "Fast arpeggios and noise drums, mostly pulse",
+                                           traits: [0.8, 0.85, 0.3, 0.1, 0, 0, 0, 0.75, 0.6],
+                                           mix: [0.05, 0.1, 0.6, 0.25]),
+                    HelpFingerprintExample(caption: "Filtered sync leads, mostly saw",
+                                           traits: [0.3, 0.05, 0.5, 0.95, 0, 0.5, 0, 0.1, 0],
+                                           mix: [0.1, 0.8, 0.05, 0.05]),
+                    HelpFingerprintExample(caption: "Few notes and no tricks, mostly triangle",
+                                           traits: [0.15, 0, 0.05, 0, 0, 0, 0, 0, 0],
+                                           mix: [0.9, 0, 0.1, 0]),
+                ]),
+                .paragraph("These three are made up, to show the difference."),
+                .heading("The barcode"),
+                .paragraph("Every barcode has the same nine bars in the same order, so tunes that share a sound share a pattern down the column. The taller and stronger a bar, the more of that trait. A trait the tune doesn't use leaves a small stub."),
+                .traitKey([
+                    HelpTrait(trait: .notes, meaning: "How many notes start each second, across all voices. Full at 18 a second."),
+                    HelpTrait(trait: .arpeggios, meaning: "Jumps of a semitone or more within a held note, the rapid chords the SID is known for. Full at 50 a second."),
+                    HelpTrait(trait: .vibrato, meaning: "Small wobbles in pitch within a note. Full at 12 a second."),
+                    HelpTrait(trait: .filter, meaning: "How much of the time a voice goes through the filter. Full when one always does."),
+                    HelpTrait(trait: .ring, meaning: "How much of the time ring modulation is on, for bell-like and metallic tones. Full at about a sixth of the time."),
+                    HelpTrait(trait: .sync, meaning: "How much of the time hard sync is on, for biting lead sounds. Full at 40% of the time."),
+                    HelpTrait(trait: .digi, meaning: "How much of the tune plays samples through the chip, such as speech or sampled drums. Full at a third of the time."),
+                    HelpTrait(trait: .noise, meaning: "Noise hits each second, which are mostly drums. Full at 12 a second."),
+                    HelpTrait(trait: .pulseWidth, meaning: "How far the pulse width sweeps during a note, which gives pulse sounds their movement. Full at a third of its range."),
+                ]),
+                .paragraph("Most scales top out around where HVSC's busiest tunes sit, so a full bar means “about as much as tunes get”, not 100% of anything. Only a few tunes go past the top, and they stay at full height."),
+                .paragraph("The colours group the bars: cyan for pitch movement, violet for the filter, orange for the chip's harsher sounds, red for samples and green for pulse width. Notes take the colour of the text."),
+                .heading("The sphere"),
+                .paragraph("The sphere draws the same nine traits in 3D, from a ball of 700 points."),
+                .bullets([
+                    "**Shape**: each trait has its own direction, the same for every tune, and the ball bulges that way as far as the trait is strong. A tall bar is a long spike, and a tune with few traits stays nearly round. Tunes with similar bars get similar shapes.",
+                    "**Colour**: here the colours mean something else than on the barcode. Each point takes one of the chip's waveforms, in proportion to how much the tune uses it: green for triangle, violet for saw, cyan for pulse and orange for noise. The hover card's Waveform Mix bar shows the same shares in numbers.",
+                    "**Turning**: it turns so you can see every side. The speed means nothing, and neither does the size: every sphere is scaled to fit its frame, so compare shapes, not sizes.",
+                ]),
+                .note(title: "Looking alike isn't the same as sounding alike",
+                      text: "The barcode and the sphere show only part of what Sounds Like compares: 41 measurements of how a tune drives the chip, and an embedding of its sound. Two tunes can look alike and still not be close matches, or the other way round. The percentage on a match is the better guide."),
+            ],
+            related: [.soundsLike, .library]
         ),
         HelpTopic(
             id: .library, group: .listening,
@@ -178,7 +243,7 @@ extension HelpTopic {
                     "**Curated Playlists**: HVSC's own lists, from the Top 100 to the Grand Tour.",
                 ]),
                 .paragraph("Settings → Appearance chooses which of these Resonance opens on."),
-                .paragraph("Select a composer to see their card and their tunes: **Play**, **Shuffle** or **Add to…** takes them all. Above the tunes is what \(composerSources) about them: swipe the cards, or use the dots under them, for more. Composers without a folder of their own still get a list of the tunes credited to them. The sections of **Games** and **Demos** have the same header, about their tunes: when they were made, how they sound, and the longest, oldest and newest."),
+                .paragraph("Select a composer to see their card and their tunes: **Add to…** or **Play**, in the row above the list, takes them all, and the player bar's shuffle decides the order. At the top is what \(composerSources) about them: swipe the cards, or use the dots under them, for more. Composers without a folder of their own still get a list of the tunes credited to them. The sections of **Games** and **Demos** have the same header, about their tunes: when they were made, how they sound, and the longest, oldest and newest."),
                 .heading("Search"),
                 .paragraph("Type in the search field at the top of the window, from anywhere. **Search** opens with all of HVSC that matches: the top result beside the first tunes, then composers, games, demos and playlists. The filters at the top narrow it to Tunes, Composers, Games or Demos."),
                 .bullets([

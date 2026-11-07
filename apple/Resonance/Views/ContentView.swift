@@ -179,10 +179,12 @@ struct ContentView: View {
         .frame(minWidth: Self.minWidth(inspector: showInspector))
     }
 
-    /// Narrowest the window gets: the sidebar, a bottom bar with room for
-    /// its controls and some of the title, and the inspector when it shows.
+    /// Narrowest the window gets: the sidebar and inspector at the widths they
+    /// open at (they don't give way as the window narrows), and the middle. That
+    /// has room for the composer list (240) and a list of tunes with its usual
+    /// columns (360), which otherwise run under the inspector.
     static func minWidth(inspector: Bool) -> CGFloat {
-        160 + 520 + (inspector ? 260 : 0)
+        190 + 600 + (inspector ? 300 : 0)
     }
 
     private var libraryMode: some View {

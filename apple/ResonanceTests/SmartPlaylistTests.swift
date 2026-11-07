@@ -102,6 +102,28 @@ struct SmartUnderstandingTests {
     }
 }
 
+/// The field keeps what's being typed while its sentence is read.
+struct SmartFieldTextTests {
+    @Test func aSpaceJustTypedStays() {
+        let sent = SmartSettings.stored("rob ")
+        #expect(sent == "rob")
+        #expect(SmartSettings.fieldText(typed: "rob ", sentence: sent, sentFromField: sent) == "rob ")
+    }
+
+    @Test func whatWasTypedSinceStays() {
+        #expect(SmartSettings.fieldText(typed: "rob hub", sentence: "rob", sentFromField: "rob") == "rob hub")
+    }
+
+    @Test func aSentenceFromElsewhereReplacesIt() {
+        #expect(SmartSettings.fieldText(typed: "rob", sentence: "like Commando", sentFromField: "rob") == "like Commando")
+        #expect(SmartSettings.fieldText(typed: "", sentence: "like Commando", sentFromField: nil) == "like Commando")
+    }
+
+    @Test func clearingEmptiesIt() {
+        #expect(SmartSettings.fieldText(typed: "  ", sentence: "", sentFromField: "rob") == "")
+    }
+}
+
 /// The sentences the feature was asked for, and others NLTagger has to read.
 struct SmartSentenceParserTests {
     private let parser = SmartSentenceParser(composers: [
@@ -268,17 +290,29 @@ struct SmartSentenceParserTests {
 
     /// The sentences the website promises.
     @Test func theWebsitesSentences() throws {
-        let chill = try #require(parser.parse("Chill Galway from the 80s, until 9PM"))
+        let dual = try #require(parser.parse("Intense dual SID from the 2020s"))
+        #expect(dual.energy == .intense)
+        #expect(dual.minChips == 2)
+        #expect(dual.maxChips == 2)
+        #expect(dual.fromYear == 2020)
+        #expect(dual.toYear == 2029)
+        let chill = try #require(wordyParser.parse("Chill Hermit"))
         #expect(chill.energy == .calm)
-        #expect(chill.composerFolder == "Galway_Martin")
-        #expect(chill.fromYear == 1980)
-        #expect(chill.toYear == 1989)
-        #expect(chill.until != nil)
-        #expect(try #require(parser.parse("Slow to intense")).shape == .rising)
-        let commando = try #require(parser.parse("Like Commando, each over 3 minutes"))
-        #expect(commando.tuneName?.lowercased() == "commando")
-        #expect(commando.minMinutes == 3)
-        #expect(try #require(parser.parse("New to me")).unlikeHeard)
+        #expect(chill.composerFolder == "Hermit")
+        let calmer = try #require(parser.parse("Like Second Reality but calmer"))
+        #expect(calmer.tuneNames.map { $0.lowercased() } == ["second reality"])
+        #expect(calmer.energy == .calm)
+        let midnight = try #require(parser.parse("Calm music until midnight"))
+        #expect(midnight.energy == .calm)
+        #expect(midnight.until != nil)
+    }
+
+    /// "Each" isn't a second tune, which the note under the field then denied.
+    @Test(arguments: ["Like Commando, each over 3 minutes", "like commando each over 3 minutes"])
+    func eachEndsTheName(sentence: String) throws {
+        let parsed = try #require(parser.parse(sentence))
+        #expect(parsed.tuneNames.map { $0.lowercased() } == ["commando"])
+        #expect(parsed.minMinutes == 3)
     }
 
     @Test func untilWithAMood() throws {
@@ -383,6 +417,53 @@ struct SmartSentenceParserTests {
     @Test func wordsInATitleAreNotATuneToSoundLike() throws {
         let sentence = "dual sid tunes with love in the title"
         #expect(try #require(parser.parse(sentence)).likeInstead(of: sentence) == nil)
+    }
+
+    @Test(arguments: ["chill Hermit", "fast Hermit from the 90s", "Hermit from the 90s", "chill by Hermit"])
+    func aHandleThatsAlsoAWord(sentence: String) throws {
+        #expect(try #require(wordyParser.parse(sentence)).composerFolder == "Hermit")
+    }
+
+    @Test func aListWithAHandleThatsAlsoAWord() throws {
+        let folders = try #require(wordyParser.parse("Hermit and Tel, calm")).composers.map(\.folder)
+        #expect(Set(folders) == ["Hermit", "Tel_Jeroen"])
+    }
+
+    /// Rock has hundreds of tunes, but is a style first.
+    @Test(arguments: ["chill rock", "fast metal from the 90s", "sad tunes from the 90s"])
+    func aWordThatsAStyleOrMoodStaysOne(sentence: String) {
+        #expect(wordyParser.parse(sentence)?.composers.isEmpty ?? true)
+    }
+
+    @Test func aWordOfOtherWordsIsNotAHandle() {
+        #expect(wordyParser.parse("chill hermit crab")?.composers.isEmpty ?? true)
+        #expect(wordyParser.parse("hermit")?.composers.isEmpty ?? true)
+        // Too few tunes to assume.
+        #expect(wordyParser.parse("chill tiny")?.composers.isEmpty ?? true)
+    }
+
+    private var wordyParser: SmartSentenceParser {
+        SmartSentenceParser(composers: [
+            SmartComposer(name: "Mihály Horváth", folder: "Hermit", aliases: ["Hermit"], tunes: 113),
+            SmartComposer(name: "Sami Seppä", folder: "Rock", aliases: ["Rock"], tunes: 225),
+            SmartComposer(name: "Torben Hansen", folder: "Metal", aliases: ["Metal"], tunes: 136),
+            SmartComposer(name: "David Cwik", folder: "Sad", aliases: ["Sad"], tunes: 110),
+            SmartComposer(name: "Somebody", folder: "Tiny", aliases: ["Tiny"], tunes: 5),
+            SmartComposer(name: "Jeroen Tel", folder: "Tel_Jeroen", aliases: ["Tel, Jeroen"], tunes: 500),
+        ], titles: [])
+    }
+
+    @Test(arguments: ["tunes with speech", "with speech from the 80s", "spoken words", "vocals"])
+    func speechIsSamplesAndItSaysSo(sentence: String) throws {
+        let parsed = try #require(parser.parse(sentence))
+        #expect(parsed.sounds == [.samples])
+        #expect(parsed.aside?.contains("Can't tell") == true)
+    }
+
+    @Test func samplesAreJustSamples() throws {
+        let parsed = try #require(parser.parse("digi samples"))
+        #expect(parsed.sounds == [.samples])
+        #expect(parsed.aside == nil)
     }
 
     @Test func aTitleEndingInSuchAWordKeepsIt() throws {

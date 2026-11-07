@@ -114,6 +114,18 @@ nonisolated struct SmartSettings: Hashable, Sendable {
         return recipe
     }
 
+    /// A sentence as it's kept: without the space someone's about to type after.
+    static func stored(_ typed: String) -> String {
+        typed.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// What the field shows when the sentence changes. One from elsewhere, such
+    /// as search or a tune's menu, replaces it. One the field sent doesn't: it
+    /// lacks the space just typed, and may be behind what's been typed since.
+    static func fieldText(typed: String, sentence: String, sentFromField: String?) -> String {
+        sentence == sentFromField ? typed : sentence
+    }
+
     /// What a saved copy is named, and what "Playing from" says.
     var title: String { sentence.isEmpty ? "Smart Playlist" : String(sentence.prefix(60)) }
 }
@@ -142,6 +154,9 @@ struct SmartPlaylistView: View {
     @State private var savedKey: SmartSettings?
     @State private var choosingSeed = false
     @State private var typed = ""
+    /// The last sentence sent from the field, as `describe` stores it. When that
+    /// comes back it isn't news, and the field stays as it's being typed.
+    @State private var sentFromField: String?
     /// Narrows the list made, without changing what it's made from.
     @State private var filter = ""
 
@@ -173,7 +188,9 @@ struct SmartPlaylistView: View {
         }
         .task(id: settings) { await generate() }
         // The sentence can also arrive from search or a tune's menu.
-        .task(id: settings.sentence) { typed = settings.sentence }
+        .task(id: settings.sentence) {
+            typed = SmartSettings.fieldText(typed: typed, sentence: settings.sentence, sentFromField: sentFromField)
+        }
         // As it's typed. Waits for a pause, as the first letters mean little.
         .task(id: typed) {
             guard typed != settings.sentence else { return }
@@ -182,6 +199,7 @@ struct SmartPlaylistView: View {
             if typed.trimmingCharacters(in: .whitespaces).isEmpty {
                 library.clearSmartSentence()
             } else {
+                sentFromField = SmartSettings.stored(typed)
                 await library.describe(typed, isFinal: false)
             }
         }
@@ -213,6 +231,7 @@ struct SmartPlaylistView: View {
         VStack(spacing: 10) {
             HStack(spacing: 10) {
                 SmartMagicField(placeholder: "Say what you'd like to hear", text: $typed) {
+                    sentFromField = SmartSettings.stored(typed)
                     Task { await library.describe(typed, isFinal: true) }
                 } trailing: {
                     if settings.understood != nil { menus }

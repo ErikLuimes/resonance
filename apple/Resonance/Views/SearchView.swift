@@ -241,7 +241,7 @@ struct SearchView: View {
 
     private var resultsPage: some View {
         VStack(spacing: 0) {
-            filterBar
+            header
             Divider()
             // Filling the rest keeps the filters at the top: an empty
             // state's own height let the whole stack float to the middle.
@@ -250,48 +250,74 @@ struct SearchView: View {
         }
     }
 
-    private var filterBar: some View {
-        HStack(spacing: 12) {
-            Picker("Show", selection: $filter) {
-                ForEach(Filter.allCases, id: \.self) { Text($0.title).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .controlSize(.small)
-            // Capsules, like Now Playing's large picker (only the large
-            // size has them by default).
-            .buttonBorderShape(.capsule)
-            .fixedSize()
-            if !isWaiting, searchError == nil, let summary {
-                Text(summary)
+    private var filterPicker: some View {
+        Picker("Show", selection: $filter) {
+            ForEach(Filter.allCases, id: \.self) { Text($0.title).tag($0) }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .controlSize(.small)
+        // Capsules, like Now Playing's large picker (only the large
+        // size has them by default).
+        .buttonBorderShape(.capsule)
+        .fixedSize()
+    }
+
+    /// Like a playlist's header: what's being looked at, how much of it, and
+    /// which part to see.
+    private var header: some View {
+        HStack(alignment: .center, spacing: 16) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 30, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.92))
+                .frame(width: 76, height: 76)
+                .background(
+                    LinearGradient(
+                        colors: [Color(red: 63 / 255, green: 208 / 255, blue: 232 / 255),
+                                 Color(red: 155 / 255, green: 107 / 255, blue: 1.0)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    in: .rect(cornerRadius: 17)
+                )
+            VStack(alignment: .leading, spacing: 4) {
+                Text("\u{201C}\(query)\u{201D}")
+                    .font(.title2.weight(.bold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Text(isWaiting ? "Searching…" : searchError == nil ? summary : "")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
-            Spacer(minLength: 0)
+            Spacer(minLength: 12)
+            filterPicker
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
         .frame(minWidth: 0, maxWidth: .infinity)
-        .background(.bar)
     }
 
-    private var summary: String? {
+    private var summary: String {
         switch filter {
         case .all:
-            // The Tunes section says it.
-            return nil
+            var parts: [String] = []
+            let tuneCount = Int(results?.totalMatches ?? 0) + localMatches.count
+            if tuneCount > 0 { parts.append(Self.count(tuneCount, "tune")) }
+            if !composers.isEmpty { parts.append(Self.count(composers.count, "composer")) }
+            return parts.isEmpty ? "No matches" : parts.formatted(.list(type: .and))
         case .tunes:
-            guard let results, !results.items.isEmpty else { return nil }
+            guard let results, !results.items.isEmpty else { return "No matches" }
             let total = results.totalMatches.formatted()
             let indexed = results.indexed.formatted()
             return results.totalMatches > UInt32(results.items.count)
                 ? "Best \(results.items.count) of \(total) matches among \(indexed) tunes"
                 : "\(total) matches among \(indexed) tunes"
         case .composers:
-            return composers.isEmpty ? nil : Self.count(composers.count, "composer")
+            return composers.isEmpty ? "No matches" : Self.count(composers.count, "composer")
         case .games, .demos:
-            return categoryTunes.flatMap { $0.isEmpty ? nil : Self.count($0.count, "tune") }
+            guard let categoryTunes else { return "Searching…" }
+            return categoryTunes.isEmpty ? "No matches" : Self.count(categoryTunes.count, "tune")
         }
     }
 
@@ -405,13 +431,11 @@ struct SearchView: View {
                             LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 10)], spacing: 8) {
                                 ForEach(others.prefix(Self.shownComposers), id: \.path) { composer in
                                     composerButton(composer)
-                                        .modifier(CardBackground(radius: 10))
                                 }
                             }
                         }
                     }
-                    tuneSection("Games", games, from: tunes.filter { $0.item.category == .games }, showing: .games)
-                    tuneSection("Demos", demos, from: tunes.filter { $0.item.category == .demos }, showing: .demos)
+                    gamesAndDemos(games, demos)
                     if !lists.isEmpty {
                         SearchSection("Playlists") {
                             VStack(spacing: 0) {
@@ -461,6 +485,8 @@ struct SearchView: View {
                         .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
             }
+            // The same height, so the top result's card lines up with the tunes'.
+            .fixedSize(horizontal: false, vertical: true)
         } else {
             topCard(top)
             if !first.isEmpty {
@@ -470,7 +496,7 @@ struct SearchView: View {
     }
 
     private func topCard(_ top: SearchTopResult) -> some View {
-        SearchSection("Top Result") {
+        SearchSection("Top Result", isCard: false) {
             switch top {
             case .composer(let composer):
                 let name = LibraryStore.spokenName(composer.displayName)
@@ -494,6 +520,25 @@ struct SearchView: View {
     private func composerFacts(_ composer: HvscAuthorItem) -> String {
         guard let tunes = library.composers[.musicians]?[composer.path]?.tunes else { return "Composer" }
         return "Composer, " + Self.count(Int(tunes), "tune")
+    }
+
+    /// Side by side, the same height, when they both have tunes and there's room.
+    @ViewBuilder
+    private func gamesAndDemos(_ games: [LibraryRow], _ demos: [LibraryRow]) -> some View {
+        let gamesSection = tuneSection("Games", games, from: tunes.filter { $0.item.category == .games }, showing: .games)
+        let demosSection = tuneSection("Demos", demos, from: tunes.filter { $0.item.category == .demos }, showing: .demos)
+        if width >= 620, !games.isEmpty, !demos.isEmpty {
+            HStack(alignment: .top, spacing: 24) {
+                gamesSection
+                    .frame(minWidth: 0, maxWidth: .infinity)
+                demosSection
+                    .frame(minWidth: 0, maxWidth: .infinity)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        } else {
+            gamesSection
+            demosSection
+        }
     }
 
     @ViewBuilder
@@ -525,6 +570,7 @@ struct SearchView: View {
                 Spacer(minLength: 0)
             }
             .padding(.vertical, 4)
+            .padding(.horizontal, 6)
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
@@ -557,39 +603,41 @@ struct SearchView: View {
 
 // MARK: - Parts
 
-/// A titled part of the overview, like the Home's.
+/// A titled part of the overview: a card with its title above it, like the
+/// Home's and Scene Pulse's.
 private struct SearchSection<Content: View>: View {
     let title: String
     var sub: String?
     var seeAll: (() -> Void)?
+    /// False for content that's a card already.
+    var isCard = true
     @ViewBuilder let content: Content
 
-    init(_ title: String, sub: String? = nil, seeAll: (() -> Void)? = nil, @ViewBuilder content: () -> Content) {
+    init(_ title: String, sub: String? = nil, seeAll: (() -> Void)? = nil, isCard: Bool = true,
+         @ViewBuilder content: () -> Content) {
         self.title = title
         self.sub = sub
         self.seeAll = seeAll
+        self.isCard = isCard
         self.content = content()
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(title)
-                    .font(.system(size: 17, weight: .bold))
-                    .lineLimit(1)
-                if let sub {
-                    Text(sub)
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 8)
+            SectionTitle(title, sub: sub) {
                 if let seeAll {
                     AccentLink("See All", action: seeAll)
-                        .font(.caption.weight(.semibold))
                 }
             }
-            content
+            if isCard {
+                content
+                    .padding(6)
+                    .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .modifier(CardBackground(radius: 12))
+            } else {
+                content
+                    .frame(maxHeight: .infinity, alignment: .top)
+            }
         }
     }
 }
@@ -618,17 +666,19 @@ private struct TopResultButton<Art: View>: View {
                 }
             }
             .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .contentShape(.rect)
-            .modifier(CardBackground(radius: 14, highlighted: hovering))
+            .modifier(CardBackground(radius: 12, highlighted: hovering))
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
     }
 }
 
-/// A tune in the overview, behaving as in any tune list: double-click plays,
-/// and the context menu has the rest. Play shows on hover, for one click.
+/// A tune in the overview, played where it is, like Scene Pulse's music: a click
+/// plays it, or pauses or resumes it if it's the one in the player. Over its
+/// tile, play under the pointer and the voices while it plays. The context menu
+/// has the rest.
 private struct SearchTuneRow: View {
     let row: LibraryRow
     let play: () -> Void
@@ -637,31 +687,33 @@ private struct SearchTuneRow: View {
     @Environment(PlayerStore.self) private var player
     @State private var hovering = false
 
+    private var isCurrent: Bool { row.id == player.nowPlaying?.path }
+
     var body: some View {
-        HStack(spacing: 10) {
-            TuneTitleCell(library: library, path: row.id, title: row.title, author: row.author,
-                          isCurrent: row.id == player.nowPlaying?.path, mayHaveStil: row.item.hasStil)
+        Button {
+            if isCurrent { player.playPause() } else { play() }
+        } label: {
+            HStack(spacing: 10) {
+                PlaylistArtwork(name: row.title, size: 34)
+                    .overlay { playSlot.clipShape(.rect(cornerRadius: 34 * 0.22)) }
+                VStack(alignment: .leading, spacing: 1) {
+                    TuneTitleCell(library: library, path: row.id, title: row.title, author: row.author,
+                                  isCurrent: isCurrent, mayHaveStil: row.item.hasStil,
+                                  showsTeaser: false, isBold: true)
+                    Text(SearchByline.text(author: row.author, category: row.item.category, length: row.lengthText))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
                 .frame(maxWidth: .infinity, alignment: .leading)
-            AccentLink("Play", action: play)
-                .font(.caption.weight(.semibold))
-                .opacity(hovering ? 1 : 0)
-            Text(row.author)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .frame(maxWidth: 170, alignment: .trailing)
-            Text(row.lengthText)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-                .frame(width: 38, alignment: .trailing)
+            }
+            .padding(.vertical, 5)
+            .padding(.horizontal, 6)
+            .contentShape(.rect)
+            .csdbRowBackground(isCurrent: isCurrent, isHovered: hovering)
         }
-        .padding(.vertical, 4)
-        .padding(.horizontal, 6)
-        .contentShape(.rect)
-        .background(hovering ? AnyShapeStyle(.fill.tertiary) : AnyShapeStyle(.clear), in: .rect(cornerRadius: 7))
+        .buttonStyle(.plain)
         .onHover { hovering = $0 }
-        .onTapGesture(count: 2, perform: play)
         .contextMenu {
             Button("Play", action: play)
             AddToMenu(files: [row.id])
@@ -669,6 +721,56 @@ private struct SearchTuneRow: View {
             Divider()
             Button("Show in Finder") {
                 NSWorkspace.shared.activateFileViewerSelecting([row.url])
+            }
+        }
+    }
+
+    /// Dims the tile only while it has something to show.
+    @ViewBuilder
+    private var playSlot: some View {
+        if hovering || isCurrent {
+            ZStack {
+                Color.black.opacity(0.5)
+                if isCurrent && !hovering {
+                    VoiceBars(feed: player.visualizer, isActive: player.isPlaying)
+                        .foregroundStyle(.white)
+                        .accessibilityLabel(player.isPlaying ? "Playing" : "Paused")
+                } else {
+                    Image(systemName: isCurrent && player.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.white)
+                        .accessibilityHidden(true)
+                }
+            }
+        }
+    }
+}
+
+/// The line under a tune in the overview. Search knows a tune's folder, not its
+/// credit: a composer's name in MUSICIANS, but in Games and Demos mostly a letter
+/// range, which says nothing about who made it.
+enum SearchByline {
+    static func text(author: String, category: HvscCategory, length: String) -> String {
+        guard let name = name(author: author, category: category) else { return length }
+        return "\(name) · \(length)"
+    }
+
+    private static func name(author: String, category: HvscCategory) -> String? {
+        if author == "<?>" || author.uppercased() == "UNKNOWN" { return "Unknown" }
+        if category != .musicians, author.wholeMatch(of: /[A-Za-z0-9]+-[A-Za-z0-9]+/) != nil { return nil }
+        return LibraryStore.spokenName(author)
+    }
+}
+
+extension View {
+    /// A tune row's background: the playing row's accent wash, as in a song
+    /// table, or a hint of a click to come.
+    func csdbRowBackground(isCurrent: Bool, isHovered: Bool) -> some View {
+        background {
+            if isCurrent {
+                RoundedRectangle(cornerRadius: 8).fill(.tint.opacity(0.16))
+            } else if isHovered {
+                RoundedRectangle(cornerRadius: 8).fill(.fill.tertiary)
             }
         }
     }

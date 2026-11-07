@@ -312,6 +312,7 @@ nonisolated final class SmartSentenceParser: @unchecked Sendable {
         readTitleList(&text, into: &result)
         readTags(&text, into: &result, energyIsSettled: energyIsSettled)
         readKnownTitle(text, into: &result)
+        readLeftoverHandles(text, into: &result)
         readCloseComposer(text, into: &result)
         return result.isEmpty ? nil : result
     }
@@ -398,6 +399,14 @@ nonisolated final class SmartSentenceParser: @unchecked Sendable {
             result.sounds.append(kind.sound)
             text.replace(kind.pattern, with: " ")
         }
+        // Speech is played as samples, which is all a tune's sound says: drums
+        // are too. So it finds those, and says it can't tell which.
+        let speech = /\b(?:speech|spoken|talking|vocals?)\b/
+        if let word = text.firstMatch(of: speech) {
+            if !result.sounds.contains(.samples) { result.sounds.append(.samples) }
+            result.cantTell.append(String(word.output))
+            text.replace(speech, with: " ")
+        }
         let chipCounts: [(pattern: Regex<Substring>, min: UInt8, max: UInt8?)] = [
             (/\b(?:dual|double|two|2)[- ]?sids?\b|\b2sids?\b/, 2, 2),
             (/\b(?:triple|three|3)[- ]?sids?\b|\b3sids?\b/, 3, 3),
@@ -423,7 +432,7 @@ nonisolated final class SmartSentenceParser: @unchecked Sendable {
     /// Asked for, but nothing measured says it: said in the line, not faked.
     private func readCantTell(_ text: String, into result: inout SmartUnderstanding) {
         let words = Set(text.split { !$0.isLetter }.map(String.init))
-        result.cantTell = Self.cantTellWords.filter { Self.sayIt.contains($0) && words.contains($0) }
+        result.cantTell += Self.cantTellWords.filter { Self.sayIt.contains($0) && words.contains($0) }
     }
 
     private func readLengths(_ text: inout String, into result: inout SmartUnderstanding) {
@@ -580,7 +589,7 @@ nonisolated final class SmartSentenceParser: @unchecked Sendable {
         let lead = /\b(?:sounds?\s+like|similar\s+to(?:\s+this\s+one\s*:?)?|like|based\s+on|close\s+to|closest\s+to|same\s+vibe\s+as|matches\s+for|in\s+the\s+style\s+of|style\s+of|fingerprint\s+of)\s+(.+)$/
         guard let match = text.firstMatch(of: lead) else { return }
         var name = String(match.1)
-        if let end = name.firstMatch(of: /\s*(?:\b(?:but|for|that|with|by|only|ones|longer|from|until)\b|\.$)/) {
+        if let end = name.firstMatch(of: /,?\s*(?:\b(?:but|for|that|with|by|only|ones|each|longer|from|until)\b|\.$)/) {
             name = String(name[..<end.range.lowerBound])
         }
         let rest = text[..<match.range.lowerBound] + " " + String(match.1).dropFirst(name.count)
@@ -733,6 +742,25 @@ nonisolated final class SmartSentenceParser: @unchecked Sendable {
         }
     }
 
+    /// A handle that's also a word: "chill Hermit", "Laxity from the 90s". Those
+    /// need "by" elsewhere, as Rock and Moon compose too, but once all the rest
+    /// is understood, nothing else is left for such a word to mean.
+    private func readLeftoverHandles(_ text: String, into result: inout SmartUnderstanding) {
+        guard result.tuneNames.isEmpty, result.titleWords == nil, !result.isEmpty else { return }
+        let moodWords = Set(Self.moods.values.flatMap { $0 })
+        let left = Self.words(text).filter { !Self.plainWords.contains($0) && !Self.notNames.contains($0) && !moodWords.contains($0) }
+        let found = left.compactMap { word -> SmartComposer? in
+            guard !Self.sayIt.contains(word), !Self.notHandles.contains(word),
+                  let composer = handles[word], composer.tunes >= 30 else { return nil }
+            return composer
+        }
+        guard !left.isEmpty, found.count == left.count else { return }
+        for composer in found { Self.add(composer, to: &result) }
+    }
+
+    /// Styles of music people ask for, which happen to be composers' handles.
+    private static let notHandles: Set<String> = ["rock", "metal", "rap", "beat", "beats", "funk", "pop", "jazz", "trance", "techno", "house"]
+
     /// A slip of the keyboard in a name: "hubard", "rob hubard", "jeroen tell".
     private func readCloseComposer(_ text: String, into result: inout SmartUnderstanding) {
         guard result.composers.isEmpty, result.tuneNames.isEmpty, result.titleWords == nil, result.energy == .any,
@@ -845,6 +873,8 @@ extension LibraryStore {
             seeds = guess.1.map { [$0] } ?? []
             note = guess.2
         }
+        // More has been typed since: this is about words that have moved on.
+        guard !Task.isCancelled else { return }
         var next = smartSettings
         if next.sentence != sentence { next.isReordered = false }
         next.sentence = sentence

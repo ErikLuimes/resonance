@@ -772,7 +772,7 @@ fn smart_tunes(
             let mut tune = smart::Tune {
                 title: entry.title.clone(),
                 author: entry.author_raw.clone(),
-                folder: entry.author_raw.clone(),
+                folder: smart::composer_folder(&entry.path, &entry.author_raw),
                 year: entry.released.get(..4).and_then(|y| y.parse().ok()),
                 secs: entry.duration_secs.unwrap_or(0),
                 heard: heard.contains(&path),

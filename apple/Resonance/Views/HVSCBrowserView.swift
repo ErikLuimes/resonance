@@ -284,19 +284,27 @@ struct AuthorTunes: View {
     let openComposer: (String) -> Void
 
     @Environment(LibraryStore.self) private var library
+    /// The list's own filter.
+    @State private var filter = ""
 
     var body: some View {
         Group {
             if let rows = library.tunes[authorPath] {
-                LibraryTable(rows: rows, source: source, hidesAuthor: category == .musicians)
+                let shown = rows.matching(filter: filter)
+                LibraryTable(rows: shown, source: source, hidesAuthor: category == .musicians,
+                             actions: AnyView(TuneListActions(filter: $filter, rows: rows, source: source)))
+                    .overlay {
+                        if !rows.isEmpty, shown.isEmpty { ContentUnavailableView.search(text: filter) }
+                    }
                     .safeAreaInset(edge: .top, spacing: 0) {
-                        Group {
+                        VStack(spacing: 0) {
                             if category == .musicians {
                                 ComposerHeader(authorPath: authorPath, name: authorName, rows: rows,
                                                source: source, openComposer: openComposer)
                             } else {
                                 SectionHeader(name: authorName, category: category, rows: rows, source: source)
                             }
+                            Divider()
                         }
                         // The same material as the title bar above it and the
                         // sound bar below, so the top of the pane reads as one
@@ -309,6 +317,9 @@ struct AuthorTunes: View {
             }
         }
         .task { await library.loadTunes(authorPath: authorPath) }
+        // Another composer, or a link to a tune the filter might hide.
+        .onChange(of: authorPath) { filter = "" }
+        .onChange(of: library.revealedTune) { filter = "" }
     }
 
     private var source: PlaybackSource { .folder(name: authorName, category: category) }
@@ -322,6 +333,8 @@ private struct CreditedTunes: View {
     let name: String
 
     @Environment(LibraryStore.self) private var library
+    /// The list's own filter.
+    @State private var filter = ""
 
     var body: some View {
         Group {
@@ -333,8 +346,19 @@ private struct CreditedTunes: View {
                         description: Text("No tune in HVSC credits \(name).")
                     )
                 } else {
-                    LibraryTable(rows: rows, source: .folder(name: name, category: .musicians))
-                        .safeAreaInset(edge: .top, spacing: 0) { header(rows) }
+                    let shown = rows.matching(filter: filter)
+                    let source = PlaybackSource.folder(name: name, category: .musicians)
+                    LibraryTable(rows: shown, source: source,
+                                 actions: AnyView(TuneListActions(filter: $filter, rows: rows, source: source)))
+                        .overlay {
+                            if shown.isEmpty { ContentUnavailableView.search(text: filter) }
+                        }
+                        .safeAreaInset(edge: .top, spacing: 0) {
+                            VStack(spacing: 0) {
+                                header(rows)
+                                Divider()
+                            }
+                        }
                 }
             } else {
                 // The first lookup reads every tune's header.
@@ -347,6 +371,7 @@ private struct CreditedTunes: View {
             }
         }
         .task { await library.loadCredited(name: name) }
+        .onChange(of: name) { filter = "" }
     }
 
     private func header(_ rows: [LibraryRow]) -> some View {
@@ -358,8 +383,6 @@ private struct CreditedTunes: View {
                 Text(rows.count == 1 ? "1 tune" : "\(rows.count) tunes")
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 8)
-                Button("Add All", systemImage: "text.badge.plus") { library.addToPlaylist(rows) }
-                    .help("Add every tune here to My Playlist")
             }
             Text("\(name) has no folder in MUSICIANS. These are the tunes whose header credits them.")
                 .font(.callout)
@@ -373,6 +396,23 @@ private struct CreditedTunes: View {
 }
 
 // MARK: - Tune table
+
+/// The columns a pane has room for. A wide sidebar or inspector can leave too
+/// little for any window minimum to cover, and what doesn't fit runs under the
+/// inspector. Year goes first, then Length: the title and how a tune sounds stay.
+nonisolated enum LibraryColumnFit: Equatable {
+    case all, noYear, noYearOrLength
+
+    /// As measured in the app: a small title, the fixed columns and the space
+    /// between them. An author's column wants a little room of its own.
+    init(width: CGFloat, hasAuthor: Bool) {
+        let room = width - (hasAuthor ? 80 : 0)
+        self = room >= 410 ? .all : room >= 350 ? .noYear : .noYearOrLength
+    }
+
+    var showsYear: Bool { self == .all }
+    var showsLength: Bool { self != .noYearOrLength }
+}
 
 /// Library tunes: double-click (or Return) plays, the context menu adds to
 /// the playlist or reveals the file. Sorting only changes the view. The
@@ -418,6 +458,8 @@ struct LibraryTable: View {
     /// Which columns show (the header's menu), kept per window and shared by
     /// every library list. Title, Author, Released and Length by default.
     @SceneStorage("LibraryColumns") private var columns = TableColumnCustomization<LibraryRow>()
+    /// What the pane has room for.
+    @State private var columnFit = LibraryColumnFit.all
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -426,6 +468,10 @@ struct LibraryTable: View {
                 .onChange(of: rows, initial: true) { revealTune(proxy) }
                 .onChange(of: library.revealedTune) { revealTune(proxy) }
         }
+        // The table's width doesn't depend on its columns, so this can't loop.
+        .onGeometryChange(for: LibraryColumnFit.self) { [hidesAuthor] in
+            LibraryColumnFit(width: $0.size.width, hasAuthor: !hidesAuthor)
+        } action: { columnFit = $0 }
         .safeAreaInset(edge: .top, spacing: 0) { soundBar }
         .task(id: rows) { fingerprints.load(rows.map(\.id)) }
         .task(id: TaskKey(seed: similarTo?.id, rows: rows.count, revision: (fingerprints.status?.revision ?? 0) / 500)) {
@@ -490,11 +536,13 @@ struct LibraryTable: View {
             .width(48)
             .customizationID("songs")
             .defaultVisibility(.hidden)
-            TableColumn("Length", value: \.length) { row in
-                Text(row.lengthText).monospacedDigit()
+            if columnFit.showsLength {
+                TableColumn("Length", value: \.length) { row in
+                    Text(row.lengthText).monospacedDigit()
+                }
+                .width(56)
+                .customizationID("length")
             }
-            .width(56)
-            .customizationID("length")
             TableColumn("STIL", value: \.stilSort) { row in
                 if row.item.hasStil {
                     Image(systemName: "text.quote")
@@ -535,7 +583,7 @@ struct LibraryTable: View {
                 TuneTitleCell(library: library, path: row.id, title: row.title, author: row.author,
                               isCurrent: isCurrent(row), mayHaveStil: row.item.hasStil)
             }
-            .width(min: 160, ideal: 320)
+            .width(min: 100, ideal: 320)
             .customizationID("title")
             if !hidesAuthor {
                 TableColumn("Author", value: \.author) { row in
@@ -543,9 +591,11 @@ struct LibraryTable: View {
                 }
                 .customizationID("author")
             }
-            TableColumn("Year", value: \.year)
-                .width(44)
-                .customizationID("year")
+            if columnFit.showsYear {
+                TableColumn("Year", value: \.year)
+                    .width(44)
+                    .customizationID("year")
+            }
             TableColumn("Released", value: \.released)
                 .customizationID("releasedFull")
                 .defaultVisibility(.hidden)

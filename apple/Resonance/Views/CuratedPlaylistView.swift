@@ -1,8 +1,8 @@
 import SwiftUI
 import PhosphorCore
 
-/// One of Phosphor's published playlists: what it is, a way to play or
-/// shuffle it, and its tunes in a table like the rest of the library.
+/// One of Phosphor's published playlists: what it is, a way to play it, and
+/// its tunes in a table like the rest of the library.
 struct CuratedPlaylistView: View {
     let playlist: HvscPlaylist
 
@@ -87,18 +87,11 @@ struct CuratedPlaylistView: View {
 
     /// What the list does, in the row with Sound.
     private var listActions: some View {
-        @Bindable var store = store
-        return Group {
+        Group {
             ListFilterField(text: $filter)
-            ListPlayButton(title: isPlaying ? "Play Again" : "Play", isDisabled: rows.isEmpty) { play() }
-            // The player's own shuffle, the same one as the player bar's
-            // button: it applies to the playlist playing now too.
-            Toggle(isOn: $store.shuffle) {
-                Label("Shuffle", systemImage: "shuffle")
+            ListPlayButton(title: isPlaying ? "Play Again" : "Play", isDisabled: rows.isEmpty) {
+                library.play(rows, from: .curated(playlist))
             }
-            .toggleStyle(.button)
-            .help(store.shuffle ? "Shuffle: On" : "Shuffle: Off")
-            .fixedSize()
         }
     }
 
@@ -131,13 +124,6 @@ struct CuratedPlaylistView: View {
     }
 
     private var isPlaying: Bool { store.source == .curated(playlist) }
-
-    /// From the top, or with shuffle on from a random tune (the core then
-    /// plays the rest in shuffled order).
-    private func play() {
-        let start = store.shuffle ? rows.randomElement() : rows.first
-        library.play(rows, startAt: start, from: .curated(playlist))
-    }
 }
 
 /// A sidebar row for a published playlist; a speaker shows while it plays.

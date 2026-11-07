@@ -17,6 +17,11 @@ struct TuneTitleCell: View {
     let isCurrent: Bool
     /// False when the library already knows the tune has no STIL entry.
     var mayHaveStil = true
+    /// STIL's first line under the title. Rows with a line of their own there
+    /// leave it out.
+    var showsTeaser = true
+    /// Always bold, for rows that set their title apart from a line under it.
+    var isBold = false
 
     var body: some View {
         let entry = library.stil[path] ?? nil
@@ -31,7 +36,7 @@ struct TuneTitleCell: View {
                 }
                 titleText
             }
-            if let entry, let teaser = Teaser(entry) {
+            if showsTeaser, let entry, let teaser = Teaser(entry) {
                 teaser.text
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -49,7 +54,7 @@ struct TuneTitleCell: View {
 
     private var titleText: some View {
         Text(title)
-            .fontWeight(isCurrent ? .semibold : .regular)
+            .fontWeight(isCurrent || isBold ? .semibold : .regular)
             .lineLimit(1)
     }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import PhosphorCore
 
 /// Resonance Help: the topics in a sidebar, grouped, and the chosen one's
 /// article beside them. The search field keeps the topics that have every
@@ -167,6 +168,38 @@ private struct HelpBlockView: View {
                 }
             }
             .padding(.vertical, 4)
+        case .traitKey(let traits):
+            Grid(alignment: .topLeading, horizontalSpacing: 12, verticalSpacing: 9) {
+                ForEach(traits, id: \.self) { item in
+                    GridRow {
+                        // The real barcode, with only this bar up.
+                        SoundBarcode(traits: SoundTrait.allCases.map { $0 == item.trait ? 1 : 0 })
+                        Text(item.trait.name)
+                            .fontWeight(.medium)
+                            .fixedSize()
+                        Text(item.meaning)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            .padding(.vertical, 4)
+        case .fingerprintExamples(let examples):
+            HStack(alignment: .top, spacing: 16) {
+                ForEach(examples, id: \.self) { example in
+                    let fingerprint = fingerprint(example)
+                    VStack(alignment: .leading, spacing: 8) {
+                        MorphSphere(fingerprint: fingerprint, zoom: 1.2)
+                            .frame(width: 128, height: 128)
+                        SoundBarcode(traits: fingerprint.traits)
+                        Text(example.caption)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(.vertical, 4)
         case .link(let link):
             linkButton(link)
         }
@@ -194,6 +227,18 @@ private struct HelpBlockView: View {
                 open(id)
             }
         }
+    }
+
+    /// All the glyphs read of a made-up tune are its traits and its mix.
+    private func fingerprint(_ example: HelpFingerprintExample) -> TuneFingerprint {
+        let mix = example.mix
+        return TuneFingerprint(
+            subtune: 1, scannedSecs: 180, activity: Data(), bins: 0,
+            mix: WaveformMix(triangle: mix[0], saw: mix[1], pulse: mix[2], noise: mix[3]),
+            tags: [], notesPerSec: 0, arpeggioRate: 0, filterUsage: 0, ringMod: 0, sync: 0,
+            digi: 0, pulseWidthDepth: 0, vibratoRate: 0, noiseHits: 0,
+            traits: example.traits, chips: 1, silent: false
+        )
     }
 
     private func markdown(_ text: String) -> AttributedString {

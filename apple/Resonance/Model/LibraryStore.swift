@@ -217,13 +217,18 @@ final class LibraryStore {
 
     // MARK: Actions
 
-    /// Play `rows` as a temporary list from `start` (else the first). The
+    /// Play `rows` as a temporary list from `start` (else the first, or with the
+    /// player's shuffle on a random one; the core then shuffles the rest). The
     /// playlist is left alone: playing from the library never adds to it.
     /// `source` is where the rows come from, which "Playing from" names.
     func play(_ rows: [LibraryRow], startAt start: LibraryRow? = nil, from source: PlaybackSource) {
-        guard let first = rows.first else { return }
-        player.playQueue(rows.map(\.url), startAt: (start ?? first).url, from: source,
+        guard let first = Self.firstToPlay(rows, startAt: start, shuffle: player.shuffle) else { return }
+        player.playQueue(rows.map(\.url), startAt: first.url, from: source,
                          tunes: rows.map { QueuedTune(path: $0.id, title: $0.title, author: $0.author) })
+    }
+
+    nonisolated static func firstToPlay(_ rows: [LibraryRow], startAt start: LibraryRow?, shuffle: Bool) -> LibraryRow? {
+        start ?? (shuffle ? rows.randomElement() : rows.first)
     }
 
     func addToPlaylist(_ rows: [LibraryRow]) {

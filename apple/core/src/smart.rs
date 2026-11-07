@@ -345,6 +345,18 @@ pub(crate) fn versions<'a>(title: &str, seed_path: &str, tunes: &'a [Tune]) -> V
     }
 }
 
+/// Whose tune it is, by folder. Usually the nearest one, which can be a person
+/// inside a group ("Tinnitus/Trompkins"). But 35 composers have a "Worktunes"
+/// folder of their own, and those aren't one composer.
+pub(crate) fn composer_folder(path: &std::path::Path, nearest: &str) -> String {
+    if nearest.eq_ignore_ascii_case("worktunes") || nearest.eq_ignore_ascii_case("unreleased") {
+        if let Some(owner) = path.parent().and_then(|p| p.parent()).and_then(|p| p.file_name()) {
+            return owner.to_string_lossy().into_owned();
+        }
+    }
+    nearest.to_string()
+}
+
 /// Tunes with a title word starting with each word of `name`, so "2nd reali"
 /// finds "2nd Reality" while it's being typed: exact pieces first, then titles
 /// starting that way.
@@ -618,6 +630,16 @@ mod tests {
         let found = versions("2nd Reality (part 2)", "kb2", &tunes);
         let paths: Vec<&str> = found.iter().map(|t| t.path.as_str()).collect();
         assert_eq!(paths, vec!["kb1", "eye"]);
+    }
+
+    #[test]
+    fn worktunes_belong_to_their_composer() {
+        let folder = |path: &str, nearest: &str| composer_folder(std::path::Path::new(path), nearest);
+        assert_eq!(folder("MUSICIANS/D/DRAX/Worktunes/A.sid", "Worktunes"), "DRAX");
+        assert_eq!(folder("MUSICIANS/S/SFR/Worktunes/001.sid", "Worktunes"), "SFR");
+        assert_eq!(folder("MUSICIANS/L/Link/unreleased/A.sid", "unreleased"), "Link");
+        assert_eq!(folder("MUSICIANS/D/DRAX/A.sid", "DRAX"), "DRAX");
+        assert_eq!(folder("MUSICIANS/T/Tinnitus/Trompkins/A.sid", "Trompkins"), "Trompkins");
     }
 
     #[test]

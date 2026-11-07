@@ -39,11 +39,19 @@ struct SectionHeader: View {
     var body: some View {
         // The list below asks for its rows' fingerprints; they arrive here too.
         let tags = rows.compactMap { fingerprints.fingerprint($0.id)?.tags }
-        let shares = SectionFacts.soundShares(tags: tags, overall: fingerprints.tagShares)
-        LargeHeader(title: identity.title, detail: tuneCount, rows: rows, source: source,
-                    hasBio: identity.description != nil || !facts.years.isEmpty || facts.playingTime != nil,
+        let shares = SectionFacts.soundShares(tags: tags, overall: fingerprints.tagShares, limit: 4)
+        LargeHeader(title: identity.title, detail: tuneCount,
+                    hasBio: !facts.years.isEmpty || facts.playingTime != nil,
                     cards: cards(hasSound: !shares.isEmpty)) {
             tile
+        } below: {
+            if let description = identity.description {
+                Text(description)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         } bio: {
             bio
         } card: { card in
@@ -63,24 +71,20 @@ struct SectionHeader: View {
 
     /// The picture a composer's photo would be, with the section's label on it.
     private var tile: some View {
-        ComposerPortrait(name: identity.title, looksUpPhoto: false)
+        ComposerPortrait(name: identity.title, looksUpPhoto: false, cornerRadius: 17)
             .overlay(alignment: .bottomLeading) {
                 Text(identity.tile)
-                    .font(.system(size: 28, weight: .semibold))
+                    .font(.system(size: 22, weight: .semibold))
                     .foregroundStyle(.white)
                     .shadow(color: .black.opacity(0.35), radius: 3)
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
-                    .padding(10)
+                    .padding(8)
             }
     }
 
     private var bio: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let description = identity.description {
-                Text(description)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
             if !facts.years.isEmpty {
                 YearChart(years: facts.years, summary: facts.busiestText ?? "")
             }
@@ -99,7 +103,7 @@ struct SectionHeader: View {
     private func card(_ card: SectionCard, shares: [SoundShare], scanned: Int) -> some View {
         switch card {
         case .sound:
-            soundCard(shares, scanned: scanned)
+            SoundSharesCard(shares: shares, scanned: scanned, tunes: rows.count)
         case .longest:
             tuneList("Longest Tunes", facts.longest) { $0.lengthText }
         case .oldest:
@@ -156,31 +160,11 @@ struct SectionHeader: View {
         }
     }
 
-    private func soundCard(_ shares: [SoundShare], scanned: Int) -> some View {
-        HeaderCard("Sound") {
-            ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(soundCaption(scanned: scanned, hasOverall: shares.contains { $0.overall != nil }))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    ForEach(shares, id: \.tag) { SoundShareRow(share: $0) }
-                }
-            }
-            .font(.callout)
-        }
-    }
-
-    /// When most of them have no fingerprint, it says how few it's about.
-    private func soundCaption(scanned: Int, hasOverall: Bool) -> String {
-        let whose = scanned * 10 < rows.count * 9 ? "Of the \(SectionFacts.tunes(scanned)) with a fingerprint." : "Share of tunes."
-        return hasOverall ? "\(whose) The tick marks all of HVSC." : whose
-    }
 }
 
 /// A sound's share of a section as a bar, with a tick where it stands across
 /// all of HVSC.
-private struct SoundShareRow: View {
+struct SoundShareRow: View {
     let share: SoundShare
 
     var body: some View {

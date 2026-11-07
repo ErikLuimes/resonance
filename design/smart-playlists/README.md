@@ -38,6 +38,23 @@ gives none now. `smart_bench` checks this on that sentence.
 Spelled-out ordinals meet digits, so "Second Reality" finds "2nd Reality". That
 tune isn't in HVSC under the name of the demo it remakes.
 
+## Composers by folder
+
+A tune's composer is its nearest folder, as a person can sit inside a group
+(`Tinnitus/Trompkins`). But 35 composers have a `Worktunes` folder, which read as
+one composer: "like Drax" gave 1,199 tunes by many people, and 1,063 now, all his.
+So `Worktunes` and `unreleased` count as their parent.
+
+Handles that are also words need "by" on their own, since Rock, Moon, Sad and
+Metal all compose. "Chill Hermit" has nothing else for the word to mean, so a word
+counts as a handle when it's what remains of a sentence that said something else
+and the composer has 30 tunes or more. Music styles (`notHandles`) stay out.
+
+## Speech
+
+Samples are all a tune's sound shows, and drums are samples too. So "with speech"
+finds tunes with plenty of samples, and the line under the field says it can't tell.
+
 ## Intensity
 
 There's no reference for "chill", so this is a judgement checked by proxies, not

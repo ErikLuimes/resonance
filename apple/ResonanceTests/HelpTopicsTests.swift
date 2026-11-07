@@ -28,6 +28,30 @@ struct HelpTopicsTests {
         #expect(HelpTopic.topic(.gettingStarted).matches("Download next"))
     }
 
+    @Test func fingerprintKeyExplainsEveryBarInOrder() {
+        let keys = HelpTopic.topic(.readingFingerprints).blocks.compactMap { block -> [HelpTrait]? in
+            if case .traitKey(let traits) = block { traits } else { nil }
+        }
+        #expect(keys.count == 1)
+        #expect(keys.first?.map(\.trait) == SoundTrait.allCases)
+    }
+
+    @Test func fingerprintExamplesHaveEveryTraitAndAFullMix() {
+        for block in HelpTopic.topic(.readingFingerprints).blocks {
+            guard case .fingerprintExamples(let examples) = block else { continue }
+            for example in examples {
+                #expect(example.traits.count == SoundTrait.allCases.count)
+                #expect(abs(example.mix.reduce(0, +) - 1) < 0.001, "\(example.caption)")
+            }
+        }
+    }
+
+    @Test func fingerprintTopicIsFoundByWhatItExplains() {
+        let topic = HelpTopic.topic(.readingFingerprints)
+        #expect(topic.matches("barcode vibrato"))
+        #expect(topic.matches("sphere waveform"))
+    }
+
     @Test func shortcutsAreSearchable() {
         #expect(HelpTopic.topic(.shortcuts).matches("⇧⌘R surprise"))
     }

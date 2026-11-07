@@ -1,4 +1,5 @@
 import AppKit
+import PhosphorCore
 import Testing
 @testable import Resonance
 
@@ -52,5 +53,49 @@ struct SongTableStyleTests {
         mark.isCurrent = false
         try await Task.sleep(for: .milliseconds(50))
         #expect(row.redraws == before + 1)
+    }
+}
+
+/// Which tune a list's Play starts from: the player bar says whether it's shuffled.
+struct FirstToPlayTests {
+    private let rows = ["a", "b", "c", "d"].map { name in
+        LibraryRow(item: HvscTuneItem(path: "/\(name).sid", title: name, author: "", released: "", songs: 1, startSong: 1,
+                                      durationSecs: nil, hasStil: false, isRsid: nil, category: .musicians, durationIsEstimate: false))
+    }
+
+    @Test func fromTheTopWithoutShuffle() {
+        #expect(LibraryStore.firstToPlay(rows, startAt: nil, shuffle: false) == rows[0])
+    }
+
+    @Test func anyWithShuffle() {
+        let firsts = Set((0..<200).compactMap { _ in LibraryStore.firstToPlay(rows, startAt: nil, shuffle: true) })
+        #expect(firsts.count > 1)
+    }
+
+    @Test func aChosenTuneStaysChosen() {
+        #expect(LibraryStore.firstToPlay(rows, startAt: rows[2], shuffle: true) == rows[2])
+    }
+
+    @Test func nothingToPlay() {
+        #expect(LibraryStore.firstToPlay([], startAt: nil, shuffle: true) == nil)
+    }
+}
+
+/// Which columns a pane has room for, widest first.
+struct LibraryColumnFitTests {
+    @Test(arguments: [(900.0, LibraryColumnFit.all), (410, .all), (409, .noYear), (350, .noYear), (349, .noYearOrLength), (292, .noYearOrLength)])
+    func aComposerPane(width: CGFloat, fit: LibraryColumnFit) {
+        #expect(LibraryColumnFit(width: width, hasAuthor: false) == fit)
+    }
+
+    @Test func anAuthorColumnNeedsRoomToo() {
+        #expect(LibraryColumnFit(width: 410, hasAuthor: true) == .noYearOrLength)
+        #expect(LibraryColumnFit(width: 490, hasAuthor: true) == .all)
+    }
+
+    @Test func yearGoesBeforeLength() {
+        #expect(LibraryColumnFit.noYear.showsLength)
+        #expect(!LibraryColumnFit.noYear.showsYear)
+        #expect(!LibraryColumnFit.noYearOrLength.showsLength)
     }
 }

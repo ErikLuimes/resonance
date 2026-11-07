@@ -667,7 +667,7 @@ impl Library {
                 .filter(|(_, &c)| c == HvscCategory::Musicians)
                 .flat_map(|(slot, &c)| {
                     inner.index(c).iter().zip(&credits.authors[slot])
-                        .map(|(entry, author)| (entry.author_raw.clone(), author.clone()))
+                        .map(|(entry, author)| (crate::smart::composer_folder(&entry.path, &entry.author_raw), author.clone()))
                         .collect::<Vec<_>>()
                 })
                 .collect()

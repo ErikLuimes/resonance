@@ -3,6 +3,20 @@ import Testing
 @testable import Resonance
 
 struct ComposerFactsTests {
+    @Test func aFolderWithAHandleInFrontReadsAsTheRealName() {
+        #expect(ComposerFacts.shownName("Red Kimmel, Jeroen", realName: "Jeroen Kimmel") == "Jeroen Kimmel")
+        #expect(ComposerFacts.shownName("Tron Olsson, Mikael", realName: "Mikael Olsson") == "Mikael Olsson")
+    }
+
+    @Test func otherNamesStayAsTheyAre() {
+        #expect(ComposerFacts.shownName("Hubbard, Rob", realName: "Rob Hubbard") == "Rob Hubbard")
+        #expect(ComposerFacts.shownName("Stinsen", realName: "Johan Samuelson") == "Stinsen")
+        #expect(ComposerFacts.shownName("The Mad Axeman", realName: "Some Person") == "The Mad Axeman")
+        #expect(ComposerFacts.shownName("Tel, Jeroen", realName: nil) == "Jeroen Tel")
+        // A single word in common isn't a name found.
+        #expect(ComposerFacts.shownName("The Wise Man", realName: "Man") == "The Wise Man")
+    }
+
     @Test func tuneCountSaysAsMuchAsIsKnown() {
         #expect(ComposerFacts.tunes(176, firstYear: 1986, lastYear: 2020) == "176 tunes from 1986 to 2020")
         #expect(ComposerFacts.tunes(1, firstYear: 1987, lastYear: 1987) == "1 tune from 1987")
