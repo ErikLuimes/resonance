@@ -85,13 +85,13 @@ struct KeyBinding: Equatable {
 enum KeyAction: CaseIterable, Hashable {
     case playPause, stop, nextTrack, previousTrack, nextSubtune, previousSubtune, volumeUp, volumeDown
     case moveDown, moveUp, top, bottom, playSelected, remove, search, addFiles
-    case shuffle, surpriseMe, nowPlaying, menuBarPlayer, settings, help, shortcuts, close
+    case shuffle, surpriseMe, nowPlaying, underTheHood, menuBarPlayer, settings, help, shortcuts, close
 
     /// The panel's columns, with their headings.
     static let columns: [(title: String, actions: [KeyAction])] = [
         ("Playback", [.playPause, .stop, .nextTrack, .previousTrack, .nextSubtune, .previousSubtune, .volumeUp, .volumeDown]),
         ("Lists", [.moveDown, .moveUp, .top, .bottom, .playSelected, .remove, .search, .addFiles]),
-        ("Discovery and Windows", [.shuffle, .surpriseMe, .nowPlaying, .menuBarPlayer, .settings, .help, .shortcuts, .close]),
+        ("Discovery and Windows", [.shuffle, .surpriseMe, .nowPlaying, .underTheHood, .menuBarPlayer, .settings, .help, .shortcuts, .close]),
     ]
 
     var title: String {
@@ -115,6 +115,7 @@ enum KeyAction: CaseIterable, Hashable {
         case .shuffle: "Shuffle"
         case .surpriseMe: "Surprise Me"
         case .nowPlaying: "Now Playing"
+        case .underTheHood: "Under the Hood"
         case .menuBarPlayer: "Menu Bar Player"
         case .settings: "Settings"
         case .help: "Resonance Help"
@@ -128,7 +129,7 @@ enum KeyAction: CaseIterable, Hashable {
         switch self {
         case .playPause: "Play or Pause (not while typing)"
         case .shortcuts: "Show or Hide the Keyboard Shortcuts Panel"
-        case .close: "Close the Panel, or Now Playing"
+        case .close: "Close the Panel, or What's Open"
         default: title
         }
     }
@@ -155,11 +156,12 @@ enum KeyAction: CaseIterable, Hashable {
         case .shuffle: "Turns shuffle on or off."
         case .surpriseMe: "Starts a radio of random tunes from all of HVSC."
         case .nowPlaying: "Slides the large player over the library, or away again."
+        case .underTheHood: "Slides up the tracker, registers, sweeps and pitch trail, or away again."
         case .menuBarPlayer: "Opens the small player from the menu bar, from any app."
         case .settings: "Opens Resonance's settings."
         case .help: "Opens the full guide to Resonance."
         case .shortcuts: "Shows or hides this panel."
-        case .close: "Closes this panel. Pressed again, it closes Now Playing."
+        case .close: "Closes this panel. Pressed again, it closes Now Playing or Under the Hood."
         }
     }
 
@@ -240,6 +242,8 @@ enum KeyAction: CaseIterable, Hashable {
             return (.system("⇧⌘R", "R", .command), .key("r", "r"), .key("⌥R", "r", .option))
         case .nowPlaying:
             return (.system("⇧⌘F", "F", .command), .key("f", "f"), .key("⌃O", "o", .control))
+        case .underTheHood:
+            return (.system("⌥⌘U", "u", [.option, .command]), .key("u", "u"), .key("⌥U", "u", .option))
         case .menuBarPlayer:
             let player = KeyBinding.system("⌃⌥⌘P", "p", [.control, .option, .command])
             return (player, player, player)

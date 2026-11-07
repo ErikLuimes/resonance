@@ -31,6 +31,9 @@ struct NowPlayingBar: View {
                     subtunes
                 }
                 volume
+                if width >= 420 {
+                    underTheHood
+                }
                 nowPlaying
             }
             .padding(.horizontal, 16)
@@ -70,6 +73,16 @@ struct NowPlayingBar: View {
         }
         .labelStyle(.iconOnly)
         .buttonStyle(.borderless)
+    }
+
+    /// Beside Now Playing, until the bar gets narrow; View › Under the Hood stays.
+    private var underTheHood: some View {
+        Button("Under the Hood", systemImage: "cpu") { store.toggleUnderTheHood() }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .font(.title3.weight(.semibold))
+            .foregroundStyle(store.isShowingUnderTheHood ? Color.accentColor : Color.primary)
+            .help("Show the tracker, registers, sweeps and pitch trail")
     }
 
     /// At the bar's far end, where players keep their full-screen button.

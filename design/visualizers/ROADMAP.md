@@ -92,12 +92,12 @@ bar's progress bar with the overview strip from reference/AppInspector.dc.html, 
 
 ## Phase 3 — "Under the hood" drawer
 
-- [ ] Drawer that slides up over the list, toggled from the player bar — `reference/AppDrawer.dc.html`
-- [ ] Registers tab (bytes flash on change, CTRL bits decoded) — `reference/Registers.dc.html`
-- [ ] Sweeps tab (PW, cutoff + resonance, gates) — `reference/Sweeps.dc.html`
-- [ ] Pitch trail tab — `reference/PitchTrail.dc.html`
-- [x] Tracker, rebuilt from register writes, in the terminal app's drawer (the app's drawer to come) — `TRACKER.md`, `reference/Tracker.dc.html`
-- [ ] "Open in window" → separate SID Monitor window
+- [x] Drawer that slides up over the list, toggled from the player bar, and in the terminal app on `u` — `Views/UnderTheHoodView.swift`, `reference/AppDrawer.dc.html`
+- [x] Registers tab (bytes flash on change, CTRL bits decoded) — `reference/Registers.dc.html`
+- [x] Sweeps tab (PW, cutoff + resonance, gates) — `reference/Sweeps.dc.html`
+- [x] Pitch trail tab — `reference/PitchTrail.dc.html`
+- [x] Tracker, rebuilt from register writes — `TRACKER.md`, `reference/Tracker.dc.html`. The mock's order list isn't there: nothing's known about patterns to list.
+- Dropped: "Open in window". It's a drawer only, as a second window was more mess than it was worth.
 
 **Tracker note:** `.sid` files hold player code, not patterns. Rebuild rows from the frame history:
 a new row on each gate-on or note change; note from frequency; "instrument" = a distinct

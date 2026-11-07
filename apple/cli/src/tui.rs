@@ -94,6 +94,21 @@ const DRAWER_SLIDES: Duration = Duration::from_millis(220);
 const POSITION_EVERY: Duration = Duration::from_millis(33);
 /// Under the hood's side panel needs this much room beside the rows.
 const TRACKER_PANEL_FROM: u16 = 84;
+/// The tabs: their names, in order.
+const DRAWER_TABS: [&str; 4] = ["Tracker", "Registers", "Sweeps", "Pitch"];
+/// Frames kept for Sweeps and Pitch, as many as the app will give: about 10 seconds.
+const DRAWER_HISTORY: usize = 512;
+/// A register stays lit this many frames after it changes.
+const FLASH_FRAMES: u64 = 6;
+/// $00–$1C, for each chip.
+const CHIP_REGISTERS: usize = 29;
+/// Room for a line per voice with the filter's line whole.
+const VOICE_LINES_WIDTH: u16 = 66;
+/// Room for the bars as well.
+const VOICE_BARS_WIDTH: u16 = 90;
+/// What the Registers tab calls each voice's registers and each control bit.
+const VOICE_REGISTERS: [&str; 7] = ["FREQ LO", "FREQ HI", "PW LO", "PW HI", "CTRL", "AD", "SR"];
+const CONTROL_BITS: [&str; 8] = ["GATE", "SYNC", "RING", "TST", "TRI", "SAW", "PUL", "NOI"];
 /// HVSC's rows in the sidebar, under the library's.
 const HVSC_ROWS: [(&str, Option<&str>); 4] = [("Home", None), ("Musicians", Some("musicians")), ("Demos", Some("demos")), ("Games", Some("games"))];
 /// Holds the logo before making room for the player, and how long that takes.
@@ -210,13 +225,80 @@ pub enum Mode {
 #[derive(Debug, Default)]
 struct TrackerState {
     song: Option<TrackerSong>,
-    /// The tune it's for, or being asked for.
-    tune: Option<(String, u32)>,
+    /// The tune and chip it's for, or being asked for.
+    tune: Option<(String, u32, u32)>,
     asking: bool,
     problem: Option<String>,
     position: TrackerPosition,
     /// The row looked at, when not following what's playing.
     looking_at: Option<usize>,
+    tab: usize,
+    chip: u32,
+    /// Recent frames' registers, every chip's in turn, newest last, and their last frame's number.
+    history: std::collections::VecDeque<Vec<u8>>,
+    last_frame: Option<u64>,
+    /// The frame each register last changed on, in the same order.
+    changed: Vec<u64>,
+    /// True when the last draw had no room for every chip, so it showed the chosen one.
+    collapsed: std::cell::Cell<bool>,
+}
+
+impl TrackerState {
+    fn take_frames(&mut self, frames: &[crate::model::PositionFrame]) {
+        // Back to the start: a new tune, a new subtune or a rewind. Only the newest frame
+        // can say so, as each answer overlaps the one before.
+        if let (Some(newest), Some(last)) = (frames.last(), self.last_frame) {
+            if newest.i < last {
+                self.history.clear();
+                self.last_frame = None;
+                self.changed.clear();
+            }
+        }
+        for frame in frames {
+            if self.last_frame.is_some_and(|last| frame.i <= last) {
+                continue;
+            }
+            let registers = frame.registers();
+            // Another number of chips is another tune, whatever its frame number says.
+            if self.history.back().is_some_and(|before| before.len() != registers.len()) {
+                self.history.clear();
+                self.changed.clear();
+            }
+            self.changed.resize(registers.len(), 0);
+            if let Some(before) = self.history.back() {
+                for (n, (old, new)) in before.iter().zip(&registers).enumerate() {
+                    if old != new {
+                        self.changed[n] = frame.i;
+                    }
+                }
+            }
+            self.history.push_back(registers);
+            while self.history.len() > DRAWER_HISTORY {
+                self.history.pop_front();
+            }
+            self.last_frame = Some(frame.i);
+        }
+    }
+
+    fn lit(&self, register: usize) -> bool {
+        let changed = self.changed.get(register).copied().unwrap_or(0);
+        self.last_frame.is_some_and(|last| changed > 0 && last.saturating_sub(changed) < FLASH_FRAMES)
+    }
+
+    /// True on the tracker, and on the other tabs when there's no room for every chip.
+    fn one_chip_shows(&self) -> bool {
+        self.tab == 0 || self.collapsed.get()
+    }
+
+    /// How many chips the frames hold.
+    fn chips(&self) -> usize {
+        self.history.back().map_or(1, |frame| (frame.len() / CHIP_REGISTERS).max(1))
+    }
+
+    fn clock(&self) -> f64 {
+        // PAL's 50 frames a second, unless the tune's known to be NTSC.
+        if self.song.as_ref().is_some_and(|song| song.frame_rate > 55.0) { 1_022_727.0 } else { 985_248.0 }
+    }
 }
 
 /// Describe's sentence and list, kept while you look at other things.
@@ -470,8 +552,19 @@ impl App {
         matches!(self.mode, Mode::Drawer(_))
     }
 
+    /// What to ask for: everything there is the first time, then just what's new.
+    fn position_args(&self) -> Value {
+        let count = if self.tracker.history.is_empty() { DRAWER_HISTORY } else { 8 };
+        json!({ "count": count, "chip": self.tracker.chip })
+    }
+
     fn position_answered(&mut self, position: TrackerPosition) {
-        let tune = position.path.clone().map(|path| (path, position.song));
+        let tune = position.path.clone().map(|path| (path, position.song, self.tracker.chip));
+        // The frames hold every chip, but the rest is about the chip it was asked about.
+        self.tracker.take_frames(&position.frames);
+        if position.chip != self.tracker.chip {
+            return;
+        }
         self.tracker.position = position;
         if tune.is_none() {
             return;
@@ -482,7 +575,8 @@ impl App {
             self.tracker.problem = None;
             self.tracker.looking_at = None;
             self.tracker.asking = true;
-            self.send(Tag::TrackerSong, "tracker.song", json!({}));
+            let chip = self.tracker.chip;
+            self.send(Tag::TrackerSong, "tracker.song", json!({ "chip": chip }));
         }
     }
 
@@ -494,6 +588,12 @@ impl App {
     fn look_by(&mut self, by: isize) {
         let Some(last) = self.tracker.song.as_ref().map(|s| s.rows.len().saturating_sub(1)) else { return };
         self.tracker.looking_at = Some(self.tracker_row().saturating_add_signed(by).min(last));
+    }
+
+    fn switch_chip(&mut self, chip: u32) {
+        if chip != self.tracker.chip && chip < self.tracker.position.chips.max(1) {
+            self.tracker.chip = chip;
+        }
     }
 
     fn key_drawer(&mut self, key: KeyEvent, since: Instant) {
@@ -514,6 +614,14 @@ impl App {
             KeyCode::Down | KeyCode::Char('j') => self.look_by(1),
             KeyCode::PageUp => self.look_by(-16),
             KeyCode::PageDown => self.look_by(16),
+            KeyCode::Tab => self.tracker.tab = (self.tracker.tab + 1) % DRAWER_TABS.len(),
+            KeyCode::BackTab => self.tracker.tab = (self.tracker.tab + DRAWER_TABS.len() - 1) % DRAWER_TABS.len(),
+            // The other tabs show every chip, where there's room.
+            KeyCode::Char(c @ '1'..='3') if self.tracker.one_chip_shows() => self.switch_chip(c as u32 - '1' as u32),
+            KeyCode::Char('s') if self.tracker.one_chip_shows() => {
+                let chips = self.tracker.position.chips.max(1);
+                self.switch_chip((self.tracker.chip + 1) % chips);
+            }
             KeyCode::Char('f') | KeyCode::Enter | KeyCode::End => self.tracker.looking_at = None,
             KeyCode::Home => self.tracker.looking_at = Some(0),
             _ => {}
@@ -799,7 +907,7 @@ impl App {
                 self.tracker.asking = false;
                 match serde_json::from_value::<TrackerSong>(value) {
                     // One for a tune that has since moved on is for nothing.
-                    Ok(song) if self.tracker.tune.as_ref().is_some_and(|(path, n)| *path == song.path && *n == song.song) => self.tracker.song = Some(song),
+                    Ok(song) if self.tracker.tune.as_ref().is_some_and(|(path, n, chip)| *path == song.path && *n == song.song && *chip == song.chip) => self.tracker.song = Some(song),
                     Ok(_) => self.tracker.tune = None,
                     Err(error) => self.tracker.problem = Some(error.to_string()),
                 }
@@ -2193,6 +2301,9 @@ fn draw_list(frame: &mut Frame, app: &App, area: Rect) {
 fn draw_drawer(frame: &mut Frame, app: &App, since: Instant, closing: bool) {
     let full = frame.area();
     let tall = full.height.saturating_sub(NOW_ROWS + 1);
+    // Decided on the height it slides up to, so nothing changes while it does.
+    let fits = every_chip_fits(app.tracker.tab, app.tracker.chips() as u16, full.width, tall.saturating_sub(3));
+    app.tracker.collapsed.set(!fits);
     let gone = app.now.unwrap_or(since).saturating_duration_since(since).as_secs_f32() / DRAWER_SLIDES.as_secs_f32();
     let eased = 1.0 - (1.0 - gone.min(1.0)).powi(3);
     let shown = if closing { 1.0 - eased } else { eased };
@@ -2210,8 +2321,32 @@ fn draw_drawer(frame: &mut Frame, app: &App, since: Instant, closing: bool) {
         return;
     }
     let label = Style::new().fg(palette::accent()).add_modifier(Modifier::BOLD);
-    put(buffer, area, 2, 1, "▓▒░ Under the hood", label);
-    put(buffer, area, 22, 1, "Tracker", Style::new().add_modifier(Modifier::BOLD));
+    // The title goes first when there's no room: the tabs matter more.
+    let mut x = if area.width >= 58 {
+        put(buffer, area, 2, 1, "▓▒░ Under the hood", label);
+        22
+    } else {
+        2
+    };
+    for (n, name) in DRAWER_TABS.iter().enumerate() {
+        let style = if n == app.tracker.tab { Style::new().fg(palette::text()).add_modifier(Modifier::BOLD | Modifier::UNDERLINED) } else { dim() };
+        put(buffer, area, x, 1, name, style);
+        x += name.len() as u16 + 3;
+    }
+    let chips = app.tracker.position.chips;
+    if chips > 1 && app.tracker.one_chip_shows() {
+        let which = format!("SID {} of {chips}, s to switch", app.tracker.chip + 1);
+        // On the blank line below the tabs where it won't fit beside them.
+        let (at, row) = if x + 1 + which.len() as u16 <= area.width { (x + 1, 1) } else { (2, 2) };
+        put(buffer, area, at, row, &which, dim());
+    }
+    let body = Rect::new(area.x, area.y + 3, area.width, area.height - 3);
+    match app.tracker.tab {
+        1 => return draw_registers(buffer, app, body),
+        2 => return draw_sweeps(buffer, app, body),
+        3 => return draw_pitch(buffer, app, body),
+        _ => {}
+    }
     let state = &app.tracker;
     let Some(song) = &state.song else {
         let waiting = if let Some(problem) = &state.problem {
@@ -2276,6 +2411,380 @@ fn draw_drawer(frame: &mut Frame, app: &App, since: Instant, closing: bool) {
     }
     if panel {
         draw_tracker_panel(buffer, area, song, row_now, &current, row_width + 3, &colours, state.looking_at.is_some());
+    }
+}
+
+const VOICE_COLOURS: fn() -> [ratatui::style::Color; 3] = || [palette::cyan(), palette::green(), palette::orange()];
+
+fn draw_nothing_yet(buffer: &mut ratatui::buffer::Buffer, area: Rect) {
+    put(buffer, area, 2, 0, "Nothing to show until a tune plays.", dim());
+}
+
+/// Each voice's registers, and the filter's, lit when the player writes a new value.
+fn draw_registers(buffer: &mut ratatui::buffer::Buffer, app: &App, area: Rect) {
+    let state = &app.tracker;
+    let Some(registers) = state.history.back().filter(|r| r.len() >= 29) else { return draw_nothing_yet(buffer, area) };
+    if state.chips() > 1 {
+        return draw_voice_lines(buffer, state, area);
+    }
+    let colours = VOICE_COLOURS();
+    let cell = |n: usize| -> Style {
+        if state.lit(n) { Style::new().bg(palette::accent()).fg(palette::background()).add_modifier(Modifier::BOLD) } else { Style::new().fg(palette::text()) }
+    };
+    let step = 26u16;
+    let columns = (area.width.saturating_sub(2) / step).max(1);
+    for v in 0..3usize {
+        let (x, y) = (2 + step * (v as u16 % columns), (v as u16 / columns) * 12);
+        put(buffer, area, x, y, &format!("VOICE {}", v + 1), Style::new().fg(colours[v]).add_modifier(Modifier::BOLD));
+        for (i, name) in VOICE_REGISTERS.iter().enumerate() {
+            let n = v * 7 + i;
+            let row = y + 1 + i as u16;
+            put(buffer, area, x, row, &format!("$D4{n:02X}"), dim());
+            put(buffer, area, x + 6, row, name, Style::new().fg(palette::text()));
+            put(buffer, area, x + 15, row, &format!("{:02X}", registers[n]), cell(n));
+        }
+        let control = registers[v * 7 + 4];
+        for (bit, name) in CONTROL_BITS.iter().enumerate() {
+            let on = control & (1 << bit) != 0;
+            let style = if on { Style::new().fg(palette::accent()).add_modifier(Modifier::BOLD) } else { Style::new().fg(palette::faint()) };
+            put(buffer, area, x + (bit as u16 % 4) * 5, y + 8 + bit as u16 / 4, name, style);
+        }
+    }
+    let (fx, fy) = if columns >= 4 { (2 + step * 3, 0) } else { (2 + step * ((3 % columns) % columns), (3 / columns) * 12) };
+    put(buffer, area, fx, fy, "FILTER", Style::new().fg(palette::violet()).add_modifier(Modifier::BOLD));
+    for (i, (n, name)) in [(0x15, "CUT LO"), (0x16, "CUT HI"), (0x17, "RES/ROUT"), (0x18, "MODE/VOL")].iter().enumerate() {
+        let row = fy + 1 + i as u16;
+        put(buffer, area, fx, row, &format!("$D4{n:02X}"), dim());
+        put(buffer, area, fx + 6, row, name, Style::new().fg(palette::text()));
+        put(buffer, area, fx + 15, row, &format!("{:02X}", registers[*n]), cell(*n));
+    }
+    put(buffer, area, fx, fy + 6, "READ-ONLY", Style::new().fg(palette::muted()).add_modifier(Modifier::BOLD));
+    for (i, (n, name)) in [(0x1B, "OSC 3"), (0x1C, "ENV 3")].iter().enumerate() {
+        let row = fy + 7 + i as u16;
+        put(buffer, area, fx, row, &format!("$D4{n:02X}"), dim());
+        put(buffer, area, fx + 6, row, name, Style::new().fg(palette::text()));
+        put(buffer, area, fx + 15, row, &format!("{:02X}", registers[*n]), Style::new().fg(palette::text()));
+    }
+    put(buffer, area, 2, area.height.saturating_sub(1), "Bytes light up when the player writes a new value.", dim());
+}
+
+/// Whether a tab can show `chips` chips readably in this much room.
+fn every_chip_fits(tab: usize, chips: u16, width: u16, height: u16) -> bool {
+    if chips <= 1 {
+        return true;
+    }
+    match tab {
+        1 => width >= VOICE_LINES_WIDTH && height >= 1 + chips * 5 + (chips - 1) + 1,
+        2 => width / chips >= 24,
+        3 => height / chips >= 5,
+        _ => true,
+    }
+}
+
+/// The chip to show when only one fits.
+fn chosen_chip(state: &TrackerState) -> usize {
+    (state.chip as usize).min(state.chips() - 1)
+}
+
+/// What the waveform bits of a voice's control byte say: a word, or initials for a mix.
+fn wave_name(control: u8) -> String {
+    let on: Vec<(&str, &str)> = [("TRI", "T"), ("SAW", "S"), ("PUL", "P"), ("NOI", "N")].into_iter().enumerate().filter(|(bit, _)| control & (0x10 << bit) != 0).map(|(_, names)| names).collect();
+    match on.as_slice() {
+        [] => "—".to_string(),
+        [(word, _)] => (*word).to_string(),
+        many => many.iter().map(|(_, initial)| *initial).collect::<Vec<_>>().join("+"),
+    }
+}
+
+/// What the other bits say: words where they fit the column, else initials.
+fn bits_name(control: u8) -> String {
+    let on: Vec<&str> = ["GATE", "SYNC", "RING", "TEST"].into_iter().enumerate().filter(|(bit, _)| control & (1 << bit) != 0).map(|(_, name)| name).collect();
+    if on.is_empty() {
+        return "—".to_string();
+    }
+    let words = on.join(" ");
+    if words.len() <= 10 { words } else { on.iter().map(|name| &name[..1]).collect::<Vec<_>>().join(" ") }
+}
+
+/// A horizontal bar: `share` of it in `colour`, the rest faint.
+fn draw_bar(buffer: &mut ratatui::buffer::Buffer, area: Rect, x: u16, y: u16, width: u16, share: f32, colour: ratatui::style::Color) {
+    let filled = (share.clamp(0.0, 1.0) * f32::from(width)).round() as u16;
+    // Anything sounding at all shows.
+    let filled = if share > 0.0 { filled.max(1) } else { filled };
+    for at in 0..width {
+        let (mark, shade) = if at < filled { ("█", colour) } else { ("░", palette::faint()) };
+        put(buffer, area, x + at, y, mark, Style::new().fg(shade));
+    }
+}
+
+/// A chip's registers as a line per voice and one for the filter, with byte pairs joined.
+/// Shows every chip where they fit and the chosen one where they don't, with bars where
+/// there's room. Orange only ever means just written; a voice with its gate shut fades.
+fn draw_voice_lines(buffer: &mut ratatui::buffer::Buffer, state: &TrackerState, area: Rect) {
+    let Some(frame) = state.history.back() else { return };
+    let shown: Vec<usize> = if state.collapsed.get() { vec![chosen_chip(state)] } else { (0..state.chips()).collect() };
+    let bars = area.width >= VOICE_BARS_WIDTH;
+    // Where each column starts, with and without its bar.
+    let (level, freq, pw_bar, pw, wave, bits, ad, sr) = if bars { (14, 26, 33, 43, 49, 57, 68, 72) } else { (0, 14, 0, 21, 27, 35, 46, 50) };
+    let colours = VOICE_COLOURS();
+    let bold = Style::new().add_modifier(Modifier::BOLD);
+    let text = Style::new().fg(palette::text());
+    let lit = bold.fg(palette::accent());
+    put(buffer, area, 8, 0, "NOTE", dim());
+    if bars {
+        put(buffer, area, level, 0, "LEVEL", dim());
+        put(buffer, area, pw_bar, 0, "PULSE WIDTH", dim());
+    } else {
+        put(buffer, area, pw, 0, "PW", dim());
+    }
+    put(buffer, area, freq, 0, "FREQ", dim());
+    put(buffer, area, wave, 0, "WAVE", dim());
+    put(buffer, area, bits, 0, "BITS", dim());
+    put(buffer, area, ad, 0, "AD", dim());
+    put(buffer, area, sr, 0, "SR", dim());
+    let mut y = 1;
+    for &chip in &shown {
+        let base = chip * CHIP_REGISTERS;
+        let Some(registers) = frame.get(base..base + CHIP_REGISTERS) else { continue };
+        let changed = |n: &[usize]| n.iter().any(|n| state.lit(base + n));
+        if shown.len() > 1 {
+            put(buffer, area, 2, y, &format!("SID {}", chip + 1), bold.fg(palette::text()));
+            put(buffer, area, 8, y, &"─".repeat(sr as usize - 6), Style::new().fg(palette::faint()));
+            y += 1;
+        }
+        for v in 0..3usize {
+            let at = v * 7;
+            let control = registers[at + 4];
+            let open = control & 1 != 0;
+            let plain = if open { text } else { dim() };
+            let style = |n: &[usize]| if changed(n) { lit } else { plain };
+            put(buffer, area, 2, y, &format!("V{}", v + 1), if open { bold.fg(colours[v]) } else { dim() });
+            let note = state.position.all_notes.get(chip).or(Some(&state.position.notes)).and_then(|notes| notes.get(v)).cloned().flatten();
+            put(buffer, area, 8, y, note.as_deref().unwrap_or("—"), if note.is_some() { plain } else { Style::new().fg(palette::faint()) });
+            if bars {
+                let share = state.position.all_levels.get(chip).and_then(|levels| levels.get(v)).copied().unwrap_or(0.0);
+                draw_bar(buffer, area, level, y, 10, share, if open { colours[v] } else { palette::muted() });
+                let width = (u16::from(registers[at + 3] & 0x0F) << 8 | u16::from(registers[at + 2])) as f32 / 4095.0;
+                // A pulse width means nothing to a voice not on a pulse wave.
+                draw_bar(buffer, area, pw_bar, y, 8, width, if open && control & 0x40 != 0 { colours[v] } else { palette::muted() });
+            }
+            put(buffer, area, freq, y, &format!("{:02X}{:02X}", registers[at + 1], registers[at]), style(&[at, at + 1]));
+            put(buffer, area, pw, y, &format!("{:X}{:02X}", registers[at + 3] & 0x0F, registers[at + 2]), style(&[at + 2, at + 3]));
+            let quiet = Style::new().fg(palette::faint());
+            let wave_now = wave_name(control);
+            put(buffer, area, wave, y, &wave_now, if wave_now == "—" { quiet } else { style(&[at + 4]) });
+            let bits_now = bits_name(control);
+            put(buffer, area, bits, y, &bits_now, if bits_now == "—" { quiet } else if open { text.add_modifier(Modifier::BOLD) } else { dim() });
+            put(buffer, area, ad, y, &format!("{:02X}", registers[at + 5]), style(&[at + 5]));
+            put(buffer, area, sr, y, &format!("{:02X}", registers[at + 6]), style(&[at + 6]));
+            y += 1;
+        }
+        let cutoff = u16::from(registers[0x16]) << 3 | u16::from(registers[0x15] & 7);
+        let routed: Vec<String> = (0..3).filter(|v| registers[0x17] & (1 << v) != 0).map(|v| format!("V{}", v + 1)).collect();
+        let through = if routed.is_empty() { "—".to_string() } else { routed.join(" ") };
+        let modes: Vec<&str> = [("LP", 0x10), ("BP", 0x20), ("HP", 0x40)].into_iter().filter(|(_, bit)| registers[0x18] & bit != 0).map(|(name, _)| name).collect();
+        let style = |n: &[usize]| if changed(n) { lit } else { text };
+        put(buffer, area, 2, y, "FILT", bold.fg(palette::violet()));
+        let mut x = 8;
+        if bars {
+            put(buffer, area, 8, y, &modes.join("+"), style(&[0x18]));
+            // Registers can hold old values with no voice going through the filter.
+            draw_bar(buffer, area, level, y, 10, f32::from(cutoff) / 2047.0, if routed.is_empty() { palette::muted() } else { palette::violet() });
+            put(buffer, area, freq, y, &format!("{cutoff:03X}"), style(&[0x15, 0x16]));
+            put(buffer, area, freq + 4, y, "cutoff", dim());
+            x = freq + 12;
+        }
+        let mut write = |label: &str, value: String, style: Style| {
+            if !label.is_empty() {
+                put(buffer, area, x, y, label, dim());
+                x += label.chars().count() as u16 + 1;
+            }
+            put(buffer, area, x, y, &value, style);
+            x += value.chars().count() as u16 + 2;
+        };
+        if !bars {
+            write("cutoff", format!("{cutoff:03X}"), style(&[0x15, 0x16]));
+        }
+        write("res", format!("{:X}", registers[0x17] >> 4), style(&[0x17]));
+        write("through", through, style(&[0x17]));
+        if !bars && !modes.is_empty() {
+            write("", modes.join("+"), style(&[0x18]));
+        }
+        write("vol", format!("{:X}", registers[0x18] & 0x0F), style(&[0x18]));
+        write("osc3", format!("{:02X}", registers[0x1B]), text);
+        write("env3", format!("{:02X}", registers[0x1C]), text);
+        y += 2;
+    }
+    put(buffer, area, 2, area.height.saturating_sub(1), "Orange: just written. Faded: gate shut. FREQ and PW join two bytes each.", dim());
+}
+
+/// A frame for each of `columns` columns, ending now, at no more than two frames a column.
+fn frames_across(history: &std::collections::VecDeque<Vec<u8>>, columns: usize) -> Vec<&[u8]> {
+    if history.is_empty() || columns == 0 {
+        return Vec::new();
+    }
+    let shown = history.len().min(columns.saturating_mul(2).max(1).min(history.len()));
+    let first = history.len() - shown;
+    (0..columns)
+        .filter_map(|c| {
+            let at = first + c * shown / columns;
+            let frame = history.get(at).map(Vec::as_slice)?;
+            (frame.len() >= 29).then_some(frame)
+        })
+        .collect()
+}
+
+/// `frames_across`, for one chip.
+fn chip_frames(history: &std::collections::VecDeque<Vec<u8>>, columns: usize, chip: usize) -> Vec<&[u8]> {
+    let base = chip * CHIP_REGISTERS;
+    frames_across(history, columns).into_iter().filter_map(|frame| frame.get(base..base + CHIP_REGISTERS)).collect()
+}
+
+/// A strip of block characters `rows` tall, with values 0–1 across it.
+fn draw_strip(buffer: &mut ratatui::buffer::Buffer, area: Rect, x: u16, y: u16, rows: u16, values: &[f32], colour: ratatui::style::Color) {
+    const BLOCKS: [&str; 9] = [" ", "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
+    for (c, value) in values.iter().enumerate() {
+        let eighths = (value.clamp(0.0, 1.0) * f32::from(rows) * 8.0).round() as u16;
+        for r in 0..rows {
+            let level = eighths.saturating_sub(r * 8).min(8) as usize;
+            if level > 0 {
+                put(buffer, area, x + c as u16, y + rows - 1 - r, BLOCKS[level], Style::new().fg(colour));
+            }
+        }
+    }
+}
+
+/// Pulse width, the filter and the gates over the last few seconds.
+fn draw_sweeps(buffer: &mut ratatui::buffer::Buffer, app: &App, area: Rect) {
+    let state = &app.tracker;
+    let chips = state.chips() as u16;
+    if state.collapsed.get() || chips == 1 {
+        return draw_sweeps_of(buffer, state, area, chosen_chip(state), 1);
+    }
+    let width = area.width / chips;
+    for chip in 0..chips {
+        draw_sweeps_of(buffer, state, Rect::new(area.x + chip * width, area.y, width.saturating_sub(1), area.height), chip as usize, chips);
+    }
+}
+
+/// One chip's sweeps. Beside other chips, the labels get shorter.
+fn draw_sweeps_of(buffer: &mut ratatui::buffer::Buffer, state: &TrackerState, area: Rect, chip: usize, chips: u16) {
+    let beside = chips > 1;
+    // Beside other chips, a column's edge is margin enough.
+    let columns = area.width.saturating_sub(if beside { 6 } else { 10 }) as usize;
+    let frames = chip_frames(&state.history, columns, chip);
+    let Some(latest) = frames.last() else { return draw_nothing_yet(buffer, area) };
+    // The first voice on a pulse wave, as a pulse width means nothing to the others.
+    let voice = (0..3).find(|v| latest[v * 7 + 4] & 0x40 != 0);
+    let strip_rows = (area.height.saturating_sub(if beside { 6 } else { 5 }) / 3).saturating_sub(1).clamp(1, 12);
+    let label = Style::new().add_modifier(Modifier::BOLD);
+    let mut y = 0;
+    if beside {
+        put(buffer, area, 2, 0, &format!("SID {}", chip + 1), label.fg(palette::text()));
+        y = 1;
+    }
+    let colours = VOICE_COLOURS();
+    let v = voice.unwrap_or(0);
+    let pulse_width = |frame: &[u8]| (u16::from(frame[v * 7 + 3] & 0x0F) << 8 | u16::from(frame[v * 7 + 2])) as f32 / 4095.0;
+    let pw_now = u16::from(latest[v * 7 + 3] & 0x0F) << 8 | u16::from(latest[v * 7 + 2]);
+    let pw_name = match (voice.is_some(), beside) {
+        (true, false) => format!("PULSE WIDTH V{}  {pw_now:03X}", v + 1),
+        (false, false) => "PULSE WIDTH  no voice on a pulse wave now".to_string(),
+        (true, true) => format!("PULSE V{} {pw_now:03X}", v + 1),
+        (false, true) => "PULSE none".to_string(),
+    };
+    put(buffer, area, 2, y, &pw_name, label.fg(colours[v]));
+    let values: Vec<f32> = frames.iter().map(|f| pulse_width(f)).collect();
+    draw_strip(buffer, area, 2, y + 1, strip_rows, &values, colours[v]);
+    y += strip_rows + 1;
+
+    let cutoff = |frame: &[u8]| u16::from(frame[0x16]) << 3 | u16::from(frame[0x15] & 7);
+    // Registers can hold old values with no voice going through the filter.
+    let filtering = frames.iter().any(|f| f[0x17] & 7 != 0);
+    let unused = if filtering { "" } else { "  not in use" };
+    let name = if beside { "CUTOFF " } else { "FILTER CUTOFF  " };
+    put(buffer, area, 2, y, &format!("{name}{:03X}{unused}", cutoff(latest)), label.fg(palette::violet()));
+    let values: Vec<f32> = frames.iter().map(|f| f32::from(cutoff(f)) / 2047.0).collect();
+    draw_strip(buffer, area, 2, y + 1, strip_rows, &values, palette::violet());
+    y += strip_rows + 1;
+
+    let name = if beside { "RES " } else { "RESONANCE  " };
+    put(buffer, area, 2, y, &format!("{name}{:X}{unused}", latest[0x17] >> 4), label.fg(palette::violet()));
+    let values: Vec<f32> = frames.iter().map(|f| f32::from(f[0x17] >> 4) / 15.0).collect();
+    draw_strip(buffer, area, 2, y + 1, strip_rows, &values, palette::violet());
+    y += strip_rows + 1;
+
+    put(buffer, area, 2, y, "GATES", label);
+    for voice in 0..3u16 {
+        let colour = colours[voice as usize];
+        let row = y + 1 + voice;
+        put(buffer, area, 2, row, &format!("V{}", voice + 1), Style::new().fg(colour));
+        for (c, frame) in frames.iter().enumerate() {
+            let open = frame[voice as usize * 7 + 4] & 1 == 1;
+            let (mark, style) = if open { ("━", Style::new().fg(colour)) } else { ("─", Style::new().fg(palette::faint())) };
+            put(buffer, area, 6 + c as u16, row, mark, style);
+        }
+    }
+}
+
+/// Where each voice's pitch has been: time across, notes up.
+fn draw_pitch(buffer: &mut ratatui::buffer::Buffer, app: &App, area: Rect) {
+    let state = &app.tracker;
+    let chips = state.chips() as u16;
+    if state.collapsed.get() || chips == 1 {
+        return draw_pitch_of(buffer, state, area, chosen_chip(state), 1);
+    }
+    let height = area.height / chips;
+    for chip in 0..chips {
+        draw_pitch_of(buffer, state, Rect::new(area.x, area.y + chip * height, area.width, height), chip as usize, chips);
+    }
+}
+
+/// One chip's trail. Sharing the height with other chips, it names itself and packs its labels.
+fn draw_pitch_of(buffer: &mut ratatui::buffer::Buffer, state: &TrackerState, area: Rect, chip: usize, chips: u16) {
+    let width = area.width.saturating_sub(16) as usize;
+    let frames = chip_frames(&state.history, width, chip);
+    if frames.is_empty() || area.height < 3 {
+        return draw_nothing_yet(buffer, area);
+    }
+    let beside = chips > 1;
+    let rows = area.height.saturating_sub(1);
+    let (low, high) = (24.0f64, 96.0f64);
+    let row_of = |midi: f64| -> Option<u16> {
+        let share = (midi - low) / (high - low);
+        (0.0..=1.0).contains(&share).then(|| rows - 1 - ((share * f64::from(rows - 1)).round() as u16))
+    };
+    for octave in (24..=96).step_by(if rows < 13 { 24 } else { 12 }) {
+        if let Some(y) = row_of(f64::from(octave)) {
+            put(buffer, area, 2, y, &format!("C{}", octave / 12 - 1), dim());
+            for x in 6..(6 + width as u16) {
+                put(buffer, area, x, y, "·", Style::new().fg(palette::faint()));
+            }
+        }
+    }
+    let clock = state.clock();
+    let colours = VOICE_COLOURS();
+    for voice in 0..3usize {
+        for (c, frame) in frames.iter().enumerate() {
+            let registers = &frame[voice * 7..voice * 7 + 7];
+            let freq = u16::from_le_bytes([registers[0], registers[1]]);
+            if registers[4] & 1 == 0 || freq == 0 {
+                continue;
+            }
+            let midi = 69.0 + 12.0 * (f64::from(freq) * clock / 16_777_216.0 / 440.0).log2();
+            if let Some(y) = row_of(midi) {
+                put(buffer, area, 6 + c as u16, y, "━", Style::new().fg(colours[voice]));
+            }
+        }
+        let notes = state.position.all_notes.get(chip).unwrap_or(&state.position.notes);
+        let note = notes.get(voice).cloned().flatten().unwrap_or_else(|| "—".into());
+        let x = 7 + width as u16;
+        let y = if beside { voice as u16 + 1 } else { voice as u16 * 2 };
+        put(buffer, area, x, y, &format!("V{}", voice + 1), Style::new().fg(colours[voice]).add_modifier(Modifier::BOLD));
+        put(buffer, area, x + 3, y, &note, Style::new().fg(palette::text()));
+    }
+    if beside {
+        put(buffer, area, 7 + width as u16, 0, &format!("SID {}", chip + 1), Style::new().fg(palette::text()).add_modifier(Modifier::BOLD));
     }
 }
 
@@ -2347,9 +2856,6 @@ fn draw_tracker_panel(buffer: &mut ratatui::buffer::Buffer, area: Rect, song: &T
         notes.push("No steady beat found, so the rows are only a ruler.".to_string());
     }
     notes.push("Rebuilt from what the player writes to the chip, as .sid files hold code, not patterns.".to_string());
-    if song.chips > 1 {
-        notes.push(format!("Showing SID 1 of {}.", song.chips));
-    }
     if looking {
         notes.push("Looking around: f follows the music again.".to_string());
     }
@@ -2595,7 +3101,15 @@ fn bar_keys(app: &App) -> Vec<(&'static str, &'static str)> {
         return vec![("↑ ↓", "read"), ("esc", "close")];
     }
     if matches!(app.mode, Mode::Drawer(_) | Mode::DrawerClosing(_)) {
-        return vec![(scheme.choose("↑ ↓", "j k", "⌃N ⌃P"), "look around"), ("f", "follow"), ("p", "pause"), (". ,", "next, previous"), ("esc", "close"), ("q", "quit")];
+        let mut keys = if app.tracker.tab == 0 {
+            vec![("tab", "next view"), (scheme.choose("↑ ↓", "j k", "⌃N ⌃P"), "look around"), ("f", "follow"), ("p", "pause"), (". ,", "next, previous"), ("esc", "close"), ("q", "quit")]
+        } else {
+            vec![("tab", "next view"), ("p", "pause"), (". ,", "next, previous"), ("esc", "close"), ("q", "quit")]
+        };
+        if app.tracker.position.chips > 1 && app.tracker.one_chip_shows() {
+            keys.insert(1, ("s", "next SID"));
+        }
+        return keys;
     }
     if app.focus == Focus::List {
         match app.view {
@@ -2850,7 +3364,7 @@ fn event_loop(
         if app.wants_position() && !position_pending && now.duration_since(last_position) >= POSITION_EVERY {
             last_position = now;
             position_pending = true;
-            let _ = fast.tx.send(Request { tag: Tag::TrackerPosition, cmd: "tracker.position", args: json!({}) });
+            let _ = fast.tx.send(Request { tag: Tag::TrackerPosition, cmd: "tracker.position", args: app.position_args() });
         }
         let playing = app.status.as_ref().is_some_and(|s| s.state == "playing");
         if playing && !scope_pending && now.duration_since(last_scope) >= SCOPE_EVERY {
@@ -4379,7 +4893,7 @@ mod tests {
 
     fn tracker_song() -> Value {
         json!({
-            "path": "/A.sid", "song": 1, "frameRate": 50.0, "framesPerRow": 6.0, "hasGrid": true, "chips": 1,
+            "path": "/A.sid", "song": 1, "chip": 0, "frameRate": 50.0, "framesPerRow": 6.0, "hasGrid": true, "chips": 1,
             "instruments": [{ "name": "Saw", "ad": 9, "sr": 169 }, { "name": "Noise › Pulse", "ad": 10, "sr": 9 }],
             "rows": (0..200).map(|n| json!({
                 "f": n * 6,
@@ -4474,6 +4988,292 @@ mod tests {
                 let _ = screen_of(&app, w, h);
                 app.mode = Mode::DrawerClosing(start);
                 let _ = screen_of(&app, w, h);
+            }
+        }
+    }
+
+    fn frame_hex(i: u64, set: &[(usize, u8)]) -> Value {
+        let mut registers = [0u8; 29];
+        for (n, value) in set {
+            registers[*n] = *value;
+        }
+        json!({ "i": i, "r": registers.iter().map(|b| format!("{b:02X}")).collect::<String>() })
+    }
+
+    fn drawer_with_frames() -> App {
+        let mut app = drawer_app();
+        let frames: Vec<Value> = (1..=200u64).map(|i| frame_hex(i, &[(0, 0x67), (1, 0x11), (2, (i % 200) as u8), (3, 8), (4, 0x41), (0x12, 0x81), (0x16, (i / 2) as u8), (0x17, 0x73), (0x18, 0x1F)])).collect();
+        app.reply(Tag::TrackerPosition, Ok(json!({ "path": "/A.sid", "song": 1, "heard": 4.0, "chips": 1, "levels": [0.9, 0.0, 0.2], "notes": ["C-4", null, "D-3"], "frames": frames })));
+        app
+    }
+
+    #[test]
+    fn tab_steps_through_the_drawer_and_comes_round() {
+        let mut app = drawer_app();
+        for expected in [1, 2, 3, 0] {
+            press(&mut app, KeyCode::Tab);
+            assert_eq!(app.tracker.tab, expected);
+            assert!(matches!(app.mode, Mode::Drawer(_)));
+        }
+        assert!(screen_of(&app, 160, 40).contains("Registers"));
+    }
+
+    #[test]
+    fn registers_decode_the_control_byte_and_light_what_changed() {
+        let mut app = drawer_with_frames();
+        app.tracker.tab = 1;
+        let shown = screen_of(&app, 160, 40);
+        for expected in ["VOICE 1", "VOICE 3", "$D404", "CTRL", "41", "GATE", "PUL", "NOI", "FILTER", "$D417", "RES/ROUT", "73", "ENV 3"] {
+            assert!(shown.contains(expected), "missing {expected}\n{shown}");
+        }
+        assert!(app.tracker.lit(2), "pulse width low changes every frame");
+        assert!(!app.tracker.lit(0), "frequency hasn't changed");
+    }
+
+    #[test]
+    fn sweeps_draw_the_voice_on_a_pulse_wave_and_the_gates() {
+        let mut app = drawer_with_frames();
+        app.tracker.tab = 2;
+        let shown = screen_of(&app, 160, 40);
+        for expected in ["PULSE WIDTH V1", "FILTER CUTOFF", "RESONANCE  7", "GATES", "━"] {
+            assert!(shown.contains(expected), "missing {expected}\n{shown}");
+        }
+    }
+
+    #[test]
+    fn pitch_shows_octaves_voices_and_the_note_now() {
+        let mut app = drawer_with_frames();
+        app.tracker.tab = 3;
+        let shown = screen_of(&app, 160, 40);
+        for expected in ["C4", "C1", "V1 C-4", "V2 —", "━"] {
+            assert!(shown.contains(expected), "missing {expected}\n{shown}");
+        }
+    }
+
+    #[test]
+    fn frames_are_kept_once_and_a_rewind_starts_over() {
+        let mut app = drawer_with_frames();
+        assert_eq!(app.tracker.history.len(), 200);
+        app.reply(Tag::TrackerPosition, Ok(json!({ "path": "/A.sid", "song": 1, "frames": [frame_hex(200, &[]), frame_hex(201, &[])] })));
+        assert_eq!(app.tracker.history.len(), 201);
+        app.reply(Tag::TrackerPosition, Ok(json!({ "path": "/A.sid", "song": 1, "frames": [frame_hex(3, &[])] })));
+        assert_eq!(app.tracker.history.len(), 1);
+    }
+
+    #[test]
+    fn answers_that_overlap_build_up_the_history() {
+        let mut app = drawer_app();
+        app.tracker.history.clear();
+        app.tracker.last_frame = None;
+        // Each answer is the last eight frames, moving on by a few, as the app sends them.
+        for end in (8..=400u64).step_by(3) {
+            let frames: Vec<Value> = (end - 7..=end).map(|i| frame_hex(i, &[(2, (i / 40) as u8)])).collect();
+            app.reply(Tag::TrackerPosition, Ok(json!({ "path": "/A.sid", "song": 1, "frames": frames })));
+        }
+        assert_eq!(app.tracker.history.len(), 398, "every frame, once");
+        // The value next changes on frame 400.
+        assert!(!app.tracker.lit(2));
+        let changed: Vec<Value> = (399..=402u64).map(|i| frame_hex(i, &[(2, (i / 40) as u8)])).collect();
+        app.reply(Tag::TrackerPosition, Ok(json!({ "path": "/A.sid", "song": 1, "frames": changed })));
+        assert!(app.tracker.lit(2));
+        let later: Vec<Value> = (403..=420u64).map(|i| frame_hex(i, &[(2, 10)])).collect();
+        app.reply(Tag::TrackerPosition, Ok(json!({ "path": "/A.sid", "song": 1, "frames": later })));
+        assert!(!app.tracker.lit(2), "goes out once it stops changing");
+    }
+
+    #[test]
+    fn the_first_ask_wants_all_the_history_and_later_ones_only_whats_new() {
+        let mut app = drawer_app();
+        app.tracker.history.clear();
+        assert_eq!(app.position_args()["count"], DRAWER_HISTORY);
+        let mut app = drawer_with_frames();
+        assert_eq!(app.position_args()["count"], 8);
+        app.tracker.chip = 1;
+        assert_eq!(app.position_args()["chip"], 1);
+    }
+
+    #[test]
+    fn a_multi_sid_tune_switches_chip_and_rebuilds() {
+        let mut app = drawer_with_frames();
+        // One chip: nothing to switch to.
+        press(&mut app, KeyCode::Char('2'));
+        assert_eq!(app.tracker.chip, 0);
+        app.reply(Tag::TrackerPosition, Ok(json!({ "path": "/A.sid", "song": 1, "chips": 2, "frames": [] })));
+        assert!(screen_of(&app, 160, 40).contains("SID 1 of 2, s to switch"));
+        assert!(screen_of(&app, 160, 40).contains("s next SID"));
+        app.outbox.clear();
+        press(&mut app, KeyCode::Char('2'));
+        assert_eq!(app.tracker.chip, 1);
+        assert_eq!(app.tracker.history.len(), 200, "the frames hold every chip, so they stay");
+        app.reply(Tag::TrackerPosition, Ok(json!({ "path": "/A.sid", "song": 1, "chip": 1, "chips": 2, "frames": [] })));
+        let asked = app.outbox.iter().find(|r| r.cmd == "tracker.song").unwrap();
+        assert_eq!(asked.args["chip"], 1);
+    }
+
+    #[test]
+    fn chips_switch_by_number_or_s_in_every_key_set() {
+        for scheme in [KeyScheme::Normal, KeyScheme::Vim, KeyScheme::Emacs] {
+            let mut app = app_with(scheme);
+            press(&mut app, KeyCode::Char('u'));
+            app.tracker.position.chips = 2;
+            press(&mut app, KeyCode::Char('2'));
+            assert_eq!(app.tracker.chip, 1, "{scheme:?}");
+            press(&mut app, KeyCode::Char('1'));
+            assert_eq!(app.tracker.chip, 0, "{scheme:?}");
+            press(&mut app, KeyCode::Char('s'));
+            assert_eq!(app.tracker.chip, 1, "{scheme:?}");
+            press(&mut app, KeyCode::Char('s'));
+            assert_eq!(app.tracker.chip, 0, "{scheme:?}");
+            assert!(matches!(app.mode, Mode::Drawer(_)), "{scheme:?}");
+        }
+    }
+
+    #[test]
+    fn an_answer_about_the_old_chip_keeps_its_frames_but_not_its_notes() {
+        let mut app = drawer_with_frames();
+        app.tracker.position.chips = 2;
+        press(&mut app, KeyCode::Char('2'));
+        app.reply(Tag::TrackerPosition, Ok(json!({ "path": "/A.sid", "song": 1, "chip": 0, "chips": 2, "notes": ["F-1"], "frames": [frame_hex(500, &[])] })));
+        assert_eq!(app.tracker.last_frame, Some(500));
+        assert_ne!(app.tracker.position.notes.first().cloned().flatten().as_deref(), Some("F-1"));
+    }
+
+    /// Two chips playing different things: the second's filter and first voice stand apart.
+    fn drawer_with_two_chips() -> App {
+        let mut app = drawer_app();
+        let frames: Vec<Value> = (1..=200u64)
+            .map(|i| {
+                let mut hex = String::new();
+                for chip in 0..2u8 {
+                    let mut registers = [0u8; 29];
+                    registers[0] = 0x67;
+                    registers[1] = 0x11;
+                    registers[4] = if chip == 0 { 0x41 } else { 0x21 };
+                    registers[2] = if chip == 0 { i as u8 } else { 5 };
+                    registers[0x17] = if chip == 0 { 0x71 } else { 0x92 };
+                    registers.iter().for_each(|b| hex.push_str(&format!("{b:02X}")));
+                }
+                json!({ "i": i, "r": hex })
+            })
+            .collect();
+        app.reply(Tag::TrackerPosition, Ok(json!({ "path": "/A.sid", "song": 1, "chips": 2, "notes": ["C-4", null, null], "allNotes": [["C-4", null, null], ["G-2", null, null]], "allLevels": [[1.0, 0.0, 0.0], [0.5, 0.0, 0.0]], "frames": frames })));
+        app
+    }
+
+    #[test]
+    fn voice_lines_show_every_chip_and_light_each_on_its_own() {
+        let mut app = drawer_with_two_chips();
+        app.tracker.tab = 1;
+        assert!(app.tracker.lit(2), "the first chip's pulse width moves");
+        assert!(!app.tracker.lit(CHIP_REGISTERS + 2), "the second's doesn't");
+        let shown = screen_of(&app, 160, 40);
+        for expected in ["SID 1", "SID 2", "NOTE", "FREQ", "1167", "PUL", "SAW", "C-4", "G-2", "cutoff", "res 7", "res 9", "through V1", "osc3", "env3"] {
+            assert!(shown.contains(expected), "missing {expected}\n{shown}");
+        }
+    }
+
+    #[test]
+    fn bars_show_only_where_there_is_room_for_them() {
+        let mut app = drawer_with_two_chips();
+        app.tracker.tab = 1;
+        let wide = screen_of(&app, 120, 40);
+        for expected in ["LEVEL", "PULSE WIDTH", "██████████", "cutoff", "res 7", "env3"] {
+            assert!(wide.contains(expected), "missing {expected}\n{wide}");
+        }
+        let plain = screen_of(&app, 80, 40);
+        for missing in ["LEVEL", "PULSE WIDTH", "█"] {
+            assert!(!plain.contains(missing), "{missing} shouldn't show\n{plain}");
+        }
+        assert!(plain.contains("cutoff 000"), "{plain}");
+    }
+
+    #[test]
+    fn with_no_room_it_collapses_to_the_chosen_chip_and_can_switch() {
+        for (tab, w, h) in [(1, 50, 40), (1, 160, 16), (2, 40, 40), (3, 160, 14)] {
+            let mut app = drawer_with_two_chips();
+            app.tracker.tab = tab;
+            let shown = screen_of(&app, w, h);
+            assert!(!shown.contains("SID 2 ") || shown.contains("SID 1 of 2"), "tab {tab} at {w}x{h}\n{shown}");
+            assert!(app.tracker.collapsed.get(), "tab {tab} at {w}x{h}");
+            press(&mut app, KeyCode::Char('s'));
+            assert_eq!(app.tracker.chip, 1, "tab {tab} at {w}x{h}");
+            let switched = screen_of(&app, w, h);
+            assert!(switched.contains("SID 2 of 2, s to switch"), "tab {tab} at {w}x{h}\n{switched}");
+            assert!(switched.contains("Pitch"), "every tab's name fits, tab {tab} at {w}x{h}\n{switched}");
+            assert!(!screen_of(&app, 160, 40).contains("s to switch"), "back to every chip, tab {tab}");
+            assert_eq!(app.tracker.chip, 1, "the choice stays for next time");
+        }
+    }
+
+    #[test]
+    fn a_collapsed_tab_shows_the_notes_and_filter_of_the_chosen_chip() {
+        let mut app = drawer_with_two_chips();
+        app.tracker.tab = 1;
+        app.tracker.chip = 1;
+        let shown = screen_of(&app, 60, 40);
+        assert!(shown.contains("G-2") && shown.contains("res 9"), "{shown}");
+        assert!(!shown.contains("C-4") && !shown.contains("res 7"), "{shown}");
+    }
+
+    #[test]
+    fn control_bytes_read_as_words() {
+        assert_eq!(wave_name(0), "—");
+        assert_eq!(wave_name(0x40), "PUL");
+        assert_eq!(wave_name(0x50), "T+P");
+        assert_eq!(bits_name(0x10), "—");
+        assert_eq!(bits_name(1), "GATE");
+        assert_eq!(bits_name(3), "GATE SYNC");
+        assert_eq!(bits_name(7), "G S R");
+    }
+
+    #[test]
+    fn sweeps_and_pitch_show_every_chip() {
+        let mut app = drawer_with_two_chips();
+        app.tracker.tab = 2;
+        let sweeps = screen_of(&app, 120, 40);
+        for expected in ["SID 1", "SID 2", "PULSE V1", "PULSE none", "CUTOFF", "RES 7", "RES 9", "GATES"] {
+            assert!(sweeps.contains(expected), "missing {expected}\n{sweeps}");
+        }
+        app.tracker.tab = 3;
+        let pitch = screen_of(&app, 120, 40);
+        for expected in ["SID 1", "SID 2", "V1 C-4", "V1 G-2"] {
+            assert!(pitch.contains(expected), "missing {expected}\n{pitch}");
+        }
+    }
+
+    #[test]
+    fn chips_switch_only_where_one_chip_shows() {
+        let mut app = drawer_with_two_chips();
+        app.tracker.tab = 2;
+        assert!(!screen_of(&app, 160, 40).contains("s to switch"));
+        press(&mut app, KeyCode::Char('s'));
+        assert_eq!(app.tracker.chip, 0);
+        app.tracker.tab = 0;
+        assert!(screen_of(&app, 160, 40).contains("s to switch"));
+        press(&mut app, KeyCode::Char('s'));
+        assert_eq!(app.tracker.chip, 1);
+    }
+
+    #[test]
+    fn another_number_of_chips_starts_over() {
+        let mut app = drawer_with_two_chips();
+        app.reply(Tag::TrackerPosition, Ok(json!({ "path": "/B.sid", "song": 1, "chips": 1, "frames": [frame_hex(201, &[])] })));
+        assert_eq!(app.tracker.history.len(), 1);
+        assert_eq!(app.tracker.chips(), 1);
+    }
+
+    #[test]
+    fn every_tab_draws_at_every_size_with_and_without_frames() {
+        for (w, h) in [(5, 3), (20, 8), (30, 12), (60, 24), (84, 24), (120, 30), (240, 90)] {
+            for tab in 0..DRAWER_TABS.len() {
+                for frames in [false, true] {
+                    let mut app = if frames { drawer_with_frames() } else { drawer_app() };
+                    app.tracker.tab = tab;
+                    let _ = screen_of(&app, w, h);
+                    let mut two = drawer_with_two_chips();
+                    two.tracker.tab = tab;
+                    let _ = screen_of(&two, w, h);
+                }
             }
         }
     }

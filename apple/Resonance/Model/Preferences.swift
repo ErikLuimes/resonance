@@ -30,6 +30,7 @@ nonisolated enum Pref {
     static let menuBarPlayer = "menuBarPlayer"
     /// Normal, Vim or Emacs keys (`KeyScheme`).
     static let keyScheme = "keyScheme"
+    static let underTheHoodTab = "underTheHoodTab"
     /// The welcome steps already been through.
     static let onboardingSeen = "onboardingSeen"
 #if CSDB

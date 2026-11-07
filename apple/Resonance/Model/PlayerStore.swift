@@ -179,6 +179,13 @@ final class PlayerStore {
         isShowingNowPlaying.toggle()
     }
 
+    /// Under the hood: the drawer that slides up over the list.
+    var isShowingUnderTheHood = false
+
+    func toggleUnderTheHood() {
+        isShowingUnderTheHood.toggle()
+    }
+
     /// The keyboard help panel over the main window, and its selected row.
     var isShowingKeyHelp = false
     var keyHelpSelection = KeyAction.playPause

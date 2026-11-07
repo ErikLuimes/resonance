@@ -52,6 +52,12 @@ and vibrato, and the filter. A `.sid` file holds code rather than patterns, so a
 rebuilt by running the tune once, which takes a second or two. Some tunes have no steady beat,
 and it says so. `↑ ↓` looks around, `f` follows the music again, and `esc` closes it.
 
+`tab` steps on to Registers, where bytes light up as the player writes them; Sweeps, with pulse
+width, the filter and gates over the last few seconds; and Pitch, where each voice has been. These
+three show every SID of a tune with more than one where there's room. The tracker, and these three
+in a small terminal, show one at a time: `s` steps through them, or `1`, `2` and `3` go straight to
+one.
+
 ### Describe
 
 The Describe row in the sidebar makes a Smart Playlist from a sentence, or from New to Me,

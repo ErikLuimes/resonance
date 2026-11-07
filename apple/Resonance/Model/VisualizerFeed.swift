@@ -22,6 +22,9 @@ nonisolated struct VisualizerFeed {
         frames.read { core.vizLatest() }
     }
 
+    /// How far into the subtune what's being heard is, in seconds.
+    var heardSecs: Double? { core.vizHeardSecs() }
+
     /// Up to `count` frames (about 10 s at most), oldest first, ending with
     /// the one being heard now.
     func history(_ count: Int) -> [VizSidFrame] {

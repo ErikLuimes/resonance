@@ -118,6 +118,7 @@ enum AppKeys {
                 Task { await library.surpriseMe() }
             }
         case .nowPlaying: store.toggleNowPlaying()
+        case .underTheHood: store.toggleUnderTheHood()
         case .search: store.focusSearch()
         case .addFiles: store.isImporting = true
         case .settings: openSettings()
@@ -130,6 +131,8 @@ enum AppKeys {
                 store.isShowingKeyHelp = false
             } else if store.isShowingNowPlaying {
                 store.isShowingNowPlaying = false
+            } else if store.isShowingUnderTheHood {
+                store.isShowingUnderTheHood = false
             } else {
                 return false
             }

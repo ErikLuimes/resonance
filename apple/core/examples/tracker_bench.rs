@@ -4,11 +4,12 @@
 //!
 //!     cargo run --release -p phosphor-apple --example tracker_bench -- sample <hvsc root> [count]
 //!     cargo run --release -p phosphor-apple --example tracker_bench -- show <file> [subtune] [first row]
+//!     cargo run --release -p phosphor-apple --example tracker_bench -- chips <file> [subtune]
 
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use phosphor_apple::{tracker_song, TrackerEffect, TrackerSong};
+use phosphor_apple::{chip_agreement, tracker_song, TrackerEffect, TrackerSong};
 
 const SECONDS: f64 = 120.0;
 
@@ -62,10 +63,32 @@ fn show(path: &str, subtune: u16, first: usize) {
     }
 }
 
+/// How much a multi-SID tune's chips differ, by what notes they start.
+fn chips(path: &str, subtune: u16) {
+    let data = std::fs::read(path).unwrap();
+    let first = tracker_song(&data, subtune, SECONDS, 0, &|| false).unwrap().unwrap();
+    println!("{path}: {} chips, {} rows", first.chips, first.rows.len());
+    for chip in 1..first.chips as usize {
+        let other = tracker_song(&data, subtune, SECONDS, chip, &|| false).unwrap().unwrap();
+        let rows = first.rows.len().min(other.rows.len());
+        for v in 0..3 {
+            let notes = |song: &TrackerSong| song.rows.iter().filter(|r| r.voices[v].note.is_some()).count();
+            let same = (0..rows).filter(|&n| first.rows[n].voices[v].note.is_some() && first.rows[n].voices[v].note == other.rows[n].voices[v].note).count();
+            println!("  SID {} V{}: {} notes against SID 1's {}, {same} the same on the same row", chip + 1, v + 1, notes(&other), notes(&first));
+        }
+        let (voices, filter) = chip_agreement(&data, subtune, SECONDS, 0, chip).unwrap();
+        for (v, [freq, pulse, gate]) in voices.iter().enumerate() {
+            println!("  V{}: same frequency {:.0}% of frames, pulse width {:.0}%, gate {:.0}%", v + 1, freq * 100.0, pulse * 100.0, gate * 100.0);
+        }
+        println!("  filter: same cutoff {:.0}%, resonance {:.0}%", filter[0] * 100.0, filter[1] * 100.0);
+    }
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
         Some("show") => show(&args[1], args.get(2).and_then(|a| a.parse().ok()).unwrap_or(1), args.get(3).and_then(|a| a.parse().ok()).unwrap_or(0)),
+        Some("chips") => chips(&args[1], args.get(2).and_then(|a| a.parse().ok()).unwrap_or(1)),
         Some("sample") => {
             let mut all = Vec::new();
             walk(Path::new(&args[1]), &mut all);

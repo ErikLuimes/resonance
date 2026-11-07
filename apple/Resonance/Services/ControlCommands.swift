@@ -35,6 +35,7 @@ final class ControlCommands {
         var play: Bool?
         var count: Int?
         var detail: Bool?
+        var chip: Int?
     }
 
     struct Failure: Error {
@@ -149,6 +150,7 @@ final class ControlCommands {
 
         let path: String
         let song: Int
+        let chip: Int
         let frameRate: Double
         let framesPerRow: Float
         let hasGrid: Bool
@@ -161,9 +163,21 @@ final class ControlCommands {
     struct TrackerPosition: Encodable {
         let path: String?
         let song: Int
+        /// One frame's registers, as hex: every chip's, one after the other.
+        struct Registers: Encodable {
+            let i: UInt64
+            let r: String
+        }
+
         let heard: Double?
+        let chip: Int
+        let chips: Int
         let levels: [Float]
         let notes: [String?]
+        let allNotes: [[String?]]
+        let allLevels: [[Float]]
+        /// The latest frames, oldest first, for Registers, Sweeps and Pitch.
+        let frames: [Registers]
     }
 
     struct Sound: Encodable {
@@ -360,18 +374,27 @@ final class ControlCommands {
             return answer(Scope(voices: scope.voices))
 
         case "tracker.position":
-            let voices = player.visualizer.latest()?.chips.first?.voices ?? []
+            let chip = max(args.chip ?? 0, 0)
+            let history = player.visualizer.history(min(max(args.count ?? 1, 1), 512))
+            let voices = history.last.flatMap { $0.chips.indices.contains(chip) ? $0.chips[chip].voices : nil } ?? []
             return answer(TrackerPosition(
                 path: player.nowPlaying?.path, song: Int(player.nowPlaying?.currentSong ?? 0),
-                heard: player.core.vizHeardSecs(), levels: voices.map(\.envLevel), notes: voices.map(\.note)
+                heard: player.core.vizHeardSecs(), chip: chip, chips: max(Int(player.nowPlaying?.numSids ?? 1), 1),
+                levels: voices.map(\.envLevel), notes: voices.map(\.note),
+                allNotes: history.last?.chips.map { $0.voices.map(\.note) } ?? [],
+                allLevels: history.last?.chips.map { $0.voices.map(\.envLevel) } ?? [],
+                frames: history.map { frame in
+                    .init(i: frame.index, r: frame.chips.flatMap(\.registers).map { String(format: "%02X", $0) }.joined())
+                }
             ))
         case "tracker.song":
             guard let track = player.nowPlaying else { throw Failure("Nothing is playing.") }
             // Its known length, else the longest a tune with none usually gets.
             let secs = min((player.duration ?? 300) + 2, 900)
-            let song = try await player.core.trackerSong(path: track.path, subtune: UInt16(clamping: track.currentSong), secs: secs, chip: 0)
+            let chip = max(args.chip ?? 0, 0)
+            let song = try await player.core.trackerSong(path: track.path, subtune: UInt16(clamping: track.currentSong), secs: secs, chip: UInt32(chip))
             return answer(TrackerAnswer(
-                path: track.path, song: Int(track.currentSong), frameRate: song.frameRate, framesPerRow: song.framesPerRow,
+                path: track.path, song: Int(track.currentSong), chip: chip, frameRate: song.frameRate, framesPerRow: song.framesPerRow,
                 hasGrid: song.hasGrid, chips: song.chips,
                 instruments: song.instruments.map { .init(name: $0.name, ad: $0.attackDecay, sr: $0.sustainRelease) },
                 rows: song.rows.map(TrackerAnswer.Row.init)

@@ -95,7 +95,7 @@ mod smart;
 mod tracker;
 mod viz;
 
-pub use tracker::{tracker_song, TrackerCell, TrackerEffect, TrackerInstrument, TrackerRow, TrackerSong};
+pub use tracker::{chip_agreement, tracker_song, TrackerCell, TrackerEffect, TrackerInstrument, TrackerRow, TrackerSong};
 
 pub use ffi::*;
 pub use learned::{estimate_length, LengthEstimate, LengthMethod};

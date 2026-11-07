@@ -477,6 +477,25 @@ struct ContentView: View {
             // The column's minimum width must not follow its content
             // (see NowPlayingBar): pin it, and let content adapt.
             .frame(minWidth: 0, maxWidth: .infinity)
+            // An overlay, so it can't change the column's size (see NowPlayingBar).
+            .overlay {
+                GeometryReader { space in
+                    if store.isShowingUnderTheHood, !store.isShowingNowPlaying {
+                        VStack {
+                            Spacer(minLength: 0)
+                            UnderTheHoodView(close: { store.isShowingUnderTheHood = false })
+                                .frame(height: min(space.size.height - 24, max(space.size.height * 0.68, 320)))
+                                .clipShape(.rect(cornerRadius: 14))
+                                .shadow(radius: 12, y: -2)
+                                .padding(.horizontal, 12)
+                                .padding(.bottom, 8)
+                        }
+                        .transition(.move(edge: .bottom))
+                    }
+                }
+                .clipped()
+            }
+            .animation(Self.nowPlayingSlide, value: store.isShowingUnderTheHood)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 NowPlayingBar()
                     .padding(.horizontal, 12)

@@ -141,6 +141,7 @@ pub struct Scope {
 pub struct TrackerSong {
     pub path: String,
     pub song: u32,
+    pub chip: u32,
     pub frame_rate: f64,
     pub frames_per_row: f32,
     pub has_grid: bool,
@@ -186,8 +187,33 @@ pub struct TrackerPosition {
     pub path: Option<String>,
     pub song: u32,
     pub heard: Option<f64>,
+    /// The chip the rest is about.
+    pub chip: u32,
+    pub chips: u32,
     pub levels: Vec<f32>,
     pub notes: Vec<Option<String>>,
+    /// Each chip's notes.
+    #[serde(rename = "allNotes")]
+    pub all_notes: Vec<Vec<Option<String>>>,
+    /// Each chip's voice levels, 0–1.
+    #[serde(rename = "allLevels")]
+    pub all_levels: Vec<Vec<f32>>,
+    /// The latest frames, oldest first.
+    pub frames: Vec<PositionFrame>,
+}
+
+/// One frame's registers, $00–$1C, as hex: every chip's, one after the other.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(default)]
+pub struct PositionFrame {
+    pub i: u64,
+    pub r: String,
+}
+
+impl PositionFrame {
+    pub fn registers(&self) -> Vec<u8> {
+        (0..self.r.len() / 2).filter_map(|n| u8::from_str_radix(self.r.get(n * 2..n * 2 + 2)?, 16).ok()).collect()
+    }
 }
 
 /// "4:12".

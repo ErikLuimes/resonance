@@ -16,6 +16,7 @@ struct PlaybackCommands: Commands {
         // ⇧⌘F: ⌃⌘F is the system's Enter Full Screen.
         CommandGroup(before: .sidebar) {
             NowPlayingItem(store: store)
+            UnderTheHoodItem(store: store)
         }
 
         CommandGroup(replacing: .newItem) {
@@ -73,6 +74,17 @@ private struct NowPlayingItem: View {
             store.toggleNowPlaying()
         }
         .keyboardShortcut("f", modifiers: [.command, .shift])
+    }
+}
+
+private struct UnderTheHoodItem: View {
+    let store: PlayerStore
+
+    var body: some View {
+        Button(store.isShowingUnderTheHood ? "Hide Under the Hood" : "Show Under the Hood") {
+            store.toggleUnderTheHood()
+        }
+        .keyboardShortcut("u", modifiers: [.option, .command])
     }
 }
 

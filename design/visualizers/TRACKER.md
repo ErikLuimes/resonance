@@ -1,7 +1,8 @@
 # The tracker, rebuilt
 
-Under the hood's tracker in the terminal app (`u`). Code: `apple/core/src/tracker.rs`, and the
-drawer in `apple/cli/src/tui.rs`. Change the rebuild only against
+Under the hood's tracker, in the app's drawer and the terminal app's (`u`). Code:
+`apple/core/src/tracker.rs`, `apple/Resonance/Views/UnderTheHoodView.swift` and
+`apple/cli/src/tui.rs`. Change the rebuild only against
 `apple/core/examples/tracker_bench.rs`, and keep what it prints out of the repo: register data
 and tune data stay private.
 
@@ -45,4 +46,12 @@ is one, with 99% of its notes on that grid.
 "Instrument" means a distinct waveform and envelope, so one instrument of the composer's can
 appear as several here, and pulse width isn't part of it. Effects are inferred: arpeggio is big
 steps coming back, vibrato is small moves crossing their middle, slide is steady in one direction.
-Only the first chip's voices show on a multi-SID tune for now.
+A multi-SID tune shows one chip at a time in the tracker, with a picker, as each chip gets its own
+rebuild and their rows needn't line up. Registers, Sweeps and Pitch Trail show every chip at once:
+a line per voice, a column per chip and a band per chip. With no room for that they collapse to the
+chosen chip, and the picker comes back.
+
+Chips can look the same and be right. Over 120 s of Aliens (2SID), the chips agree on pulse width,
+gates, cutoff and resonance in every frame, and differ only in frequency, in a third of frames; so
+Sweeps looks the same on both while Tracker and Pitch Trail don't. Hallows Eve (2SID) differs nearly
+everywhere. `tracker_bench chips <file>` measures it.

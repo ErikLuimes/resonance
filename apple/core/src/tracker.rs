@@ -88,6 +88,7 @@ pub struct TrackerSong {
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 struct VoiceFrame {
     freq: u16,
+    pulse_width: u16,
     control: u8,
     attack_decay: u8,
     sustain_release: u8,
@@ -133,6 +134,7 @@ fn capture(data: &[u8], subtune: u16, secs: f64, chip: usize, cancelled: &dyn Fn
             let r = &regs[v * 7..v * 7 + 7];
             *voice = VoiceFrame {
                 freq: u16::from_le_bytes([r[0], r[1]]),
+                pulse_width: u16::from_le_bytes([r[2], r[3] & 0x0F]),
                 control: r[4],
                 attack_decay: r[5],
                 sustain_release: r[6],
@@ -416,6 +418,26 @@ pub fn tracker_song(data: &[u8], subtune: u16, secs: f64, chip: usize, cancelled
     Ok(Some(rebuild(&frames, is_pal, chips)))
 }
 
+/// For the benchmark: of the frames in `secs`, the share where two chips agree on what
+/// the Sweeps view draws. Each voice's frequency, pulse width and gate, then cutoff and
+/// resonance.
+pub fn chip_agreement(data: &[u8], subtune: u16, secs: f64, a: usize, b: usize) -> Result<([[f32; 3]; 3], [f32; 2]), String> {
+    let first = capture(data, subtune, secs, a, &|| false)?.ok_or("stopped")?.0;
+    let second = capture(data, subtune, secs, b, &|| false)?.ok_or("stopped")?.0;
+    let frames = first.len().min(second.len()).max(1);
+    let share = |same: &dyn Fn(&Frame, &Frame) -> bool| first.iter().zip(&second).filter(|(x, y)| same(x, y)).count() as f32 / frames as f32;
+    let voices = std::array::from_fn(|v| {
+        [
+            share(&|x, y| x.voices[v].freq == y.voices[v].freq),
+            share(&|x, y| x.voices[v].pulse_width == y.voices[v].pulse_width),
+            share(&|x, y| x.voices[v].control & 1 == y.voices[v].control & 1),
+        ]
+    });
+    let cutoff = share(&|x, y| x.filter[0] & 7 == y.filter[0] & 7 && x.filter[1] == y.filter[1]);
+    let resonance = share(&|x, y| x.filter[2] >> 4 == y.filter[2] >> 4);
+    Ok((voices, [cutoff, resonance]))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -425,7 +447,7 @@ mod tests {
         let mut frames = vec![Frame::default(); length];
         for &(start, freq) in notes {
             for (n, frame) in frames.iter_mut().enumerate().skip(start).take(hold) {
-                frame.voices[0] = VoiceFrame { freq, control: 0x21, attack_decay: 0x09, sustain_release: 0xA9, opened: n == start };
+                frame.voices[0] = VoiceFrame { freq, pulse_width: 0, control: 0x21, attack_decay: 0x09, sustain_release: 0xA9, opened: n == start };
             }
         }
         frames
