@@ -458,6 +458,8 @@ private struct AdvancedSettings: View {
             Text("Takes Phosphor's playback settings, adds its favourites and play history to Resonance's, and uses its HVSC collection if Resonance has none. Nothing in Phosphor changes.")
         }
 
+        CommandLineToolSettings()
+
         Section {
             ForEach(Self.folders, id: \.1) { name, url in
                 LabeledContent(name) {
@@ -480,6 +482,44 @@ private struct AdvancedSettings: View {
         }
 
         ResetSettings()
+    }
+}
+
+/// Puts the `resonance` tool on the PATH.
+private struct CommandLineToolSettings: View {
+    @State private var installed = CommandLineTool.installed()
+    @State private var error: String?
+
+    var body: some View {
+        Section {
+            LabeledContent {
+                Button(installed == nil ? "Install" : "Install Again") {
+                    do {
+                        installed = try CommandLineTool.install()
+                        error = nil
+                    } catch {
+                        self.error = CommandLineTool.message(for: error)
+                    }
+                }
+            } label: {
+                Text("Command Line Tool")
+                if let installed {
+                    Text("Installed at \(installed.path)")
+                } else {
+                    Text("Adds the resonance command")
+                }
+            }
+            if let error {
+                Text(error)
+                    .foregroundStyle(.red)
+            }
+            if let installed, !CommandLineTool.isOnDefaultPath(installed.deletingLastPathComponent()) {
+                Text("Add \(installed.deletingLastPathComponent().path) to your PATH to use it.")
+                    .foregroundStyle(.secondary)
+            }
+        } footer: {
+            Text("Run **resonance** in a terminal for the terminal app, or **resonance --help** for its commands.")
+        }
     }
 }
 

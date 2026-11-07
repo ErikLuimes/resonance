@@ -235,6 +235,7 @@
 				A8A3262CFE440FB154D11D6E /* Resources */,
 				6A387C50522DEA4C3160CAEB /* Embed Frameworks */,
 				A1C0DE5100000000000000A8 /* Embed Foundation Extensions */,
+				A1C0DE5100000000000000C1 /* Build command line tool */,
 			);
 			buildRules = (
 			);
@@ -400,6 +401,26 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"$SRCROOT/scripts/build-core.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		A1C0DE5100000000000000C1 /* Build command line tool */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build command line tool";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"$SRCROOT/scripts/build-cli.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */

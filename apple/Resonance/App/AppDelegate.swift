@@ -18,6 +18,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var miniPlayer: MiniPlayer?
     private var jobs: JobWatcher?
     private var spotlight: SpotlightIndex?
+    private var control: ControlServer?
+    private var promptStatus: PromptStatus?
 
     override init() {
         // Under unit tests the app is only a host: no audio, no saved session.
@@ -59,6 +61,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ResonanceShortcuts.updateAppShortcutParameters()
         spotlight = SpotlightIndex(store: store)
         spotlight?.start()
+        startControl()
+    }
+
+    /// The `resonance` command line tool's way in, and the shell prompt's.
+    private func startControl() {
+        let commands = ControlCommands(player: store, library: library, fingerprints: fingerprints, playlists: playlists)
+        let server = ControlServer { line in await commands.handle(line) }
+        do {
+            try server.start()
+            control = server
+        } catch {
+            // Quietly: only the command line tool misses it, and says so.
+        }
+        promptStatus = PromptStatus(store: store)
+        promptStatus?.start()
     }
 
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
@@ -108,6 +125,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        control?.stop()
+        promptStatus?.stop()
         store.shutdown()
     }
 

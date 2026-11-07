@@ -5,7 +5,7 @@
 # nothing upstream (src/, the root Cargo.toml / Cargo.lock, CI) has to change.
 [workspace]
 resolver = "2"
-members = ["core", "iced-shim", "residfp-sys", "uniffi-bindgen"]
+members = ["cli", "core", "iced-shim", "residfp-sys", "uniffi-bindgen"]
 
 [workspace.package]
 version = "0.1.0"
