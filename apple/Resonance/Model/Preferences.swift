@@ -3,6 +3,8 @@ import PhosphorCore
 
 /// UserDefaults keys for the settings `PlayerStore` persists.
 nonisolated enum Pref {
+    /// What Spotlight last indexed (SpotlightTunes.mark).
+    static let spotlightIndexed = "spotlightIndexed"
     static let engine = "engine"
     static let volume = "volume"
     static let shuffle = "shuffle"

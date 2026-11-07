@@ -11,7 +11,7 @@ enum DockMenu {
         let track = store.nowPlaying
 
         if let track {
-            menu.addItem(ActionItem(seedTitle(of: track), enabled: false) {})
+            menu.addItem(ActionItem(track.displayTitle, enabled: false) {})
             menu.addItem(.separator())
         }
 
@@ -25,22 +25,12 @@ enum DockMenu {
         let scanned = track.map { fingerprints.fingerprint($0.path) != nil } ?? false
         menu.addItem(ActionItem("Play Something Like This", enabled: scanned) {
             guard let track else { return }
-            Task {
-                await fingerprints.loadSimilar(track.path)
-                guard let similar = fingerprints.similar[track.path], !similar.isEmpty else { return }
-                library.play(similar.map { LibraryRow(item: $0.item) }, from: .soundsLike(title: seedTitle(of: track)))
-            }
+            Task { _ = await fingerprints.playSimilar(to: track, with: library) }
         })
         menu.addItem(ActionItem("Surprise Me", enabled: library.hasRoot) {
             Task { await library.surpriseMe() }
         })
         return menu
-    }
-
-    private static func seedTitle(of track: TrackDetails) -> String {
-        if !track.title.isEmpty { return track.title }
-        return URL(filePath: track.path).deletingPathExtension().lastPathComponent
-            .replacingOccurrences(of: "_", with: " ")
     }
 }
 

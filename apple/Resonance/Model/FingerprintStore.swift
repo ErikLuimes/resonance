@@ -242,6 +242,15 @@ final class FingerprintStore {
         return out
     }
 
+    /// Play the tunes that sound most like `track`, most alike first. False
+    /// when there are none: it isn't scanned, or nothing else is.
+    func playSimilar(to track: TrackDetails, with library: LibraryStore) async -> Bool {
+        await loadSimilar(track.path)
+        guard let found = similar[track.path], !found.isEmpty else { return false }
+        library.play(found.map { LibraryRow(item: $0.item) }, from: .soundsLike(title: track.displayTitle))
+        return true
+    }
+
     /// How common each sound is across the collection, as it stands now.
     func loadTagShares() async {
         let found = await core.soundTagShares()
@@ -258,6 +267,14 @@ final class FingerprintStore {
 }
 
 // MARK: - Describing a sound
+
+extension TrackDetails {
+    /// Its title, or without one its file's name.
+    var displayTitle: String {
+        if !title.isEmpty { return title }
+        return URL(filePath: path).deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
+    }
+}
 
 nonisolated extension SoundTag {
     static let filters: [SoundTag] = [.arpeggios, .filterSweeps, .noiseDrums, .ringMod, .syncLeads, .digiSamples]

@@ -1,3 +1,4 @@
+import AppIntents
 import AppKit
 
 /// Owns the player for the app's lifetime, so files opened from Finder
@@ -16,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var outputLatency: OutputLatencyMonitor?
     private var miniPlayer: MiniPlayer?
     private var jobs: JobWatcher?
+    private var spotlight: SpotlightIndex?
 
     override init() {
         // Under unit tests the app is only a host: no audio, no saved session.
@@ -26,6 +28,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         fingerprints = FingerprintStore(player: store)
         playlists = PlaylistsStore(player: store)
         super.init()
+        // For the actions Siri and Shortcuts run (ResonanceIntents.swift).
+        AppDependencyManager.shared.add(dependency: self.store)
+        AppDependencyManager.shared.add(dependency: self.library)
+        AppDependencyManager.shared.add(dependency: self.fingerprints)
+        AppDependencyManager.shared.add(dependency: self.playlists)
         // Before the window's first frame, so the library never flashes first.
         if !Self.isRunningTests {
             store.welcomeSteps = OnboardingStep.pendingAtLaunch(store: store)
@@ -48,6 +55,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         jobs = JobWatcher(store: store, library: library, fingerprints: fingerprints)
         jobs?.start()
+        // So Siri knows your playlists' names, as of this launch.
+        ResonanceShortcuts.updateAppShortcutParameters()
+        spotlight = SpotlightIndex(store: store)
+        spotlight?.start()
     }
 
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
@@ -74,6 +85,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.activate()
             MiniPlayer.openMainWindow?()
         }
+    }
+
+    /// A tune clicked in Spotlight: show it in the library and play it.
+    func application(_ application: NSApplication, continue userActivity: NSUserActivity,
+                     restorationHandler: @escaping ([any NSUserActivityRestoring]) -> Void) -> Bool {
+        guard let path = SpotlightTunes.path(from: userActivity),
+              FileManager.default.fileExists(atPath: path) else { return false }
+        let tune = URL(filePath: path)
+        store.isShowingNowPlaying = false
+        store.playQueue([tune], startAt: tune, from: .files)
+        library.reveal(tunePath: path)
+        NSApp.activate()
+        MiniPlayer.openMainWindow?()
+        return true
     }
 
     /// Closing the window quits, unless the menu bar player is showing:

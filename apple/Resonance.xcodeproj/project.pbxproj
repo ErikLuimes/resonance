@@ -15,6 +15,7 @@
 		5C1A7E0B2D9F4E3A8B6C0D11 /* STILKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5C1A7E0B2D9F4E3A8B6C0D12 /* STILKit */; };
 		5C1A7E0B2D9F4E3A8B6C0D21 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5C1A7E0B2D9F4E3A8B6C0D22 /* Sparkle */; };
 		D1A2B3C4D5E6F70819203A02 /* playlists in Resources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4D5E6F70819203A01 /* playlists */; };
+		A1C0DE5100000000000000A9 /* ResonanceQuickLook.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A1C0DE5100000000000000A2 /* ResonanceQuickLook.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -32,6 +33,13 @@
 			remoteGlobalIDString = DCFDDD02CCFD5D33F14599BA;
 			remoteInfo = Resonance;
 		};
+		A1C0DE5100000000000000AA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AF0D8A68B51A43F4FE134FAF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A1C0DE5100000000000000A1;
+			remoteInfo = ResonanceQuickLook;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -44,6 +52,17 @@
 				0BC0465548DDA9FA7F88FFB1 /* PhosphorCore.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1C0DE5100000000000000A8 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A1C0DE5100000000000000A9 /* ResonanceQuickLook.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -59,6 +78,9 @@
 		BD618DF38BE01ED7BAC0B411 /* Resonance.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Resonance.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F8024CBD8CE4F2DA043269EF /* ResonanceTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ResonanceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D1A2B3C4D5E6F70819203A01 /* playlists */ = {isa = PBXFileReference; lastKnownFileType = folder; name = playlists; path = ../playlists; sourceTree = "<group>"; };
+		A1C0DE5100000000000000A2 /* ResonanceQuickLook.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ResonanceQuickLook.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1C0DE5100000000000000AF /* ResonanceQuickLook-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "ResonanceQuickLook-Info.plist"; sourceTree = "<group>"; };
+		A1C0DE5100000000000000B0 /* ResonanceQuickLook.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ResonanceQuickLook.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -70,6 +92,16 @@
 		C6453AC673229E64EE9991B0 /* ResonanceTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = ResonanceTests;
+			sourceTree = "<group>";
+		};
+		A1C0DE5100000000000000A6 /* ResonanceQuickLook */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ResonanceQuickLook;
+			sourceTree = "<group>";
+		};
+		A1C0DE5100000000000000A7 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -101,6 +133,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1C0DE5100000000000000A4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -109,6 +148,8 @@
 			children = (
 				8918060A678BD452D61B3B6B /* Resonance */,
 				C6453AC673229E64EE9991B0 /* ResonanceTests */,
+				A1C0DE5100000000000000A6 /* ResonanceQuickLook */,
+				A1C0DE5100000000000000A7 /* Shared */,
 				411E8B423831D7B4B6F29CF1 /* PhosphorCore */,
 				44A88AA8803A35B8CB3E1767 /* Config */,
 				D1A2B3C4D5E6F70819203A01 /* playlists */,
@@ -139,6 +180,8 @@
 			isa = PBXGroup;
 			children = (
 				763213B2949B2A0EC2A955D0 /* Resonance-Info.plist */,
+				A1C0DE5100000000000000AF /* ResonanceQuickLook-Info.plist */,
+				A1C0DE5100000000000000B0 /* ResonanceQuickLook.entitlements */,
 			);
 			path = Config;
 			sourceTree = "<group>";
@@ -157,6 +200,7 @@
 				9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */,
 				BD618DF38BE01ED7BAC0B411 /* Resonance.app */,
 				F8024CBD8CE4F2DA043269EF /* ResonanceTests.xctest */,
+				A1C0DE5100000000000000A2 /* ResonanceQuickLook.appex */,
 				048F94C7F0099B4300B897EA /* libphosphor_apple.a */,
 			);
 			name = Products;
@@ -190,14 +234,17 @@
 				241F3D41DC945C95CE73B323 /* Frameworks */,
 				A8A3262CFE440FB154D11D6E /* Resources */,
 				6A387C50522DEA4C3160CAEB /* Embed Frameworks */,
+				A1C0DE5100000000000000A8 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				FB9E6AE35070A8202EEAF928 /* PBXTargetDependency */,
+				A1C0DE5100000000000000AB /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				8918060A678BD452D61B3B6B /* Resonance */,
+				A1C0DE5100000000000000A7 /* Shared */,
 			);
 			name = Resonance;
 			packageProductDependencies = (
@@ -231,6 +278,29 @@
 			productReference = F8024CBD8CE4F2DA043269EF /* ResonanceTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		A1C0DE5100000000000000A1 /* ResonanceQuickLook */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1C0DE5100000000000000AC /* Build configuration list for PBXNativeTarget "ResonanceQuickLook" */;
+			buildPhases = (
+				A1C0DE5100000000000000A3 /* Sources */,
+				A1C0DE5100000000000000A4 /* Frameworks */,
+				A1C0DE5100000000000000A5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A1C0DE5100000000000000A6 /* ResonanceQuickLook */,
+				A1C0DE5100000000000000A7 /* Shared */,
+			);
+			name = ResonanceQuickLook;
+			packageProductDependencies = (
+			);
+			productName = ResonanceQuickLook;
+			productReference = A1C0DE5100000000000000A2 /* ResonanceQuickLook.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -245,6 +315,9 @@
 						CreatedOnToolsVersion = 27.0;
 					};
 					DCFDDD02CCFD5D33F14599BA = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					A1C0DE5100000000000000A1 = {
 						CreatedOnToolsVersion = 27.0;
 					};
 					4FA88B2A7757441228804026 = {
@@ -274,6 +347,7 @@
 				DCFDDD02CCFD5D33F14599BA /* Resonance */,
 				C24B8C53059C663F18684913 /* PhosphorCore */,
 				4FA88B2A7757441228804026 /* ResonanceTests */,
+				A1C0DE5100000000000000A1 /* ResonanceQuickLook */,
 			);
 		};
 /* End PBXProject section */
@@ -288,6 +362,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		9DE6A966D711B823330E4FAA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1C0DE5100000000000000A5 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -346,6 +427,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1C0DE5100000000000000A3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -358,6 +446,11 @@
 			isa = PBXTargetDependency;
 			target = DCFDDD02CCFD5D33F14599BA /* Resonance */;
 			targetProxy = E20C3AA4C7545CF4B2D0376B /* PBXContainerItemProxy */;
+		};
+		A1C0DE5100000000000000AB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A1C0DE5100000000000000A1 /* ResonanceQuickLook */;
+			targetProxy = A1C0DE5100000000000000AA /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -590,6 +683,58 @@
 			};
 			name = Release;
 		};
+		A1C0DE5100000000000000AD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/ResonanceQuickLook.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 5;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/ResonanceQuickLook-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Resonance Quick Look";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Resonance © 2026 Erik Luimes.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = nl.luimes.resonance.quicklook;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Debug;
+		};
+		A1C0DE5100000000000000AE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/ResonanceQuickLook.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 5;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/ResonanceQuickLook-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Resonance Quick Look";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Resonance © 2026 Erik Luimes.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = nl.luimes.resonance.quicklook;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -625,6 +770,15 @@
 			buildConfigurations = (
 				763169414422A77E8E8A3E36 /* Debug */,
 				799B72BCA542FA613B264F86 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1C0DE5100000000000000AC /* Build configuration list for PBXNativeTarget "ResonanceQuickLook" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1C0DE5100000000000000AD /* Debug */,
+				A1C0DE5100000000000000AE /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

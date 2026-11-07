@@ -149,6 +149,8 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
          ARTIST: Tamayo Kawamoto
         """
 
+    func hvscAllTunes() async -> [HvscTuneItem] { [] }
+
     func hvscSearch(query: String, scope: HvscCategory?) async throws -> HvscSearchResult {
         let hits = items.filter { $0.title.localizedStandardContains(query) }.map(Self.tune)
         return HvscSearchResult(items: hits, totalMatches: UInt32(hits.count), indexed: 61_157)

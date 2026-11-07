@@ -78,6 +78,12 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
         }
     }
 
+    private var _allTunes: [HvscTuneItem] = []
+
+    func set(allTunes: [HvscTuneItem]) { lock.withLock { _allTunes = allTunes } }
+
+    func hvscAllTunes() async -> [HvscTuneItem] { lock.withLock { _allTunes } }
+
     func hvscSearch(query: String, scope: HvscCategory?) async throws -> HvscSearchResult {
         record("search \(query) \(scope.map { "\($0)" } ?? "all")")
         return HvscSearchResult(items: [], totalMatches: 0, indexed: 0)

@@ -1526,6 +1526,17 @@ impl PlayerCore {
         })
     }
 
+    /// Every tune in the collection, for Spotlight. Waits for the search
+    /// indexes; empty without a collection.
+    pub async fn hvsc_all_tunes(&self) -> Vec<HvscTuneItem> {
+        self.library.warm_indexes().await;
+        self.library
+            .all_entries()
+            .iter()
+            .map(|(category, entry)| HvscTuneItem::from_index(entry, (*category).into()))
+            .collect()
+    }
+
     /// Tunes in all of HVSC whose header's author contains one of `names`
     /// (ignoring case and accents), with that author; the caller narrows
     /// them to exact credits. The first call reads every tune's header.

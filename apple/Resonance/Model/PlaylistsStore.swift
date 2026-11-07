@@ -53,7 +53,7 @@ final class PlaylistsStore {
     /// Observed: the hearts read it, and must fill the moment it changes.
     private var favouriteSet = Set<String>()
 
-    static let favouritesID = ""
+    nonisolated static let favouritesID = ""
 
     init(
         player: PlayerStore,
