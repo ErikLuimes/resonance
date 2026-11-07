@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var activity: PlaybackActivity?
     private var outputLatency: OutputLatencyMonitor?
     private var miniPlayer: MiniPlayer?
+    private var jobs: JobWatcher?
 
     override init() {
         // Under unit tests the app is only a host: no audio, no saved session.
@@ -40,11 +41,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ClickAwayFocus.start()
         miniPlayer = MiniPlayer(store: store, library: library, playlists: playlists)
         fingerprints.startPolling()
-        nowPlaying = NowPlayingController(store: store)
+        nowPlaying = NowPlayingController(store: store, fingerprints: fingerprints)
         activity = PlaybackActivity(store: store)
         outputLatency = OutputLatencyMonitor { [store] latency in
             store.visualizer.setOutputLatency(latency)
         }
+        jobs = JobWatcher(store: store, library: library, fingerprints: fingerprints)
+        jobs?.start()
+    }
+
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        DockMenu.make(store: store, library: library, fingerprints: fingerprints)
     }
 
     /// Finder "Open With", double-clicked files, Dock drops, and shared

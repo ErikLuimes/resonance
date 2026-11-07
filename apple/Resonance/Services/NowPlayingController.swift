@@ -10,7 +10,10 @@ import PhosphorCore
 /// the playback rate in between.
 final class NowPlayingController {
     private let store: PlayerStore
+    private let fingerprints: FingerprintStore
     private var lastKey: Key?
+    /// Rendered once per tune, not again for every pause or seek.
+    private var artwork: (key: ArtworkKey, image: MPMediaItemArtwork?)?
 
     private struct Key: Equatable {
         let trackRevision: UInt64
@@ -19,10 +22,18 @@ final class NowPlayingController {
         let canSeek: Bool
         /// A seek moves the elapsed time, and lands later: publish both.
         let seeking: Bool
+        /// Its arrival swaps the composer's colours for the sphere.
+        let scanned: Bool
     }
 
-    init(store: PlayerStore) {
+    private struct ArtworkKey: Equatable {
+        let path: String
+        let scanned: Bool
+    }
+
+    init(store: PlayerStore, fingerprints: FingerprintStore) {
         self.store = store
+        self.fingerprints = fingerprints
         registerRemoteCommands()
         observe()
     }
@@ -30,6 +41,7 @@ final class NowPlayingController {
     private func observe() {
         withObservationTracking {
             _ = (store.trackRevision, store.state, store.duration, store.canSeek, store.seeking)
+            _ = store.nowPlaying.flatMap { fingerprints.fingerprint($0.path) }
         } onChange: { [weak self] in
             // onChange runs before the new values are set; read them next turn.
             Task { @MainActor in
@@ -41,9 +53,14 @@ final class NowPlayingController {
     }
 
     private func publish() {
+        let fingerprint = store.nowPlaying.flatMap { fingerprints.fingerprint($0.path) }
+        // Also what the Dock menu goes by. Tunes not scanned yet stay on the
+        // store's list, and arrive through the observation above.
+        if let path = store.nowPlaying?.path, fingerprint == nil { fingerprints.load([path]) }
+
         let key = Key(
             trackRevision: store.trackRevision, state: store.state, duration: store.duration,
-            canSeek: store.canSeek, seeking: store.seeking
+            canSeek: store.canSeek, seeking: store.seeking, scanned: fingerprint != nil
         )
         guard key != lastKey else { return }
         lastKey = key
@@ -72,8 +89,19 @@ final class NowPlayingController {
         if let duration = store.duration {
             info[MPMediaItemPropertyPlaybackDuration] = duration
         }
+        if let artwork = artwork(for: track, fingerprint: fingerprint) {
+            info[MPMediaItemPropertyArtwork] = artwork
+        }
         center.nowPlayingInfo = info
         center.playbackState = store.state == .playing ? .playing : .paused
+    }
+
+    private func artwork(for track: TrackDetails, fingerprint: TuneFingerprint?) -> MPMediaItemArtwork? {
+        let key = ArtworkKey(path: track.path, scanned: fingerprint != nil)
+        if let artwork, artwork.key == key { return artwork.image }
+        let image = NowPlayingArtwork.image(fingerprint: fingerprint, composer: track.author).map(NowPlayingArtwork.artwork)
+        artwork = (key, image)
+        return image
     }
 
     private func registerRemoteCommands() {

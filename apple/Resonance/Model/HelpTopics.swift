@@ -148,6 +148,7 @@ extension HelpTopic {
                       link: .settings(.advanced)),
                 .heading("Sound fingerprints"),
                 .paragraph("Sounds Like, the Fingerprint column and the Sound filters need each tune's fingerprint. The first time, Resonance downloads the published fingerprint set (about 42 MB) and audio embeddings (about 11 MB), which cover all of HVSC, and a background scan fills in whatever it doesn't have. A full scan of your own takes a few hours; with the published set it's mostly done in a minute."),
+                .paragraph("While the collection downloads or the scan runs, the Dock icon shows how far it has got. If Resonance is in the background when one of them ends, or the download fails, it sends a notification. It asks for permission the first time; change your mind in System Settings → Notifications."),
                 .heading("Start listening"),
                 .bullets([
                     "Press **⇧⌘R** for **Surprise Me**: a radio of random tunes from all of HVSC.",
@@ -282,6 +283,8 @@ extension HelpTopic {
                 ]),
                 .heading("The bar at the bottom"),
                 .paragraph("In the library, the floating bar plays, pauses and skips, shows the progress through the tune, and has Shuffle, Repeat and the volume. Drag or click the progress bar to scrub. Tunes with more than one song step through them with the arrows next to the progress bar."),
+                .heading("The Dock icon"),
+                .paragraph("Control-click Resonance's Dock icon to see what's playing, to play, pause or skip, to start **Play Something Like This** from the tune playing, or for **Surprise Me**."),
                 .heading("The menu bar player"),
                 .paragraph("Click Resonance's icon in the menu bar, or press **⌃⌥⌘P** in any app, for a small player: the tune and its voices, the heart, the controls with Shuffle and Repeat, the next tunes in the list it plays from (click one to play it), Surprise Me and Add to…. Turn Surprise Me off there and Resonance goes back to the list you were playing."),
                 .paragraph("While it's on, closing the main window keeps the music playing; **Open Resonance** in the player brings the window back. Turn it off in Settings → Appearance."),

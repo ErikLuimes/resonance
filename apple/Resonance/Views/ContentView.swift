@@ -298,8 +298,9 @@ struct ContentView: View {
             guard let reveal else { return }
             sidebarSelection = .hvsc(reveal.category)
         }
-        // The inspector's playlist link, a Home playlist card.
-        .onChange(of: library.shownSection) { _, section in
+        // The inspector's playlist link, a Home playlist card, a clicked
+        // notification (initial: which may have to open this window first).
+        .onChange(of: library.shownSection, initial: true) { _, section in
             guard let section else { return }
             sidebarSelection = section
             library.shownSection = nil
