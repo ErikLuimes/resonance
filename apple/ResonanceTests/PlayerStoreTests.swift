@@ -234,6 +234,10 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     }
     func vizLatest() -> VizSidFrame? { nil }
     func vizHistory(count: UInt32) -> [VizSidFrame] { [] }
+    func vizHeardSecs() -> Double? { nil }
+    func trackerSong(path: String, subtune: UInt16, secs: Double, chip: UInt32) async throws -> TrackerSong {
+        TrackerSong(isPal: true, frameRate: 50, framesPerRow: 6, onGrid: 0, hasGrid: false, chips: 1, rows: [], instruments: [])
+    }
     func vizScope(chip: UInt32, count: UInt32) -> VizScopeSamples { VizScopeSamples(sampleRate: 44_784, voices: [[], [], []]) }
     func vizStats() -> VizStats { VizStats(frames: 0, shadowMicros: 0, bufferMs: 100, outputLatencyMs: 12, offsetMs: 0) }
     func setVizOutputLatencyMs(ms: UInt32) {}

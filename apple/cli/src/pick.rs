@@ -4,11 +4,12 @@
 
 use crate::client::Client;
 use crate::model::Tune;
+use crate::palette;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::{Constraint, Layout};
-use ratatui::style::{Modifier, Style};
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{List, ListItem, ListState, Paragraph};
 use ratatui::{Terminal, TerminalOptions, Viewport};
@@ -41,10 +42,17 @@ impl Picker {
     pub fn key(&mut self, code: KeyCode, ctrl: bool) -> Outcome {
         match code {
             KeyCode::Esc => return Outcome::Cancelled,
-            KeyCode::Char('c') if ctrl => return Outcome::Cancelled,
+            KeyCode::Char('c' | 'g') if ctrl => return Outcome::Cancelled,
             KeyCode::Enter => return Outcome::Done,
+            // Letters are for typing here, so these work in every key set, as in fzf.
             KeyCode::Up => self.cursor = self.cursor.saturating_sub(1),
+            KeyCode::Char('p' | 'k') if ctrl => self.cursor = self.cursor.saturating_sub(1),
             KeyCode::Down => self.cursor = (self.cursor + 1).min(self.tunes.len().saturating_sub(1)),
+            KeyCode::Char('n' | 'j') if ctrl => self.cursor = (self.cursor + 1).min(self.tunes.len().saturating_sub(1)),
+            KeyCode::Char('u') if ctrl && !self.query.is_empty() => {
+                self.query.clear();
+                return Outcome::QueryChanged;
+            }
             KeyCode::Char(' ') if self.multi => {
                 if let Some(tune) = self.tunes.get(self.cursor) {
                     if !self.marked.remove(&tune.path) {
@@ -158,18 +166,19 @@ fn draw(frame: &mut ratatui::Frame, picker: &Picker) {
             ListItem::new(Line::from(vec![
                 Span::raw(mark),
                 Span::raw(t.title.clone()),
-                Span::styled(format!("  {}", t.author), Style::new().add_modifier(Modifier::DIM)),
+                Span::styled(format!("  {}", t.author), palette::dim()),
             ]))
         })
         .collect();
     let mut state = ListState::default().with_selected(Some(picker.cursor));
     frame.render_stateful_widget(
-        List::new(items).highlight_style(Style::new().add_modifier(Modifier::REVERSED)),
+        List::new(items).highlight_style(Style::new().bg(palette::selection())),
         list,
         &mut state,
     );
     let keys = if picker.multi { "↵ choose  ␣ mark  esc cancel" } else { "↵ choose  esc cancel" };
-    frame.render_widget(Paragraph::new(keys).style(Style::new().add_modifier(Modifier::DIM)), hint);
+    frame.render_widget(Paragraph::new(keys).style(palette::dim()), hint);
+    palette::paint(frame.buffer_mut());
 }
 
 #[cfg(test)]
@@ -185,6 +194,7 @@ mod tests {
             songs: 1,
             secs: None,
             score: None,
+            played_at: None,
         }
     }
 

@@ -1,0 +1,161 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "resonance",
+  "title": "Resonance",
+  "description": "Search, play and discover Commodore 64 SID music in Resonance, by title, composer, mood or how a tune sounds.",
+  "icon": "icon.png",
+  "author": "erikluimes",
+  "license": "MIT",
+  "platforms": [
+    "macOS"
+  ],
+  "categories": [
+    "Media",
+    "Fun"
+  ],
+  "keywords": [
+    "sid",
+    "c64",
+    "commodore 64",
+    "hvsc",
+    "chiptune",
+    "music"
+  ],
+  "commands": [
+    {
+      "name": "search-tunes",
+      "title": "Search Tunes",
+      "description": "Find tunes by title or composer, and see how each one sounds.",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "query",
+          "type": "text",
+          "placeholder": "Title or composer",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "sounds-like",
+      "title": "Sounds Like This",
+      "description": "Find tunes that sound like the one playing.",
+      "keywords": [
+        "similar",
+        "discover",
+        "fingerprint"
+      ],
+      "mode": "view"
+    },
+    {
+      "name": "describe",
+      "title": "Describe Sound",
+      "description": "Make a list from words, such as fast arpeggios from 1987.",
+      "keywords": [
+        "mood",
+        "style",
+        "smart playlist"
+      ],
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "text",
+          "type": "text",
+          "placeholder": "fast arpeggios from 1987",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "now-playing",
+      "title": "Now Playing",
+      "description": "See the tune playing, how it sounds, and control it.",
+      "mode": "view"
+    },
+    {
+      "name": "playlists",
+      "title": "Playlists",
+      "description": "Open and play Favourites and your playlists.",
+      "keywords": [
+        "favorites",
+        "favourites"
+      ],
+      "mode": "view"
+    },
+    {
+      "name": "recently-played",
+      "title": "Recently Played",
+      "description": "Go back to a tune you played.",
+      "keywords": [
+        "history"
+      ],
+      "mode": "view"
+    },
+    {
+      "name": "play-pause",
+      "title": "Play or Pause",
+      "description": "Play or pause the tune.",
+      "keywords": [
+        "toggle",
+        "resume",
+        "stop"
+      ],
+      "mode": "no-view"
+    },
+    {
+      "name": "next-tune",
+      "title": "Next Tune",
+      "description": "Skip to the next tune.",
+      "keywords": [
+        "skip"
+      ],
+      "mode": "no-view"
+    },
+    {
+      "name": "previous-tune",
+      "title": "Previous Tune",
+      "description": "Go back to the previous tune.",
+      "mode": "no-view"
+    },
+    {
+      "name": "surprise-me",
+      "title": "Surprise Me",
+      "description": "Play something from the collection you may not know.",
+      "keywords": [
+        "random",
+        "shuffle"
+      ],
+      "mode": "no-view"
+    },
+    {
+      "name": "favourite-tune",
+      "title": "Favourite Tune",
+      "description": "Add the tune playing to Favourites, or take it out.",
+      "keywords": [
+        "favorite",
+        "like",
+        "love"
+      ],
+      "mode": "no-view"
+    }
+  ],
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "lint": "ray lint",
+    "fix-lint": "ray lint --fix",
+    "test": "node --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@raycast/api": "^2.11.1",
+    "@raycast/utils": "^2.3.3"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^2.2.0",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "eslint": "^10.14.0",
+    "prettier": "^3.9.10",
+    "typescript": "^6.0.3"
+  }
+}

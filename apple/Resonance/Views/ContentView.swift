@@ -93,6 +93,7 @@ struct ContentView: View {
     @Environment(CSDbStore.self) private var csdb
 #endif
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
     @State private var sidebarSelection: SidebarItem? = StartPage.opening
     @State private var showInspector = true
     @State private var isDropTargeted = false
@@ -145,7 +146,14 @@ struct ContentView: View {
                     .transition(.asymmetric(insertion: .move(edge: .bottom), removal: .identity))
                     .zIndex(2)
             }
+            if store.isShowingKeyHelp {
+                KeyboardHelpOverlay()
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .zIndex(3)
+            }
         }
+        .animation(.easeOut(duration: 0.15), value: store.isShowingKeyHelp)
         // On the root, as the library has its own sheet. It waits for a shared
         // tune's: a window shows one sheet at a time.
         .sheet(isPresented: Binding(
@@ -218,7 +226,12 @@ struct ContentView: View {
         .navigationTitle("Resonance")
         // The menu bar player's Open Resonance: SwiftUI's action reopens
         // this window after it's been closed, too.
-        .onAppear { [openWindow] in MiniPlayer.openMainWindow = { openWindow(id: "main") } }
+        .onAppear { [openWindow, openSettings] in
+            MiniPlayer.openMainWindow = { openWindow(id: "main") }
+            AppKeys.openHelp = { openWindow(id: HelpView.windowID) }
+            AppKeys.openSettings = { openSettings() }
+        }
+        .onChange(of: store.searchFocusRequests) { isSearchFieldFocused = true }
         // A shared tune link, opened from the share page.
         .sheet(item: Binding(get: { store.sharedTune }, set: { store.sharedTune = $0 })) { link in
             // A new identity per link, so a second link opened while the

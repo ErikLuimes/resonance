@@ -23,6 +23,11 @@ struct PlaybackCommands: Commands {
                 .keyboardShortcut("o")
         }
 
+        CommandGroup(after: .textEditing) {
+            Button("Search") { store.focusSearch() }
+                .keyboardShortcut("f")
+        }
+
         CommandMenu("Playback") {
             // No Space shortcut here: a plain-key menu shortcut would swallow
             // spaces typed into the search field. SpaceKey handles Space.

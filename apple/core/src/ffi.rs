@@ -1376,6 +1376,12 @@ impl PlayerCore {
         frame.as_ref().map(VizSidFrame::from)
     }
 
+    /// How far into the subtune what's being heard is, in seconds: after the engine's
+    /// buffer and the output device. None before the first frame and while stopped.
+    pub fn viz_heard_secs(&self) -> Option<f64> {
+        viz::lock(&self.driver.viz).heard(Instant::now()).map(|heard| heard.as_secs_f64())
+    }
+
     /// Up to `count` frames (at most about 10 s), oldest first, ending
     /// with the one being heard now.
     pub fn viz_history(&self, count: u32) -> Vec<VizSidFrame> {
@@ -1953,6 +1959,22 @@ impl PlayerCore {
             })
             .take(want)
             .collect())
+    }
+
+    /// A tune as a tracker would show it, rebuilt from what its player writes: `secs` of
+    /// it, one chip's voices. Runs it once at about 200× speed, away from the player.
+    pub async fn tracker_song(&self, path: String, subtune: u16, secs: f64, chip: u32) -> Result<crate::tracker::TrackerSong, HvscError> {
+        tokio::task::spawn_blocking(move || {
+            let data = std::fs::read(&path).map_err(|e| HvscError::Io { message: e.to_string() })?;
+            let made = crate::tracker::tracker_song(&data, subtune, secs, chip as usize, &|| false);
+            match made {
+                Ok(Some(song)) => Ok(song),
+                Ok(None) => Err(HvscError::Io { message: "Stopped.".into() }),
+                Err(message) => Err(HvscError::Io { message }),
+            }
+        })
+        .await
+        .map_err(|e| HvscError::Io { message: e.to_string() })?
     }
 
     /// Make a smart playlist. Song lengths, the fingerprints and the heard

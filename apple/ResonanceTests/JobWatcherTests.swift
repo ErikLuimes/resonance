@@ -116,7 +116,7 @@ struct JobWatcherTests {
         let menu = DockMenu.make(store: store, library: LibraryStore(player: store),
                                  fingerprints: FingerprintStore(player: store))
         let items = menu.items.filter { !$0.isSeparatorItem }
-        #expect(items.map(\.title) == ["Play", "Next Track", "Previous Track", "Play Something Like This", "Surprise Me"])
+        #expect(items.map(\.title) == ["Play", "Next Track", "Previous Track", "Play Something Like This", "Drift From This Tune", "Surprise Me"])
         #expect(items.allSatisfy { !$0.isEnabled })
     }
 }

@@ -393,7 +393,8 @@ final class EscapeKey {
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak store] event in
             guard event.keyCode == 53 else { return event }
             let closed = MainActor.assumeIsolated {
-                guard let store, store.isShowingNowPlaying else { return false }
+                // The keyboard help over it goes first (see AppKeys).
+                guard let store, store.isShowingNowPlaying, !store.isShowingKeyHelp else { return false }
                 store.isShowingNowPlaying = false
                 return true
             }

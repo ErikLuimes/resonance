@@ -4,7 +4,8 @@ A playlist from a recipe: how tunes sound, how long they are and what's been
 played. Code: `apple/core/src/smart.rs` (choosing), `apple/core/src/ffi.rs`
 (`smart_playlist`), `apple/Resonance/Views/SmartPlaylistView.swift` and
 `Model/SmartSentence.swift`. Change the choosing only against
-`apple/core/examples/smart_bench.rs`.
+`apple/core/examples/smart_bench.rs`. The terminal app's Describe row uses the
+same reading through the `describe` command; nothing about choosing lives there.
 
 ## Similar means a rank, not a score
 

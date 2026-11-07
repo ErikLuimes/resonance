@@ -28,6 +28,8 @@ nonisolated enum Pref {
     /// Per extractor version: a set of another version's fingerprints doesn't count.
     static let fingerprintSetImported = "fingerprintSetImported.x2"
     static let menuBarPlayer = "menuBarPlayer"
+    /// Normal, Vim or Emacs keys (`KeyScheme`).
+    static let keyScheme = "keyScheme"
     /// The welcome steps already been through.
     static let onboardingSeen = "onboardingSeen"
 #if CSDB

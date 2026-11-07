@@ -170,6 +170,8 @@ extension HelpTopic {
                     "Click a match to show it in the library, or click **Play These** to play them all, most alike first.",
                     "Until the scan has reached the tune, the card says how far the scan has got.",
                 ]),
+                .heading("Sound Drift"),
+                .paragraph("Click **Drift From Here** on the Sounds Like card, or choose **Drift From This Tune** on the Dock icon, for a radio that doesn't end: each tune sounds like the one before, so it slowly wanders across the collection. It stops when you play something else."),
                 .heading("In any tune list"),
                 .bullets([
                     "The **Fingerprint** column shows each tune's fingerprint as a barcode. Hover it for a card with the tune's sphere and sound, to play it or find similar tunes.",
@@ -415,25 +417,13 @@ extension HelpTopic {
             title: "Keyboard Shortcuts", symbol: "keyboard",
             summary: "Every Playback command has a key.",
             blocks: [
-                .shortcuts([
-                    HelpShortcut(keys: "Space", action: "Play or pause (not while typing)"),
-                    HelpShortcut(keys: "⌘.", action: "Stop"),
-                    HelpShortcut(keys: "⌘→", action: "Next track"),
-                    HelpShortcut(keys: "⌘←", action: "Previous track"),
-                    HelpShortcut(keys: "⌥⌘→", action: "Next subtune"),
-                    HelpShortcut(keys: "⌥⌘←", action: "Previous subtune"),
-                    HelpShortcut(keys: "⌘↑", action: "Volume up"),
-                    HelpShortcut(keys: "⌘↓", action: "Volume down"),
-                    HelpShortcut(keys: "⌥⌘S", action: "Shuffle on or off"),
-                    HelpShortcut(keys: "⇧⌘R", action: "Surprise Me"),
-                    HelpShortcut(keys: "⇧⌘F", action: "Show or hide Now Playing"),
-                    HelpShortcut(keys: "Esc", action: "Close Now Playing"),
-                    HelpShortcut(keys: "⌃⌥⌘P", action: "Open the menu bar player, from any app"),
-                    HelpShortcut(keys: "⌘O", action: "Add files or folders"),
-                    HelpShortcut(keys: "⌘,", action: "Settings"),
-                    HelpShortcut(keys: "⌘?", action: "Resonance Help"),
-                ]),
-                .paragraph("The Playback menu has all of these, and Repeat and Shuffle Collection besides. Your keyboard's media keys work too."),
+                .paragraph("Press **?** in the main window to see every shortcut on a panel. A key still works with the panel open, so you can try one. Move through the rows with the arrow keys, press **Return** to run one, and press **Esc** to close it."),
+                .shortcuts(KeyAction.columns.flatMap(\.actions).map {
+                    HelpShortcut(keys: $0.binding(in: .normal).label, action: $0.helpPageTitle)
+                }),
+                .heading("Vim and Emacs Keys"),
+                .paragraph("Choose **Vim** or **Emacs** at the top of the panel, with **Tab** there, or in Settings under Appearance. They add keys of their own, such as **j** and **k** or **⌃N** and **⌃P** to move through a list, and the panel shows them. The menus' shortcuts keep working, and text fields keep their keys while you type."),
+                .paragraph("The Playback menu has Repeat and Shuffle Collection besides. Your keyboard's media keys work too."),
             ],
             related: [.nowPlaying, .library]
         ),

@@ -10,7 +10,12 @@ nonisolated final class ControlServer: @unchecked Sendable {
     private static let maxLine = 8 << 20
 
     static var defaultPath: String {
-        AppPaths.supportDirectory.appending(path: "control.sock").path
+#if DEBUG
+        // So a Debug copy can run beside the installed app without taking its
+        // socket.
+        if let path = ProcessInfo.processInfo.environment["RESONANCE_SOCKET"] { return path }
+#endif
+        return AppPaths.supportDirectory.appending(path: "control.sock").path
     }
 
     private let path: String

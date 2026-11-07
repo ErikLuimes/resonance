@@ -14,6 +14,7 @@ struct SettingsView: View {
                 SettingsPane {
                     StartPageSettings()
                     MenuBarSettings()
+                    KeyboardSettings()
                     ThemeSettings()
                 }
             }
@@ -688,6 +689,20 @@ private struct StartPageSettings: View {
             Text("What Resonance shows when it opens.")
                 .foregroundStyle(.secondary)
 #endif
+        }
+    }
+}
+
+private struct KeyboardSettings: View {
+    @AppStorage(Pref.keyScheme) private var scheme = KeyScheme.normal
+
+    var body: some View {
+        Section {
+            Picker("Keys", selection: $scheme) {
+                ForEach(KeyScheme.allCases) { Text($0.displayName).tag($0) }
+            }
+        } footer: {
+            Text("Vim and Emacs add their keys for moving through lists and playing tunes, except while you're typing. The menus' shortcuts keep working. Press ? in the main window to see them all.")
         }
     }
 }

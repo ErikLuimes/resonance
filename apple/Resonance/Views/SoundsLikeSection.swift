@@ -78,6 +78,11 @@ struct SoundsLikeSection: View {
                 }
                 .controlSize(.small)
                 .help("Play these tunes, most alike first")
+                Button("Drift From Here") {
+                    Task { _ = await fingerprints.startDrift(from: player.nowPlaying, with: library) }
+                }
+                .controlSize(.small)
+                .help("An endless radio: each tune sounds like the one before")
             }
         } else {
             ProgressView()

@@ -42,6 +42,53 @@ final class ControlCommandsTests {
         #expect((reply["result"] as? [String: Any])?["state"] as? String == "stopped")
     }
 
+    @Test func printsAnswerOnlyForTunesWithAFingerprint() throws {
+        let print = fingerprint()
+        let plain = ControlCommands.Print(path: "/a.sid", print: print, detail: false)
+        #expect(plain.traits == print.traits)
+        #expect(plain.mix == nil)
+        #expect(plain.activity == nil)
+    }
+
+    @Test func printsInDetailSplitTheVoices() throws {
+        let print = fingerprint(mix: [0.1, 0.2, 0.3, 0.4])
+        let detail = ControlCommands.Print(path: "/a.sid", print: print, detail: true)
+        #expect(detail.mix?.noise == 0.4)
+        #expect(detail.activity?.count == 3)
+        #expect(detail.activity?.allSatisfy { $0.count == 128 } == true)
+    }
+
+    @Test func printsLeaveOutWhatIsntScanned() async throws {
+        fake.set(fingerprints: ["/HVSC/a.sid": fingerprint()])
+        let reply = try await ask("prints", ["paths": ["/HVSC/a.sid", "/HVSC/b.sid"]])
+        let found = try #require(reply["result"] as? [[String: Any]])
+        #expect(found.map { $0["path"] as? String } == ["/HVSC/a.sid"])
+        #expect((found[0]["traits"] as? [Double])?.count == 9)
+    }
+
+    @Test func hvscAsksWhichSection() async throws {
+        let reply = try await ask("hvsc.authors", ["name": "Tapes"])
+        #expect(reply["ok"] as? Bool == false)
+        #expect((reply["error"] as? String)?.contains("Musicians") == true)
+    }
+
+    @Test func hvscSaysWhenThereIsNoCollection() async throws {
+        let reply = try await ask("hvsc.info")
+        #expect(reply["ok"] as? Bool == false)
+    }
+
+    @Test func aComposersPrintIsTheAverageOfTheirTunes() {
+        let print = ControlCommands.Print(path: "/MUSICIANS/H/Hubbard_Rob", traits: [0.5, 0.25])
+        #expect(print.traits == [0.5, 0.25])
+        #expect(print.mix == nil)
+    }
+
+    @Test func describingWhatsPlayingNeedsATuneFromTheCollection() async throws {
+        let reply = try await ask("describe.playing")
+        #expect(reply["ok"] as? Bool == false)
+        #expect((reply["error"] as? String)?.contains("like") == true)
+    }
+
     @Test func anUnknownCommandSaysSo() async throws {
         let reply = try await ask("dance")
         #expect(reply["ok"] as? Bool == false)
@@ -204,5 +251,57 @@ struct ControlServerSocketTests {
     @Test func aPathTooLongIsRefused() {
         let long = "/tmp/" + String(repeating: "x", count: 200)
         #expect(throws: ControlServer.StartError.self) { try ControlServer(path: long) { _ in Data() }.start() }
+    }
+}
+
+struct SoundDriftTests {
+    private func tune(_ name: String, by author: String = "A") -> HvscTuneItem {
+        HvscTuneItem(path: "/\(name).sid", title: name, author: author, released: "", songs: 1, startSong: 1,
+                     durationSecs: nil, hasStil: false, isRsid: nil, category: .musicians)
+    }
+
+    private func step(_ matches: [HvscTuneItem], visited: Set<String> = [], recent: [String] = []) -> HvscTuneItem? {
+        var rng = SystemRandomNumberGenerator()
+        return SoundDrift.step(from: matches, visited: visited, recentComposers: recent, using: &rng)
+    }
+
+    @Test func neverRepeatsATune() {
+        for _ in 0..<50 {
+            #expect(step([tune("a"), tune("b")], visited: ["/a.sid"])?.title == "b")
+        }
+    }
+
+    @Test func movesOnFromComposersItJustHeard() {
+        for _ in 0..<50 {
+            #expect(step([tune("a", by: "Rob"), tune("b", by: "Martin")], recent: ["Rob"])?.title == "b")
+        }
+    }
+
+    /// Better one of theirs than the drift ending.
+    @Test func staysWithAComposerWhenTheresNoOneElse() {
+        #expect(step([tune("a", by: "Rob")], recent: ["Rob"])?.title == "a")
+    }
+
+    @Test func staysAmongTheClosest() {
+        let matches = (0..<20).map { tune("t\($0)", by: "C\($0)") }
+        for _ in 0..<200 {
+            let chosen = step(matches)
+            #expect(matches.prefix(SoundDrift.spread).contains { $0.path == chosen?.path })
+        }
+    }
+
+    @Test func varies() {
+        let matches = (0..<20).map { tune("t\($0)", by: "C\($0)") }
+        #expect(Set((0..<100).compactMap { _ in step(matches)?.path }).count > 1)
+    }
+
+    @Test func endsWhenThereIsNowhereToGo() {
+        #expect(step([]) == nil)
+        #expect(step([tune("a")], visited: ["/a.sid"]) == nil)
+    }
+
+    @Test func itsNameSaysWhereItStarted() {
+        #expect(PlaybackSource.drift(title: "Commando").name == "Drifting from Commando")
+        #expect(PlaybackSource.drift(title: "Commando").kind == "Sound Drift")
     }
 }

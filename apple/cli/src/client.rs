@@ -32,7 +32,7 @@ fn socket_paths() -> Vec<PathBuf> {
 }
 
 /// This tool's own app, when it's the copy inside one.
-fn own_app() -> Option<PathBuf> {
+pub fn own_app() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?.canonicalize().ok()?;
     exe.ancestors().find(|p| p.extension().is_some_and(|e| e == "app")).map(PathBuf::from)
 }

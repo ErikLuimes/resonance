@@ -49,10 +49,15 @@ struct AboutView: View {
                 .foregroundStyle(.tertiary)
                 .padding(.top, 14)
 
-            HStack(spacing: 8) {
-                Button("Acknowledgements") { openWindow(id: AcknowledgementsView.windowID) }
-                Button("Website") { openURL(Self.website) }
-                Button("Source Code") { openURL(Self.source) }
+            VStack(spacing: 8) {
+                HStack(spacing: 8) {
+                    Button("Credits") { openWindow(id: CreditsView.windowID) }
+                    Button("Acknowledgements") { openWindow(id: AcknowledgementsView.windowID) }
+                }
+                HStack(spacing: 8) {
+                    Button("Website") { openURL(Self.website) }
+                    Button("Source Code") { openURL(Self.source) }
+                }
             }
             .controlSize(.small)
             .padding(.top, 18)

@@ -86,6 +86,8 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
         vizLatest().map { [$0] } ?? []
     }
 
+    func vizHeardSecs() -> Double? { nil }
+
     func vizScope(chip: UInt32, count: UInt32) -> VizScopeSamples {
         guard chip == 0 else { return VizScopeSamples(sampleRate: Self.previewRate, voices: [[], [], []]) }
         let voices = Self.previewVoices.map { v in
@@ -228,6 +230,9 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
         SmartPlaylist(tunes: [], totalSecs: 0, pool: 0, heard: 0, needsMoreHistory: false, seedNotScanned: false)
     }
     func smartFindTunes(name: String, limit: UInt32) async -> [HvscTuneItem] { [] }
+    func trackerSong(path: String, subtune: UInt16, secs: Double, chip: UInt32) async throws -> TrackerSong {
+        TrackerSong(isPal: true, frameRate: 50, framesPerRow: 6, onGrid: 0, hasGrid: false, chips: 1, rows: [], instruments: [])
+    }
     func smartComposers() async -> [SmartComposer] { [] }
     func smartTitles() async -> [String] { [] }
     func similarity(seed: String, paths: [String]) async -> [Float?] { paths.map { _ in nil } }

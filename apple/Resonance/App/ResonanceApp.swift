@@ -51,6 +51,20 @@ struct ResonanceApp: App {
         // Opened from About Resonance only.
         .commandsRemoved()
 
+        Window("Credits", id: CreditsView.windowID) {
+            CreditsView()
+                .environment(appDelegate.store)
+                .environment(appDelegate.library)
+                .environment(appDelegate.playlists)
+        }
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 960, height: 600)
+        .windowResizability(.contentMinSize)
+        .restorationBehavior(.disabled)
+        .defaultPosition(.center)
+        // Opened from About Resonance and the Help menu only.
+        .commandsRemoved()
+
         Window("Resonance Help", id: HelpView.windowID) {
             HelpView()
         }

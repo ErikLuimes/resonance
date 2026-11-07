@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resonance Credits</title>
+<style>
+html,body{margin:0;height:100%;background:#000}
+canvas{position:fixed;inset:0;margin:auto;width:min(100vw,160vh);aspect-ratio:16/10;image-rendering:pixelated;display:block}
+</style>
+<canvas id="dn" width="320" height="200"></canvas>
+<script>
+const c=document.getElementById('dn'),g=c.getContext('2d'),W=320,H=200;
+const F={A:'7E1111117E',B:'7F49494936',C:'3E41414122',D:'7F4141221C',E:'7F49494941',F:'7F09090901',G:'3E4149497A',H:'7F0808087F',I:'00417F4100',J:'2040413F01',K:'7F08142241',L:'7F40404040',M:'7F020C027F',N:'7F0408107F',O:'3E4141413E',P:'7F09090906',Q:'3E4151215E',R:'7F09192946',S:'4649494931',T:'01017F0101',U:'3F4040403F',V:'1F2040201F',W:'3F4038403F',X:'6314081463',Y:'0708700807',Z:'6151494543','0':'3E5149453E','1':'00427F4000','2':'4261514946','3':'2141454B31','4':'1814127F10','5':'2745454539','6':'3C4A494930','7':'0171090503','8':'3649494936','9':'064949291E',',':'0050300000','-':'0808080808'};
+const cols=k=>{const h=F[k];if(!h)return[0,0,0,0,0];return[0,2,4,6,8].map(i=>parseInt(h.substr(i,2),16))};
+function glyph(k,x,y,s,color){const a=cols(k);g.fillStyle=color;for(let i=0;i<5;i++)for(let b=0;b<8;b++)if(a[i]>>b&1)g.fillRect((x+i*s)|0,(y+b*s)|0,s,s)}
+function text(t,cx,y,s,color,pick){const x0=Math.round(cx-t.length*6*s/2);[...t].forEach((k,i)=>{const p=pick(i);if(p.on)glyph(k,x0+i*6*s+p.x,y+p.y,s,color)})}
+const ramps=[[[16,52,66],[46,146,176],[90,199,232],[214,243,252]],[[20,60,42],[72,162,118],[128,219,163],[222,248,232]],[[74,42,14],[196,120,50],[242,161,84],[253,230,206]]];
+const rgb=a=>'rgb('+a[0]+','+a[1]+','+a[2]+')';
+const hash=n=>Math.abs((Math.sin(n)*43758.5453)%1);
+const stars=Array.from({length:500},(_,k)=>[hash(k*12.989)*2,hash(k*78.233)*2,hash(k*37.719)*2]);
+const inks=['#ffffff','#a8a8a8','#5e5e5e'];
+function sky(t,turn,bank){const yaw=t*.12+Math.sin(t*.21)*.9+turn,pitch=Math.sin(t*.15)*.35,roll=Math.sin(t*.09)*.5+bank,cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch),cr=Math.cos(roll),sr=Math.sin(roll),cam=[Math.sin(t*.05)*3,Math.sin(t*.07)*2,t*.3],f=W/2;
+for(const s of stars){const r=s.map((v,i)=>{const d=v-cam[i];return d-Math.floor(d/2)*2-1});const x1=r[0]*cy-r[2]*sy,z1=r[0]*sy+r[2]*cy,y2=r[1]*cp-z1*sp,z2=r[1]*sp+z1*cp,x3=x1*cr-y2*sr,y3=x1*sr+y2*cr;if(z2<=.03)continue;const px=W/2+x3/z2*f,py=H/2+y3/z2*f;if(px<0||px>=W||py<0||py>=H)continue;const n=Math.max(0,1-z2);g.globalAlpha=Math.min(1,.35+n);g.fillStyle=inks[n>.6?0:n>.3?1:2];const z=n>.75?2:1;g.fillRect(px|0,py|0,z,z)}g.globalAlpha=1}
+const vig=g.createRadialGradient(W/2,H/2,50,W/2,H/2,190);vig.addColorStop(0,'rgba(0,0,0,0)');vig.addColorStop(.55,'rgba(0,0,0,.35)');vig.addColorStop(1,'rgba(0,0,0,.97)');
+// The name: flat vector letters that live in the stars' space. Each swoops close past
+// the camera, huge and tumbling, then backs off into its place in the word.
+const OUTLINES={
+R:[[[0,0],[4,0],[5,1],[5,3],[4,4],[5,7],[3.6,7],[2.7,4.2],[1.4,4.2],[1.4,7],[0,7]],[[1.4,1.2],[3.4,1.2],[3.7,1.5],[3.7,2.7],[3.4,3],[1.4,3]]],
+E:[[[0,0],[5,0],[5,1.3],[1.4,1.3],[1.4,2.8],[4.2,2.8],[4.2,4.1],[1.4,4.1],[1.4,5.7],[5,5.7],[5,7],[0,7]]],
+S:[[[1,0],[5,0],[5,1.3],[1.6,1.3],[1.4,1.5],[1.4,2.6],[1.6,2.8],[4,2.8],[5,3.8],[5,6],[4,7],[0,7],[0,5.7],[3.4,5.7],[3.6,5.5],[3.6,4.3],[3.4,4.1],[1,4.1],[0,3.1],[0,1]]],
+O:[[[1,0],[4,0],[5,1],[5,6],[4,7],[1,7],[0,6],[0,1]],[[1.7,1.3],[3.3,1.3],[3.6,1.6],[3.6,5.4],[3.3,5.7],[1.7,5.7],[1.4,5.4],[1.4,1.6]]],
+N:[[[0,0],[1.3,0],[3.7,4.6],[3.7,0],[5,0],[5,7],[3.7,7],[1.3,2.4],[1.3,7],[0,7]]],
+A:[[[1.8,0],[3.2,0],[5,7],[3.6,7],[3.2,5.3],[1.8,5.3],[1.4,7],[0,7]],[[1.85,4.15],[3.15,4.15],[2.5,1.2]]],
+C:[[[1,0],[5,0],[5,1.3],[1.7,1.3],[1.4,1.6],[1.4,5.4],[1.7,5.7],[5,5.7],[5,7],[1,7],[0,6],[0,1]]],
+B:[[[0,0],[4,0],[5,1],[5,2.7],[4.3,3.5],[5,4.3],[5,6],[4,7],[0,7]],[[1.4,1.2],[3.3,1.2],[3.6,1.5],[3.6,2.5],[3.3,2.8],[1.4,2.8]],[[1.4,4.2],[3.3,4.2],[3.6,4.5],[3.6,5.5],[3.3,5.8],[1.4,5.8]]],
+D:[[[0,0],[3.6,0],[5,1.4],[5,5.6],[3.6,7],[0,7]],[[1.4,1.3],[3,1.3],[3.6,1.9],[3.6,5.1],[3,5.7],[1.4,5.7]]],
+F:[[[0,0],[5,0],[5,1.3],[1.4,1.3],[1.4,2.8],[4.2,2.8],[4.2,4.1],[1.4,4.1],[1.4,7],[0,7]]],
+G:[[[1,0],[5,0],[5,1.3],[1.7,1.3],[1.4,1.6],[1.4,5.4],[1.7,5.7],[3.6,5.7],[3.6,4.3],[2.6,4.3],[2.6,3.1],[5,3.1],[5,7],[1,7],[0,6],[0,1]]],
+H:[[[0,0],[1.4,0],[1.4,2.8],[3.6,2.8],[3.6,0],[5,0],[5,7],[3.6,7],[3.6,4.1],[1.4,4.1],[1.4,7],[0,7]]],
+I:[[[1.8,0],[3.2,0],[3.2,7],[1.8,7]]],
+J:[[[3.6,0],[5,0],[5,6],[4,7],[1,7],[0,6],[0,4.6],[1.4,4.6],[1.4,5.4],[1.7,5.7],[3.3,5.7],[3.6,5.4]]],
+K:[[[0,0],[1.4,0],[1.4,2.7],[3.4,0],[5,0],[2.7,3.2],[5,7],[3.4,7],[1.4,3.9],[1.4,7],[0,7]]],
+L:[[[0,0],[1.4,0],[1.4,5.7],[5,5.7],[5,7],[0,7]]],
+M:[[[0,0],[1.3,0],[2.5,2.6],[3.7,0],[5,0],[5,7],[3.7,7],[3.7,2.8],[2.5,5.2],[1.3,2.8],[1.3,7],[0,7]]],
+P:[[[0,0],[4,0],[5,1],[5,3.3],[4,4.3],[1.4,4.3],[1.4,7],[0,7]],[[1.4,1.2],[3.3,1.2],[3.6,1.5],[3.6,2.8],[3.3,3.1],[1.4,3.1]]],
+Q:[[[1,0],[4,0],[5,1],[5,5.6],[4.1,6.4],[5,7],[1,7],[0,6],[0,1]],[[1.7,1.3],[3.3,1.3],[3.6,1.6],[3.6,5],[3.3,5.7],[1.7,5.7],[1.4,5.4],[1.4,1.6]]],
+T:[[[0,0],[5,0],[5,1.3],[3.2,1.3],[3.2,7],[1.8,7],[1.8,1.3],[0,1.3]]],
+U:[[[0,0],[1.4,0],[1.4,5.4],[1.7,5.7],[3.3,5.7],[3.6,5.4],[3.6,0],[5,0],[5,6],[4,7],[1,7],[0,6]]],
+V:[[[0,0],[1.5,0],[2.5,5],[3.5,0],[5,0],[3.3,7],[1.7,7]]],
+W:[[[0,0],[1.3,0],[1.6,4.6],[2.5,2.4],[3.4,4.6],[3.7,0],[5,0],[4.4,7],[3.1,7],[2.5,5.4],[1.9,7],[.6,7]]],
+X:[[[0,0],[1.6,0],[2.5,2.3],[3.4,0],[5,0],[3.3,3.5],[5,7],[3.4,7],[2.5,4.7],[1.6,7],[0,7],[1.7,3.5]]],
+Y:[[[0,0],[1.5,0],[2.5,2.6],[3.5,0],[5,0],[3.2,4],[3.2,7],[1.8,7],[1.8,4]]],
+Z:[[[0,0],[5,0],[5,1.3],[1.8,5.7],[5,5.7],[5,7],[0,7],[0,5.7],[3.2,1.3],[0,1.3]]]};
+const norm=v=>{const m=Math.hypot(...v);return v.map(x=>x/m)};
+// Super bold: every outline grown outward, and every counter shrunk, by the same amount.
+const BOLD=.3,MITRE=2.1;
+function grown(points,by){const area=points.reduce((a,p,i)=>{const q=points[(i+1)%points.length];return a+p[0]*q[1]-q[0]*p[1]},0),side=area>0?1:-1;
+return points.map((p,i)=>{const a=points[(i+points.length-1)%points.length],b=points[(i+1)%points.length];
+const e1=norm([p[0]-a[0],p[1]-a[1]]),e2=norm([b[0]-p[0],b[1]-p[1]]),n1=[e1[1]*side,-e1[0]*side],n2=[e2[1]*side,-e2[0]*side];
+let m=[n1[0]+n2[0],n1[1]+n2[1]];const len=Math.hypot(...m)||1;m=[m[0]/len,m[1]/len];
+const cos=Math.max(.001,m[0]*n1[0]+m[1]*n1[1]),reach=Math.min(MITRE,1/cos)*by;return[p[0]+m[0]*reach,p[1]+m[1]*reach]})}
+for(const k of Object.keys(OUTLINES))OUTLINES[k]=OUTLINES[k].map((o,i)=>grown(o,i===0?BOLD:-BOLD));
+const layer=document.createElement('canvas');layer.width=W;layer.height=H;const L=layer.getContext('2d',{willReadFrequently:true});
+// One long line of letters in the stars' space, passing right to left. Each phrase
+// sets off the next step: the camera after the first, the letters at the name, and the
+// stars settle once the last letter has gone.
+const THANKS='THANKS FOR LISTENING TO',NAME='RESONANCE',PEOPLE='WE WOULD LIKE TO THANK THE FOLLOWING PEOPLE';
+const LINE=THANKS+'   '+NAME+'   '+PEOPLE;
+const CAMERA_FROM=8,REF_YAW=1.8,FOCAL=W/2,SIZE=.19,WIDE=.255,NEAR=.14;
+const right=[Math.cos(REF_YAW),0,-Math.sin(REF_YAW)],forward=[Math.sin(REF_YAW),0,Math.cos(REF_YAW)];
+const ALONG=norm([1,.24,-.44]),SIDE=[0,-.45,3.7],STEP=1.76,SPACE=.95,READ_SPEED=6,TILT=.22,ARRIVES=3.8;
+const places=[];{let x=0;for(const k of LINE){places.push(x);x+=k===' '?SPACE:STEP}}
+const START=5.2,AT=i=>START+places[i],NAME_AT=THANKS.length+3;
+const CAMERA_STARTS=(AT(THANKS.length-1)-ARRIVES)/READ_SPEED,LETTERS_START=(AT(NAME_AT)-ARRIVES)/READ_SPEED;
+const SETTLE_FROM=(AT(LINE.length-1)+7)/READ_SPEED,SETTLE=3,INTRO=SETTLE_FROM+SETTLE+.3;
+const NORMAL=norm([ALONG[2],0,-ALONG[0]]);
+const add=(a,b,k)=>a.map((v,i)=>v+b[i]*k);
+const smooth=x=>{const v=Math.max(0,Math.min(1,x));return v*v*(3-2*v)};
+// How far something has turned: its rate grows in from nothing when it starts, holds,
+// then eases out to nothing as the stars settle, keeping where it got to.
+function turned(s,rate,from){const a=Math.max(0,Math.min(s,SETTLE_FROM)-from),b=Math.max(0,Math.min(SETTLE,s-SETTLE_FROM));return rate*(a*a/(a+1.6)+b-b*b/(2*SETTLE))}
+// What the camera adds to the stars: turning against the text until the camera starts,
+// so they drift the other way, then rolling through the wild part.
+const DRIFT=.22,EASE=1.5;
+function starTurn(s){const a=Math.min(s,CAMERA_STARTS),b=Math.max(0,Math.min(EASE,s-CAMERA_STARTS));return -DRIFT*(a+b-b*b/(2*EASE))}
+const ROLL_RATE=.55,SPIN_RATE=1.05,CIRCLE_RATE=.55;
+function name3d(s,t){
+const shared=.25+.75*smooth((s-CAMERA_STARTS)/2.5),moving=smooth((s-CAMERA_STARTS)/1.6)*(1-smooth((s-SETTLE_FROM)/SETTLE));
+const camYaw=REF_YAW+Math.sin(t*.21)*.25*shared+moving*Math.sin(s*.7)*.2,camPitch=(Math.sin(t*.15)*.35)*shared+moving*Math.sin(s*.9)*.18,camRoll=Math.sin(t*.09)*.5*shared+turned(s,ROLL_RATE,CAMERA_STARTS);
+const cy=Math.cos(camYaw),sy=Math.sin(camYaw),cp=Math.cos(camPitch),sp=Math.sin(camPitch),cr=Math.cos(camRoll),sr=Math.sin(camRoll);
+const view=p=>{const w=[p[0]*right[0]+p[2]*forward[0],p[1],p[0]*right[2]+p[2]*forward[2]],x1=w[0]*cy-w[2]*sy,z1=w[0]*sy+w[2]*cy,y2=w[1]*cp-z1*sp,z2=w[1]*sp+z1*cp;return[x1*cr-y2*sr,x1*sr+y2*cr,z2]};
+const around=turned(s,CIRCLE_RATE,CAMERA_STARTS),ca=Math.cos(around),sa=Math.sin(around),wildness=smooth((s-CAMERA_STARTS)/1.6),spinning=smooth((s-LETTERS_START)/1.6);
+const X=norm([ALONG[0]*Math.cos(TILT),Math.sin(TILT),ALONG[2]*Math.cos(TILT)]),Y0=[-ALONG[0]*Math.sin(TILT),Math.cos(TILT),-ALONG[2]*Math.sin(TILT)];
+// Circling the line while still looking at it: the letters turn around the line's axis.
+const Y=add(Y0.map(v=>v*ca),NORMAL,sa),N=add(NORMAL.map(v=>v*ca),Y0,-sa);
+const letters=[];
+[...LINE].forEach((k,i)=>{if(k===' ')return;const along=ARRIVES+(AT(i)-READ_SPEED*s-ARRIVES)*(1+wildness*.6);if(along>7||along<-16+wildness*3)return;
+// Out of step with their neighbours by a little, never by how far along the line they are.
+const spin=turned(s,SPIN_RATE,LETTERS_START)+spinning*Math.sin(i*1.7)*.7,cs=Math.cos(spin),ss=Math.sin(spin);
+const base=add([SIDE[0],SIDE[1]*(1-wildness*.75),SIDE[2]*(1-wildness*.32)],ALONG,along),face=view(add(N.map(v=>v*cs),X,ss));
+const place=p=>{const u=(p[0]-2.5)*WIDE,v=(p[1]-3.5)*SIZE;return view(add(add(add(base,X,u*cs),N,u*ss),Y,v))};
+letters.push(shape(k,place,face))});
+const seen=letters.filter(Boolean).sort((a,b)=>b.far-a.far);L.clearRect(0,0,W,H);
+for(const l of seen){const v=Math.round(l.lit);L.fillStyle='rgb('+(v-5)+','+v+','+(v-3)+')';L.beginPath();for(const o of l.paths){o.forEach((p,n)=>{const x=W/2+p[0]/p[2]*FOCAL,y=H/2+p[1]/p[2]*FOCAL;n?L.lineTo(x,y):L.moveTo(x,y)});L.closePath()}L.fill('evenodd')}
+// Hard edges, as vector demos drew them.
+const img=L.getImageData(0,0,W,H),px=img.data;for(let n=3;n<px.length;n+=4)px[n]=px[n]>=128?255:0;L.putImageData(img,0,0);
+g.drawImage(layer,0,0)}
+function shape(k,place,face){const outline=OUTLINES[k];if(!outline)return null;const paths=outline.map(o=>o.map(place));let far=0;for(const o of paths)for(const p of o){if(p[2]<NEAR)return null;far=Math.max(far,p[2])}return{paths,far,lit:212+40*Math.abs(face[2])}}
+const pages=[['A PRODUCTION BY','ERIK LUIMES',''],['DIRECTOR OF SAYING NO','ERIK LUIMES','IT WAS PERFECT, PUT IT BACK'],['TYPED VERY FAST','CLAUDE','BY ANTHROPIC'],['BROKE THE BUILD','CLAUDE','TWICE BEFORE COFFEE'],['BUILT THE HOUSE WE MOVED INTO','MARCIN SPOCZYNSKI','PHOSPHOR'],['CHIP WHISPERER','DAG LEM','RESID'],['KEEPER OF THE FILTER CURVES','LEANDRO NINI','LIBSIDPLAYFP AND RESIDFP'],['LIGHTWEIGHT CHAMPION','HERMIT','SIDLITE'],['THREE VOICES SHOULD BE ENOUGH','BOB YANNES','MOS 6581, 1982'],['HEAD OF 60,000 THINGS','THE HVSC CREW','AND EVERY COMPOSER IN IT'],['PROFESSIONAL LISTENER','YIZHI LI ET AL','MERT'],['SKULL SURGEON','INIGO QUILEZ','DISTANCE FUNCTIONS'],['ALL RESPECT TO THE DEMOSCENE','TRITON','WE FORGIVE THE PC'],['ACTUALLY DOING THE WORK','ROB HUBBARD','COMMANDO, NOW PLAYING']];
+const hold=4;
+function page(t){const n=Math.floor(t/hold)%pages.length,f=(t/hold)%1,p=pages[n];
+const pick=(i,len,row)=>{const start=i*Math.min(.012,.3/len)+row*.04,inn=Math.min(1,Math.max(0,(f-start)/.1)),out=Math.max(0,(f-.86-i*.004)/.08),e=1-inn;return{on:inn>0&&out<1,x:Math.round(Math.sin(i+t)*e*30+out*(i-len/2)*18),y:Math.round(-e*e*50+Math.sin(i*.9+t*4)*e*6+out*out*70)}};
+text(p[0],W/2,78,1,'#e9a13b',i=>pick(i,p[0].length,0));text(p[1],W/2,94,2,'#fff',i=>pick(i,p[1].length,1));if(p[2])text(p[2],W/2,118,1,'#a8a8a8',i=>pick(i,p[2].length,2))}
+const LOOP=INTRO+pages.length*hold;
+function draw(t){const s=t%LOOP,star=CAMERA_FROM+s;g.fillStyle='#050608';g.fillRect(0,0,W,H);sky(star,starTurn(s),turned(s,ROLL_RATE,CAMERA_STARTS));g.fillStyle=vig;g.fillRect(0,0,W,H);if(s<INTRO)name3d(s,star);else page(s-INTRO)}
+let t0=performance.now();
+function frame(n){draw(window.frozenAt??(n-t0)/1000);requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+</script>
+</html>

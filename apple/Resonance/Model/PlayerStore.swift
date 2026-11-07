@@ -179,6 +179,24 @@ final class PlayerStore {
         isShowingNowPlaying.toggle()
     }
 
+    /// The keyboard help panel over the main window, and its selected row.
+    var isShowingKeyHelp = false
+    var keyHelpSelection = KeyAction.playPause
+
+    func toggleKeyHelp() {
+        if !isShowingKeyHelp { keyHelpSelection = .playPause }
+        isShowingKeyHelp.toggle()
+    }
+
+    /// Goes up to ask the main window to put the cursor in its search field.
+    private(set) var searchFocusRequests = 0
+
+    /// The search field is in the toolbar, which Now Playing hides.
+    func focusSearch() {
+        isShowingNowPlaying = false
+        searchFocusRequests += 1
+    }
+
     /// A shared tune link waiting to be opened: the main window shows it
     /// in a sheet.
     var sharedTune: SharedTuneLink?

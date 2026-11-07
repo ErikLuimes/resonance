@@ -56,6 +56,22 @@ struct PlaySomethingLikeThisIntent: AudioPlaybackIntent {
     }
 }
 
+struct SoundDriftIntent: AudioPlaybackIntent {
+    static let title: LocalizedStringResource = "Drift From This Tune"
+    static let description = IntentDescription("Starts an endless radio from the tune playing: each tune sounds like the one before.")
+
+    @Dependency private var player: PlayerStore
+    @Dependency private var library: LibraryStore
+    @Dependency private var fingerprints: FingerprintStore
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        guard let track = player.nowPlaying else { throw TuneActionError.nothingPlaying }
+        guard await fingerprints.startDrift(from: track, with: library) else { throw TuneActionError.notFingerprinted }
+        return .result()
+    }
+}
+
 struct FavouriteThisTuneIntent: AppIntent {
     static let title: LocalizedStringResource = "Favourite This Tune"
     static let description = IntentDescription("Adds the tune playing to your Favourites.")
@@ -193,6 +209,9 @@ struct ResonanceShortcuts: AppShortcutsProvider {
         AppShortcut(intent: PlaySomethingLikeThisIntent(),
                     phrases: ["Play something like this in \(.applicationName)", "More like this in \(.applicationName)"],
                     shortTitle: "Play Something Like This", systemImageName: "waveform")
+        AppShortcut(intent: SoundDriftIntent(),
+                    phrases: ["Drift from this tune in \(.applicationName)", "Start a drift in \(.applicationName)"],
+                    shortTitle: "Drift From This Tune", systemImageName: "wind")
         AppShortcut(intent: FavouriteThisTuneIntent(),
                     phrases: ["Favourite this tune in \(.applicationName)", "Add this to my favourites in \(.applicationName)"],
                     shortTitle: "Favourite This Tune", systemImageName: "heart")

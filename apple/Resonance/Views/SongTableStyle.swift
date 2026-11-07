@@ -56,6 +56,24 @@ enum SongTableStyle {
         }
     }
 
+    /// The list a key should act on: the one with the focus, or else the song
+    /// table showing, which then takes it.
+    static func activeTable(in window: NSWindow) -> NSTableView? {
+        if let table = window.firstResponder as? NSTableView { return table }
+        guard let content = window.contentView, let table = visibleSongTable(under: content) else { return nil }
+        window.makeFirstResponder(table)
+        return table
+    }
+
+    private static func visibleSongTable(under view: NSView) -> NSTableView? {
+        if view.isHidden { return nil }
+        if let table = view as? NSTableView, table.isSongTable, !table.visibleRect.isEmpty { return table }
+        for subview in view.subviews {
+            if let table = visibleSongTable(under: subview) { return table }
+        }
+        return nil
+    }
+
     /// As the system insets its own selection in an inset table.
     fileprivate static let inset: CGFloat = 10
     fileprivate static let radius: CGFloat = 6

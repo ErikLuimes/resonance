@@ -235,6 +235,11 @@ impl VizFeed {
 
     /// The frame being heard now, or None before the first one has made it
     /// through the buffer and while stopped.
+    /// How far into the subtune the frame being heard ends.
+    pub fn heard(&self, now: Instant) -> Option<Duration> {
+        self.latest(now).map(|frame| frame.end)
+    }
+
     pub fn latest(&self, now: Instant) -> Option<Frame> {
         self.playhead(now).map(|(i, _)| self.frames[i])
     }

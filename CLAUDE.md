@@ -9,3 +9,5 @@ Scrubbing (seek) research and plan: design/scrubbing/README.md; the measurements
 Learned song lengths (tunes outside HVSC): design/songlengths/README.md; change the detection only against apple/core/examples/songlength_bench.rs.
 
 Smart playlists' reasoning and checks: design/smart-playlists/README.md; change the choosing only against apple/core/examples/smart_bench.rs.
+
+Credits page, in the app and the terminal app: design/credits/README.md, with the approved mockups beside it.

@@ -96,7 +96,7 @@ bar's progress bar with the overview strip from reference/AppInspector.dc.html, 
 - [ ] Registers tab (bytes flash on change, CTRL bits decoded) — `reference/Registers.dc.html`
 - [ ] Sweeps tab (PW, cutoff + resonance, gates) — `reference/Sweeps.dc.html`
 - [ ] Pitch trail tab — `reference/PitchTrail.dc.html`
-- [ ] Tracker tab, rebuilt from register writes — `reference/Tracker.dc.html`
+- [x] Tracker, rebuilt from register writes, in the terminal app's drawer (the app's drawer to come) — `TRACKER.md`, `reference/Tracker.dc.html`
 - [ ] "Open in window" → separate SID Monitor window
 
 **Tracker note:** `.sid` files hold player code, not patterns. Rebuild rows from the frame history:

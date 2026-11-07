@@ -4,8 +4,9 @@
 #
 #   apple/scripts/acknowledgements.sh
 #
-# Covers every Rust crate linked into the core (from Cargo's dependency
-# tree; build tools and macros, which don't ship, are left out) and every
+# Covers every Rust crate linked into the core or the command line tool, which
+# ships inside the app (from Cargo's dependency tree; build tools and macros,
+# which don't ship, are left out) and every
 # Swift package the app resolves from the internet (Package.resolved; the
 # local STILKit is ours), each with its licence files. Crates and packages
 # that share a licence text share one copy. Run it after changing
@@ -26,8 +27,8 @@ xcodebuild -resolvePackageDependencies -quiet -project Resonance.xcodeproj -sche
 SHIPPED="$(mktemp)"
 METADATA="$(mktemp)"
 trap 'rm -f "$SHIPPED" "$METADATA"' EXIT
-# The crates in the app: normal dependencies, no proc-macros.
-cargo tree -p phosphor-apple -e normal --target aarch64-apple-darwin --prefix none --format '{p}' \
+# The crates in the app and its tool: normal dependencies, no proc-macros.
+cargo tree -p phosphor-apple -p resonance-cli -e normal --target aarch64-apple-darwin --prefix none --format '{p}' \
     | grep -v '(proc-macro)' | sed 's/ (\*)//' | awk '{print $1, $2}' | sort -u > "$SHIPPED"
 cargo metadata --format-version 1 --filter-platform aarch64-apple-darwin > "$METADATA"
 
@@ -38,7 +39,7 @@ shipped_file, metadata_file, out, resolved_file, checkouts = sys.argv[1:]
 shipped = {tuple(line.split()) for line in open(shipped_file) if line.strip()}
 packages = json.load(open(metadata_file))["packages"]
 
-OURS = {"phosphor-apple", "phosphor-iced-shim"}
+OURS = {"phosphor-apple", "phosphor-iced-shim", "resonance-cli"}
 LICENCE_FILE = re.compile(r"^(licen[cs]e|copying|notice)", re.I)
 
 groups = {}   # licence text, normalised -> (text, crates and packages)
@@ -88,6 +89,12 @@ Sounds Like uses embeddings made in advance with MERT-v1-95M by Yizhi Li et
 al. (https://huggingface.co/m-a-p/MERT-v1-95M), downloaded separately under the
 CC BY-NC 4.0 licence (https://creativecommons.org/licenses/by-nc/4.0/). They
 were reduced in size. The MERT model itself isn't part of Resonance.
+
+The skull in the command line tool's terminal app is drawn with signed distance
+functions following the work of Inigo Quilez (https://iquilezles.org/articles/).
+
+The credits are a tribute to the demoscene, in the style of Crystal Dream II by
+Triton (1993). Nothing from the demo is in Resonance. We forgive the PC.
 """)
     for text, crates in sorted(groups.values(), key=lambda g: g[1][0].lower()):
         f.write("\n%s\n\n%s\n\n%s\n" % (rule, "\n".join(crates), text))

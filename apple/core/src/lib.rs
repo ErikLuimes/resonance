@@ -92,7 +92,10 @@ mod residfp_player;
 pub(crate) mod session;
 mod share;
 mod smart;
+mod tracker;
 mod viz;
+
+pub use tracker::{tracker_song, TrackerCell, TrackerEffect, TrackerInstrument, TrackerRow, TrackerSong};
 
 pub use ffi::*;
 pub use learned::{estimate_length, LengthEstimate, LengthMethod};

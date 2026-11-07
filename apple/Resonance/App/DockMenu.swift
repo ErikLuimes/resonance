@@ -27,6 +27,10 @@ enum DockMenu {
             guard let track else { return }
             Task { _ = await fingerprints.playSimilar(to: track, with: library) }
         })
+        menu.addItem(ActionItem("Drift From This Tune", enabled: scanned) {
+            guard let track else { return }
+            Task { _ = await fingerprints.startDrift(from: track, with: library) }
+        })
         menu.addItem(ActionItem("Surprise Me", enabled: library.hasRoot) {
             Task { await library.surpriseMe() }
         })

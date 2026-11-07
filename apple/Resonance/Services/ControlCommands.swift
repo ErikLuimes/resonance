@@ -34,6 +34,7 @@ final class ControlCommands {
         var on: Bool?
         var play: Bool?
         var count: Int?
+        var detail: Bool?
     }
 
     struct Failure: Error {
@@ -53,8 +54,10 @@ final class ControlCommands {
         let secs: Int?
         /// How alike, 0–1, in Sounds Like.
         var score: Double?
+        /// When it was last played, in seconds since 1970, in Recently Played.
+        var playedAt: UInt64?
 
-        init(_ item: HvscTuneItem, score: Double? = nil) {
+        init(_ item: HvscTuneItem, score: Double? = nil, playedAt: UInt64? = nil) {
             path = item.path
             title = item.title
             author = item.author
@@ -62,6 +65,7 @@ final class ControlCommands {
             songs = Int(item.songs)
             secs = item.durationSecs.map(Int.init)
             self.score = score
+            self.playedAt = playedAt
         }
     }
 
@@ -82,6 +86,8 @@ final class ControlCommands {
         let duration: Double?
         let hasCollection: Bool
         let favourite: Bool
+        /// The list it's playing from.
+        let source: String?
     }
 
     struct PlaylistInfo: Encodable {
@@ -93,11 +99,165 @@ final class ControlCommands {
     struct Described: Encodable {
         let title: String
         let note: String?
+        /// What it took from the sentence, in words.
+        let understood: String?
+        /// "19 tunes, 61 minutes".
+        let facts: String?
         let tunes: [Tune]
     }
 
     struct Scope: Encodable {
         let voices: [[Float]]
+    }
+
+    /// A tune as a tracker would show it, short-named as it can run to thousands of rows.
+    struct TrackerAnswer: Encodable {
+        struct Instrument: Encodable {
+            let name: String
+            let ad: UInt8
+            let sr: UInt8
+        }
+
+        struct Row: Encodable {
+            let f: UInt32
+            /// Each voice: "C-4 02 ARP", "--- 00 VIB", or empty for nothing at all.
+            let v: [String]
+            let c: UInt16
+            let r: UInt8
+            let ro: UInt8
+            let m: UInt8
+
+            init(_ row: TrackerRow) {
+                f = row.frame
+                v = row.voices.map { cell in
+                    let effect = switch cell.effect {
+                    case .arpeggio: "ARP"
+                    case .slide: "SLD"
+                    case .vibrato: "VIB"
+                    case .none: "..."
+                    }
+                    if cell.note == nil, !cell.off, cell.effect == .none { return "" }
+                    let note = cell.note ?? (cell.off ? "---" : "...")
+                    return "\(note) \(String(format: "%02X", cell.instrument)) \(effect)"
+                }
+                c = row.cutoff
+                r = row.resonance
+                ro = row.filterRouting
+                m = row.filterMode
+            }
+        }
+
+        let path: String
+        let song: Int
+        let frameRate: Double
+        let framesPerRow: Float
+        let hasGrid: Bool
+        let chips: UInt32
+        let instruments: [Instrument]
+        let rows: [Row]
+    }
+
+    /// What's being heard, for the tracker's playhead.
+    struct TrackerPosition: Encodable {
+        let path: String?
+        let song: Int
+        let heard: Double?
+        let levels: [Float]
+        let notes: [String?]
+    }
+
+    struct Sound: Encodable {
+        let summary: String
+        let tags: [String]
+    }
+
+    /// A tune's fingerprint for drawing: the nine traits, and with `detail` its
+    /// waveform mix and how loud each voice is across the tune.
+    struct Print: Encodable {
+        struct Mix: Encodable {
+            let triangle: Float
+            let saw: Float
+            let pulse: Float
+            let noise: Float
+        }
+
+        let path: String
+        let traits: [Float]
+        let mix: Mix?
+        let activity: [[UInt8]]?
+
+        /// A composer's sound: the average of their tunes.
+        init(path: String, traits: [Float]) {
+            self.path = path
+            self.traits = traits
+            mix = nil
+            activity = nil
+        }
+
+        init(path: String, print: TuneFingerprint, detail: Bool) {
+            self.path = path
+            traits = print.traits
+            mix = detail ? Mix(triangle: print.mix.triangle, saw: print.mix.saw, pulse: print.mix.pulse, noise: print.mix.noise) : nil
+            let levels = Array(print.activity)
+            let bins = max(Int(print.bins), 1)
+            activity = detail ? stride(from: 0, to: levels.count, by: bins).map {
+                Array(levels[$0..<min($0 + bins, levels.count)])
+            } : nil
+        }
+    }
+
+    /// The collection's front door, as the HVSC Home shows it.
+    struct HvscOverview: Encodable {
+        struct Update: Encodable {
+            let number: UInt32
+            let newSids: UInt32?
+            let fixedRips: UInt32?
+            let creditFixes: UInt32?
+            let moved: UInt32?
+            let text: String
+        }
+
+        struct Playlist: Encodable {
+            let name: String
+            let file: String
+            let tracks: UInt32
+        }
+
+        struct Disk: Encodable {
+            let name: String
+            let images: UInt32
+        }
+
+        let version: String?
+        let releaseDate: String?
+        let totalTunes: UInt32
+        let musicianTunes: UInt32
+        let gameTunes: UInt32
+        let demoTunes: UInt32
+        let composers: UInt32
+        let songlengthEntries: UInt32
+        let documents: UInt32
+        let update: Update?
+        let disks: [Disk]
+        let playlists: [Playlist]
+
+        init(_ info: HvscInfo) {
+            version = info.version
+            releaseDate = info.releaseDate
+            totalTunes = info.totalTunes
+            musicianTunes = info.musicianTunes
+            gameTunes = info.gameTunes
+            demoTunes = info.demoTunes
+            composers = info.composers
+            songlengthEntries = info.songlengthEntries
+            documents = info.documents
+            update = info.update.map {
+                Update(number: $0.number, newSids: $0.newSids, fixedRips: $0.fixedRips, creditFixes: $0.creditFixes,
+                       moved: $0.moved, text: $0.text)
+            }
+            disks = info.disks.map { Disk(name: $0.name, images: $0.images) }
+            playlists = info.playlists.map { Playlist(name: $0.name, file: $0.file, tracks: $0.tracks) }
+        }
     }
 
     struct Done: Encodable {}
@@ -155,7 +315,12 @@ final class ControlCommands {
             return answer(status())
         case "play":
             if let paths = args.paths, !paths.isEmpty {
-                try play(paths, start: args.start, from: args.text.map { .search(query: $0) } ?? .files)
+                let source: PlaybackSource = if let title = args.name {
+                    .smart(title: title)
+                } else {
+                    args.text.map { .search(query: $0) } ?? .files
+                }
+                try play(paths, start: args.start, from: source)
             } else if !player.isPlaying {
                 player.playPause()
             }
@@ -194,6 +359,24 @@ final class ControlCommands {
             let scope = player.visualizer.scope(chip: 0, count: min(max(args.count ?? 256, 16), 2048))
             return answer(Scope(voices: scope.voices))
 
+        case "tracker.position":
+            let voices = player.visualizer.latest()?.chips.first?.voices ?? []
+            return answer(TrackerPosition(
+                path: player.nowPlaying?.path, song: Int(player.nowPlaying?.currentSong ?? 0),
+                heard: player.core.vizHeardSecs(), levels: voices.map(\.envLevel), notes: voices.map(\.note)
+            ))
+        case "tracker.song":
+            guard let track = player.nowPlaying else { throw Failure("Nothing is playing.") }
+            // Its known length, else the longest a tune with none usually gets.
+            let secs = min((player.duration ?? 300) + 2, 900)
+            let song = try await player.core.trackerSong(path: track.path, subtune: UInt16(clamping: track.currentSong), secs: secs, chip: 0)
+            return answer(TrackerAnswer(
+                path: track.path, song: Int(track.currentSong), frameRate: song.frameRate, framesPerRow: song.framesPerRow,
+                hasGrid: song.hasGrid, chips: song.chips,
+                instruments: song.instruments.map { .init(name: $0.name, ad: $0.attackDecay, sr: $0.sustainRelease) },
+                rows: song.rows.map(TrackerAnswer.Row.init)
+            ))
+
         // MARK: Finding
         case "search":
             let text = args.text ?? ""
@@ -208,12 +391,62 @@ final class ControlCommands {
                              from: .soundsLike(title: player.nowPlaying?.displayTitle ?? "this tune"))
             }
             return answer(found.map { Tune($0.item, score: Double(max(0, $0.score))) })
+        case "drift":
+            let started = await fingerprints.startDrift(from: args.path == nil ? try playing() : nil, path: args.path, with: library)
+            guard started else { throw Failure("Resonance hasn't fingerprinted this tune yet.") }
+            return done()
+        case "sound":
+            let path = try args.path ?? playing().path
+            guard let print = await player.core.fingerprints(paths: [path]).first ?? nil else {
+                throw Failure("Resonance hasn't fingerprinted this tune yet.")
+            }
+            return answer(Sound(summary: print.summary, tags: print.tags.map(\.name)))
+        case "prints":
+            // Only tunes with a fingerprint are in the answer.
+            let paths = args.paths ?? []
+            let found = await player.core.fingerprints(paths: paths)
+            let detail = args.detail ?? false
+            return answer(zip(paths, found).compactMap { path, print in
+                print.map { Print(path: path, print: $0, detail: detail) }
+            })
+        case "prints.composers":
+            return answer(await composerPrints(args.paths ?? []))
+        case "guess.pool":
+            return answer(try await guessPool())
         case "describe":
             guard let text = args.text, !text.isEmpty else { throw Failure("Say what you'd like to hear.") }
             return answer(try await describe(text, play: args.play ?? true))
+        case "describe.playing":
+            return answer(try await describePlaying())
         case "recent":
             let recent = try await player.core.recentlyPlayed()
-            return answer(recent.prefix(args.limit ?? 100).map { Tune($0.item) })
+            return answer(recent.prefix(args.limit ?? 100).map { Tune($0.item, playedAt: $0.playedAt) })
+
+        // MARK: HVSC
+        case "hvsc.info":
+            return answer(HvscOverview(try await collectionInfo()))
+        case "hvsc.authors":
+            let category = try hvscCategory(args.name)
+            await library.loadAuthors(category)
+            await library.loadComposers(category)
+            let composers = library.composers[category] ?? [:]
+            return answer((library.authors[category] ?? []).map { Tune(author: $0, composer: composers[$0.path]) })
+        case "hvsc.tunes":
+            guard let path = args.path else { throw Failure("Which composer?") }
+            await library.loadTunes(authorPath: path)
+            return answer((library.tunes[path] ?? []).map { Tune($0.item) })
+        case "hvsc.playlist":
+            let playlist = try await curated(args.name)
+            await library.loadPlaylist(playlist)
+            let rows = library.playlistTunes[playlist.file] ?? nil
+            return answer((rows ?? []).map { Tune($0.item) })
+        case "hvsc.playlist.play":
+            player.playPublishedPlaylist(try await curated(args.name))
+            return done()
+        case "hvsc.shuffle":
+            guard library.hasRoot else { throw Failure("There's no collection on this Mac yet.") }
+            await library.shuffleCollection()
+            return done()
 
         // MARK: Playlists
         case "playlist.list":
@@ -308,8 +541,47 @@ final class ControlCommands {
             elapsed: player.elapsed,
             duration: player.duration,
             hasCollection: player.hasCollection,
-            favourite: track.map { playlists.isFavourite($0.path) } ?? false
+            favourite: track.map { playlists.isFavourite($0.path) } ?? false,
+            source: player.source?.name
         )
+    }
+
+    private func collectionInfo() async throws -> HvscInfo {
+        await player.loadHvscInfo()
+        guard let info = player.hvscInfo else { throw Failure("There's no collection on this Mac yet.") }
+        return info
+    }
+
+    private func hvscCategory(_ name: String?) throws -> HvscCategory {
+        switch name?.lowercased() {
+        case "musicians": .musicians
+        case "demos": .demos
+        case "games": .games
+        default: throw Failure("Musicians, Demos or Games?")
+        }
+    }
+
+    private func curated(_ file: String?) async throws -> HvscPlaylist {
+        let info = try await collectionInfo()
+        guard let found = info.playlists.first(where: { $0.file == file }) else {
+            throw Failure("There's no such playlist.")
+        }
+        return found
+    }
+
+    /// The average of each composer's fingerprinted tunes, leaving out any with none.
+    private func composerPrints(_ paths: [String]) async -> [Print] {
+        var found: [Print] = []
+        for path in paths.prefix(80) {
+            guard let tunes = try? await player.core.hvscTunes(authorPath: path) else { continue }
+            let prints = await player.core.fingerprints(paths: tunes.map(\.path)).compactMap(\.self)
+            guard let length = prints.first?.traits.count else { continue }
+            let total = prints.reduce(into: [Float](repeating: 0, count: length)) { sum, print in
+                for index in sum.indices where print.traits.indices.contains(index) { sum[index] += print.traits[index] }
+            }
+            found.append(Print(path: path, traits: total.map { $0 / Float(prints.count) }))
+        }
+        return found
     }
 
     private func play(_ paths: [String], start: String?, from source: PlaybackSource) throws {
@@ -319,17 +591,71 @@ final class ControlCommands {
         player.playQueue(urls, startAt: first, from: source)
     }
 
+    /// What `resonance guess` chooses from: tunes people know, from HVSC's own
+    /// Top 100, so a day's tune can be got.
+    private func guessPool() async throws -> [Tune] {
+        // The window asks for these as it opens; there may be no window yet.
+        if player.hvscInfo == nil { await player.syncPublishedPlaylists() }
+        let lists = player.hvscInfo?.playlists ?? []
+        guard let list = lists.first(where: { $0.name.localizedCaseInsensitiveContains("top 100") }) ?? lists.first else {
+            throw Failure("Resonance doesn't have HVSC's playlists yet.")
+        }
+        let files = player.publishedPlaylistTunes(list).map(\.path)
+        return await player.core.tunesFromFiles(paths: files).map { Tune($0) }
+    }
+
     private func describe(_ text: String, play shouldPlay: Bool) async throws -> Described {
+        // HVSC's Top 100 is a list already; the window goes to it rather than working one out.
+        if text.lowercased().contains("top 100"), let list = try? await collectionInfo().playlists.first(where: {
+            $0.name.localizedCaseInsensitiveContains("top 100")
+        }) {
+            await library.loadPlaylist(list)
+            let rows = library.playlistTunes[list.file] ?? nil
+            if shouldPlay { player.playPublishedPlaylist(list) }
+            return Described(title: list.name, note: nil, understood: nil,
+                             facts: "\(list.tracks) tunes",
+                             tunes: (rows ?? []).map { Tune($0.item) })
+        }
         await library.describe(text, isFinal: true)
+        return try await smartList(play: shouldPlay)
+    }
+
+    /// The closest to what's playing, as Similar to a Tune has it.
+    private func describePlaying() async throws -> Described {
+        guard let track = player.nowPlaying, player.hvscRoot.map(track.path.hasPrefix) == true else {
+            throw Failure("Nothing from the collection is playing. Say “like” and a tune's name.")
+        }
+        library.describeTune(.init(path: track.path, title: track.title, author: track.author))
+        return try await smartList(play: false)
+    }
+
+    /// The list for the sentence just read, or what the window would have said instead.
+    private func smartList(play shouldPlay: Bool) async throws -> Described {
         let settings = library.smartSettings
         guard settings.isReady else { throw Failure("Resonance couldn't make a list from that.") }
         let made = try await player.core.smartPlaylist(recipe: settings.recipe)
+        if made.needsMoreHistory {
+            let heard = made.heard == 1 ? "1 tune" : "\(made.heard) tunes"
+            throw Failure("New to Me compares what you've played with everything else. You've played \(heard) so far, so it would mostly be guessing. Try Never Heard.")
+        }
+        if made.seedNotScanned {
+            throw Failure("Resonance hasn't learned how this tune sounds yet. Try another one, or come back when the scan has reached it.")
+        }
         let items = made.tunes.map(\.item)
-        guard !items.isEmpty else { throw Failure("No tunes fit that.") }
+        guard !items.isEmpty else {
+            if let instead = settings.understood?.likeInstead(of: settings.sentence) {
+                throw Failure("No tune by that name fits, but some that sound like it may. Try “\(instead)”.")
+            }
+            throw Failure("No tunes fit that. Try asking for a little less.")
+        }
         if shouldPlay {
             library.play(items.map(LibraryRow.init), from: .smart(title: settings.title))
         }
-        return Described(title: settings.title, note: settings.note, tunes: items.map { Tune($0) })
+        let understood = settings.understood?.description(seedTitles: settings.describedSeeds.map {
+            settings.understood?.composers.isEmpty == true ? "\($0.title) by \($0.author)" : $0.title
+        })
+        return Described(title: settings.title, note: settings.note, understood: understood,
+                         facts: SmartFacts.tunes(items.count, secs: made.totalSecs), tunes: items.map { Tune($0) })
     }
 
     /// Favourites or one of your playlists, by name.
@@ -365,6 +691,22 @@ final class ControlCommands {
 }
 
 private extension ControlCommands.Tune {
+    /// A composer as a row: the name as its title, the real name as its author, the
+    /// years as its release, and how many tunes as its songs.
+    init(author: HvscAuthorItem, composer: HvscComposer?) {
+        path = author.path
+        title = author.displayName
+        self.author = composer?.realName ?? ""
+        released = switch (composer?.firstYear, composer?.lastYear) {
+        case let (first?, last?) where first != last: "\(first)–\(last)"
+        case let (first?, _): "\(first)"
+        default: ""
+        }
+        songs = Int(composer?.tunes ?? 0)
+        secs = nil
+        score = nil
+    }
+
     /// The tune playing, which has no length to hand here.
     init(path: String, title: String, author: String, released: String) {
         self.path = path

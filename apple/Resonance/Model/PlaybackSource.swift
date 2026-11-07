@@ -18,6 +18,8 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
     case recentlyPlayed
     /// A tune's Sounds Like list, by the tune's title.
     case soundsLike(title: String)
+    /// Sound Drift, by the tune it set off from.
+    case drift(title: String)
     /// A Smart Playlist not saved, by its title.
     case smart(title: String)
     case surprise
@@ -44,6 +46,7 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .search(let query): "Search “\(query)”"
         case .recentlyPlayed: "Recently Played"
         case .soundsLike(let title): "Sounds like \(title)"
+        case .drift(let title): "Drifting from \(title)"
         case .smart(let title): title
         case .surprise: "Surprise Me"
         case .shuffleCollection: "Shuffle Collection"
@@ -73,6 +76,7 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .search: "Search"
         case .recentlyPlayed: "History"
         case .soundsLike: "Sounds like"
+        case .drift: "Sound Drift"
         case .smart: "Smart Playlist"
         case .surprise: "Random tunes from HVSC"
         case .shuffleCollection: "All of HVSC, shuffled"
@@ -93,6 +97,7 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .search: "magnifyingglass"
         case .recentlyPlayed: "clock"
         case .soundsLike: "waveform"
+        case .drift: "wind"
         case .smart: "wand.and.stars"
         case .surprise: "dice"
         case .shuffleCollection: "shuffle"

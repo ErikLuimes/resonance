@@ -32,6 +32,12 @@ impl FakeApp {
                     let request: Value = serde_json::from_str(&line.unwrap()).unwrap();
                     let answer = if request["cmd"] == "fail" {
                         json!({ "id": request["id"], "ok": false, "error": "It went wrong." })
+                    } else if request["cmd"] == "status" && result.is_array() {
+                        // Playing the first of the tunes, well into it.
+                        let path = result[0]["path"].clone();
+                        let now = json!({ "path": path, "title": "T", "author": "A", "released": "", "song": 1, "songs": 1 });
+                        let status = json!({ "state": "playing", "now": now, "elapsed": 999.0, "hasCollection": true, "favourite": false });
+                        json!({ "id": request["id"], "ok": true, "result": status })
                     } else {
                         json!({ "id": request["id"], "ok": true, "result": result })
                     };
@@ -215,4 +221,79 @@ fn completions_mention_the_commands() {
     let script = text(&output);
     assert!(script.contains("#compdef resonance"));
     assert!(script.contains("surprise"));
+}
+
+#[test]
+fn drift_names_a_file_when_given_one() {
+    let app = FakeApp::start(json!({}));
+    assert!(app.run(&["drift"]).status.success());
+    assert_eq!(app.last()["cmd"], "drift");
+    assert_eq!(app.last()["args"], json!({}));
+    app.run(&["drift", "/a.sid"]);
+    assert_eq!(app.last()["args"]["path"], "/a.sid");
+}
+
+/// The test build isn't inside an app, and doesn't need one running to say so.
+#[test]
+fn licenses_says_where_to_look_outside_the_app() {
+    let output = Command::new(env!("CARGO_BIN_EXE_resonance")).arg("--licenses").env("RESONANCE_NO_LAUNCH", "1").output().unwrap();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Acknowledgements.txt"));
+}
+
+/// The whole of `resonance mcp` over real pipes.
+#[test]
+fn mcp_speaks_over_stdin_and_stdout() {
+    let app = FakeApp::start(tunes());
+    let mut child = Command::new(env!("CARGO_BIN_EXE_resonance"))
+        .arg("mcp")
+        .env("RESONANCE_SOCKET", &app.socket)
+        .env("RESONANCE_NO_LAUNCH", "1")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    let requests = [
+        json!({ "jsonrpc": "2.0", "id": 1, "method": "initialize", "params": { "protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": { "name": "test", "version": "1" } } }),
+        json!({ "jsonrpc": "2.0", "method": "notifications/initialized" }),
+        json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/list" }),
+        json!({ "jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": { "name": "search", "arguments": { "query": "commando" } } }),
+    ];
+    for request in requests {
+        writeln!(stdin, "{request}").unwrap();
+    }
+    drop(stdin);
+    let output = child.wait_with_output().unwrap();
+    let answers: Vec<Value> = String::from_utf8(output.stdout)
+        .unwrap()
+        .lines()
+        .map(|l| serde_json::from_str(l).unwrap())
+        .collect();
+    assert_eq!(answers.len(), 3, "a notification gets no answer");
+    assert_eq!(answers[0]["result"]["protocolVersion"], "2025-06-18");
+    assert!(!answers[1]["result"]["tools"].as_array().unwrap().is_empty());
+    assert!(answers[2]["result"]["content"][0]["text"].as_str().unwrap().contains("Commando"));
+    assert_eq!(app.last()["cmd"], "search");
+}
+
+/// A whole game with no sound or waiting: every round skipped, then the reveal.
+#[test]
+fn guess_can_be_played_to_the_end() {
+    let app = FakeApp::start(tunes());
+    let mut child = Command::new(env!("CARGO_BIN_EXE_resonance"))
+        .args(["guess", "--clip-scale", "0"])
+        .env("RESONANCE_SOCKET", &app.socket)
+        .env("RESONANCE_NO_LAUNCH", "1")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    child.stdin.take().unwrap().write_all(b"s\ns\ns\ns\ns\ns\n").unwrap();
+    let output = child.wait_with_output().unwrap();
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(output.status.success());
+    assert!(text.contains("It's Commando by Hubbard, Rob (1985 Elite)."), "{text}");
+    assert!(text.contains("⬛⬛⬛⬛⬛⬛"), "{text}");
+    assert!(text.find("Clip 1 of 6").unwrap() < text.find("It's Commando").unwrap(), "no spoiler first");
 }

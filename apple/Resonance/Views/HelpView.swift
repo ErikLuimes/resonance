@@ -247,7 +247,7 @@ private struct HelpBlockView: View {
 }
 
 /// A shortcut's keys, set like a key on the keyboard.
-private struct Keycap: View {
+struct Keycap: View {
     let keys: String
 
     var body: some View {
@@ -268,7 +268,9 @@ struct HelpCommands: Commands {
     var body: some Commands {
         CommandGroup(replacing: .help) {
             HelpButton()
+            ShortcutsButton(store: store)
             WelcomeButton(store: store)
+            CreditsButton()
             Divider()
             Link("Resonance Website", destination: URL(string: "https://erikluimes.github.io/resonance/")!)
             Link("Report a Problem", destination: URL(string: "https://github.com/ErikLuimes/resonance/issues")!)
@@ -281,6 +283,29 @@ struct HelpCommands: Commands {
         var body: some View {
             Button("Resonance Help") { openWindow(id: HelpView.windowID) }
                 .keyboardShortcut("?", modifiers: .command)
+        }
+    }
+
+    /// The panel over the main window. No ? as its shortcut: a plain-key menu
+    /// shortcut would swallow the ? typed into the search field. AppKeys
+    /// handles the key.
+    private struct ShortcutsButton: View {
+        let store: PlayerStore
+        @Environment(\.openWindow) private var openWindow
+
+        var body: some View {
+            Button("Keyboard Shortcuts") {
+                store.toggleKeyHelp()
+                openWindow(id: "main")
+            }
+        }
+    }
+
+    private struct CreditsButton: View {
+        @Environment(\.openWindow) private var openWindow
+
+        var body: some View {
+            Button("Credits") { openWindow(id: CreditsView.windowID) }
         }
     }
 

@@ -4,16 +4,29 @@
 //! terminal and every shortcut stay the same player.
 
 mod client;
+mod credits;
+mod fingerprint;
+mod fire;
+mod guess;
+mod header;
+mod keys;
+mod mcp;
 mod model;
+mod palette;
 mod pick;
 mod sid;
+mod skull;
+mod sphere;
+mod tesla;
 mod tui;
+mod viz;
+mod water;
 
 use clap::{CommandFactory, Parser, Subcommand};
 use client::Client;
 use model::{clock, Described, PlaylistInfo, Status, Tune};
 use serde_json::{json, Value};
-use std::io::IsTerminal;
+use std::io::{IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -23,6 +36,12 @@ struct Cli {
     /// Print the answer as JSON
     #[arg(long, global = true)]
     json: bool,
+    /// The terminal app's keys; otherwise RESONANCE_KEYS, then your editor, then Emacs
+    #[arg(long, global = true, value_enum, value_name = "SET")]
+    keys: Option<keys::KeyScheme>,
+    /// Print the licences of the open-source software in Resonance and this tool
+    #[arg(long)]
+    licenses: bool,
     #[command(subcommand)]
     command: Option<Cmd>,
 }
@@ -31,6 +50,8 @@ struct Cli {
 enum Cmd {
     /// Open the terminal app (the default with no command)
     Tui,
+    /// Show the credits in the terminal app, then leave
+    Credits,
     /// Play or carry on; with files, play those
     Play { files: Vec<PathBuf> },
     /// Pause
@@ -72,6 +93,22 @@ enum Cmd {
         #[arg(long)]
         play: bool,
     },
+    /// What you've been listening to, most recent first
+    Recent {
+        #[arg(long, default_value_t = 30)]
+        limit: u32,
+    },
+    /// An endless radio from the tune playing, or a file: each tune sounds like the last
+    Drift { file: Option<PathBuf> },
+    /// Guess today's tune from short clips (a prototype)
+    Guess {
+        /// A random tune, instead of today's
+        #[arg(long)]
+        practice: bool,
+        /// How long clips are compared with normal, for tests
+        #[arg(long, default_value_t = 1.0, hide = true)]
+        clip_scale: f64,
+    },
     /// Make a Smart Playlist from a sentence and play it
     Describe {
         #[arg(required = true)]
@@ -98,6 +135,8 @@ enum Cmd {
         /// Start with this search
         words: Vec<String>,
     },
+    /// Serve Model Context Protocol on stdin and stdout, for assistants like Claude
+    Mcp,
     /// Print a shell completion script
     Completions { shell: clap_complete::Shell },
 }
@@ -206,8 +245,23 @@ fn print_status(status: &Status) {
     println!("♪ {}{by}  {time}{song}{paused}", now.title);
 }
 
+/// The same text as About Resonance's Acknowledgements, from the app this tool came
+/// in. It's long, so a pager closing early isn't a failure.
+fn print_licenses() -> Result<(), String> {
+    let path = client::own_app()
+        .map(|app| app.join("Contents/Resources/Acknowledgements.txt"))
+        .ok_or("This copy isn't inside Resonance. The licences are in Acknowledgements.txt in the app, and at https://github.com/ErikLuimes/resonance.")?;
+    let text = std::fs::read(&path).map_err(|e| format!("Can't read {}: {e}", path.display()))?;
+    let _ = std::io::stdout().write_all(&text);
+    Ok(())
+}
+
 fn run(cli: Cli) -> Result<(), String> {
+    if cli.licenses {
+        return print_licenses();
+    }
     let json_out = cli.json;
+    let keys = keys::Choice::resolve(cli.keys);
     let show = |value: &Value| {
         if json_out {
             println!("{value}");
@@ -217,7 +271,7 @@ fn run(cli: Cli) -> Result<(), String> {
         if !std::io::stdout().is_terminal() {
             return Err("The terminal app needs a terminal. Try `resonance --help`.".into());
         }
-        return tui::run();
+        return tui::run(keys, false);
     };
 
     // These don't need the app.
@@ -249,13 +303,16 @@ fn run(cli: Cli) -> Result<(), String> {
             println!("Format    {}", header.format);
             return Ok(());
         }
-        Cmd::Tui => return tui::run(),
+        Cmd::Tui => return tui::run(keys, false),
+        Cmd::Credits => return tui::run(keys, true),
+        // Connects when first asked to do something.
+        Cmd::Mcp => return mcp::run(),
         _ => {}
     }
 
     let mut client = Client::connect()?;
     match command {
-        Cmd::Tui | Cmd::Completions { .. } | Cmd::Info { .. } => unreachable!("handled above"),
+        Cmd::Tui | Cmd::Credits | Cmd::Mcp | Cmd::Completions { .. } | Cmd::Info { .. } => unreachable!("handled above"),
         Cmd::Play { files } => {
             let paths = paths(&files);
             if paths.is_empty() {
@@ -309,6 +366,18 @@ fn run(cli: Cli) -> Result<(), String> {
             let tunes: Vec<Tune> = client.get("like", args)?;
             output(json_out, &tunes);
         }
+        Cmd::Recent { limit } => {
+            let tunes: Vec<Tune> = client.get("recent", json!({ "limit": limit }))?;
+            output(json_out, &tunes);
+        }
+        Cmd::Drift { file } => {
+            let args = match file {
+                Some(file) => json!({ "path": absolute(&file) }),
+                None => json!({}),
+            };
+            client.call("drift", args)?;
+        }
+        Cmd::Guess { practice, clip_scale } => guess::run(&mut client, practice, clip_scale)?,
         Cmd::Describe { words, no_play } => {
             let made: Described = client.get("describe", json!({ "text": words.join(" "), "play": !no_play }))?;
             if json_out {
@@ -422,6 +491,7 @@ mod tests {
             songs: 1,
             secs: None,
             score,
+            played_at: None,
         }
     }
 

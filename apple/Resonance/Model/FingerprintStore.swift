@@ -61,6 +61,8 @@ final class FingerprintStore {
     @ObservationIgnored private var embeddingsChecked = false
     /// Recent (time, subtunes done) readings, for `remaining`.
     @ObservationIgnored private var samples: [(at: Date, done: UInt32)] = []
+    /// The Sound Drift under way.
+    @ObservationIgnored private var drift: SoundDrift?
 
     init(player: PlayerStore, defaults: UserDefaults = .standard) {
         self.player = player
@@ -248,6 +250,26 @@ final class FingerprintStore {
         await loadSimilar(track.path)
         guard let found = similar[track.path], !found.isEmpty else { return false }
         library.play(found.map { LibraryRow(item: $0.item) }, from: .soundsLike(title: track.displayTitle))
+        return true
+    }
+
+    /// Set off on a Sound Drift from `track`, or from the tune at `path`, which
+    /// is then heard first. False when nothing sounds like it yet.
+    func startDrift(from track: TrackDetails?, path: String? = nil, with library: LibraryStore) async -> Bool {
+        let seed: HvscTuneItem?
+        if let path {
+            seed = await core.tunesFromFiles(paths: [path]).first
+        } else if let track {
+            seed = await core.tunesFromFiles(paths: [track.path]).first
+        } else {
+            seed = nil
+        }
+        guard let seed else { return false }
+        drift?.stop()
+        let title = seed.title.isEmpty ? URL(filePath: seed.path).deletingPathExtension().lastPathComponent : seed.title
+        let next = SoundDrift(player: player, library: library, title: title) { [weak self] in self?.drift = nil }
+        guard await next.start(seed: seed, playsSeed: path != nil) else { return false }
+        drift = next
         return true
     }
 
