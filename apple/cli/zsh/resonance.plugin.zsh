@@ -29,7 +29,10 @@ rdone() {
 # a file read and never slows a prompt down.
 #   RPROMPT='$(resonance_prompt_info)'      (needs `setopt prompt_subst`)
 resonance_prompt_info() {
-  local file="$HOME/Library/Application Support/Resonance/now-playing.txt"
+  # The sandboxed app's folder; builds before alpha.6 used the plain one.
+  local support="Library/Application Support/Resonance/now-playing.txt"
+  local file="$HOME/Library/Containers/app.useresonance.resonance/Data/$support"
+  [[ -r $file ]] || file="$HOME/$support"
   [[ -r $file ]] || return 0
   print -r -- "${ZSH_THEME_RESONANCE_PREFIX-♪ }$(<"$file")${ZSH_THEME_RESONANCE_SUFFIX-}"
 }

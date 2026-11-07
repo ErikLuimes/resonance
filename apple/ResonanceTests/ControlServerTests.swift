@@ -17,7 +17,7 @@ final class ControlCommandsTests {
     init() {
         let defaults = UserDefaults(suiteName: suite)!
         let fake = fake
-        player = PlayerStore(defaults: defaults, phosphorHvscRoot: { nil }, defaultHvscRoot: nil) { _ in fake }
+        player = PlayerStore(defaults: defaults, defaultHvscRoot: nil) { _ in fake }
         playlists = PlaylistsStore(player: player, folder: folder, defaults: defaults)
         commands = ControlCommands(player: player, library: LibraryStore(player: player),
                                    fingerprints: FingerprintStore(player: player, defaults: defaults), playlists: playlists)
@@ -174,8 +174,9 @@ struct ControlSearchTests {
 @Suite(.serialized)
 struct ControlServerSocketTests {
     private func path() -> String {
-        // Short: a socket's path has to fit in about 100 bytes.
-        "/tmp/rc-\(UUID().uuidString.prefix(8)).sock"
+        // Short: a socket's path has to fit in about 100 bytes. In the
+        // container, which is all the sandbox lets the tests write.
+        (NSHomeDirectory() as NSString).appendingPathComponent("rc-\(UUID().uuidString.prefix(8)).sock")
     }
 
     private func connect(_ path: String) throws -> Int32 {

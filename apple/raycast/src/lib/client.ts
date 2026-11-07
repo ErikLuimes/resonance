@@ -36,7 +36,7 @@ export type Described = { title: string; note?: string | null; tunes: Tune[] };
 export type Sound = { summary: string; tags: string[] };
 export type Print = { path: string; traits: number[] };
 
-const BUNDLE_ID = "nl.luimes.resonance";
+const BUNDLE_ID = "app.useresonance.resonance";
 /** A cold launch, with the collection's indexes, can take this long. */
 const LAUNCH_WAIT_MS = 20_000;
 const ANSWER_WAIT_MS = 30_000;
@@ -44,8 +44,11 @@ const ANSWER_WAIT_MS = 30_000;
 /** Where the app listens, the sandboxed build's folder as well as the plain one. */
 function socketPaths(): string[] {
   if (process.env.RESONANCE_SOCKET) return [process.env.RESONANCE_SOCKET];
-  const support = "Library/Application Support/Resonance/control.sock";
-  return [join(homedir(), support), join(homedir(), "Library/Containers", BUNDLE_ID, "Data", support)];
+  // The sandboxed app's (alpha.6 on), then the older builds'.
+  return [
+    join(homedir(), "Library/Containers", BUNDLE_ID, "Data/control.sock"),
+    join(homedir(), "Library/Application Support/Resonance/control.sock"),
+  ];
 }
 
 function open(path: string): Promise<Socket | null> {

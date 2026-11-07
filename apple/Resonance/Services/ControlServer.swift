@@ -15,7 +15,10 @@ nonisolated final class ControlServer: @unchecked Sendable {
         // socket.
         if let path = ProcessInfo.processInfo.environment["RESONANCE_SOCKET"] { return path }
 #endif
-        return AppPaths.supportDirectory.appending(path: "control.sock").path
+        // The sandbox's home, the container, and not its Application Support:
+        // a socket's whole path has to fit in 104 bytes, and that one is 112
+        // for a short user name.
+        return (NSHomeDirectory() as NSString).appendingPathComponent("control.sock")
     }
 
     private let path: String

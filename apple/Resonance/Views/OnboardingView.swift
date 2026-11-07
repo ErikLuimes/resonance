@@ -160,6 +160,7 @@ struct OnboardingView: View {
         }
         .fileImporter(isPresented: $choosingFolder, allowedContentTypes: [.folder]) { result in
             if case .success(let url) = result {
+                FileAccess.shared.keep([url])
                 store.hvscRoot = url.path
                 advance()
             }

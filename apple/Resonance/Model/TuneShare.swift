@@ -80,6 +80,15 @@ nonisolated struct SharedTuneLink: Equatable, Hashable, Sendable, Identifiable {
         )
     }
 
+    /// A universal link: an https link macOS gave to the app. Every build's
+    /// come from this address, though Debug shares through a local server.
+    static let universalLinkBase = URL(string: "https://useresonance.app")!
+
+    init?(activity: NSUserActivity) {
+        guard activity.activityType == NSUserActivityTypeBrowsingWeb, let url = activity.webpageURL else { return nil }
+        self.init(url: url, shareBase: Self.universalLinkBase)
+    }
+
     /// The web link to paste: `<base>/t/<code>?s=2&v=85`.
     func webURL(base: URL) -> URL {
         let code = Self.shortCode(md5: key) ?? key

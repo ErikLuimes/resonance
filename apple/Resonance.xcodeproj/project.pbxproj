@@ -7,18 +7,25 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0E07FDAAF4E88A1E0C881555 /* PhosphorCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D3083881103BCAC2EE1BC2C /* PhosphorCore.swift */; };
-		F4005B06ADC159B135A39223 /* libphosphor_apple.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 048F94C7F0099B4300B897EA /* libphosphor_apple.a */; };
-		E836E96C5BC45F7A1EFF5F86 /* PhosphorCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */; };
 		0BC0465548DDA9FA7F88FFB1 /* PhosphorCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		FA99E36DFC9909E36EFDFFA1 /* PhosphorCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */; };
+		0E07FDAAF4E88A1E0C881555 /* PhosphorCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D3083881103BCAC2EE1BC2C /* PhosphorCore.swift */; };
 		5C1A7E0B2D9F4E3A8B6C0D11 /* STILKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5C1A7E0B2D9F4E3A8B6C0D12 /* STILKit */; };
 		5C1A7E0B2D9F4E3A8B6C0D21 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5C1A7E0B2D9F4E3A8B6C0D22 /* Sparkle */; };
-		D1A2B3C4D5E6F70819203A02 /* playlists in Resources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4D5E6F70819203A01 /* playlists */; };
 		A1C0DE5100000000000000A9 /* ResonanceQuickLook.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A1C0DE5100000000000000A2 /* ResonanceQuickLook.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		D1A2B3C4D5E6F70819203A02 /* playlists in Resources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4D5E6F70819203A01 /* playlists */; };
+		E836E96C5BC45F7A1EFF5F86 /* PhosphorCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */; };
+		F4005B06ADC159B135A39223 /* libphosphor_apple.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 048F94C7F0099B4300B897EA /* libphosphor_apple.a */; };
+		FA99E36DFC9909E36EFDFFA1 /* PhosphorCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		A1C0DE5100000000000000AA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AF0D8A68B51A43F4FE134FAF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A1C0DE5100000000000000A1;
+			remoteInfo = ResonanceQuickLook;
+		};
 		BABA6A74AB0022A87B1CF6E9 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = AF0D8A68B51A43F4FE134FAF /* Project object */;
@@ -32,13 +39,6 @@
 			proxyType = 1;
 			remoteGlobalIDString = DCFDDD02CCFD5D33F14599BA;
 			remoteInfo = Resonance;
-		};
-		A1C0DE5100000000000000AA /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = AF0D8A68B51A43F4FE134FAF /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = A1C0DE5100000000000000A1;
-			remoteInfo = ResonanceQuickLook;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -68,30 +68,27 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		3D3083881103BCAC2EE1BC2C /* PhosphorCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhosphorCore.swift; sourceTree = "<group>"; };
-		83AFC7F4CE4A875AF8328ED6 /* PhosphorCoreFFI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PhosphorCoreFFI.h; sourceTree = "<group>"; };
-		734B8B880EBCCD5A623EE2FD /* module.modulemap */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; path = module.modulemap; sourceTree = "<group>"; };
 		048F94C7F0099B4300B897EA /* libphosphor_apple.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libphosphor_apple.a; sourceTree = BUILT_PRODUCTS_DIR; };
-		763213B2949B2A0EC2A955D0 /* Resonance-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Resonance-Info.plist"; sourceTree = "<group>"; };
 		2DB47D97055BF12AC55F3F15 /* build-core.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "build-core.sh"; sourceTree = "<group>"; };
+		3D3083881103BCAC2EE1BC2C /* PhosphorCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhosphorCore.swift; sourceTree = "<group>"; };
+		734B8B880EBCCD5A623EE2FD /* module.modulemap */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; path = module.modulemap; sourceTree = "<group>"; };
+		763213B2949B2A0EC2A955D0 /* Resonance-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Resonance-Info.plist"; sourceTree = "<group>"; };
+		83AFC7F4CE4A875AF8328ED6 /* PhosphorCoreFFI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PhosphorCoreFFI.h; sourceTree = "<group>"; };
 		9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = PhosphorCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		BD618DF38BE01ED7BAC0B411 /* Resonance.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Resonance.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		F8024CBD8CE4F2DA043269EF /* ResonanceTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ResonanceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		D1A2B3C4D5E6F70819203A01 /* playlists */ = {isa = PBXFileReference; lastKnownFileType = folder; name = playlists; path = ../playlists; sourceTree = "<group>"; };
 		A1C0DE5100000000000000A2 /* ResonanceQuickLook.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ResonanceQuickLook.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1C0DE5100000000000000AF /* ResonanceQuickLook-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "ResonanceQuickLook-Info.plist"; sourceTree = "<group>"; };
 		A1C0DE5100000000000000B0 /* ResonanceQuickLook.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ResonanceQuickLook.entitlements; sourceTree = "<group>"; };
+		BD618DF38BE01ED7BAC0B411 /* Resonance.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Resonance.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D1A2B3C4D5E6F70819203A01 /* playlists */ = {isa = PBXFileReference; lastKnownFileType = folder; name = playlists; path = ../playlists; sourceTree = "<group>"; };
+		D1A2B3C4D5E6F70819203B01 /* Signing-Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Signing-Debug.xcconfig"; sourceTree = "<group>"; };
+		D1A2B3C4D5E6F70819203B02 /* Resonance.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Resonance.entitlements; sourceTree = "<group>"; };
+		F8024CBD8CE4F2DA043269EF /* ResonanceTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ResonanceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		8918060A678BD452D61B3B6B /* Resonance */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Resonance;
-			sourceTree = "<group>";
-		};
-		C6453AC673229E64EE9991B0 /* ResonanceTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = ResonanceTests;
 			sourceTree = "<group>";
 		};
 		A1C0DE5100000000000000A6 /* ResonanceQuickLook */ = {
@@ -102,6 +99,11 @@
 		A1C0DE5100000000000000A7 /* Shared */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Shared;
+			sourceTree = "<group>";
+		};
+		C6453AC673229E64EE9991B0 /* ResonanceTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ResonanceTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -125,6 +127,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A1C0DE5100000000000000A4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E595DF9F4AF1431D32A776F5 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -133,16 +142,49 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A1C0DE5100000000000000A4 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		2AB91D63C9C73ECC697336D4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */,
+				BD618DF38BE01ED7BAC0B411 /* Resonance.app */,
+				F8024CBD8CE4F2DA043269EF /* ResonanceTests.xctest */,
+				A1C0DE5100000000000000A2 /* ResonanceQuickLook.appex */,
+				048F94C7F0099B4300B897EA /* libphosphor_apple.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		411E8B423831D7B4B6F29CF1 /* PhosphorCore */ = {
+			isa = PBXGroup;
+			children = (
+				B34188EFE858AC6D9C3C1D98 /* Generated */,
+			);
+			path = PhosphorCore;
+			sourceTree = "<group>";
+		};
+		44A88AA8803A35B8CB3E1767 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				763213B2949B2A0EC2A955D0 /* Resonance-Info.plist */,
+				A1C0DE5100000000000000AF /* ResonanceQuickLook-Info.plist */,
+				A1C0DE5100000000000000B0 /* ResonanceQuickLook.entitlements */,
+				D1A2B3C4D5E6F70819203B01 /* Signing-Debug.xcconfig */,
+				D1A2B3C4D5E6F70819203B02 /* Resonance.entitlements */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		6D960DB7A3C67A976CF668BD /* scripts */ = {
+			isa = PBXGroup;
+			children = (
+				2DB47D97055BF12AC55F3F15 /* build-core.sh */,
+			);
+			path = scripts;
+			sourceTree = "<group>";
+		};
 		AF62C528221C8940CE4CCAD7 = {
 			isa = PBXGroup;
 			children = (
@@ -158,14 +200,6 @@
 			);
 			sourceTree = "<group>";
 		};
-		411E8B423831D7B4B6F29CF1 /* PhosphorCore */ = {
-			isa = PBXGroup;
-			children = (
-				B34188EFE858AC6D9C3C1D98 /* Generated */,
-			);
-			path = PhosphorCore;
-			sourceTree = "<group>";
-		};
 		B34188EFE858AC6D9C3C1D98 /* Generated */ = {
 			isa = PBXGroup;
 			children = (
@@ -176,39 +210,55 @@
 			path = Generated;
 			sourceTree = "<group>";
 		};
-		44A88AA8803A35B8CB3E1767 /* Config */ = {
-			isa = PBXGroup;
-			children = (
-				763213B2949B2A0EC2A955D0 /* Resonance-Info.plist */,
-				A1C0DE5100000000000000AF /* ResonanceQuickLook-Info.plist */,
-				A1C0DE5100000000000000B0 /* ResonanceQuickLook.entitlements */,
-			);
-			path = Config;
-			sourceTree = "<group>";
-		};
-		6D960DB7A3C67A976CF668BD /* scripts */ = {
-			isa = PBXGroup;
-			children = (
-				2DB47D97055BF12AC55F3F15 /* build-core.sh */,
-			);
-			path = scripts;
-			sourceTree = "<group>";
-		};
-		2AB91D63C9C73ECC697336D4 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */,
-				BD618DF38BE01ED7BAC0B411 /* Resonance.app */,
-				F8024CBD8CE4F2DA043269EF /* ResonanceTests.xctest */,
-				A1C0DE5100000000000000A2 /* ResonanceQuickLook.appex */,
-				048F94C7F0099B4300B897EA /* libphosphor_apple.a */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		4FA88B2A7757441228804026 /* ResonanceTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BADE6B42B4B12B2F54DC24B4 /* Build configuration list for PBXNativeTarget "ResonanceTests" */;
+			buildPhases = (
+				0A1DDCF13581EF9C0FEECCD5 /* Sources */,
+				E595DF9F4AF1431D32A776F5 /* Frameworks */,
+				9DE6A966D711B823330E4FAA /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				06C90C261AF3B31CE9C5ECA0 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				C6453AC673229E64EE9991B0 /* ResonanceTests */,
+			);
+			name = ResonanceTests;
+			packageProductDependencies = (
+			);
+			productName = ResonanceTests;
+			productReference = F8024CBD8CE4F2DA043269EF /* ResonanceTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		A1C0DE5100000000000000A1 /* ResonanceQuickLook */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1C0DE5100000000000000AC /* Build configuration list for PBXNativeTarget "ResonanceQuickLook" */;
+			buildPhases = (
+				A1C0DE5100000000000000A3 /* Sources */,
+				A1C0DE5100000000000000A4 /* Frameworks */,
+				A1C0DE5100000000000000A5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A1C0DE5100000000000000A6 /* ResonanceQuickLook */,
+				A1C0DE5100000000000000A7 /* Shared */,
+			);
+			name = ResonanceQuickLook;
+			packageProductDependencies = (
+			);
+			productName = ResonanceQuickLook;
+			productReference = A1C0DE5100000000000000A2 /* ResonanceQuickLook.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		C24B8C53059C663F18684913 /* PhosphorCore */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 18BA73C846654749E9561CCC /* Build configuration list for PBXNativeTarget "PhosphorCore" */;
@@ -256,52 +306,6 @@
 			productReference = BD618DF38BE01ED7BAC0B411 /* Resonance.app */;
 			productType = "com.apple.product-type.application";
 		};
-		4FA88B2A7757441228804026 /* ResonanceTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = BADE6B42B4B12B2F54DC24B4 /* Build configuration list for PBXNativeTarget "ResonanceTests" */;
-			buildPhases = (
-				0A1DDCF13581EF9C0FEECCD5 /* Sources */,
-				E595DF9F4AF1431D32A776F5 /* Frameworks */,
-				9DE6A966D711B823330E4FAA /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				06C90C261AF3B31CE9C5ECA0 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				C6453AC673229E64EE9991B0 /* ResonanceTests */,
-			);
-			name = ResonanceTests;
-			packageProductDependencies = (
-			);
-			productName = ResonanceTests;
-			productReference = F8024CBD8CE4F2DA043269EF /* ResonanceTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
-		A1C0DE5100000000000000A1 /* ResonanceQuickLook */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = A1C0DE5100000000000000AC /* Build configuration list for PBXNativeTarget "ResonanceQuickLook" */;
-			buildPhases = (
-				A1C0DE5100000000000000A3 /* Sources */,
-				A1C0DE5100000000000000A4 /* Frameworks */,
-				A1C0DE5100000000000000A5 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				A1C0DE5100000000000000A6 /* ResonanceQuickLook */,
-				A1C0DE5100000000000000A7 /* Shared */,
-			);
-			name = ResonanceQuickLook;
-			packageProductDependencies = (
-			);
-			productName = ResonanceQuickLook;
-			productReference = A1C0DE5100000000000000A2 /* ResonanceQuickLook.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -312,18 +316,18 @@
 				LastSwiftUpdateCheck = 2700;
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
+					4FA88B2A7757441228804026 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = DCFDDD02CCFD5D33F14599BA;
+					};
+					A1C0DE5100000000000000A1 = {
+						CreatedOnToolsVersion = 27.0;
+					};
 					C24B8C53059C663F18684913 = {
 						CreatedOnToolsVersion = 27.0;
 					};
 					DCFDDD02CCFD5D33F14599BA = {
 						CreatedOnToolsVersion = 27.0;
-					};
-					A1C0DE5100000000000000A1 = {
-						CreatedOnToolsVersion = 27.0;
-					};
-					4FA88B2A7757441228804026 = {
-						CreatedOnToolsVersion = 27.0;
-						TestTargetID = DCFDDD02CCFD5D33F14599BA;
 					};
 				};
 			};
@@ -354,14 +358,6 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		A8A3262CFE440FB154D11D6E /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				D1A2B3C4D5E6F70819203A02 /* playlists in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		9DE6A966D711B823330E4FAA /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -373,6 +369,14 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A8A3262CFE440FB154D11D6E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D1A2B3C4D5E6F70819203A02 /* playlists in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -426,25 +430,18 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		0A1DDCF13581EF9C0FEECCD5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		2A1965C1D80DB04F7CB5814A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				0E07FDAAF4E88A1E0C881555 /* PhosphorCore.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		B9267B542A7577A098AEB47B /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		0A1DDCF13581EF9C0FEECCD5 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -455,14 +452,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B9267B542A7577A098AEB47B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		FB9E6AE35070A8202EEAF928 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = C24B8C53059C663F18684913 /* PhosphorCore */;
-			targetProxy = BABA6A74AB0022A87B1CF6E9 /* PBXContainerItemProxy */;
-		};
 		06C90C261AF3B31CE9C5ECA0 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = DCFDDD02CCFD5D33F14599BA /* Resonance */;
@@ -473,23 +472,63 @@
 			target = A1C0DE5100000000000000A1 /* ResonanceQuickLook */;
 			targetProxy = A1C0DE5100000000000000AA /* PBXContainerItemProxy */;
 		};
+		FB9E6AE35070A8202EEAF928 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C24B8C53059C663F18684913 /* PhosphorCore */;
+			targetProxy = BABA6A74AB0022A87B1CF6E9 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		3008B4A4A23FA5BB65C1A8AC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CURRENT_PROJECT_VERSION = 5;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				OTHER_LDFLAGS = (
+					"-lc++",
+					"-liconv",
+					"-framework",
+					Security,
+					"-framework",
+					SystemConfiguration,
+					"-framework",
+					AudioUnit,
+					"-framework",
+					CoreAudio,
+					"-framework",
+					CoreFoundation,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.useresonance.resonance.PhosphorCore;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_INSTALL_OBJC_HEADER = NO;
+			};
+			name = Release;
+		};
 		52BC5990FB655EB008ED4180 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = D1A2B3C4D5E6F70819203B01 /* Signing-Debug.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
-				CODE_SIGN_IDENTITY = "-";
-				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = "";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -511,30 +550,153 @@
 			};
 			name = Debug;
 		};
-		E96E22D6CD86F590AA96C20A /* Release */ = {
+		6E4314B3FDB9CCCC2ECC31DA /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = arm64;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CODE_SIGN_IDENTITY = "-";
-				CODE_SIGN_STYLE = Manual;
-				COPY_PHASE_STRIP = NO;
-				DEAD_CODE_STRIPPING = YES;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = "";
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 27.0;
-				SDKROOT = macosx;
-				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/PhosphorCore/Generated";
-				SWIFT_VERSION = 6.0;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "$(RESONANCE_ENTITLEMENTS:default=Config/Resonance.entitlements)";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 5;
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = R4D8QN85WK;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/Resonance-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Resonance;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Resonance © 2026 Erik Luimes. Powered by Phosphor © 2026 Marcin Spoczynski.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.useresonance.resonance;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "$(RESONANCE_PROFILE)";
+				RELEASE_STAGE = alpha.5;
+				SHARE_BASE_URL = "https://useresonance.app";
+				SPARKLE_FEED_URL = "https://erikluimes.github.io/resonance/appcast.xml";
+				SPARKLE_PUBLIC_ED_KEY = "LavbQC73WZl/WNmTY+ucX/rsgqo0EocEorAVR5JiyLo=";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Release;
+		};
+		763169414422A77E8E8A3E36 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CURRENT_PROJECT_VERSION = 5;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.useresonance.resonance.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Resonance.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Resonance";
+			};
+			name = Debug;
+		};
+		799B72BCA542FA613B264F86 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CURRENT_PROJECT_VERSION = 5;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.useresonance.resonance.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Resonance.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Resonance";
+			};
+			name = Release;
+		};
+		9F43363451E01D2FE700BB5C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "$(RESONANCE_ENTITLEMENTS:default=Config/Resonance.entitlements)";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 5;
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = R4D8QN85WK;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/Resonance-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Resonance;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Resonance © 2026 Erik Luimes. Powered by Phosphor © 2026 Marcin Spoczynski.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.useresonance.resonance;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "$(RESONANCE_PROFILE)";
+				RELEASE_STAGE = alpha.5;
+				SHARE_BASE_URL = "http://localhost:8080";
+				SPARKLE_FEED_URL = "";
+				SPARKLE_PUBLIC_ED_KEY = "";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Debug;
+		};
+		A1C0DE5100000000000000AD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/ResonanceQuickLook.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 5;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/ResonanceQuickLook-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Resonance Quick Look";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Resonance © 2026 Erik Luimes.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.useresonance.resonance.quicklook;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Debug;
+		};
+		A1C0DE5100000000000000AE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Config/ResonanceQuickLook.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 5;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/ResonanceQuickLook-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Resonance Quick Look";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Resonance © 2026 Erik Luimes.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.useresonance.resonance.quicklook;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 			};
 			name = Release;
 		};
@@ -567,7 +729,7 @@
 					"-framework",
 					CoreFoundation,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = nl.luimes.resonance.PhosphorCore;
+				PRODUCT_BUNDLE_IDENTIFIER = app.useresonance.resonance.PhosphorCore;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
@@ -575,204 +737,50 @@
 			};
 			name = Debug;
 		};
-		3008B4A4A23FA5BB65C1A8AC /* Release */ = {
+		E96E22D6CD86F590AA96C20A /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CURRENT_PROJECT_VERSION = 5;
-				DYLIB_COMPATIBILITY_VERSION = 1;
-				DYLIB_CURRENT_VERSION = 1;
-				DYLIB_INSTALL_NAME_BASE = "@rpath";
-				GENERATE_INFOPLIST_FILE = YES;
-				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@loader_path/Frameworks",
-				);
-				MARKETING_VERSION = 0.1.0;
-				OTHER_LDFLAGS = (
-					"-lc++",
-					"-liconv",
-					"-framework",
-					Security,
-					"-framework",
-					SystemConfiguration,
-					"-framework",
-					AudioUnit,
-					"-framework",
-					CoreAudio,
-					"-framework",
-					CoreFoundation,
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = nl.luimes.resonance.PhosphorCore;
-				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
-				SKIP_INSTALL = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
-				SWIFT_INSTALL_OBJC_HEADER = NO;
-			};
-			name = Release;
-		};
-		9F43363451E01D2FE700BB5C /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
-				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Config/Resonance-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = Resonance;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "Resonance © 2026 Erik Luimes. Powered by Phosphor © 2026 Marcin Spoczynski.";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				MARKETING_VERSION = 0.1.0;
-				RELEASE_STAGE = alpha.5;
-				PRODUCT_BUNDLE_IDENTIFIER = nl.luimes.resonance;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SHARE_BASE_URL = "http://localhost:8080";
-				SPARKLE_FEED_URL = "";
-				SPARKLE_PUBLIC_ED_KEY = "";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-			};
-			name = Debug;
-		};
-		6E4314B3FDB9CCCC2ECC31DA /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
-				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Config/Resonance-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = Resonance;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "Resonance © 2026 Erik Luimes. Powered by Phosphor © 2026 Marcin Spoczynski.";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				MARKETING_VERSION = 0.1.0;
-				RELEASE_STAGE = alpha.5;
-				PRODUCT_BUNDLE_IDENTIFIER = nl.luimes.resonance;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SHARE_BASE_URL = "https://useresonance.app";
-				SPARKLE_FEED_URL = "https://erikluimes.github.io/resonance/appcast.xml";
-				SPARKLE_PUBLIC_ED_KEY = "LavbQC73WZl/WNmTY+ucX/rsgqo0EocEorAVR5JiyLo=";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-			};
-			name = Release;
-		};
-		763169414422A77E8E8A3E36 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CURRENT_PROJECT_VERSION = 5;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = nl.luimes.resonance.tests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Resonance.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Resonance";
-			};
-			name = Debug;
-		};
-		799B72BCA542FA613B264F86 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CURRENT_PROJECT_VERSION = 5;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = nl.luimes.resonance.tests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Resonance.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Resonance";
-			};
-			name = Release;
-		};
-		A1C0DE5100000000000000AD /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = Config/ResonanceQuickLook.entitlements;
-				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
-				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Config/ResonanceQuickLook-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Resonance Quick Look";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "Resonance © 2026 Erik Luimes.";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path/../../../../Frameworks",
-				);
-				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = nl.luimes.resonance.quicklook;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-			};
-			name = Debug;
-		};
-		A1C0DE5100000000000000AE /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = Config/ResonanceQuickLook.entitlements;
-				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 5;
-				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Config/ResonanceQuickLook-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Resonance Quick Look";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "Resonance © 2026 Erik Luimes.";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path/../../../../Frameworks",
-				);
-				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = nl.luimes.resonance.quicklook;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/PhosphorCore/Generated";
+				SWIFT_VERSION = 6.0;
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		443D57C354C1A3722F9AF8C5 /* Build configuration list for PBXProject "Resonance" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				52BC5990FB655EB008ED4180 /* Debug */,
-				E96E22D6CD86F590AA96C20A /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		18BA73C846654749E9561CCC /* Build configuration list for PBXNativeTarget "PhosphorCore" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				AC49ED88A8D71643B3B85EB7 /* Debug */,
 				3008B4A4A23FA5BB65C1A8AC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		443D57C354C1A3722F9AF8C5 /* Build configuration list for PBXProject "Resonance" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				52BC5990FB655EB008ED4180 /* Debug */,
+				E96E22D6CD86F590AA96C20A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -786,20 +794,20 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		BADE6B42B4B12B2F54DC24B4 /* Build configuration list for PBXNativeTarget "ResonanceTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				763169414422A77E8E8A3E36 /* Debug */,
-				799B72BCA542FA613B264F86 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		A1C0DE5100000000000000AC /* Build configuration list for PBXNativeTarget "ResonanceQuickLook" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A1C0DE5100000000000000AD /* Debug */,
 				A1C0DE5100000000000000AE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BADE6B42B4B12B2F54DC24B4 /* Build configuration list for PBXNativeTarget "ResonanceTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				763169414422A77E8E8A3E36 /* Debug */,
+				799B72BCA542FA613B264F86 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

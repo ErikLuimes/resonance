@@ -43,12 +43,6 @@ pub fn config_dir() -> Option<PathBuf> {
         })
 }
 
-/// Phosphor's own folder, `~/Library/Application Support/phosphor`,
-/// whatever `config_dir` is set to. Only Import from Phosphor reads it.
-pub fn phosphor_dir() -> Option<PathBuf> {
-    crate::phosphor_config::config_dir()
-}
-
 /// Upstream's HTTP clients take the proxy from Phosphor's config.json;
 /// Resonance's use the system's.
 pub fn apply_proxy(builder: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
@@ -139,7 +133,8 @@ mod tests {
     fn phosphor_files_stay_in_phosphors_folder() {
         let dir = temp_dir();
         with_test_data_dir(&dir, || {
-            let phosphor = phosphor_dir().unwrap();
+            // Upstream's folder, under HOME: the container's, in the sandbox.
+            let phosphor = crate::phosphor_config::config_dir().unwrap();
             assert!(phosphor.ends_with("Library/Application Support/phosphor"));
             assert_eq!(Config::config_path(), Some(phosphor.join("config.json")));
             assert_eq!(songlength_db_path(), Some(phosphor.join("Songlengths.md5")));
@@ -153,6 +148,6 @@ mod tests {
         // unset here.
         let dir = config_dir().unwrap();
         assert!(dir.ends_with("Library/Application Support/Resonance"));
-        assert_ne!(Some(dir), phosphor_dir());
+        assert_ne!(Some(dir), crate::phosphor_config::config_dir());
     }
 }

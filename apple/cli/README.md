@@ -4,7 +4,7 @@ The command line tool for [Resonance](https://useresonance.app). It's a remote
 control: the app plays everything, so the window, the terminal and every shortcut
 are the same player. If the app isn't running, it starts in the background.
 
-Install it from **Resonance → Settings → Advanced → Install Command Line Tool**.
+Install it from **Resonance → Settings → Integrations → Command Line Tool**.
 
 ## The terminal app
 
@@ -169,6 +169,9 @@ this tool, the same text as Acknowledgements in About Resonance.
 
 ## How it talks to the app
 
-One JSON object per line over a Unix socket that only you can reach, at
-`~/Library/Application Support/Resonance/control.sock`. The commands are in
+One JSON object per line over a Unix socket that only you can reach, in the
+sandboxed app's folder:
+`~/Library/Containers/app.useresonance.resonance/Data/control.sock`
+(builds before alpha.6 used `~/Library/Application Support/Resonance`, which
+the tool still tries). The commands are in
 `Resonance/Services/ControlCommands.swift`.

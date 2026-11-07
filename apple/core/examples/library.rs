@@ -5,14 +5,14 @@
 //!     cargo run -p phosphor-apple --example library -- search <query> [category]
 //!     cargo run -p phosphor-apple --example library -- surprise [category]
 //!
-//! Uses Phosphor's HVSC folder, and its shared index cache: the first
+//! Uses the HVSC folder in $HVSC_ROOT, and its shared index cache: the first
 //! search in a category builds the index (tens of seconds for Musicians),
 //! later runs load it from the cache.
 
 use std::time::Instant;
 
 use phosphor_apple::{
-    shared_defaults, CoreConfig, Engine, HvscCategory, PlaybackOptions, PlayerCore, Repeat,
+    CoreConfig, Engine, HvscCategory, PlaybackOptions, PlayerCore, Repeat,
 };
 
 fn main() {
@@ -37,7 +37,7 @@ fn main() {
         shuffle: false,
         repeat: Repeat::Off,
         session_path: session.to_string_lossy().into_owned(),
-        hvsc_root: shared_defaults().hvsc_root,
+        hvsc_root: std::env::var("HVSC_ROOT").ok(),
     });
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()

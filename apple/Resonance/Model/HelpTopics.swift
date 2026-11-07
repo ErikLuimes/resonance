@@ -7,7 +7,8 @@ struct HelpTopic: Identifiable, Hashable {
     enum ID: String, CaseIterable {
         case gettingStarted, soundsLike, readingFingerprints
         case library, nowPlaying, visualizers
-        case smartPlaylists, playlists, favourites, dragAndDrop
+        case smartPlaylists, playlists, favourites, dragAndDrop, sharing
+        case terminal, commands, assistants, raycast, siriAndSpotlight, dock
         case shortcuts, settings, troubleshooting
     }
 
@@ -15,6 +16,7 @@ struct HelpTopic: Identifiable, Hashable {
         case start = "Start Here"
         case listening = "Listening"
         case yourMusic = "Your Music"
+        case integrations = "Integrations"
         case reference = "Reference"
     }
 
@@ -60,11 +62,13 @@ enum HelpBlock: Hashable {
     case traitKey([HelpTrait])
     /// Tunes drawn as a sphere and a barcode, side by side.
     case fingerprintExamples([HelpFingerprintExample])
+    /// Commands to read or copy, one per line.
+    case code(String)
     case link(HelpLink)
 
     var text: [String] {
         switch self {
-        case .heading(let text), .paragraph(let text): [text]
+        case .heading(let text), .paragraph(let text), .code(let text): [text]
         case .bullets(let items), .steps(let items): items
         case .note(let title, let text, _): [title, text]
         case .shortcuts(let shortcuts): shortcuts.flatMap { [$0.keys, $0.action] }
@@ -121,6 +125,7 @@ extension SettingsTab {
 #if CSDB
         case .csdb: "CSDb"
 #endif
+        case .integrations: "Integrations"
         case .history: "History"
         case .advanced: "Advanced"
         }
@@ -143,9 +148,6 @@ extension HelpTopic {
                 ]),
                 .paragraph("Already have HVSC? Choose its folder (the one that holds MUSICIANS, GAMES and DEMOS) in Settings → HVSC."),
                 .link(.settings(.collection)),
-                .note(title: "Coming from Phosphor?",
-                      text: "Resonance keeps its own favourites, history and collection. **Import from Phosphor** brings over Phosphor's playback settings, favourites and play history, and its HVSC collection if Resonance has none. Nothing in Phosphor changes.",
-                      link: .settings(.advanced)),
                 .heading("Sound fingerprints"),
                 .paragraph("Sounds Like, the Fingerprint column and the Sound filters need each tune's fingerprint. The first time, Resonance downloads the published fingerprint set (about 42 MB) and audio embeddings (about 11 MB), which cover all of HVSC, and a background scan fills in whatever it doesn't have. A full scan of your own takes a few hours; with the published set it's mostly done in a minute."),
                 .paragraph("While the collection downloads or the scan runs, the Dock icon shows how far it has got. If Resonance is in the background when one of them ends, or the download fails, it sends a notification. It asks for permission the first time; change your mind in System Settings → Notifications."),
@@ -155,6 +157,7 @@ extension HelpTopic {
                     "Double-click any tune in a list to play it.",
                     "Drop SID files, folders or M3U playlists onto the window, or press **⌘O**. They go into My Playlist.",
                 ]),
+                .paragraph("The Help menu brings back the welcome steps with **Welcome to Resonance**. It also has **Keyboard Shortcuts** and the **Credits**, with a nod to the demoscene."),
             ],
             related: [.soundsLike, .library, .settings]
         ),
@@ -285,24 +288,15 @@ extension HelpTopic {
                 ]),
                 .heading("The bar at the bottom"),
                 .paragraph("In the library, the floating bar plays, pauses and skips, shows the progress through the tune, and has Shuffle, Repeat and the volume. Drag or click the progress bar to scrub. Tunes with more than one song step through them with the arrows next to the progress bar."),
-                .heading("Siri, Shortcuts and Spotlight"),
-                .paragraph("Say \"Surprise me in Resonance\", \"Play something like this in Resonance\", \"Favourite this tune in Resonance\" or \"Play Favourites in Resonance\". The Shortcuts app has these actions too, and **Play or Pause** and **Next Track**, for your own shortcuts and automations."),
-                .paragraph("Spotlight finds the collection's tunes by title and composer: click one to play it. To keep them out of Spotlight, turn Resonance off in System Settings → Spotlight."),
-                .paragraph("In Finder, select a SID file and press Space to see its title, composer, release and subtunes."),
-                .heading("In the terminal"),
-                .paragraph("Install the **resonance** command from Settings → Advanced. On its own it opens the terminal app, with your playlists, search, Sounds Like and the three voices. With a command it's for scripts: **resonance surprise**, **resonance search commando**, **resonance like --play** or **resonance playlist add**. Run **resonance --help** for the rest."),
-                .link(.settings(.advanced)),
-                .heading("The Dock icon"),
-                .paragraph("Control-click Resonance's Dock icon to see what's playing, to play, pause or skip, to start **Play Something Like This** from the tune playing, or for **Surprise Me**."),
                 .heading("The menu bar player"),
                 .paragraph("Click Resonance's icon in the menu bar, or press **⌃⌥⌘P** in any app, for a small player: the tune and its voices, the heart, the controls with Shuffle and Repeat, the next tunes in the list it plays from (click one to play it), Surprise Me and Add to…. Turn Surprise Me off there and Resonance goes back to the list you were playing."),
                 .paragraph("While it's on, closing the main window keeps the music playing; **Open Resonance** in the player brings the window back. Turn it off in Settings → Appearance."),
                 .heading("Control Center and media keys"),
-                .paragraph("Resonance shows what's playing in Control Center and answers your keyboard's play, next and previous keys. Control Center's position slider and its 15-second skips work too."),
+                .paragraph("Resonance shows what's playing in Control Center, with the tune's fingerprint sphere as its picture, or its composer's colours before it's scanned, and answers your keyboard's play, next and previous keys. Control Center's position slider and its 15-second skips work too."),
                 .note(title: "Why does the sound stop for a moment when I scrub?",
                       text: "A SID tune is a little C64 program, so there's nothing to jump to: to reach a point, Resonance runs the tune there silently at full speed, about a second per minute of tune on reSIDfp and faster on SIDLite direct. The bar shows the new position right away; the sound follows. The SIDLite and reSID engines play in real time only and can't scrub."),
             ],
-            related: [.visualizers, .shortcuts, .settings]
+            related: [.visualizers, .shortcuts, .dock, .siriAndSpotlight]
         ),
         HelpTopic(
             id: .visualizers, group: .listening,
@@ -381,7 +375,7 @@ extension HelpTopic {
                 .heading("Add to…"),
                 .paragraph("**Add to…** in the inspector, in Now Playing, on a composer's card and in a tune's context menu shows My Playlist, Favourites and your playlists, most recently used first. Type to find one; a name that's not taken makes a new playlist with the tunes in it."),
                 .heading("Where they live"),
-                .paragraph("Your playlists are plain M3U files in ~/Library/Application Support/Resonance/Playlists, which other players can open too."),
+                .paragraph("Your playlists are plain M3U files in Resonance's folder, which other players can open too: Settings, Advanced, shows it in Finder."),
                 .paragraph("To share one, or Favourites or My Playlist, Control-click it in the sidebar and choose **Export…**. Tunes from HVSC are saved with paths relative to the collection, so the file works on any Mac with HVSC. Other players may not find them without your HVSC folder as their base."),
             ],
             related: [.favourites, .dragAndDrop]
@@ -422,6 +416,186 @@ extension HelpTopic {
             related: [.playlists, .favourites]
         ),
         HelpTopic(
+            id: .sharing, group: .yourMusic,
+            title: "Sharing a Tune", symbol: "square.and.arrow.up",
+            summary: "Send a friend a link to the tune you're listening to.",
+            blocks: [
+                .paragraph("**Share…**, next to Add to… in Now Playing, the inspector and the menu bar player, makes a short link to a tune: Copy Link, Messages, Mail, or **More…** for any other app. **Share** in a tune's context menu does the same from a list. A subtune stays that subtune."),
+                .bullets([
+                    "Pasted into Messages, Slack, Discord and the like, the link shows the tune's card: its title, composer, year, length and sound fingerprint.",
+                    "**Open in Resonance** on that page opens the tune in the app, where you can play it or show it in the library.",
+                    "People without Resonance see the tune's card and a download link.",
+                ]),
+                .heading("When someone sends you a tune"),
+                .paragraph("If your collection is older and doesn't have it, Resonance offers the HVSC update. With no collection yet, it offers the download. The download carries on if you close the sheet; open the link again when it's done."),
+                .note(title: "Only tunes from HVSC",
+                      text: "A link names a tune in HVSC, so the other person gets it from their own collection. Your own SID files can't be shared this way."),
+            ],
+            related: [.playlists, .favourites]
+        ),
+        HelpTopic(
+            id: .terminal, group: .integrations,
+            title: "The Terminal App", symbol: "apple.terminal",
+            summary: "Your library, Sounds Like and the music, in a terminal window.",
+            blocks: [
+                .paragraph("Install the **resonance** command from Settings → Integrations, and run it with nothing after it. The app does the playing, so the window, the terminal and every shortcut are the same player. If Resonance isn't running, it starts in the background."),
+                .link(.settings(.integrations)),
+                .paragraph("Press **?** there for its keys. It fits the window: from 110 columns, a panel beside the list says how the tune under the cursor sounds and what it sounds like, and from 120 columns by 38 rows you get the large header. It looks best in a terminal with millions of colours, such as iTerm2, Ghostty or Kitty."),
+                .heading("Finding tunes"),
+                .bullets([
+                    "The sidebar has your library, then HVSC. Home has the release, what's new, the curated playlists and what you played last: **S** shuffles the whole collection and **T** plays the Top 100.",
+                    "Musicians, Demos and Games list the folders with how each sounds on average. **/** finds one as you type, **Return** opens its tunes and **Esc** comes back to the same row.",
+                    "Every tune has the same nine-bar barcode as in the app. In Sounds Like, the tune being compared sits over the column, so you can see why each one matched. A row of dots means no fingerprint yet.",
+                    "Downloading the collection happens in the app.",
+                ]),
+                .link(.topic(.readingFingerprints)),
+                .heading("Describe"),
+                .paragraph("The Describe row in the sidebar makes a Smart Playlist from a sentence, or from New to Me, Never Heard, Similar to a Tune and Slow to Intense. It reads sentences just as the app does, and the app's Smart Playlist pane follows along. **Return** plays from a tune, **/** changes the sentence, **n** saves the list as a playlist and **Esc** starts over."),
+                .link(.topic(.smartPlaylists)),
+                .heading("The music, full screen"),
+                .paragraph("Press **v** for the music, set out like Now Playing in the app. The picker and the keys go after three seconds without a key press. **v** steps through the views, or go straight to one:"),
+                .bullets([
+                    "**s**: a skull in ASCII, whose eyes glow with the voices and whose jaw chomps on the hits.",
+                    "**f**: fire, where each voice feeds its own part of the flames and hits throw sparks.",
+                    "**t**: Tesla coils, where each voice's pitch sets how high its lightning strikes.",
+                    "**w**: a pool, where each new note drops in: low notes make wide ripples, high notes tight ones.",
+                    "**o**: the app's Particles sphere.",
+                ]),
+                .paragraph("With fire and the pool, **c** colours them by voice, to see which is which."),
+                .heading("Under the hood"),
+                .paragraph("**u** slides up a tracker over the list: what the player writes to the chip, rebuilt by running the tune once, with the row being heard in the middle. **↑** and **↓** look around, **f** follows the music again, and **Esc** closes it. **Tab** steps on to Registers, Sweeps and Pitch, which show every SID of a tune with more than one where there's room. In the tracker, or when there isn't room, **1**, **2** and **3** switch between them."),
+                .heading("Vim and Emacs keys"),
+                .paragraph("The terminal app has Normal, Vim and Emacs keys, set apart from the window's. Without a choice it goes by your **$VISUAL**, then **$EDITOR**: Vim and Neovim mean Vim keys, anything else means Emacs keys. To choose, run **resonance --keys vim**, or set it for good in your shell:"),
+                .code("export RESONANCE_KEYS=vim    # or emacs, or normal"),
+                .heading("Credits"),
+                .paragraph("Press **c** outside the music, or run **resonance credits**. They close by themselves, or with **Esc**."),
+            ],
+            related: [.commands, .readingFingerprints, .shortcuts]
+        ),
+        HelpTopic(
+            id: .commands, group: .integrations,
+            title: "Commands and Scripts", symbol: "chevron.left.forwardslash.chevron.right",
+            summary: "A remote control for Resonance, for your shell and your scripts.",
+            blocks: [
+                .paragraph("With a command after it, **resonance** does that one thing and returns. Run **resonance --help** for all of them."),
+                .code("""
+                resonance play | pause | toggle | stop | next | prev
+                resonance now
+                resonance fav
+                resonance surprise
+                resonance search commando --play
+                resonance like --play
+                resonance drift
+                resonance describe fast arpeggios from 1987
+                resonance recent
+                """),
+                .heading("Playlists"),
+                .code("""
+                resonance playlist list
+                resonance playlist play "Late Night"
+                resonance playlist add "Late Night" file.sid
+                resonance playlist rm "Late Night" file.sid
+                """),
+                .heading("In your own scripts"),
+                .bullets([
+                    "Piped, lists print tab-separated with the path first, and anything that answers takes **--json**.",
+                    "**playlist add**, **new** and **rm** read paths from a pipe.",
+                    "**resonance pick** opens a small list to choose from and prints the paths, for use inside other commands.",
+                ]),
+                .code("""
+                resonance search hubbard | resonance playlist add Hubbard
+                resonance playlist add "Late Night" $(resonance pick --multi)
+                """),
+                .heading("zsh and Oh My Zsh"),
+                .paragraph("The [zsh plugin](https://github.com/ErikLuimes/resonance/tree/main/apple/cli/zsh) adds completions, with your playlists' names too, and short commands: **rn**, **rp**, **rs**, **rl**, **rf** and **rq**. **rdone make release** gives you a surprise when something slow ends, and **resonance_prompt_info** puts what's playing in your prompt."),
+            ],
+            related: [.terminal, .assistants]
+        ),
+        HelpTopic(
+            id: .assistants, group: .integrations,
+            title: "Claude and Assistants", symbol: "sparkles",
+            summary: "Ask an assistant for what you'd like to hear.",
+            blocks: [
+                .paragraph("Resonance's command line tool can serve the Model Context Protocol, so an assistant can search, play, make playlists and start a drift. Then you can ask for “something like Commando but darker”."),
+                .heading("Connect Claude Code"),
+                .steps([
+                    "Install the command line tool in Settings → Integrations.",
+                    "Click **Copy Command** there.",
+                    "Paste it into a terminal and press Return.",
+                ]),
+                .link(.settings(.integrations)),
+                .paragraph("For another assistant that speaks the protocol, give it the tool's full path, with **mcp** after it, as the command to run."),
+                .heading("What it can do"),
+                .bullets([
+                    "Find tunes by title or composer, by words for a mood or style, and by how they sound.",
+                    "See what's playing and what you played recently, and how a tune sounds.",
+                    "Play, pause and skip, Surprise Me and Sound Drift, and favourite the tune playing.",
+                    "Make playlists, play them, and add tunes to them or take tunes out. It can't delete a playlist.",
+                ]),
+                .note(title: "What the assistant sees",
+                      text: "Resonance only answers on your Mac, but what your assistant reads, such as playlist names and what you've played, goes wherever that assistant sends what you ask it."),
+            ],
+            related: [.commands, .soundsLike, .smartPlaylists]
+        ),
+        HelpTopic(
+            id: .raycast, group: .integrations,
+            title: "Raycast", symbol: "command",
+            summary: "Search, play and discover from Raycast, without opening a window.",
+            blocks: [
+                .paragraph("Install **Resonance** from the Raycast Store. It doesn't need the command line tool, and if Resonance isn't running, it starts in the background."),
+                .bullets([
+                    "**Search Tunes**: find tunes by title or composer, and see how each one sounds.",
+                    "**Sounds Like This**: tunes that sound like the one playing.",
+                    "**Describe Sound**: a list from words, such as “fast arpeggios from 1987”.",
+                    "**Now Playing**: the tune playing and how it sounds, with its controls.",
+                    "**Playlists** and **Recently Played**: open and play Favourites and your playlists, or go back to a tune.",
+                    "**Play or Pause**, **Next Tune**, **Previous Tune**, **Surprise Me** and **Favourite Tune** do their work without opening a window.",
+                ]),
+                .paragraph("Give the ones you use most a hotkey or an alias in Raycast's settings. Search Tunes and Describe Sound take what you type after their alias."),
+                .heading("In a list of tunes"),
+                .paragraph("**Return** plays from that tune on. **⌘L** shows what sounds like it, **⌘D** shows or hides how it sounds, and **⌘K** has the rest: Sound Drift, Add to Playlist and Show in Resonance. With the sound pane closed, each row shows the tune's fingerprint."),
+            ],
+            related: [.soundsLike, .readingFingerprints]
+        ),
+        HelpTopic(
+            id: .siriAndSpotlight, group: .integrations,
+            title: "Siri and Spotlight", symbol: "magnifyingglass",
+            summary: "Ask Siri, build your own shortcuts, and find tunes from anywhere.",
+            blocks: [
+                .heading("Siri"),
+                .bullets([
+                    "“Surprise me in Resonance”",
+                    "“Play something like this in Resonance”",
+                    "“Drift from this tune in Resonance”",
+                    "“Favourite this tune in Resonance”",
+                    "“Play Favourites in Resonance”, or the name of one of your playlists",
+                ]),
+                .heading("Shortcuts"),
+                .paragraph("The Shortcuts app has these actions too, and **Play or Pause** and **Next Track**, for your own shortcuts and automations."),
+                .heading("Spotlight"),
+                .paragraph("Spotlight finds the collection's tunes by title and composer: click one to play it. To keep them out of Spotlight, turn Resonance off in System Settings → Spotlight."),
+                .heading("Quick Look"),
+                .paragraph("In Finder, select a SID file and press Space to see its title, composer, release and subtunes."),
+                .link(.settings(.integrations)),
+            ],
+            related: [.dock, .nowPlaying]
+        ),
+        HelpTopic(
+            id: .dock, group: .integrations,
+            title: "Dock and Notifications", symbol: "dock.rectangle",
+            summary: "The controls on the Dock icon, and word when something long ends.",
+            blocks: [
+                .heading("The Dock menu"),
+                .paragraph("Control-click Resonance's Dock icon for the tune playing, to play, pause or skip, and for **Play Something Like This**, **Drift From This Tune** and **Surprise Me**."),
+                .heading("Progress"),
+                .paragraph("While the collection downloads or the fingerprint scan runs, the Dock icon shows how far it has got."),
+                .heading("Notifications"),
+                .paragraph("If Resonance is in the background when a download or a long scan ends, or a download fails, it sends a notification. Clicking a download's opens the HVSC Home, and a failed one also offers Retry. Resonance asks for permission the first time; change your mind in System Settings → Notifications."),
+                .link(.settings(.integrations)),
+            ],
+            related: [.gettingStarted, .siriAndSpotlight, .nowPlaying]
+        ),
+        HelpTopic(
             id: .shortcuts, group: .reference,
             title: "Keyboard Shortcuts", symbol: "keyboard",
             summary: "Every Playback command has a key.",
@@ -449,23 +623,27 @@ extension HelpTopic {
                 ]),
                 .link(.settings(.playback)),
                 .heading("Appearance"),
-                .paragraph("Whether the menu bar player shows, the visualizers' theme, your own colours, and whether the theme badge shows."),
+                .paragraph("What Resonance opens on, whether the menu bar player shows, the Normal, Vim or Emacs keys, the visualizers' theme, your own colours, and whether the theme badge shows."),
                 .link(.settings(.appearance)),
-                .heading("Collection"),
+                .heading("HVSC"),
                 .bullets([
                     "The HVSC folder: choose another, or use the one Phosphor downloaded.",
                     "The release you have, updates, and downloading the collection again to restore missing or damaged files.",
                     "Sound fingerprints: how far the scan has got, Pause and Resume, Rebuild All, and the published set.",
                 ]),
                 .link(.settings(.collection)),
+                .heading("Integrations"),
+                .paragraph("Install the command line tool and copy the command that connects Claude Code. Below that, what already works without setting up, such as Siri, Spotlight and Quick Look, with links to where macOS keeps their switches."),
+                .link(.settings(.integrations)),
                 .heading("History"),
                 .paragraph("Clear Recently Played, or reset the count of SIDs you've heard."),
                 .link(.settings(.history)),
                 .heading("Advanced"),
-                .paragraph("**Import from Phosphor** takes Phosphor's playback settings, adds its favourites and play history to yours, and uses its HVSC collection if Resonance has none. Nothing in Phosphor changes. Below it, the data folders of both apps and how much they hold. **Reset** moves the collection Resonance downloaded to the Trash, or resets everything: Resonance's folder goes to the Trash, its settings are forgotten, and it restarts fresh. Phosphor's folder is never touched."),
+                .paragraph("**Updates**: whether Resonance checks for a new version and installs it by itself, and a way to check now."),
+                .paragraph("**Data Folder** shows how much Resonance's folder holds, and opens it in Finder. **Reset** moves the collection Resonance downloaded to the Trash, or resets everything: Resonance's folder goes to the Trash, its settings are forgotten, and it restarts fresh."),
                 .link(.settings(.advanced)),
             ],
-            related: [.gettingStarted, .troubleshooting]
+            related: [.gettingStarted, .terminal, .troubleshooting]
         ),
         HelpTopic(
             id: .troubleshooting, group: .reference,
@@ -473,7 +651,7 @@ extension HelpTopic {
             summary: "When something doesn't work as it should.",
             blocks: [
                 .heading("Musicians, Games or Demos says it can't read the folder"),
-                .paragraph("The HVSC folder has moved, or isn't the one that holds MUSICIANS, GAMES and DEMOS. Choose the right one in Settings → HVSC, or click **Use Phosphor's**."),
+                .paragraph("The HVSC folder has moved, or isn't the one that holds MUSICIANS, GAMES and DEMOS. Choose the right one in Settings → HVSC."),
                 .link(.settings(.collection)),
                 .heading("Tunes are missing or won't play"),
                 .paragraph("In Settings → HVSC, **Download Again…** fetches the whole collection and restores missing or damaged files. The tunes already there are kept."),
@@ -483,13 +661,18 @@ extension HelpTopic {
                 .paragraph("Song lengths come from HVSC's Songlengths database. For tunes it doesn't know, such as ones from outside HVSC, Resonance works the length out in the background by running the tune and listening for it to end or start over; those lengths show with a ~ and can be off. Until then, or if it can't tell, a tune plays for the default song length in Settings → Playback. Some tunes sound different on another engine: try switching between SIDLite, reSIDfp, SIDLite direct and reSID."),
                 .heading("The HVSC download stopped"),
                 .paragraph("Click **Retry** in the message at the top of the window. A download that was cancelled starts over from Download next to Collection."),
+                .heading("The terminal says it can't find resonance"),
+                .paragraph("Install it from Settings → Integrations. If it's in ~/.local/bin, Settings says to add that folder to your PATH, and a new terminal window then finds it. If Settings says something else is already there, another program has the name **resonance** in that folder."),
+                .link(.settings(.integrations)),
+                .heading("An assistant can't reach Resonance"),
+                .paragraph("Assistants need the command line tool. Install it, then use **Copy Command** in Settings → Integrations again: it has the tool's full path, because an assistant may not look in the same folders as your terminal."),
                 .heading("Coming from Phosphor"),
-                .paragraph("Resonance is its own app, built on Phosphor's engine, and keeps its own favourites, history, playlists, settings and collection: it doesn't read Phosphor's folder. To bring them over, use **Import from Phosphor** in Settings → Advanced."),
-                .link(.settings(.advanced)),
+                .paragraph("Resonance is its own app, built on Phosphor's engine, and keeps its own favourites, history, playlists, settings and collection. It doesn't read Phosphor's: to use the same HVSC collection, choose Phosphor's HVSC folder in Settings → HVSC."),
+                .link(.settings(.collection)),
                 .note(title: "Still stuck?",
                       text: "Resonance is in alpha. Report problems on GitHub, from Help → Report a Problem, with what you did and what happened."),
             ],
-            related: [.settings, .gettingStarted]
+            related: [.settings, .gettingStarted, .terminal, .assistants]
         ),
     ]
 }

@@ -9,3 +9,5 @@ xcuserdata/
 *.xcuserstate
 # LLVM coverage output from running a test-instrumented build
 *.profraw
+# This Mac's Debug signing (Config/Signing-Debug.xcconfig)
+/Config/Signing.local.xcconfig

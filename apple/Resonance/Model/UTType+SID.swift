@@ -6,9 +6,24 @@ nonisolated extension UTType {
     /// imported type in Resonance-Info.plist.
     static let sidTune = UTType(importedAs: "org.hvsc.sid", conformingTo: .audio)
 
+    /// What Add Files offers: SID tunes, playlists and folders, by every
+    /// type this Mac gives their extensions. Another player (Modizer, say)
+    /// can claim .sid with its own type, and the sandbox's open panel goes
+    /// by a file's type, so `sidTune` alone would grey them out.
+    static var addable: [UTType] {
+        let extensions = ["sid", "psid", "rsid", "mus", "m3u", "m3u8", "pls"]
+        var types: [UTType] = [.sidTune, .m3uPlaylist, .folder]
+        for tag in extensions {
+            for type in UTType.types(tag: tag, tagClass: .filenameExtension, conformingTo: nil) where !types.contains(type) {
+                types.append(type)
+            }
+        }
+        return types
+    }
+
     /// A tune row being dragged within the app; declared as an exported
     /// type in Resonance-Info.plist.
-    static let playlistRow = UTType(exportedAs: "nl.luimes.resonance.playlist-row")
+    static let playlistRow = UTType(exportedAs: "app.useresonance.resonance.playlist-row")
 }
 
 /// Drag payload for a tune row within the app: reordering a playlist, or

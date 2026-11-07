@@ -108,24 +108,6 @@ pub struct ResolvedFiles {
     pub listed: u32,
 }
 
-#[derive(Debug, Clone, Default, uniffi::Record)]
-pub struct PhosphorImport {
-    pub favorites: u32,
-    pub recently_played: u32,
-    pub heard: u32,
-}
-
-/// Settings read from the Iced Phosphor app's config.json, for a one-time
-/// "import from Phosphor".
-#[derive(Debug, Clone, uniffi::Record)]
-pub struct SharedDefaults {
-    pub engine: Engine,
-    pub volume: f32,
-    pub options: PlaybackOptions,
-    /// The HVSC folder, if Phosphor has one configured or synced.
-    pub hvsc_root: Option<String>,
-}
-
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct PlaylistItem {
     /// Absolute file path; unique within the playlist, so it doubles as the
@@ -1697,24 +1679,6 @@ impl PlayerCore {
         let _ = tokio::task::spawn_blocking(crate::history::reset_heard).await;
     }
 
-    /// Merge Phosphor's favourites and play history into Resonance's.
-    /// Phosphor's files are only read.
-    pub async fn import_from_phosphor(&self) -> PhosphorImport {
-        tokio::task::spawn_blocking(|| {
-            let Some(dir) = crate::config::phosphor_dir() else {
-                return PhosphorImport::default();
-            };
-            let imported = crate::history::import_from(&dir);
-            PhosphorImport {
-                favorites: imported.favorites as u32,
-                recently_played: imported.recent as u32,
-                heard: imported.heard as u32,
-            }
-        })
-        .await
-        .unwrap_or_default()
-    }
-
     /// Surprise Me: an endless stream of random tunes from all of HVSC, one
     /// subtune each, never one played since launch. Next picks a new tune,
     /// Previous goes back; playing anything else ends it. Returns once the
@@ -2234,35 +2198,6 @@ impl PlayerCore {
             Ok(p) => p.clone(),
             Err(poisoned) => poisoned.into_inner().clone(),
         }
-    }
-}
-
-/// Phosphor's settings from its config.json (read-only), so Resonance can
-/// offer to start from the same setup.
-#[uniffi::export]
-pub fn shared_defaults() -> SharedDefaults {
-    let c = crate::config::Config::load();
-    SharedDefaults {
-        engine: if c.output_engine == "emulated" {
-            Engine::ReSid
-        } else {
-            Engine::SidLite
-        },
-        volume: c.master_volume,
-        options: PlaybackOptions {
-            skip_rsid: c.skip_rsid,
-            default_song_length_secs: c.default_song_length_secs,
-            force_stereo_2sid: c.force_stereo_2sid,
-            pseudo_stereo: c
-                .pseudo_stereo_enabled
-                .then(|| DetuneStrength::from_config_str(&c.pseudo_stereo_strength).into()),
-        },
-        // No folder in Phosphor's config (a fresh install): the default
-        // one, where Phosphor and the download put the collection.
-        hvsc_root: c
-            .hvsc_root
-            .filter(|r| !r.trim().is_empty())
-            .or_else(|| hvsc_sync::default_hvsc_root().map(|p| p.to_string_lossy().into_owned())),
     }
 }
 

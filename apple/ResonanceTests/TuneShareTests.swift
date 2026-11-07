@@ -17,6 +17,27 @@ struct SharedTuneLinkTests {
         #expect(link.name == "Commando — Rob Hubbard")
     }
 
+    /// Whatever this build shares through: a Debug build's is a local server.
+    @Test func readsAUniversalLink() {
+        let activity = NSUserActivity(activityType: NSUserActivityTypeBrowsingWeb)
+        activity.webpageURL = URL(string: "https://useresonance.app/t/bQGey6gxqfhT?s=2&v=85")
+        #expect(SharedTuneLink(activity: activity) == SharedTuneLink(key: "bQGey6gxqfhT", subtune: 2, hvsc: 85))
+    }
+
+    @Test func aUniversalLinkIsOnlyAWebLinkToTheServer() {
+        let elsewhere = NSUserActivity(activityType: NSUserActivityTypeBrowsingWeb)
+        elsewhere.webpageURL = URL(string: "https://elsewhere.example/t/bQGey6gxqfhT")
+        #expect(SharedTuneLink(activity: elsewhere) == nil)
+
+        let page = NSUserActivity(activityType: NSUserActivityTypeBrowsingWeb)
+        page.webpageURL = URL(string: "https://useresonance.app/card/bQGey6gxqfhT.jpg")
+        #expect(SharedTuneLink(activity: page) == nil)
+
+        let spotlight = NSUserActivity(activityType: "com.apple.corespotlightitem")
+        spotlight.webpageURL = URL(string: "https://useresonance.app/t/bQGey6gxqfhT")
+        #expect(SharedTuneLink(activity: spotlight) == nil)
+    }
+
     @Test func readsTheWebLinkOnlyFromTheShareServer() {
         let web = URL(string: "https://share.example/t/\(md5)?s=3")!
         #expect(SharedTuneLink(url: web, shareBase: base) == SharedTuneLink(key: md5, subtune: 3))
@@ -119,7 +140,7 @@ struct PlayerStoreSharingTests {
     }
 
     private func makeStore(root: String?) -> PlayerStore {
-        PlayerStore(defaults: defaults, phosphorHvscRoot: { root }, defaultHvscRoot: root) { _ in fake }
+        PlayerStore(defaults: defaults, defaultHvscRoot: root) { _ in fake }
     }
 
     @Test func opensOnlyTuneLinks() {

@@ -14,6 +14,8 @@ nonisolated enum Pref {
     static let forceStereo2SID = "forceStereo2SID"
     static let pseudoStereo = "pseudoStereo"
     static let hvscRoot = "hvscRoot"
+    /// Bookmarks of folders and files chosen outside the sandbox (FileAccess).
+    static let fileAccess = "fileAccess"
     static let visualizerMode = "visualizerMode"
     static let nowPlayingVisualizer = "nowPlayingVisualizer"
     static let theme = "theme"

@@ -109,13 +109,14 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
 
 ## Data and settings
 
-- Everything Resonance writes is in `~/Library/Application Support/Resonance/`:
+- Everything Resonance writes is in its sandbox container, in
+  `~/Library/Containers/app.useresonance.resonance/Data/Library/Application Support/Resonance/`:
   My Playlist (`session.m3u`), your playlists (`Playlists/`), the fingerprints,
   and the files the engine sources keep in their config folder — favourites,
   play history, the HVSC search-index cache, the curated playlists cache and
   `phosphor-debug.log`. `core/src/config.rs` points upstream's `config_dir()`
   there, without changing `src/`. Settings are in its own user defaults
-  (`nl.luimes.resonance`).
+  (`app.useresonance.resonance`).
 - The curated playlists are Phosphor's published playlists, from the
   `playlists/` folder at the top of this repository (it merges in from
   upstream): `core/src/curated.rs` brings them up to date at launch from
@@ -126,14 +127,10 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
 - The HVSC folder is `Resonance/HVSC` until you choose another; Download puts
   the collection there. Song lengths and STIL come from the collection's own
   `DOCUMENTS` folder.
-- Phosphor's `~/Library/Application Support/phosphor/` is read only by
-  *Settings → Advanced → Import from Phosphor* (and its *Use Phosphor's*
-  button in Settings → Collection): its `config.json` (playback settings and
-  HVSC folder), and `favorites.json`, `recently_played.json` and `heard.txt`,
-  merged into Resonance's. Import also switches to Phosphor's collection when
-  Resonance has none. Nothing is ever written there. Upstream's HTTP clients
-  would take a proxy from that `config.json`; the shim's `apply_proxy` leaves
-  them on the system's settings instead.
+- Resonance never reads Phosphor's `~/Library/Application Support/phosphor/`;
+  the sandbox wouldn't let it. Upstream's HTTP clients would take a proxy from
+  Phosphor's `config.json`; the shim's `apply_proxy` leaves them on the
+  system's settings instead.
 - Running both apps at once is safe; they don't write each other's files.
 
 ## Scope
@@ -247,9 +244,11 @@ release.
   the MD5 up in the collection's Songlengths.md5, then tries the path
   (`core/src/share.rs`), and the main window's sheet (`SharedTuneSheet`)
   offers Play / Show in Library, Update to HVSC N, Check for Update or
-  Download HVSC (`SharedTuneOutcome`). Universal links (https links opening
-  the app directly) need the Associated Domains entitlement, so they wait
-  for a Developer ID; the parser already accepts web links to the server.
+  Download HVSC (`SharedTuneOutcome`). Universal links open `/t/*` https links
+  in the app directly: the server's association file names the app, and the
+  app needs the Associated Domains entitlement and a provisioning profile
+  (Signing, below). Builds without one still open the page, whose button uses
+  `resonance://`.
 - **The server's address** is the `SHARE_BASE_URL` build setting
   (`ResonanceShareBaseURL` in the Info.plist): `https://useresonance.app`
   in Release builds, `http://localhost:8080` in Debug ones (run the server
@@ -297,11 +296,52 @@ ID, notarized and stapled, in `build/release/Resonance-<version>.dmg`
 (the version is the project's `MARKETING_VERSION` and `RELEASE_STAGE`,
 `0.1.0-alpha.1`; About Resonance shows the same; an empty stage is a final
 release). It needs a "Developer
-ID Application" certificate and a notarytool keychain profile (the script
-explains); without the certificate it makes an unsigned image to try the
-build. Publish the `.dmg` on a GitHub release tagged `v<version>` (an alpha
-or beta as a pre-release, `v0.1.0-alpha.1`); the website's Download button
-takes the newest release with a `.dmg`.
+ID Application: Erik Luimes" certificate and a notarytool keychain profile
+(the script explains); without the certificate it makes an unsigned image to
+try the build. Publish the `.dmg` on a GitHub release tagged `v<version>` (an
+alpha or beta as a pre-release, `v0.1.0-alpha.1`); the website's Download
+button takes the newest release with a `.dmg`.
+
+### Signing
+
+The app's identifier is `app.useresonance.resonance`, from the domain
+useresonance.app, and its parts take it as a prefix: `.quicklook`, `.cli`,
+`.PhosphorCore`, `.tests`. Don't change it again: macOS files settings and
+the Spotlight index under it. Builds up to alpha.5 used `nl.luimes.resonance`;
+Sparkle updates them to the new identifier because it finds the update by
+its file name, `Resonance.app`, and its EdDSA signature. Nothing else carries
+over: the same release is the first sandboxed one, which starts fresh
+(`design/sandbox/README.md`).
+
+One setup, once the Apple Developer membership is active:
+
+1. In Xcode, Settings → Apple Accounts → Manage Certificates, add a
+   Developer ID Application certificate. It needs the membership's Account
+   Holder.
+1. At developer.apple.com, Identifiers: register the App ID
+   `app.useresonance.resonance` with the Associated Domains capability. Under
+   Profiles, make a Developer ID profile for it named "Resonance Developer ID"
+   with that certificate, and install it by opening the file.
+2. Make an app-specific password at account.apple.com, and store it with the
+   `notarytool store-credentials` command in `scripts/release.sh`.
+3. Run `scripts/release.sh`. It finds the certificate by name, and with
+   `scripts/check-signing.sh` checks every binary inside before notarizing.
+
+Debug builds are ad-hoc signed by default, so anyone can build them, and
+`release.sh` takes the team from its certificate. Siri and Shortcuts need a
+team, so to test them from Xcode, sign your Debug builds with a
+`Config/Signing.local.xcconfig`, which git ignores:
+`Config/Signing-Debug.xcconfig` explains.
+Every build runs in the App Sandbox, with `Config/Resonance.entitlements`;
+`design/sandbox/README.md` explains what that changes. Universal links are the
+one thing that needs a provisioning profile, for
+`Config/Resonance-Links.entitlements` (the same plus the associated domain).
+The Resonance target takes both from `RESONANCE_ENTITLEMENTS` and
+`RESONANCE_PROFILE`, because a build with that entitlement and no profile
+doesn't run. `release.sh` sets them, and stops if the "Resonance Developer ID"
+profile isn't installed. Gatekeeper checks the profile at install and at every
+launch: once it has expired (the first one lasts until 2044), released copies
+stop launching.
 
 ### Updates
 

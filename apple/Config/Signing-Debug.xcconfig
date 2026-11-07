@@ -1,0 +1,22 @@
+// How Debug builds are signed. Ad-hoc by default, so anyone can build them.
+// Siri and Shortcuts need a team, so to sign your own, create
+// Signing.local.xcconfig next to this file (git ignores it) with:
+//
+//   DEVELOPMENT_TEAM = <your team ID>
+//   CODE_SIGN_IDENTITY = Apple Development
+//
+// The team narrows which certificate that matches: without one of that team's,
+// the build fails rather than using another team's. Release builds aren't
+// affected; scripts/release.sh signs those.
+//
+// Every build is sandboxed (Config/Resonance.entitlements). Universal links
+// need one more entitlement, and so a provisioning profile, which an ad-hoc
+// build can't have. To test them, add these with your own profile's name:
+//
+//   RESONANCE_ENTITLEMENTS = Config/Resonance-Links.entitlements
+//   RESONANCE_PROFILE = Resonance Development
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = -
+DEVELOPMENT_TEAM =
+
+#include? "Signing.local.xcconfig"

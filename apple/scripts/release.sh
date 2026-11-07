@@ -21,14 +21,20 @@
 # script checks against the keychain. A release notes file,
 # release-notes/<version>.md, goes into the update dialog if present.
 #
-# Signing needs a "Developer ID Application" certificate in the keychain
-# (from the Apple Developer Program), and notarizing a notarytool profile,
-# stored once with:
+# Signing needs a "Developer ID Application: Erik Luimes" certificate in the
+# keychain (from the Apple Developer Program), and notarizing a notarytool
+# profile, stored once with:
 #
 #   xcrun notarytool store-credentials resonance-notary \
 #       --apple-id <you@example.com> --team-id <TEAMID>
 #
-# NOTARY_PROFILE=<name> uses another profile. Without the certificate it
+# Certificates of any other name are ignored, whichever teams this Mac also
+# has them for; SIGNING_IDENTITY=<name, or its start> picks another.
+# Universal links also need a Developer ID provisioning profile for the app,
+# named "Resonance Developer ID" (LINKS_PROFILE=<name> for another), which the
+# script stops without.
+#
+# NOTARY_PROFILE=<name> uses another notary profile. Without the certificate it
 # builds an unsigned (ad-hoc signed) image instead
 # (Resonance-<version>-unsigned.dmg): Gatekeeper makes people approve it
 # in System Settings the first time, but updates install without that.
@@ -92,8 +98,21 @@ fi
 UPDATES=(SPARKLE_PUBLIC_ED_KEY="$PUBLIC_KEY" ${SPARKLE_FEED_URL:+SPARKLE_FEED_URL="$SPARKLE_FEED_URL"})
 
 # The Developer ID certificate, and its team (the identity ends "(TEAMID)").
-IDENTITY="$(security find-identity -v -p codesigning | grep -m1 '"Developer ID Application' | sed -E 's/.*"(.*)"/\1/' || true)"
+SIGNING_NAME="${SIGNING_IDENTITY:-Developer ID Application: Erik Luimes}"
+IDENTITY="$(security find-identity -v -p codesigning | grep -m1 -F "\"$SIGNING_NAME" | sed -E 's/.*"(.*)"/\1/' || true)"
 TEAM="$(sed -E 's/.*\(([A-Z0-9]+)\)$/\1/' <<<"$IDENTITY")"
+
+# Before the long build: a missing profile would only show after it.
+LINKS_PROFILE="${LINKS_PROFILE:-Resonance Developer ID}"
+if [ -n "$IDENTITY" ] && ! "$APPLE/scripts/find-profile.sh" "$LINKS_PROFILE" "$TEAM"; then
+    echo "No \"$LINKS_PROFILE\" provisioning profile for team $TEAM: README.md, Signing, has the steps." >&2
+    exit 1
+fi
+if [ -n "$IDENTITY" ] && ! xcrun notarytool history --keychain-profile "$PROFILE" >/dev/null 2>&1; then
+    echo "Can't notarize with the keychain profile $PROFILE. Store it with:" >&2
+    echo "  xcrun notarytool store-credentials $PROFILE --apple-id <you@example.com> --team-id $TEAM" >&2
+    exit 1
+fi
 
 rm -rf "$OUT"
 mkdir -p "$OUT"
@@ -102,10 +121,11 @@ echo "Resonance $VERSION ($BUILD)"
 if [ -n "$IDENTITY" ]; then
     echo "Signing as $IDENTITY"
     SIGNING=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=$IDENTITY" "DEVELOPMENT_TEAM=$TEAM"
-             OTHER_CODE_SIGN_FLAGS=--timestamp)
+             OTHER_CODE_SIGN_FLAGS=--timestamp
+             RESONANCE_ENTITLEMENTS=Config/Resonance-Links.entitlements "RESONANCE_PROFILE=$LINKS_PROFILE")
     NAME="Resonance-$VERSION"
 else
-    echo "No Developer ID Application certificate: building unsigned"
+    echo "No \"$SIGNING_NAME\" certificate: building unsigned"
     # No hardened runtime: its library validation only loads frameworks
     # signed by the app's own team, and an ad-hoc build has none, so the
     # app couldn't load PhosphorCore. (Notarization needs it; this build
@@ -120,7 +140,7 @@ fi
 echo "Testing without CSDb…"
 xcodebuild test -quiet -project Resonance.xcodeproj -scheme Resonance -configuration Debug \
     -destination 'platform=macOS' -derivedDataPath "$OUT/no-csdb" \
-    -clonedSourcePackagesDirPath "$PACKAGES" SWIFT_ACTIVE_COMPILATION_CONDITIONS=DEBUG
+    -clonedSourcePackagesDirPath "$PACKAGES" SWIFT_ACTIVE_COMPILATION_CONDITIONS=DEBUG CODE_SIGN_IDENTITY=-
 
 echo "Archiving (the Rust core builds in release mode; this takes a few minutes)…"
 xcodebuild archive -quiet -project Resonance.xcodeproj -scheme Resonance -configuration Release \
@@ -143,6 +163,10 @@ if [ -n "$IDENTITY" ]; then
     <key>signingStyle</key><string>manual</string>
     <key>signingCertificate</key><string>Developer ID Application</string>
     <key>teamID</key><string>$TEAM</string>
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>app.useresonance.resonance</key><string>$LINKS_PROFILE</string>
+    </dict>
 </dict>
 </plist>
 EOF
@@ -150,6 +174,11 @@ EOF
         -exportOptionsPlist "$OUT/ExportOptions.plist" -exportPath "$OUT/export"
     APP="$OUT/export/Resonance.app"
     codesign --verify --deep --strict --verbose=1 "$APP"
+    "$APPLE/scripts/check-signing.sh" "$APP" "$TEAM"
+    if ! codesign -d --entitlements - --xml "$APP" 2>/dev/null | grep -q 'applinks:useresonance.app'; then
+        echo "error: the signed app has no universal links entitlement" >&2
+        exit 1
+    fi
 else
     APP="$OUT/Resonance.xcarchive/Products/Applications/Resonance.app"
 fi
@@ -166,7 +195,15 @@ rm -rf "$STAGING"
 if [ -n "$IDENTITY" ]; then
     codesign --sign "$IDENTITY" --timestamp "$OUT/$NAME.dmg"
     echo "Notarizing (usually a few minutes)…"
-    xcrun notarytool submit "$OUT/$NAME.dmg" --keychain-profile "$PROFILE" --wait
+    SUBMISSION="$(xcrun notarytool submit "$OUT/$NAME.dmg" --keychain-profile "$PROFILE" --wait --output-format json)"
+    STATUS="$(python3 -I -c 'import json, sys; print(json.loads(sys.argv[1])["status"])' "$SUBMISSION")"
+    if [ "$STATUS" != "Accepted" ]; then
+        # The log names each file Apple rejected, and why.
+        echo "Notarization: $STATUS" >&2
+        SUBMISSION_ID="$(python3 -I -c 'import json, sys; print(json.loads(sys.argv[1])["id"])' "$SUBMISSION")"
+        xcrun notarytool log "$SUBMISSION_ID" --keychain-profile "$PROFILE" >&2
+        exit 1
+    fi
     xcrun stapler staple "$OUT/$NAME.dmg"
     spctl --assess --type open --context context:primary-signature --verbose=1 "$OUT/$NAME.dmg"
 fi

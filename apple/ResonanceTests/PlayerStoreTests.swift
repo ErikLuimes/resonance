@@ -98,10 +98,6 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     func heardCount() async -> UInt32 { lock.withLock { _heard } }
     func clearRecentlyPlayed() async {}
     func resetHeard() async {}
-    func importFromPhosphor() async -> PhosphorImport {
-        record("importFromPhosphor")
-        return PhosphorImport(favorites: 2, recentlyPlayed: 1, heard: 0)
-    }
     func hvscBugs(path: String) async -> [TuneBug] { [] }
 
     func hvscTunesAt(paths: [String]) async throws -> [HvscTuneItem] {
@@ -276,13 +272,12 @@ struct PlayerStoreTests {
         defaults.removePersistentDomain(forName: suite)
     }
 
-    private func makeStore(phosphorHvscRoot: String? = nil) -> (PlayerStore, CoreConfig) {
+    private func makeStore(hvscRoot: String? = nil) -> (PlayerStore, CoreConfig) {
         var config: CoreConfig?
         let store = PlayerStore(
             defaults: defaults,
             sessionPath: URL(filePath: "/tmp/session.m3u"),
-            phosphorHvscRoot: { phosphorHvscRoot },
-            defaultHvscRoot: phosphorHvscRoot
+            defaultHvscRoot: hvscRoot
         ) {
             config = $0
             return fake
@@ -429,7 +424,7 @@ struct HvscSettingsTests {
 
     private func makeStore(phosphor: String?) -> (PlayerStore, CoreConfig) {
         var config: CoreConfig?
-        let store = PlayerStore(defaults: defaults, phosphorHvscRoot: { phosphor }, defaultHvscRoot: phosphor) {
+        let store = PlayerStore(defaults: defaults, defaultHvscRoot: phosphor) {
             config = $0
             return fake
         }
@@ -485,7 +480,7 @@ struct HvscSyncTests {
     }
 
     private func makeStore(phosphor: String?) -> PlayerStore {
-        PlayerStore(defaults: defaults, phosphorHvscRoot: { phosphor }, defaultHvscRoot: phosphor) { _ in fake }
+        PlayerStore(defaults: defaults, defaultHvscRoot: phosphor) { _ in fake }
     }
 
     @Test func startForwardsAndReportsACoresError() async {
@@ -555,7 +550,7 @@ struct LibraryStoreTests {
         let suite = "ResonanceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
-        let player = PlayerStore(defaults: defaults, phosphorHvscRoot: { root }, defaultHvscRoot: root) { _ in fake }
+        let player = PlayerStore(defaults: defaults, defaultHvscRoot: root) { _ in fake }
         return (LibraryStore(player: player), player)
     }
 

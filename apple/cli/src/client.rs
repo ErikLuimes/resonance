@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
-const BUNDLE_ID: &str = "nl.luimes.resonance";
+const BUNDLE_ID: &str = "app.useresonance.resonance";
 /// A cold launch, with the collection's indexes, can take this long.
 const LAUNCH_WAIT: Duration = Duration::from_secs(20);
 
@@ -24,10 +24,11 @@ fn socket_paths() -> Vec<PathBuf> {
         return vec![PathBuf::from(path)];
     }
     let home = PathBuf::from(std::env::var_os("HOME").unwrap_or_default());
-    let support = "Library/Application Support/Resonance/control.sock";
     vec![
-        home.join(support),
-        home.join("Library/Containers").join(BUNDLE_ID).join("Data").join(support),
+        // The sandboxed app's (alpha.6 on): the container itself, as a
+        // socket's path must fit in 104 bytes.
+        home.join("Library/Containers").join(BUNDLE_ID).join("Data/control.sock"),
+        home.join("Library/Application Support/Resonance/control.sock"),
     ]
 }
 

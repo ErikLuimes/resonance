@@ -26,6 +26,9 @@ struct SettingsView: View {
                 SettingsPane { SceneSettings() }
             }
 #endif
+            Tab("Integrations", systemImage: "puzzlepiece.extension", value: .integrations) {
+                SettingsPane { IntegrationSettings() }
+            }
             Tab("History", systemImage: "clock.arrow.circlepath", value: .history) {
                 SettingsPane { HistorySettings() }
             }
@@ -37,7 +40,7 @@ struct SettingsView: View {
 }
 
 enum SettingsTab: String {
-    case playback, appearance, collection, history, advanced
+    case playback, appearance, collection, integrations, history, advanced
 #if CSDB
     case csdb
 #endif
@@ -48,10 +51,19 @@ enum SettingsTab: String {
 private struct SettingsPane<Content: View>: View {
     @ViewBuilder let content: Content
 
+    /// Wide enough for every tab in the toolbar: past it they go into an
+    /// overflow menu whose items can't be clicked. Debug builds have CSDb's
+    /// too.
+#if CSDB
+    private static var width: CGFloat { 540 }
+#else
+    private static var width: CGFloat { 460 }
+#endif
+
     var body: some View {
         Form { content }
             .formStyle(.grouped)
-            .frame(width: 460)
+            .frame(width: Self.width)
             .fixedSize(horizontal: false, vertical: true)
     }
 }
@@ -155,15 +167,12 @@ private struct CollectionSettings: View {
     var body: some View {
         Section {
             LabeledContent("Collection folder") {
-                Text(store.hvscRoot.map { ($0 as NSString).abbreviatingWithTildeInPath } ?? "Not set")
+                Text(store.hvscRoot.map { RealHome.displayPath($0) } ?? "Not set")
                     .foregroundStyle(store.hvscRoot == nil ? .secondary : .primary)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
-            HStack {
-                Button("Choose…") { choosingFolder = true }
-                Button("Use Phosphor's") { store.usePhosphorHvscRoot() }
-            }
+            Button("Choose…") { choosingFolder = true }
             if store.hasCollection, let info = store.hvscInfo, let version = info.version {
                 LabeledContent("Version") {
                     Text(info.releaseDate.map { "HVSC \(version), released \($0)" } ?? "HVSC \(version)")
@@ -202,6 +211,7 @@ private struct CollectionSettings: View {
         }
         .fileImporter(isPresented: $choosingFolder, allowedContentTypes: [.folder]) { result in
             if case .success(let url) = result {
+                FileAccess.shared.keep([url])
                 store.hvscRoot = url.path
             }
         }
@@ -419,77 +429,46 @@ private struct HistorySettings: View {
     }
 }
 
-/// Importing from Phosphor, and where each app keeps its files.
+/// Updates, and where Resonance keeps its files.
 private struct AdvancedSettings: View {
     @Environment(PlayerStore.self) private var store
-    @Environment(PlaylistsStore.self) private var playlists
-    @Environment(LibraryStore.self) private var library
-    @State private var sizes: [URL: Int64] = [:]
-    @State private var importing = false
-    /// What the last import added.
-    @State private var imported: String?
-
-    private static let folders = [
-        ("Resonance", AppPaths.supportDirectory),
-        ("Phosphor", AppPaths.phosphorDirectory),
-    ]
+    @State private var size: Int64?
 
     var body: some View {
         UpdateSettings()
 
         Section {
-            LabeledContent {
-                Button("Import") {
-                    importing = true
-                    Task {
-                        imported = await store.importFromPhosphor()
-                        await playlists.loadFavourites()
-                        await library.loadRecent()
-                        importing = false
-                    }
-                }
-                .disabled(importing)
-            } label: {
-                Text("Import from Phosphor")
-                if let imported {
-                    Text(imported)
-                }
-            }
-        } footer: {
-            Text("Takes Phosphor's playback settings, adds its favourites and play history to Resonance's, and uses its HVSC collection if Resonance has none. Nothing in Phosphor changes.")
-        }
-
-        CommandLineToolSettings()
-
-        Section {
-            ForEach(Self.folders, id: \.1) { name, url in
-                LabeledContent(name) {
-                    HStack {
-                        Text(sizes[url].map { $0.formatted(.byteCount(style: .file)) } ?? "Measuring…")
-                            .foregroundStyle(.secondary)
-                        AccentLink("Show in Finder") { NSWorkspace.shared.open(url) }
-                    }
+            LabeledContent("Resonance's folder") {
+                HStack {
+                    Text(size.map { $0.formatted(.byteCount(style: .file)) } ?? "Measuring…")
+                        .foregroundStyle(.secondary)
+                    AccentLink("Show in Finder") { NSWorkspace.shared.open(AppPaths.supportDirectory) }
                 }
             }
         } header: {
-            Text("Data Folders")
+            Text("Data Folder")
         } footer: {
-            Text("Resonance keeps its favourites, play history, playlists, fingerprints and, unless you choose another folder, HVSC in its own folder. It reads Phosphor's only when you import from it.")
+            Text("Resonance keeps its favourites, play history, playlists, fingerprints and, unless you choose another folder, HVSC in its own folder.")
         }
         .task {
-            for (_, url) in Self.folders {
-                sizes[url] = await Task.detached(priority: .utility) { DiskUsage.bytes(at: url) }.value
-            }
+            let url = AppPaths.supportDirectory
+            size = await Task.detached(priority: .utility) { DiskUsage.bytes(at: url) }.value
         }
 
         ResetSettings()
     }
 }
 
-/// Puts the `resonance` tool on the PATH.
-private struct CommandLineToolSettings: View {
+/// What reaches Resonance from outside its window: first what needs setting
+/// up, then what already works, with a link where macOS owns the switch.
+private struct IntegrationSettings: View {
+    /// Resonance's page in the Raycast Store. Until it's there, Settings has
+    /// no row for it.
+    private static let raycastExtension: URL? = nil
+
     @State private var installed = CommandLineTool.installed()
     @State private var error: String?
+    @State private var copied = false
 
     var body: some View {
         Section {
@@ -507,7 +486,7 @@ private struct CommandLineToolSettings: View {
                 if let installed {
                     Text("Installed at \(installed.path)")
                 } else {
-                    Text("Adds the resonance command")
+                    Text("The terminal app, and commands for scripts")
                 }
             }
             if let error {
@@ -518,14 +497,85 @@ private struct CommandLineToolSettings: View {
                 Text("Add \(installed.deletingLastPathComponent().path) to your PATH to use it.")
                     .foregroundStyle(.secondary)
             }
+            LabeledContent {
+                Button(copied ? "Copied" : "Copy Command") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(CommandLineTool.assistantCommand(installedAt: installed), forType: .string)
+                    copied = true
+                }
+            } label: {
+                Text("Claude and other assistants")
+                Text("Copies the command that connects Claude Code")
+            }
+            .task(id: copied) {
+                guard copied else { return }
+                try? await Task.sleep(for: .seconds(2))
+                copied = false
+            }
+            if let raycast = Self.raycastExtension {
+                LabeledContent {
+                    Button("Get Extension") { NSWorkspace.shared.open(raycast) }
+                } label: {
+                    Text("Raycast")
+                    Text("Eleven commands, without opening a window")
+                }
+            }
+        } header: {
+            Text("Set Up")
         } footer: {
-            Text("Run **resonance** in a terminal for the terminal app, or **resonance --help** for its commands.")
+            Text("Run **resonance** in a terminal for the terminal app, or **resonance --help** for its commands. Assistants need the tool. They can search, play and make playlists, but can't delete one.")
         }
+
+        Section {
+            LabeledContent {
+                AccentLink("Open Shortcuts") {
+                    NSWorkspace.shared.open(URL(filePath: "/System/Applications/Shortcuts.app"))
+                }
+            } label: {
+                Text("Siri and Shortcuts")
+                Text("“Surprise me in Resonance”")
+            }
+            LabeledContent {
+                AccentLink("System Settings") { Self.openSystemSettings("com.apple.Spotlight-Settings.extension") }
+            } label: {
+                Text("Spotlight")
+                Text("Finds tunes by title and composer")
+            }
+            LabeledContent {
+                EmptyView()
+            } label: {
+                Text("Quick Look")
+                Text("Press Space on a SID file in Finder")
+            }
+            LabeledContent {
+                AccentLink("System Settings") {
+                    Self.openSystemSettings("com.apple.Notifications-Settings.extension?id=\(Bundle.main.bundleIdentifier ?? "")")
+                }
+            } label: {
+                Text("Notifications")
+                Text("When a download or a long scan ends")
+            }
+            LabeledContent {
+                EmptyView()
+            } label: {
+                Text("Dock icon")
+                Text("Control-click for the tune and its controls")
+            }
+        } header: {
+            Text("Already On")
+        } footer: {
+            Text("macOS owns these switches, so Resonance links to them.")
+        }
+    }
+
+    private static func openSystemSettings(_ pane: String) {
+        guard let url = URL(string: "x-apple.systempreferences:\(pane)") else { return }
+        NSWorkspace.shared.open(url)
     }
 }
 
 /// Starting over: the collection Download put in Resonance's folder, or
-/// everything Resonance keeps. Both go to the Trash, never Phosphor's.
+/// everything Resonance keeps. Both go to the Trash.
 private struct ResetSettings: View {
     @Environment(PlayerStore.self) private var store
     @State private var collectionBytes: Int64?
@@ -559,7 +609,7 @@ private struct ResetSettings: View {
         } header: {
             Text("Reset")
         } footer: {
-            Text("Both move files to the Trash, so you can put them back. Phosphor's folder is never touched.")
+            Text("Both move files to the Trash, so you can put them back.")
         }
         .task(id: store.collectionIsDownloadedHere) {
             guard store.collectionIsDownloadedHere, let root = store.hvscRoot else { return }

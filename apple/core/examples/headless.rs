@@ -11,7 +11,7 @@
 use std::time::Duration;
 
 use phosphor_apple::{
-    shared_defaults, CoreConfig, Engine, PlaybackOptions, PlaybackState, PlayerCore, Repeat,
+    CoreConfig, Engine, PlaybackOptions, PlaybackState, PlayerCore, Repeat,
 };
 
 fn main() {
@@ -49,7 +49,7 @@ fn main() {
         shuffle: false,
         repeat: Repeat::Off,
         session_path: session.to_string_lossy().into_owned(),
-        hvsc_root: shared_defaults().hvsc_root,
+        hvsc_root: std::env::var("HVSC_ROOT").ok(),
     });
     core.add_paths(paths, true);
 

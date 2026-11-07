@@ -18,6 +18,14 @@ struct CommandLineToolTests {
         return url
     }
 
+    @Test func assistantCommandUsesTheInstalledPath() {
+        #expect(CommandLineTool.assistantCommand(installedAt: nil) == "claude mcp add resonance -- resonance mcp")
+        #expect(CommandLineTool.assistantCommand(installedAt: URL(filePath: "/opt/homebrew/bin/resonance"))
+                == "claude mcp add resonance -- /opt/homebrew/bin/resonance mcp")
+        #expect(CommandLineTool.assistantCommand(installedAt: URL(filePath: "/Users/a b/.local/bin/resonance"))
+                == "claude mcp add resonance -- \"/Users/a b/.local/bin/resonance\" mcp")
+    }
+
     @Test func linksIntoTheFirstWritableFolder() throws {
         defer { try? FileManager.default.removeItem(at: folder) }
         let tool = try tool(), bin = try bin()

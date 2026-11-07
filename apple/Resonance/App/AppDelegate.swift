@@ -9,9 +9,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let fingerprints: FingerprintStore
     let playlists: PlaylistsStore
 #if CSDB
-    let csdb = CSDbStore()
+    let csdb: CSDbStore
 #endif
-    let updater = Updater()
+    let updater: Updater
     private var nowPlaying: NowPlayingController?
     private var activity: PlaybackActivity?
     private var outputLatency: OutputLatencyMonitor?
@@ -22,9 +22,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var promptStatus: PromptStatus?
 
     override init() {
+        // Before anything below reads a path: the folders and files chosen
+        // outside the sandbox, open again.
+        if !Self.isRunningTests {
+            FileAccess.shared.restore()
+        }
+#if CSDB
+        csdb = CSDbStore()
+#endif
+        updater = Updater()
         // Under unit tests the app is only a host: no audio, no saved session.
         store = Self.isRunningTests
-            ? PlayerStore(defaults: UserDefaults(suiteName: "tests")!, phosphorHvscRoot: { nil }, defaultHvscRoot: nil) { _ in PreviewCore.empty }
+            ? PlayerStore(defaults: UserDefaults(suiteName: "tests")!, defaultHvscRoot: nil) { _ in PreviewCore.empty }
             : .live()
         library = LibraryStore(player: store)
         fingerprints = FingerprintStore(player: store)
@@ -88,6 +97,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// else goes to My Playlist and plays.
     func application(_ application: NSApplication, open urls: [URL]) {
         let files = urls.filter(\.isFileURL)
+        FileAccess.shared.keep(files)
         let tunes = files.filter { !PlaylistsStore.isPlaylistFile($0) }
         if !tunes.isEmpty {
             store.add(tunes, playFirst: true)
@@ -104,9 +114,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// A tune clicked in Spotlight: show it in the library and play it.
+    /// A shared link opened from anywhere, or a tune clicked in Spotlight:
+    /// that one shows in the library and plays.
     func application(_ application: NSApplication, continue userActivity: NSUserActivity,
                      restorationHandler: @escaping ([any NSUserActivityRestoring]) -> Void) -> Bool {
+        if let link = SharedTuneLink(activity: userActivity) {
+            store.openShared(link)
+            NSApp.activate()
+            MiniPlayer.openMainWindow?()
+            return true
+        }
         guard let path = SpotlightTunes.path(from: userActivity),
               FileManager.default.fileExists(atPath: path) else { return false }
         let tune = URL(filePath: path)

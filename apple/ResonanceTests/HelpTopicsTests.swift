@@ -52,6 +52,23 @@ struct HelpTopicsTests {
         #expect(topic.matches("sphere waveform"))
     }
 
+    @Test func integrationsAreFoundByName() {
+        #expect(HelpTopic.topic(.terminal).matches("skull fire"))
+        #expect(HelpTopic.topic(.commands).matches("resonance pick --multi"))
+        #expect(HelpTopic.topic(.assistants).matches("Copy Command"))
+        #expect(HelpTopic.topic(.raycast).matches("hotkey alias"))
+        #expect(HelpTopic.topic(.siriAndSpotlight).matches("Quick Look"))
+        #expect(HelpTopic.topic(.dock).matches("Drift notification"))
+        #expect(HelpTopic.topic(.sharing).matches("Copy Link"))
+    }
+
+    @Test func everySiriPhraseIsInHelp() {
+        let text = HelpTopic.topic(.siriAndSpotlight).searchText
+        for phrase in ["Surprise me", "Play something like this", "Drift from this tune", "Favourite this tune", "Play Favourites"] {
+            #expect(text.contains(phrase), "\(phrase)")
+        }
+    }
+
     @Test func shortcutsAreSearchable() {
         #expect(HelpTopic.topic(.shortcuts).matches("⇧⌘R surprise"))
     }

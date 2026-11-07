@@ -14,6 +14,9 @@
 			<key>QLSupportedContentTypes</key>
 			<array>
 				<string>org.hvsc.sid</string>
+				<!-- Modizer exports its own type for .sid, and on a Mac with it
+				     installed that's the type SID files get. -->
+				<string>com.yoyofr.modizer.sid</string>
 			</array>
 			<key>QLSupportsSearchableItems</key>
 			<false/>

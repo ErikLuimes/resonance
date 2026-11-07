@@ -26,8 +26,10 @@ cp "$APPLE_DIR/target/$PROFILE/resonance" "$HELPERS/resonance"
 
 # Signed as the app will be: notarization checks every executable inside it.
 IDENTITY="${EXPANDED_CODE_SIGN_IDENTITY:--}"
-FLAGS=(--force --sign "$IDENTITY" --identifier nl.luimes.resonance.cli)
+FLAGS=(--force --sign "$IDENTITY" --identifier app.useresonance.resonance.cli)
 if [ "${ENABLE_HARDENED_RUNTIME:-NO}" = "YES" ] && [ "$IDENTITY" != "-" ]; then
-    FLAGS+=(--options runtime --timestamp)
+    FLAGS+=(--options runtime)
+    # Timestamps need Apple's server: Debug builds work offline without one.
+    [ "${CONFIGURATION:-Debug}" = "Release" ] && FLAGS+=(--timestamp)
 fi
 codesign "${FLAGS[@]}" "$HELPERS/resonance"

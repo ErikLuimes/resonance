@@ -84,7 +84,7 @@ final class SpotlightIndex {
 
 /// How a tune appears in Spotlight.
 nonisolated enum SpotlightTunes {
-    static let domain = "nl.luimes.resonance.hvsc"
+    static let domain = "app.useresonance.resonance.hvsc"
     static let batch = 2000
 
     static func mark(root: String, tunes: Int) -> String { "\(root)|\(tunes)" }

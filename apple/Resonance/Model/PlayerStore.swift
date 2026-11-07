@@ -142,7 +142,7 @@ final class PlayerStore {
     var hvscRoot: String? {
         didSet {
             guard hvscRoot != oldValue else { return }
-            // "" records an explicit "none", so Phosphor's folder isn't
+            // "" records an explicit "none", so the default folder isn't
             // picked up again on the next launch.
             defaults.set(hvscRoot ?? "", forKey: Pref.hvscRoot)
             core.setHvscRoot(root: hvscRoot)
@@ -213,7 +213,6 @@ final class PlayerStore {
     @ObservationIgnored let vizFrames = FrameCache()
 
     @ObservationIgnored private let defaults: UserDefaults
-    @ObservationIgnored private let phosphorHvscRoot: () -> String?
     /// Where Download puts the collection, in Resonance's own folder.
     @ObservationIgnored let downloadHvscRoot: String?
     @ObservationIgnored private var isShutDown = false
@@ -221,13 +220,11 @@ final class PlayerStore {
     @ObservationIgnored private var pollTask: Task<Void, Never>?
 
     /// Reads the saved settings from `defaults` and starts a core configured
-    /// with them via `makeCore`. Until an HVSC folder is chosen (or
-    /// imported from Phosphor, `phosphorHvscRoot`), it's `defaultHvscRoot`,
-    /// where Download puts the collection.
+    /// with them via `makeCore`. Until an HVSC folder is chosen, it's
+    /// `defaultHvscRoot`, where Download puts the collection.
     init(
         defaults: UserDefaults = .standard,
         sessionPath: URL = AppPaths.sessionPlaylist,
-        phosphorHvscRoot: @escaping () -> String? = { sharedDefaults().hvscRoot },
         defaultHvscRoot: String? = AppPaths.hvscDirectory.path,
         makeCore: (CoreConfig) -> any PlayerCoreProtocol
     ) {
@@ -239,7 +236,6 @@ final class PlayerStore {
         let hvscRoot = (defaults.object(forKey: Pref.hvscRoot) as? String)
             .map { $0.isEmpty ? nil : $0 } ?? defaultHvscRoot
         self.defaults = defaults
-        self.phosphorHvscRoot = phosphorHvscRoot
         self.downloadHvscRoot = defaultHvscRoot
         self.engine = engine
         self.volume = volume
@@ -445,15 +441,10 @@ final class PlayerStore {
         }
     }
 
-    /// Use the HVSC folder Phosphor is configured with (or downloaded to).
-    func usePhosphorHvscRoot() {
-        hvscRoot = phosphorHvscRoot()
-    }
-
     // MARK: HVSC collection download
 
     /// Begin downloading the newest release into the current HVSC folder,
-    /// or Phosphor's default folder when none is set. Progress arrives
+    /// or Resonance's own when none is set. Progress arrives
     /// through `hvscSync` at the snapshot rate. Before the mirror has been
     /// asked for its newest release, it's asked first; if it can't say, the
     /// core falls back to the release it knows.
@@ -560,42 +551,6 @@ final class PlayerStore {
             .filter { FileManager.default.fileExists(atPath: $0.path) }
     }
 
-    /// Start from the Iced Phosphor app's settings.
-    func importPhosphorSettings() {
-        let shared = sharedDefaults()
-        engine = shared.engine
-        volume = Double(shared.volume)
-        options = shared.options
-    }
-
-    /// Phosphor's settings, its favourites and play history added to
-    /// Resonance's, and its HVSC collection while Resonance has none. What
-    /// it did, in a sentence.
-    func importFromPhosphor() async -> String {
-        importPhosphorSettings()
-        var collection = false
-        if !hasCollection, let root = phosphorHvscRoot(), Self.holdsCollection(root) {
-            hvscRoot = root
-            collection = true
-        }
-        return Self.describe(await core.importFromPhosphor(), collection: collection)
-    }
-
-    nonisolated static func describe(_ imported: PhosphorImport, collection: Bool = false) -> String {
-        func count(_ n: UInt32, _ one: String, _ many: String) -> String? {
-            n == 0 ? nil : "\(n.formatted()) \(n == 1 ? one : many)"
-        }
-        let added = [
-            count(imported.favorites, "favourite", "favourites"),
-            count(imported.recentlyPlayed, "recently played tune", "recently played tunes"),
-            count(imported.heard, "heard tune", "heard tunes"),
-        ].compactMap(\.self)
-        let summary = added.isEmpty
-            ? "Settings imported. No new favourites or history."
-            : "Settings imported. Added \(added.formatted(.list(type: .and)))."
-        return collection ? summary + " Using Phosphor's HVSC collection." : summary
-    }
-
     /// Save the playlist and stop the engine (app termination). Once.
     func shutdown() {
         guard !isShutDown else { return }
@@ -628,8 +583,7 @@ final class PlayerStore {
 
     /// Start over: stop everything, move Resonance's folder (favourites,
     /// history, playlists, fingerprints, its HVSC) to the Trash and forget
-    /// its settings. The app should restart right after. Phosphor's folder
-    /// isn't touched.
+    /// its settings. The app should restart right after.
     func resetEverything(
         trash: (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) }
     ) async throws {
@@ -695,12 +649,6 @@ nonisolated enum AppPaths {
     static var hvscDirectory: URL {
         supportDirectory.appending(path: "HVSC", directoryHint: .isDirectory)
     }
-
-    /// Phosphor's own folder: its config, play history, Songlengths and
-    /// (by default) HVSC.
-    static var phosphorDirectory: URL {
-        URL.applicationSupportDirectory.appending(path: "phosphor", directoryHint: .isDirectory)
-    }
 }
 
 extension PhosphorCore.HvscSyncStatus {
@@ -758,8 +706,12 @@ extension PlayerStore {
     @discardableResult
     func openShared(_ url: URL) -> Bool {
         guard let link = SharedTuneLink(url: url) else { return false }
-        sharedTune = link
+        openShared(link)
         return true
+    }
+
+    func openShared(_ link: SharedTuneLink) {
+        sharedTune = link
     }
 
     /// Where the shared tune is in this collection, and what to offer.

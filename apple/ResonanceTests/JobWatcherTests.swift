@@ -111,8 +111,7 @@ struct JobWatcherTests {
     // MARK: Dock menu
 
     @Test func withNothingPlayingTheMenuOffersOnlyWhatApplies() {
-        let store = PlayerStore(defaults: UserDefaults(suiteName: "dock-menu-tests")!,
-                                phosphorHvscRoot: { nil }, defaultHvscRoot: nil) { _ in PreviewCore.empty }
+        let store = PlayerStore(defaults: UserDefaults(suiteName: "dock-menu-tests")!, defaultHvscRoot: nil) { _ in PreviewCore.empty }
         let menu = DockMenu.make(store: store, library: LibraryStore(player: store),
                                  fingerprints: FingerprintStore(player: store))
         let items = menu.items.filter { !$0.isSeparatorItem }

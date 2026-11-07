@@ -23,6 +23,10 @@
 	<true/>
 	<key>SUEnableSystemProfiling</key>
 	<false/>
+	<!-- The app is sandboxed: Sparkle's installer runs outside it, through
+	     this service and the -spks/-spki mach-lookup entitlements. -->
+	<key>SUEnableInstallerLauncherService</key>
+	<true/>
 	<!-- Shared tune links: the share server's address (no trailing slash),
 	     from the SHARE_BASE_URL build setting: https://useresonance.app in
 	     Release builds, a share-server running on this Mac in Debug ones.
@@ -35,7 +39,7 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>nl.luimes.resonance.tune</string>
+			<string>app.useresonance.resonance.tune</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>resonance</string>
@@ -54,6 +58,9 @@
 			<key>LSItemContentTypes</key>
 			<array>
 				<string>org.hvsc.sid</string>
+				<!-- What SID files are on a Mac with Modizer, which exports
+				     its own type for .sid. -->
+				<string>com.yoyofr.modizer.sid</string>
 			</array>
 		</dict>
 		<dict>
@@ -97,7 +104,7 @@
 	<array>
 		<dict>
 			<key>UTTypeIdentifier</key>
-			<string>nl.luimes.resonance.playlist-row</string>
+			<string>app.useresonance.resonance.playlist-row</string>
 			<key>UTTypeDescription</key>
 			<string>Resonance playlist row</string>
 			<key>UTTypeConformsTo</key>

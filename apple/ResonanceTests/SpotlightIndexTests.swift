@@ -79,7 +79,7 @@ final class SpotlightIndexTests {
     }
 
     private func index(root: String?) -> SpotlightIndex {
-        let store = PlayerStore(defaults: defaults, phosphorHvscRoot: { nil }, defaultHvscRoot: root) { [fake] _ in fake }
+        let store = PlayerStore(defaults: defaults, defaultHvscRoot: root) { [fake] _ in fake }
         let log = log
         return SpotlightIndex(store: store, defaults: defaults, backend: .init(
             deleteAll: { log.delete() },

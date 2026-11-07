@@ -250,14 +250,16 @@ struct ContentView: View {
         .onSubmit(of: .search) { submitSearch() }
         .fileImporter(
             isPresented: $store.isImporting,
-            allowedContentTypes: [.sidTune, .m3uPlaylist, .folder],
+            allowedContentTypes: UTType.addable,
             allowsMultipleSelection: true
         ) { result in
             if case .success(let urls) = result {
+                FileAccess.shared.keep(urls)
                 store.add(urls)
             }
         }
         .dropDestination(for: URL.self) { urls, _ in
+            FileAccess.shared.keep(urls)
             store.add(urls)
             return true
         } isTargeted: { isDropTargeted = $0 }
@@ -332,6 +334,15 @@ struct ContentView: View {
         }
     }
 
+    /// Playlist files from Finder, each a new playlist of yours.
+    private func importAsNew(_ urls: [URL]) -> Bool {
+        let files = urls.filter(\.isFileURL)
+        guard !files.isEmpty else { return false }
+        FileAccess.shared.keep(files)
+        Task { await playlists.importAsNew(files) }
+        return true
+    }
+
     private var sidebar: some View {
         List(selection: $sidebarSelection) {
             Section {
@@ -380,6 +391,10 @@ struct ContentView: View {
                     .help("New Playlist")
                     .accessibilityLabel("New Playlist")
                 }
+                // A heading doesn't pass drops on to the list's own handler
+                // below, so it takes them itself.
+                .contentShape(.rect)
+                .dropDestination(for: URL.self) { urls, _ in importAsNew(urls) }
             }
             Section("HVSC") {
                 HvscCollectionRow(isSelected: sidebarSelection == .hvscHome)
@@ -420,12 +435,7 @@ struct ContentView: View {
         }
         // Files from Finder on the Playlists heading or an empty part of the
         // sidebar: rows that take them, or refuse them, answer for themselves.
-        .dropDestination(for: URL.self) { urls, _ in
-            let files = urls.filter(\.isFileURL)
-            guard !files.isEmpty else { return false }
-            Task { await playlists.importAsNew(files) }
-            return true
-        } isTargeted: { isSidebarDropTargeted = $0 }
+        .dropDestination(for: URL.self) { urls, _ in importAsNew(urls) } isTargeted: { isSidebarDropTargeted = $0 }
         .overlay {
             if isSidebarDropTargeted {
                 RoundedRectangle(cornerRadius: 10)
@@ -963,6 +973,7 @@ private struct PlaylistDrop: ViewModifier {
                 if case .file(let url) = item, url.isFileURL { url } else { nil }
             }
             if !urls.isEmpty {
+                FileAccess.shared.keep(urls)
                 Task { await playlists.addFiles(urls, to: target) }
                 return true
             }

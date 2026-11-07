@@ -17,7 +17,7 @@ nonisolated enum CommandLineTool {
 
     static var folders: [URL] {
         [URL(filePath: "/opt/homebrew/bin"), URL(filePath: "/usr/local/bin"),
-         FileManager.default.homeDirectoryForCurrentUser.appending(path: ".local/bin")]
+         RealHome.url.appending(path: ".local/bin")]
     }
 
     /// Where it's installed, if somewhere: a link to `tool`.
@@ -29,6 +29,13 @@ nonisolated enum CommandLineTool {
     static func isOnDefaultPath(_ folder: URL) -> Bool {
         (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":").contains(Substring(folder.path))
             || ["/opt/homebrew/bin", "/usr/local/bin"].contains(folder.path)
+    }
+
+    /// The command that connects Claude Code. With the full path when it's
+    /// installed, because an assistant may not have the folder on its PATH.
+    static func assistantCommand(installedAt link: URL?) -> String {
+        let tool = link?.path ?? "resonance"
+        return "claude mcp add resonance -- \(tool.contains(" ") ? "\"\(tool)\"" : tool) mcp"
     }
 
     @discardableResult

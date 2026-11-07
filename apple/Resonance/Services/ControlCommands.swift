@@ -322,6 +322,7 @@ final class ControlCommands {
         let args = request.args
         func answer<T: Encodable>(_ value: T) -> Data { Self.reply(id: request.id, Result<T, Failure>.success(value)) }
         func done() -> Data { answer(Done()) }
+        try Self.checkReachable([args.path, args.start].compactMap(\.self) + (args.paths ?? []))
 
         switch request.cmd {
         // MARK: Playback
@@ -605,6 +606,19 @@ final class ControlCommands {
             found.append(Print(path: path, traits: total.map { $0 / Float(prints.count) }))
         }
         return found
+    }
+
+    /// The sandbox only lets the app open what's in its container or was
+    /// handed to it (FileAccess): a path the tool names isn't, so say how.
+    static func checkReachable(_ paths: [String]) throws {
+        for path in paths where path.hasPrefix("/") {
+            // Opening, not stat(): the sandbox lets anything be looked at.
+            let file = open(path, O_RDONLY)
+            if file >= 0 { close(file) }
+            guard file < 0, errno == EPERM || errno == EACCES else { continue }
+            let folder = (path as NSString).deletingLastPathComponent
+            throw Failure("Resonance isn't allowed into \(folder) yet. Open the tune with Resonance from Finder, or drop it on the window, once; after that it can.")
+        }
     }
 
     private func play(_ paths: [String], start: String?, from source: PlaybackSource) throws {

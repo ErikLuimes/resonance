@@ -200,6 +200,14 @@ private struct HelpBlockView: View {
                 }
             }
             .padding(.vertical, 4)
+        case .code(let text):
+            Text(text)
+                .font(.callout.monospaced())
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.fill.quaternary, in: .rect(cornerRadius: 10))
         case .link(let link):
             linkButton(link)
         }

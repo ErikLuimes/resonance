@@ -4,21 +4,21 @@
 //!     cargo run -p phosphor-apple --example fingerprints -- show <tune path>
 //!     cargo run -p phosphor-apple --example fingerprints -- similar <tune path>
 //!
-//! Uses Phosphor's HVSC folder. The store lives in the temp folder
+//! Uses the HVSC folder in $HVSC_ROOT. The store lives in the temp folder
 //! (`resonance-fingerprints/`), not the app's, and persists between runs,
 //! so a second `scan` resumes the first.
 
 use std::time::{Duration, Instant};
 
 use phosphor_apple::{
-    shared_defaults, CoreConfig, Engine, PlaybackOptions, PlayerCore, Repeat, TuneFingerprint,
+    CoreConfig, Engine, PlaybackOptions, PlayerCore, Repeat, TuneFingerprint,
 };
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let dir = std::env::temp_dir().join("resonance-fingerprints");
     std::fs::create_dir_all(&dir).unwrap();
-    let root = shared_defaults().hvsc_root;
+    let root = std::env::var("HVSC_ROOT").ok();
     let core = PlayerCore::new(CoreConfig {
         engine: Engine::SidLite,
         volume: 0.0,
