@@ -5,7 +5,8 @@ import PhosphorCore
 /// The credits, a demoscene intro in a window of its own. Big flat letters in the same
 /// 3D space as the Starfield theme's stars: "Thanks for listening to", calm; the camera
 /// starts to move; "Resonance" arrives and the letters start to turn; the rest passes in
-/// that motion; the stars settle; then the names. The reasoning is in
+/// that motion; the stars settle; then the names; and last the stars fall into a heart
+/// that beats and fades. The reasoning is in
 /// design/credits/README.md, with the mockups this follows.
 struct CreditsView: View {
     static let windowID = "credits"
@@ -46,6 +47,7 @@ struct CreditsView: View {
         .accessibilityLabel("Credits. Press Escape to close.")
         .onAppear {
             started = .now
+            Task.detached(priority: .utility) { CreditsScene.prepareHeart() }
             escape.start { [dismissWindow] in dismissWindow(id: Self.windowID) }
         }
         .onDisappear { escape.stop() }
@@ -100,12 +102,21 @@ final class CreditsEscapeKey {
     }
 }
 
-/// The picture, one 320×200 bitmap a frame with nothing smoothed. No state of its own
-/// but the bitmap: a moment always draws the same.
+/// The picture, one 320×200 bitmap a frame with nothing smoothed; only the heart at the
+/// end is drawn finer and smooth. No state of its own but the bitmaps: a moment always
+/// draws the same.
 nonisolated final class CreditsRenderer {
     private let bitmap: CGContext?
+    private let fine: CGContext?
+    private static let fineScale = 4.0
 
     init() {
+        let scale = Self.fineScale
+        fine = CGContext(data: nil, width: Int(CreditsScene.width * scale), height: Int(CreditsScene.height * scale), bitsPerComponent: 8,
+                         bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB(),
+                         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+        fine?.translateBy(x: 0, y: CreditsScene.height * scale)
+        fine?.scaleBy(x: scale, y: -scale)
         bitmap = CGContext(data: nil, width: Int(CreditsScene.width), height: Int(CreditsScene.height), bitsPerComponent: 8,
                            bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB(),
                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
@@ -125,7 +136,29 @@ nonisolated final class CreditsRenderer {
         locations: [0, 0.55, 1]
     )
 
+    /// Round dots at four times the size, on the same background.
+    private func heartImage(elapsed: Double, endingFrom: Double, still: Bool) -> CGImage? {
+        guard let gc = fine else { return nil }
+        let (width, height) = (CreditsScene.width, CreditsScene.height)
+        gc.setFillColor(Self.color(5, 6, 8))
+        gc.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        if let vignette {
+            let middle = CGPoint(x: width / 2, y: height / 2)
+            gc.drawRadialGradient(vignette, startCenter: middle, startRadius: 50, endCenter: middle, endRadius: 190,
+                                  options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+        }
+        for star in CreditsScene.heartStars(elapsed: elapsed, endingFrom: endingFrom, still: still) where star.alpha > 0 {
+            gc.setFillColor(Self.color(star.ink, star.ink, star.ink, star.alpha))
+            gc.fillEllipse(in: CGRect(x: star.x - star.size / 2, y: star.y - star.size / 2, width: star.size, height: star.size))
+        }
+        return gc.makeImage()
+    }
+
     func image(seconds: Double, tune: CreditsScene.Tune?, still: Bool) -> CGImage? {
+        let endingFrom = CreditsScene.endingFrom(tune: tune)
+        if seconds >= endingFrom {
+            return heartImage(elapsed: seconds - endingFrom, endingFrom: endingFrom, still: still)
+        }
         guard let gc = bitmap else { return nil }
         let (width, height) = (CreditsScene.width, CreditsScene.height)
         let timing = CreditsScene.timing
@@ -271,8 +304,10 @@ nonisolated enum CreditsScene {
         ["BROKE THE BUILD", "CLAUDE", "TWICE BEFORE COFFEE"],
         ["BUILT THE HOUSE WE MOVED INTO", "MARCIN SPOCZYNSKI", "PHOSPHOR"],
         ["CHIP WHISPERER", "DAG LEM", "RESID"],
-        ["KEEPER OF THE FILTER CURVES", "LEANDRO NINI", "LIBSIDPLAYFP AND RESIDFP"],
-        ["LIGHTWEIGHT CHAMPION", "HERMIT", "SIDLITE"],
+        ["CHIEF OF DISTORTION", "ANTTI LANKILA", "RESID-FP"],
+        ["WENT DOWN TO THE TRANSISTORS", "LEANDRO NINI", "LIBSIDPLAYFP AND RESIDFP"],
+        ["ALL YOUR BASE BELONG TO", "HERMIT", "CRSID, THE BASE OF SIDLITE"],
+        ["AND EVERYONE ELSE WHO OPENED THE CHIP", "THE SID COMMUNITY", "DIE SHOTS, PATCHES AND PATIENCE"],
         ["THREE VOICES SHOULD BE ENOUGH", "BOB YANNES", "MOS 6581, 1982"],
         ["HEAD OF 60,000 THINGS", "THE HVSC CREW", "AND EVERY COMPOSER IN IT"],
         ["PROFESSIONAL LISTENER", "YIZHI LI ET AL", "MERT"],
@@ -373,14 +408,29 @@ nonisolated enum CreditsScene {
 
     /// The people, then whoever's playing, as the one actually doing the work.
     static func pages(tune: Tune?) -> [[String]] {
-        guard let tune else { return people13 }
+        guard let tune else { return people13 + [you] }
         let title = shown(tune.title)
         let author = tune.author.trimmingCharacters(in: .whitespaces)
         // HVSC's way of saying no one knows.
         let page = author.isEmpty || author == "<?>"
             ? ["ACTUALLY DOING THE WORK", title, "NOW PLAYING"]
             : ["ACTUALLY DOING THE WORK", shown(author), String("\(title), NOW PLAYING".prefix(52))]
-        return people13 + [page]
+        return people13 + [page, you]
+    }
+
+    private static let you = ["AND MOST OF ALL", "YOU", "THANKS FOR LISTENING"]
+
+    /// How long the stars take to fall into the heart; it beats, and the camera starts
+    /// moving after the first beat; on the third the stars start drifting apart; and it all
+    /// fades, in seconds, with a moment of black before the window closes.
+    static let collapse = 2.8
+    static let burst = 4.0
+    static let fadeOut = 1.4
+    static let blackAtTheEnd = 0.4
+
+    /// When the names are over and the heart begins.
+    static func endingFrom(tune: Tune?) -> Double {
+        timing.namesFrom + Double(pages(tune: tune).count) * hold
     }
 
     /// In the bitmap font's letters: capitals, without accents, on one line.
@@ -389,7 +439,7 @@ nonisolated enum CreditsScene {
     }
 
     static func length(tune: Tune?) -> Double {
-        timing.namesFrom + Double(pages(tune: tune).count) * hold
+        endingFrom(tune: tune) + collapse + beating + burst + fadeOut + blackAtTheEnd
     }
 
     static func bitmapColumns(_ letter: Character) -> [UInt8] {
@@ -435,6 +485,19 @@ nonisolated enum CreditsScene {
     /// The Starfield theme's flight, turned against the text until the camera starts, so
     /// the stars drift the other way, and rolling after.
     static func stars(seconds: Double) -> [Star] {
+        placed(seconds: seconds).compactMap { x, y, z in
+            guard z > 0.03, x >= 0, x < width, y >= 0, y < height else { return nil }
+            let near = max(0, 1 - z)
+            return Star(x: x, y: y, ink: ink(near: near), alpha: min(1, 0.35 + near), size: near > 0.75 ? 2 : 1)
+        }
+    }
+
+    private static func ink(near: Double) -> Double {
+        near > 0.6 ? 255 : near > 0.3 ? 168 : 94
+    }
+
+    /// Every star on the picture at this moment, in view or not, with its depth.
+    private static func placed(seconds: Double) -> [(x: Double, y: Double, z: Double)] {
         let flight = flightFrom + seconds
         let drifted = min(seconds, timing.cameraStarts)
         let easing = min(driftEase, max(0, seconds - timing.cameraStarts))
@@ -444,9 +507,7 @@ nonisolated enum CreditsScene {
         let roll = sin(flight * 0.09) * 0.5 + turned(seconds, rate: rollRate, from: timing.cameraStarts)
         let (cy, sy, cp, sp, cr, sr) = (cos(yaw), sin(yaw), cos(pitch), sin(pitch), cos(roll), sin(roll))
         let camera = [sin(flight * 0.05) * 3, sin(flight * 0.07) * 2, flight * 0.3]
-        var seen: [Star] = []
-        seen.reserveCapacity(starCount)
-        for place in starPlaces {
+        return starPlaces.map { place in
             let r = (0..<3).map { axis -> Double in
                 let d = place[axis] - camera[axis]
                 return d - (d / 2).rounded(.down) * 2 - 1
@@ -454,12 +515,193 @@ nonisolated enum CreditsScene {
             let x1 = r[0] * cy - r[2] * sy, z1 = r[0] * sy + r[2] * cy
             let y2 = r[1] * cp - z1 * sp, z2 = r[1] * sp + z1 * cp
             let x3 = x1 * cr - y2 * sr, y3 = x1 * sr + y2 * cr
-            guard z2 > 0.03 else { continue }
-            let x = width / 2 + x3 / z2 * focal, y = height / 2 + y3 / z2 * focal
+            let z = max(z2, 0.03)
+            return (width / 2 + x3 / z * focal, height / 2 + y3 / z * focal, z2)
+        }
+    }
+
+    /// Where each star ends up: on or inside a heart, x across, y up and z towards you. The
+    /// same surface as the particle heart on backtostatic.com.
+    static let heartPlaces: [V] = {
+        func surface(_ x: Double, _ y: Double, _ z: Double) -> Double {
+            let a = x * x + 2.25 * y * y + z * z - 1
+            return a * a * a - x * x * z * z * z - 0.1125 * y * y * z * z * z
+        }
+        var places: [V] = []
+        places.reserveCapacity(heartPoints)
+        let e = 0.002
+        // Seeded, so it's the same heart each time. A weaker sequence showed as streaks
+        // across it, and an even one as a grid.
+        var state: UInt64 = 0x5245_534F_4E41_4E43
+        func random() -> Double {
+            state &+= 0x9E37_79B9_7F4A_7C15
+            var z = state
+            z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+            z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+            return Double((z ^ (z >> 31)) >> 11) / 9_007_199_254_740_992
+        }
+        var tries = 0
+        while places.count < heartPoints, tries < 6_000_000 {
+            tries += 1
+            let x = (random() - 0.5) * 2.5, y = (random() - 0.5) * 1.5, z = -1.05 + random() * 2.4
+            let value = surface(x, y, z)
+            // Every third star goes inside: it gives the heart body with so few, and
+            // depth for the camera to fly through. The rest draw its outline.
+            if places.count % 3 == 2 {
+                if value < 0 { places.append([x * 1.45, (z - 0.12) * 1.45, y * 1.45]) }
+                continue
+            }
+            guard abs(value) <= 0.2 else { continue }
+            let gx = (surface(x + e, y, z) - surface(x - e, y, z)) / (2 * e)
+            let gy = (surface(x, y + e, z) - surface(x, y - e, z)) / (2 * e)
+            let gz = (surface(x, y, z + e) - surface(x, y, z - e)) / (2 * e)
+            let slope = max((gx * gx + gy * gy + gz * gz).squareRoot(), 1e-6)
+            guard abs(value / slope) < 0.02 else { continue }
+            places.append([x * 1.45, (z - 0.12) * 1.45, y * 1.45])
+        }
+        return places
+    }()
+
+    /// The heart is made of the stars themselves, and nothing else.
+    private static let heartPoints = starCount
+
+    /// Works the heart out ahead of the moment it's needed.
+    static func prepareHeart() {
+        _ = heartPlaces.count
+    }
+
+    /// How many beats have begun `seconds` after the first: 52 a minute, drifting with a
+    /// five-second breath, as a resting heart's do. It's the sum of the rate up to now, so
+    /// a moment always draws the same.
+    private static func beatsBegun(_ seconds: Double) -> Double {
+        let rate = 52.0 / 60, breath = 5.0, drift = 0.06
+        return rate * (seconds + drift * breath / (2 * .pi) * (1 - cos(2 * .pi * seconds / breath)))
+    }
+
+    /// A heart at deep rest, as a share of its size: one soft beat and a flat pause after
+    /// it, with nothing of the lub-dub.
+    static func beat(_ seconds: Double) -> Double {
+        let beats = beatsBegun(seconds)
+        let phase = beats - beats.rounded(.down)
+        guard phase < 0.4 else { return 0 }
+        let n = phase / 0.4
+        return pow(sin(n * .pi), 4) * exp(-n * 3) * 0.15
+    }
+
+    private static func whenBeatBegins(_ count: Double) -> Double {
+        var (low, high) = (0.0, 10.0)
+        for _ in 0..<40 {
+            let middle = (low + high) / 2
+            if beatsBegun(middle) < count { low = middle } else { high = middle }
+        }
+        return high
+    }
+
+    /// When the second beat begins, which is when the camera starts moving.
+    static let firstBeat = whenBeatBegins(1)
+    /// When the third beat begins, which is when the stars start drifting apart.
+    static let beating = whenBeatBegins(2)
+
+    private static func vignetted(_ x: Double, _ y: Double) -> Double {
+        let reach = min(1, max(0, (hypot(x - width / 2, y - height / 2) - 50) / 140))
+        return reach < 0.55 ? reach / 0.55 * 0.35 : 0.35 + (reach - 0.55) / 0.45 * 0.62
+    }
+
+    /// The nearest two-thirds of the stars fall into the heart. The rest stay out there.
+    private static func fallingIn(_ origin: [(x: Double, y: Double, z: Double)]) -> Set<Int> {
+        let distance = { (i: Int) -> Double in
+            origin[i].z > 0.03 ? hypot(origin[i].x - width / 2, origin[i].y - height / 2) : .infinity
+        }
+        return Set(origin.indices.sorted { (distance($0), $0) < (distance($1), $1) }.prefix(origin.count * 2 / 3))
+    }
+
+    /// The flight slows to a stop as the heart forms and picks up again after the first beat.
+    private static func endingFlight(elapsed: Double, endingFrom: Double, still: Bool) -> Double {
+        let falling = still ? 0 : min(elapsed, collapse)
+        let stopped = endingFrom + falling - falling * falling / (2 * collapse)
+        let flying = still ? 0 : max(0, elapsed - collapse - firstBeat)
+        let pickingUp = min(flying, 1.2)
+        return stopped + pickingUp * pickingUp / 2.4 + max(0, flying - 1.2)
+    }
+
+    /// How fast the sphere spreads through the heart, in the heart's own units a second.
+    /// It only says when a star starts to move, and nothing about how fast.
+    private static let sphereSpeed = 2.6
+
+    /// A point of the heart, `seconds` after the third beat. Once the sphere has reached
+    /// it, it drifts outwards from the middle at a speed of its own, starting gently.
+    static func drifted(_ place: V, star: Int, seconds: Double) -> V {
+        let reach = (place[0] * place[0] + place[1] * place[1] + place[2] * place[2]).squareRoot()
+        let since = seconds - reach / sphereSpeed
+        guard seconds > 0, since > 0 else { return place }
+        let n = Double(star)
+        let speed = 0.25 + 1.0 * hash(n * 29.3 + 1)
+        let moved = speed * since * since / (since + 0.8)
+        // Dead centre has no way out of its own, so it's given one.
+        let (a, b) = (hash(n * 53.1) * 2 * .pi, hash(n * 11.7 + 2) * .pi)
+        let direction = reach > 0.05
+            ? [place[0] / reach, place[1] / reach, place[2] / reach]
+            : [sin(b) * cos(a), sin(b) * sin(a), cos(b)]
+        return [place[0] + direction[0] * moved, place[1] + direction[1] * moved, place[2] + direction[2] * moved]
+    }
+
+    /// The ending. The nearest stars leave the flight, which slows to a stop, and fall into
+    /// the heart, not all at once. It beats, longer and thinner as it contracts, and sways.
+    /// After the first beat the camera starts moving again, turning and creeping forward.
+    /// On the third beat a sphere spreads from the middle of the heart, and each star it
+    /// reaches starts to drift outwards at its own speed, as the camera goes on through
+    /// them. They're the same stars throughout: nothing fades in. Then it all fades.
+    static func heartStars(elapsed: Double, endingFrom: Double, still: Bool) -> [Star] {
+        let falling = fallingIn(placed(seconds: endingFrom))
+        let from = placed(seconds: endingFlight(elapsed: elapsed, endingFrom: endingFrom, still: still))
+        let formed = max(0, elapsed - collapse)
+        let moving = still ? 0 : max(0, formed - firstBeat)
+        let drifting = still ? 0 : max(0, formed - beating)
+        let fade = 1 - min(1, max(0, elapsed - collapse - beating - burst) / fadeOut)
+        let now = still || drifting > 0 ? 0 : beat(formed)
+        let (across, up) = (40 * (1 + now * 0.4), 40 * (1 + now * 1.6))
+        // The camera turns as the flight does, its speed growing in from nothing.
+        let turning = moving * moving / (moving + 1.5)
+        let yaw = (still ? 0 : sin(min(elapsed, collapse + firstBeat) * 0.6) * 0.28) + turning * 0.12
+        let roll = turning * 0.09
+        let (cy, sy, cr, sr) = (cos(yaw), sin(yaw), cos(roll), sin(roll))
+        let camera = 4 - 0.12 * moving * moving
+        let inDepth = smooth(moving / 1.5)
+
+        var seen: [Star] = []
+        seen.reserveCapacity(heartPoints)
+        for i in 0..<starCount {
+            let angle = hash(Double(i) * 53.1) * 2 * .pi
+            guard falling.contains(i), i < heartPlaces.count else {
+                let place = from[i]
+                guard place.z > 0.03, place.x >= 0, place.x < width, place.y >= 0, place.y < height else { continue }
+                let near = max(0, 1 - place.z)
+                seen.append(Star(x: place.x, y: place.y, ink: ink(near: near), alpha: min(1, 0.35 + near) * (1 - vignetted(place.x, place.y)) * fade,
+                                 size: near > 0.75 ? 2 : 1.2))
+                continue
+            }
+            let place = drifted(heartPlaces[i], star: i, seconds: drifting)
+            let x1 = place[0] * cy + place[2] * sy, z1 = -place[0] * sy + place[2] * cy
+            let distance = camera - z1 * inDepth
+            // Once it's beside the camera it's gone, softly.
+            guard distance > 0.15 else { continue }
+            let nearer = 4 / distance
+            let (screenX, screenY) = (x1 * across * nearer, -place[1] * up * nearer)
+            let inHeartX = width / 2 + screenX * cr - screenY * sr, inHeartY = height / 2 + screenX * sr + screenY * cr
+            let depth = min(1, max(0, (z1 + 1.8) / 3.6))
+            let along = still ? 1 : smooth(elapsed / collapse * 1.35 - hash(Double(i) * 91.7) * 0.35)
+            // A star behind the camera or far outside the picture comes in from just beyond its edge.
+            let isFar = from[i].z <= 0.03 || hypot(from[i].x - width / 2, from[i].y - height / 2) > 500
+            let start = moving > 0 ? (x: inHeartX, y: inHeartY)
+                : (x: isFar ? width / 2 + cos(angle) * 300 : from[i].x, y: isFar ? height / 2 + sin(angle) * 300 : from[i].y)
+            let x = start.x + (inHeartX - start.x) * along
+            let y = start.y + (inHeartY - start.y) * along
             guard x >= 0, x < width, y >= 0, y < height else { continue }
-            let near = max(0, 1 - z2)
-            seen.append(Star(x: x, y: y, ink: near > 0.6 ? 255 : near > 0.3 ? 168 : 94,
-                             alpha: min(1, 0.35 + near), size: near > 0.75 ? 2 : 1))
+            let near = max(0, 1 - from[i].z)
+            let fieldSize = near > 0.75 ? 2 : 1.2
+            seen.append(Star(x: x, y: y, ink: ink(near: near) + (110 + 145 * depth - ink(near: near)) * along,
+                             alpha: min(1, 0.35 + near + along) * (1 - vignetted(x, y) * (1 - along)) * smooth((distance - 0.15) / 0.5) * fade,
+                             size: min(3.5, fieldSize + ((1.0 + 0.5 * depth) * nearer - fieldSize) * along)))
         }
         return seen
     }

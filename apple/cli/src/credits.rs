@@ -1,8 +1,8 @@
 //! The credits: `c` in the terminal app, or `resonance credits`. Big flat letters in the
 //! same 3D space as a starfield, drawn in half blocks. "Thanks for listening to", calm;
 //! the camera starts to move; "Resonance" arrives and the letters start to turn; the
-//! rest passes in that motion; the stars settle; then the names, as plain text. The
-//! reasoning is in design/credits/README.md, with the mockups this follows.
+//! rest passes in that motion; the stars settle; then the names, as plain text; and last
+//! the stars fall into a heart that beats and fades. The reasoning is in design/credits/README.md, with the mockups this follows.
 
 use crate::model::Now;
 use crate::palette;
@@ -48,16 +48,28 @@ const MITRE: f64 = 2.1;
 /// Seconds a name stays up.
 const HOLD: f64 = 4.0;
 const STARS: usize = 500;
+/// How long the stars take to fall into the heart; it beats, and the camera starts moving
+/// after the first beat; on the third the stars start drifting apart; and it all fades, in
+/// seconds, with a moment of black before it closes.
+const COLLAPSE: f64 = 2.8;
+const BURST: f64 = 4.0;
+const FADE_OUT: f64 = 1.4;
+const BLACK_AT_THE_END: f64 = 0.4;
+const HEART_SIZE: f64 = 40.0;
+/// The heart is made of the stars themselves, and nothing else.
+const HEART_POINTS: usize = STARS;
 
-const PEOPLE_PAGES: [[&str; 3]; 13] = [
+const PEOPLE_PAGES: [[&str; 3]; 15] = [
     ["A PRODUCTION BY", "ERIK LUIMES", ""],
     ["DIRECTOR OF SAYING NO", "ERIK LUIMES", "IT WAS PERFECT, PUT IT BACK"],
     ["TYPED VERY FAST", "CLAUDE", "BY ANTHROPIC"],
     ["BROKE THE BUILD", "CLAUDE", "TWICE BEFORE COFFEE"],
     ["BUILT THE HOUSE WE MOVED INTO", "MARCIN SPOCZYNSKI", "PHOSPHOR"],
     ["CHIP WHISPERER", "DAG LEM", "RESID"],
-    ["KEEPER OF THE FILTER CURVES", "LEANDRO NINI", "LIBSIDPLAYFP AND RESIDFP"],
-    ["LIGHTWEIGHT CHAMPION", "HERMIT", "SIDLITE"],
+    ["CHIEF OF DISTORTION", "ANTTI LANKILA", "RESID-FP"],
+    ["WENT DOWN TO THE TRANSISTORS", "LEANDRO NINI", "LIBSIDPLAYFP AND RESIDFP"],
+    ["ALL YOUR BASE BELONG TO", "HERMIT", "CRSID, THE BASE OF SIDLITE"],
+    ["AND EVERYONE ELSE WHO OPENED THE CHIP", "THE SID COMMUNITY", "DIE SHOTS, PATCHES AND PATIENCE"],
     ["THREE VOICES SHOULD BE ENOUGH", "BOB YANNES", "MOS 6581, 1982"],
     ["HEAD OF 60,000 THINGS", "THE HVSC CREW", "AND EVERY COMPOSER IN IT"],
     ["PROFESSIONAL LISTENER", "YIZHI LI ET AL", "MERT"],
@@ -226,12 +238,34 @@ fn vignette(x: f64, y: f64) -> f64 {
 /// Each star that's in view: where it is, and how bright it ends up, 0 to 255. The
 /// same flight as the app's Starfield theme.
 fn stars(flight: f64, turn: f64, bank: f64) -> Vec<(f64, f64, f64)> {
+    placed_stars(flight, turn, bank)
+        .into_iter()
+        .filter(|(x, y, z)| *z > 0.03 && (0.0..WIDTH).contains(x) && (0.0..HEIGHT).contains(y))
+        .map(|(x, y, z)| {
+            let near = (1.0 - z).max(0.0);
+            (x, y, star_ink(near) * (0.35 + near).min(1.0) * (1.0 - vignette(x, y)))
+        })
+        .collect()
+}
+
+fn star_ink(near: f64) -> f64 {
+    if near > 0.6 {
+        255.0
+    } else if near > 0.3 {
+        168.0
+    } else {
+        94.0
+    }
+}
+
+/// Every star on the picture at this moment, in view or not, with its depth.
+fn placed_stars(flight: f64, turn: f64, bank: f64) -> Vec<(f64, f64, f64)> {
     let yaw = flight * 0.12 + (flight * 0.21).sin() * 0.9 + turn;
     let pitch = (flight * 0.15).sin() * 0.35;
     let roll = (flight * 0.09).sin() * 0.5 + bank;
     let (cy, sy, cp, sp, cr, sr) = (yaw.cos(), yaw.sin(), pitch.cos(), pitch.sin(), roll.cos(), roll.sin());
     let camera = [(flight * 0.05).sin() * 3.0, (flight * 0.07).sin() * 2.0, flight * 0.3];
-    let mut seen = Vec::new();
+    let mut seen = Vec::with_capacity(STARS);
     for k in 0..STARS {
         let n = k as f64;
         let star = [hash(n * 12.989) * 2.0, hash(n * 78.233) * 2.0, hash(n * 37.719) * 2.0];
@@ -246,22 +280,213 @@ fn stars(flight: f64, turn: f64, bank: f64) -> Vec<(f64, f64, f64)> {
         let (x1, z1) = (r[0] * cy - r[2] * sy, r[0] * sy + r[2] * cy);
         let (y2, z2) = (r[1] * cp - z1 * sp, r[1] * sp + z1 * cp);
         let (x3, y3) = (x1 * cr - y2 * sr, x1 * sr + y2 * cr);
-        if z2 <= 0.03 {
+        let z = z2.max(0.03);
+        seen.push((WIDTH / 2.0 + x3 / z * FOCAL, HEIGHT / 2.0 + y3 / z * FOCAL, z2));
+    }
+    seen
+}
+
+/// Where each star ends up: on or inside a heart, x across, y up and z towards you. The
+/// same surface as the particle heart on backtostatic.com.
+static HEART_PLACES: LazyLock<Vec<V>> = LazyLock::new(|| {
+    fn surface(x: f64, y: f64, z: f64) -> f64 {
+        let a = x * x + 2.25 * y * y + z * z - 1.0;
+        a * a * a - x * x * z * z * z - 0.1125 * y * y * z * z * z
+    }
+    const E: f64 = 0.002;
+    let mut places = Vec::with_capacity(HEART_POINTS);
+    // Seeded, so it's the same heart each time. A weaker sequence showed as streaks across
+    // it, and an even one as a grid.
+    let mut state: u64 = 0x5245_534F_4E41_4E43;
+    let mut random = move || {
+        state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        let mut z = state;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        ((z ^ (z >> 31)) >> 11) as f64 / 9_007_199_254_740_992.0
+    };
+    let mut tries = 0;
+    while places.len() < HEART_POINTS && tries < 6_000_000 {
+        tries += 1;
+        let (x, y, z) = ((random() - 0.5) * 2.5, (random() - 0.5) * 1.5, -1.05 + random() * 2.4);
+        let value = surface(x, y, z);
+        // Every third star goes inside: it gives the heart body with so few, and depth for
+        // the camera to fly through. The rest draw its outline.
+        if places.len() % 3 == 2 {
+            if value < 0.0 {
+                places.push([x * 1.45, (z - 0.12) * 1.45, y * 1.45]);
+            }
             continue;
         }
-        let (x, y) = (WIDTH / 2.0 + x3 / z2 * FOCAL, HEIGHT / 2.0 + y3 / z2 * FOCAL);
+        if value.abs() > 0.2 {
+            continue;
+        }
+        let gx = (surface(x + E, y, z) - surface(x - E, y, z)) / (2.0 * E);
+        let gy = (surface(x, y + E, z) - surface(x, y - E, z)) / (2.0 * E);
+        let gz = (surface(x, y, z + E) - surface(x, y, z - E)) / (2.0 * E);
+        let slope = (gx * gx + gy * gy + gz * gz).sqrt().max(1e-6);
+        if (value / slope).abs() < 0.02 {
+            places.push([x * 1.45, (z - 0.12) * 1.45, y * 1.45]);
+        }
+    }
+    places
+});
+
+/// How many beats have begun `seconds` after the first: 52 a minute, drifting with a
+/// five-second breath, as a resting heart's do. It's the sum of the rate up to now, so a
+/// moment always draws the same.
+fn beats_begun(seconds: f64) -> f64 {
+    const RATE: f64 = 52.0 / 60.0;
+    const BREATH: f64 = 5.0;
+    const DRIFT: f64 = 0.06;
+    let tau = std::f64::consts::TAU;
+    RATE * (seconds + DRIFT * BREATH / tau * (1.0 - (tau * seconds / BREATH).cos()))
+}
+
+/// A heart at deep rest, as a share of its size: one soft beat and a flat pause after it,
+/// with nothing of the lub-dub.
+fn beat(seconds: f64) -> f64 {
+    let phase = beats_begun(seconds).fract();
+    if phase >= 0.4 {
+        return 0.0;
+    }
+    let n = phase / 0.4;
+    (n * std::f64::consts::PI).sin().powi(4) * (-n * 3.0).exp() * 0.15
+}
+
+fn when_beat_begins(count: f64) -> f64 {
+    let (mut low, mut high) = (0.0, 10.0);
+    for _ in 0..40 {
+        let middle = (low + high) / 2.0;
+        if beats_begun(middle) < count {
+            low = middle;
+        } else {
+            high = middle;
+        }
+    }
+    high
+}
+
+/// When the second beat begins, which is when the camera starts moving.
+static FIRST_BEAT: LazyLock<f64> = LazyLock::new(|| when_beat_begins(1.0));
+/// When the third beat begins, which is when the stars start drifting apart.
+static BEATING: LazyLock<f64> = LazyLock::new(|| when_beat_begins(2.0));
+
+fn heart_fade(elapsed: f64) -> f64 {
+    1.0 - ((elapsed - COLLAPSE - *BEATING - BURST).max(0.0) / FADE_OUT).min(1.0)
+}
+
+/// The flight slows to a stop as the heart forms and picks up again after the first beat.
+fn ending_flight(elapsed: f64, ending_from: f64) -> f64 {
+    let falling = elapsed.min(COLLAPSE);
+    let stopped = ending_from + falling - falling * falling / (2.0 * COLLAPSE);
+    let flying = (elapsed - COLLAPSE - *FIRST_BEAT).max(0.0);
+    let picking_up = flying.min(1.2);
+    stopped + picking_up * picking_up / 2.4 + (flying - 1.2).max(0.0)
+}
+
+fn field_star(place: (f64, f64, f64), alpha: f64) -> Option<(f64, f64, f64)> {
+    let (x, y, z) = place;
+    if z <= 0.03 || !(0.0..WIDTH).contains(&x) || !(0.0..HEIGHT).contains(&y) {
+        return None;
+    }
+    let near = (1.0 - z).max(0.0);
+    Some((x, y, star_ink(near) * (0.35 + near).min(1.0) * (1.0 - vignette(x, y)) * alpha))
+}
+
+/// The nearest two-thirds of the stars fall into the heart. The rest stay out there.
+fn falling_in(origin: &[(f64, f64, f64)]) -> Vec<bool> {
+    let distance = |i: usize| if origin[i].2 > 0.03 { (origin[i].0 - WIDTH / 2.0).hypot(origin[i].1 - HEIGHT / 2.0) } else { f64::INFINITY };
+    let mut order: Vec<usize> = (0..origin.len()).collect();
+    order.sort_by(|a, b| distance(*a).total_cmp(&distance(*b)).then(a.cmp(b)));
+    let mut falling = vec![false; origin.len()];
+    for i in order.into_iter().take(origin.len() * 2 / 3) {
+        falling[i] = true;
+    }
+    falling
+}
+
+/// How fast the sphere spreads through the heart, in the heart's own units a second. It
+/// only says when a star starts to move, and nothing about how fast.
+const SPHERE_SPEED: f64 = 2.6;
+
+/// A point of the heart, `seconds` after the third beat. Once the sphere has reached it,
+/// it drifts outwards from the middle at a speed of its own, starting gently.
+fn drifted(place: &V, star: usize, seconds: f64) -> V {
+    let reach = (place[0] * place[0] + place[1] * place[1] + place[2] * place[2]).sqrt();
+    let since = seconds - reach / SPHERE_SPEED;
+    if seconds <= 0.0 || since <= 0.0 {
+        return *place;
+    }
+    let n = star as f64;
+    let speed = 0.25 + 1.0 * hash(n * 29.3 + 1.0);
+    let moved = speed * since * since / (since + 0.8);
+    // Dead centre has no way out of its own, so it's given one.
+    let (a, b) = (hash(n * 53.1) * std::f64::consts::TAU, hash(n * 11.7 + 2.0) * std::f64::consts::PI);
+    let direction = if reach > 0.05 { [place[0] / reach, place[1] / reach, place[2] / reach] } else { [b.sin() * a.cos(), b.sin() * a.sin(), b.cos()] };
+    [place[0] + direction[0] * moved, place[1] + direction[1] * moved, place[2] + direction[2] * moved]
+}
+
+/// The ending. The nearest stars leave the flight, which slows to a stop, and fall into
+/// the heart, not all at once. It beats, longer and thinner as it contracts, and sways.
+/// After the first beat the camera starts moving again, turning and creeping forward. On
+/// the third beat a sphere spreads from the middle of the heart, and each star it reaches
+/// starts to drift outwards at its own speed, as the camera goes on through them. They're
+/// the same stars throughout: nothing fades in. Then it all fades.
+fn heart_stars(elapsed: f64, ending_from: f64) -> Vec<(f64, f64, f64)> {
+    let place_at = |seconds: f64| placed_stars(FLIGHT_FROM + seconds, star_turn(seconds), turned(seconds, ROLL_RATE, TIMING.camera_starts));
+    let falling = falling_in(&place_at(ending_from));
+    let from = place_at(ending_flight(elapsed, ending_from));
+    let formed = (elapsed - COLLAPSE).max(0.0);
+    let moving = (formed - *FIRST_BEAT).max(0.0);
+    let drifting = (formed - *BEATING).max(0.0);
+    let fade = heart_fade(elapsed);
+    let now = if drifting > 0.0 { 0.0 } else { beat(formed) };
+    let (across, up) = (HEART_SIZE * (1.0 + now * 0.4), HEART_SIZE * (1.0 + now * 1.6));
+    // The camera turns as the flight does, its speed growing in from nothing.
+    let turning = moving * moving / (moving + 1.5);
+    let yaw = (elapsed.min(COLLAPSE + *FIRST_BEAT) * 0.6).sin() * 0.28 + turning * 0.12;
+    let roll = turning * 0.09;
+    let (cy, sy, cr, sr) = (yaw.cos(), yaw.sin(), roll.cos(), roll.sin());
+    let camera = 4.0 - 0.12 * moving * moving;
+    let in_depth = smooth(moving / 1.5);
+
+    let mut seen = Vec::with_capacity(HEART_POINTS);
+    for i in 0..STARS {
+        let n = i as f64;
+        let angle = hash(n * 53.1) * std::f64::consts::TAU;
+        if !falling[i] || i >= HEART_PLACES.len() {
+            seen.extend(field_star(from[i], fade));
+            continue;
+        }
+        let place = drifted(&HEART_PLACES[i], i, drifting);
+        let (x1, z1) = (place[0] * cy + place[2] * sy, -place[0] * sy + place[2] * cy);
+        let distance = camera - z1 * in_depth;
+        // Once it's beside the camera it's gone, softly.
+        if distance <= 0.15 {
+            continue;
+        }
+        let nearer = 4.0 / distance;
+        let (screen_x, screen_y) = (x1 * across * nearer, -place[1] * up * nearer);
+        let (in_x, in_y) = (WIDTH / 2.0 + screen_x * cr - screen_y * sr, HEIGHT / 2.0 + screen_x * sr + screen_y * cr);
+        let ink_there = 110.0 + 145.0 * ((z1 + 1.8) / 3.6).clamp(0.0, 1.0);
+        let along = smooth(elapsed / COLLAPSE * 1.35 - hash(n * 91.7) * 0.35);
+        // A star behind the camera or far outside the picture comes in from just beyond its edge.
+        let is_far = from[i].2 <= 0.03 || (from[i].0 - WIDTH / 2.0).hypot(from[i].1 - HEIGHT / 2.0) > 500.0;
+        let (start_x, start_y) = if moving > 0.0 {
+            (in_x, in_y)
+        } else if is_far {
+            (WIDTH / 2.0 + angle.cos() * 300.0, HEIGHT / 2.0 + angle.sin() * 300.0)
+        } else {
+            (from[i].0, from[i].1)
+        };
+        let (x, y) = (start_x + (in_x - start_x) * along, start_y + (in_y - start_y) * along);
         if !(0.0..WIDTH).contains(&x) || !(0.0..HEIGHT).contains(&y) {
             continue;
         }
-        let near = (1.0 - z2).max(0.0);
-        let ink = if near > 0.6 {
-            255.0
-        } else if near > 0.3 {
-            168.0
-        } else {
-            94.0
-        };
-        seen.push((x, y, ink * (0.35 + near).min(1.0) * (1.0 - vignette(x, y))));
+        let near = (1.0 - from[i].2).max(0.0);
+        let ink = star_ink(near) + (ink_there - star_ink(near)) * along;
+        seen.push((x, y, ink * (0.35 + near + along).min(1.0) * (1.0 - vignette(x, y) * (1.0 - along)) * smooth((distance - 0.15) / 0.5) * fade));
     }
     seen
 }
@@ -371,12 +596,18 @@ fn pages(tune: Option<&Now>) -> Vec<[String; 3]> {
         };
         all.push(page);
     }
+    all.push(["AND MOST OF ALL", "YOU", "THANKS FOR LISTENING"].map(str::to_string));
     all
+}
+
+/// When the names are over and the heart begins.
+fn ending_from(tune: Option<&Now>) -> f64 {
+    TIMING.names_from + pages(tune).len() as f64 * HOLD
 }
 
 /// How long the whole thing runs, after which it closes by itself.
 pub fn length(tune: Option<&Now>) -> f64 {
-    TIMING.names_from + pages(tune).len() as f64 * HOLD
+    ending_from(tune) + COLLAPSE + *BEATING + BURST + FADE_OUT + BLACK_AT_THE_END
 }
 
 /// Typed on, held, and taken off again from the end.
@@ -417,7 +648,15 @@ pub fn draw(buffer: &mut Buffer, area: Rect, seconds: f64, tune: Option<&Now>) {
     let flight = FLIGHT_FROM + seconds;
 
     let mut star_cells = vec![0.0_f64; columns * picture_rows as usize];
-    for (x, y, bright) in stars(flight, star_turn(seconds), turned(seconds, ROLL_RATE, timing.camera_starts)) {
+    let ending = ending_from(tune);
+    // Fading, the characters stay and their grey goes down smoothly, so nothing goes grainy.
+    let fading = (seconds >= ending).then(|| heart_fade(seconds - ending));
+    let shown = if seconds >= ending {
+        heart_stars(seconds - ending, ending)
+    } else {
+        stars(flight, star_turn(seconds), turned(seconds, ROLL_RATE, timing.camera_starts))
+    };
+    for (x, y, bright) in shown {
         let column = ((x / WIDTH * columns as f64) as usize).min(columns - 1);
         let row = ((y / HEIGHT * picture_rows as f64) as usize).min(picture_rows as usize - 1);
         let cell = &mut star_cells[row * columns + column];
@@ -426,16 +665,18 @@ pub fn draw(buffer: &mut Buffer, area: Rect, seconds: f64, tune: Option<&Now>) {
     for row in 0..picture_rows {
         for column in 0..columns {
             let bright = star_cells[row as usize * columns + column];
-            if bright <= 60.0 {
+            if bright <= if fading.is_some() { 12.0 } else { 60.0 } {
                 continue;
             }
-            let (letter, ink) = if bright > 190.0 {
+            let before_fading = fading.map_or(bright, |fade| bright / fade.max(0.01));
+            let (letter, ink) = if before_fading > 190.0 {
                 ('*', 255)
-            } else if bright > 120.0 {
+            } else if before_fading > 120.0 {
                 ('+', 248)
             } else {
                 ('·', 242)
             };
+            let ink = if fading.is_some() { 232 + (bright / 255.0 * 23.0).round() as u8 } else { ink };
             if let Some(cell) = buffer.cell_mut((area.x + column as u16, area.y + row)) {
                 cell.set_char(letter).set_fg(Color::Indexed(ink));
             }
@@ -592,7 +833,8 @@ mod tests {
     #[test]
     fn an_unknown_composer_leaves_the_tune_on_its_own() {
         let playing = tune("<?>");
-        let page = pages(Some(&playing)).pop().unwrap();
+        let all = pages(Some(&playing));
+        let page = &all[all.len() - 2];
         assert_eq!(page[1], "COMMANDO");
         assert_eq!(page[2], "NOW PLAYING");
     }
@@ -600,8 +842,129 @@ mod tests {
     #[test]
     fn with_nothing_playing_the_tune_page_is_left_out() {
         let playing = tune("Rob Hubbard");
-        assert_eq!(pages(None).len(), PEOPLE_PAGES.len());
+        assert_eq!(pages(None).len(), PEOPLE_PAGES.len() + 1);
         assert_eq!(length(Some(&playing)), length(None) + HOLD);
+    }
+
+    #[test]
+    fn the_last_page_thanks_you_whatever_is_playing() {
+        let playing = tune("Rob Hubbard");
+        for now in [None, Some(&playing)] {
+            let shown = screen(ending_from(now) - 0.4 * HOLD, 120, 38, now);
+            assert!(shown.contains("AND MOST OF ALL") && shown.contains("YOU") && shown.contains("THANKS FOR LISTENING"), "{shown}");
+        }
+    }
+
+    fn stars_in(text: &str) -> usize {
+        text.chars().filter(|c| matches!(c, '*' | '+' | '·')).count()
+    }
+
+    fn in_the_middle(elapsed: f64, from: f64) -> usize {
+        heart_stars(elapsed, from).into_iter().filter(|(x, y, bright)| *bright > 1.0 && (x - 160.0).abs() < 85.0 && (y - 100.0).abs() < 85.0).count()
+    }
+
+    #[test]
+    fn the_heart_is_two_thirds_of_the_stars_and_nothing_else() {
+        let from = ending_from(None);
+        let formed = heart_stars(COLLAPSE + 0.5, from);
+        assert!(formed.len() <= STARS, "nothing but the stars");
+        let middle = in_the_middle(COLLAPSE + 0.5, from);
+        assert!(middle >= 325, "two-thirds of them: {middle}");
+        assert!(in_the_middle(COLLAPSE * 0.4, from) < in_the_middle(COLLAPSE, from) / 2, "they fly in");
+        assert!(stars_in(&screen(from + COLLAPSE + 0.5, 120, 38, None)) > 80);
+    }
+
+    #[test]
+    fn some_of_the_heart_is_inside_it() {
+        let inside = HEART_PLACES.iter().filter(|p| p[0].abs() < 0.8 && p[1].abs() < 0.8 && p[2].abs() < 0.8).count();
+        assert!(inside > 40, "{inside}");
+    }
+
+    #[test]
+    fn it_beats_twice_and_bursts_on_the_third() {
+        let beating = *BEATING;
+        assert!(beating > 1.8 && beating < 2.8, "{beating}");
+        let onsets = (0..(beating / 0.005) as usize).filter(|n| {
+            let t = *n as f64 * 0.005;
+            beat(t) == 0.0 && beat(t + 0.005) > 0.0
+        });
+        assert_eq!(onsets.count(), 2);
+    }
+
+    #[test]
+    fn the_burst_throws_the_heart_outwards_and_it_all_ends_in_black() {
+        let from = ending_from(None);
+        let bursts = COLLAPSE + *BEATING;
+        assert!(in_the_middle(bursts + 3.5, from) < in_the_middle(bursts - 0.1, from) * 3 / 4);
+        assert_eq!(stars_in(&screen(length(None) - 0.1, 120, 38, None)), 0, "black at the end");
+    }
+
+    #[test]
+    fn the_sphere_only_says_when_a_star_starts_to_move() {
+        let (near, far) = ([0.3, 0.0, 0.0], [2.0, 0.0, 0.0]);
+        assert!(drifted(&near, 1, 0.3)[0] > 0.3);
+        assert_eq!(drifted(&far, 1, 0.3)[0], 2.0, "the sphere hasn't arrived");
+        let at = |s: f64, star: usize| drifted(&near, star, s)[0];
+        assert!(at(0.3, 1) - 0.3 < at(1.5, 1) - at(1.2, 1), "it starts gently");
+        let mut speeds: Vec<i64> = (0..40).map(|star| (at(2.0, star) * 100.0) as i64).collect();
+        speeds.sort_unstable();
+        speeds.dedup();
+        assert!(speeds.len() > 20, "each at its own speed: {}", speeds.len());
+        assert!(drifted(&[0.0, 0.0, 0.0], 3, 1.0).iter().any(|v| v.abs() > 0.0), "even dead centre");
+    }
+
+    #[test]
+    fn it_does_not_explode_as_a_circle_on_screen() {
+        let stars: Vec<f64> = heart_stars(COLLAPSE + *BEATING + 2.0, ending_from(None)).iter().filter(|s| s.2 > 12.0).map(|(x, y, _)| (x - 160.0).hypot(y - 100.0)).collect();
+        let mean = stars.iter().sum::<f64>() / stars.len().max(1) as f64;
+        let spread = (stars.iter().map(|r| (r - mean) * (r - mean)).sum::<f64>() / stars.len().max(1) as f64).sqrt();
+        assert!(stars.len() > 50);
+        assert!(spread / mean > 0.3, "{}: a filled scatter, not a ring", spread / mean);
+        assert!(stars.iter().filter(|r| **r < mean / 2.0).count() > 5, "with stars still in the middle");
+    }
+
+    #[test]
+    fn nothing_fades_in_during_the_burst() {
+        let from = ending_from(None);
+        let bursts = COLLAPSE + *BEATING;
+        let bright = |s: f64| heart_stars(bursts + s, from).iter().map(|star| star.2).sum::<f64>();
+        let mut last = bright(0.0);
+        for tenth in 1..=40 {
+            let now = bright(f64::from(tenth) / 10.0);
+            assert!(now <= last + 800.0, "at {tenth}: {last} then {now}");
+            last = now;
+        }
+    }
+
+    #[test]
+    fn the_heart_beats_softly_then_rests() {
+        let moments: Vec<(f64, f64)> = (0..8000).map(|n| n as f64 * 0.005).map(|t| (t, beat(t))).collect();
+        let peak = moments.iter().map(|m| m.1).fold(0.0, f64::max);
+        assert!(peak > 0.03 && peak < 0.05, "{peak}");
+        let flat = moments.iter().filter(|m| m.1 == 0.0).count() as f64 / moments.len() as f64;
+        assert!(flat > 0.55, "a flat pause most of the time: {flat}");
+        let starts: Vec<f64> = moments.windows(2).filter(|w| w[0].1 == 0.0 && w[1].1 > 0.0).map(|w| w[1].0).collect();
+        let gaps: Vec<f64> = starts.windows(2).map(|w| w[1] - w[0]).collect();
+        assert!((gaps.len() as f64 - 40.0 * 52.0 / 60.0).abs() < 2.0, "about 52 a minute: {}", gaps.len());
+        let (most, least) = (gaps.iter().copied().fold(0.0, f64::max), gaps.iter().copied().fold(9.0, f64::min));
+        assert!(most - least > 0.08, "the gaps drift with the breath");
+    }
+
+    #[test]
+    fn the_last_fade_goes_smoothly_from_full_to_nothing() {
+        let starts = COLLAPSE + *BEATING + BURST;
+        assert!(heart_fade(starts) > 0.999);
+        assert!((heart_fade(starts + FADE_OUT / 2.0) - 0.5).abs() < 0.001);
+        assert!(heart_fade(starts + FADE_OUT) < 0.001);
+    }
+
+    #[test]
+    #[ignore = "prints frames to look at"]
+    fn print_the_ending() {
+        let from = ending_from(None);
+        for at in [COLLAPSE + *BEATING - 0.1, COLLAPSE + *BEATING + 2.0] {
+            println!("--- {at}\n{}", screen(from + at, 100, 34, None));
+        }
     }
 
     #[test]
