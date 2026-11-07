@@ -76,7 +76,75 @@ The app's Release builds share `https://useresonance.app` links (the
 the same domain later can share it: route `/t/` and `/card/` to this
 server and the rest to the site.
 
-Locally, without Docker:
+## Updating a server without a checkout
+
+useresonance.app's server has no copy of this repository. Its image is built
+from a bundle made on a Mac and unpacked in `/srv/resonance-share`: `build/`
+holds the server's code and the app icon, and `data/` holds `index.json` and
+the rendered cards. The container listens on `127.0.0.1:8787`, which Apache
+proxies to with TLS from certbot. Docker needs `sudo` there.
+
+On the Mac, from `apple/`, make the bundle (code only, so the server's
+`index.json` and cards stay):
+
+```bash
+B=$(mktemp -d) && mkdir -p $B/build/site/assets && rsync -a --exclude target share-server $B/build/ && cp site/assets/icon-256.png $B/build/site/assets/ && tar -czf ~/Desktop/resonance-share-update.tgz -C $B build
+```
+
+Still on the Mac, copy it over and log in (`you@yourserver` is your own
+login):
+
+```bash
+scp ~/Desktop/resonance-share-update.tgz you@yourserver:/tmp/
+```
+
+```bash
+ssh you@yourserver
+```
+
+On the server, put the new code in place:
+
+```bash
+sudo rm -rf /srv/resonance-share/build && sudo tar -xzf /tmp/resonance-share-update.tgz -C /srv/resonance-share
+```
+
+Build the image (a few minutes):
+
+```bash
+sudo docker build -f /srv/resonance-share/build/share-server/Dockerfile -t resonance-share /srv/resonance-share/build
+```
+
+Swap the running container for one from the new image:
+
+```bash
+sudo docker rm -f resonance-share && sudo docker run -d --name resonance-share --restart unless-stopped -p 127.0.0.1:8787:8080 -v /srv/resonance-share/data:/data -e BASE_URL=https://useresonance.app resonance-share
+```
+
+Check that it answers. This prints the association file's JSON, with
+`R4D8QN85WK.app.useresonance.resonance` in it:
+
+```bash
+curl -s http://127.0.0.1:8787/.well-known/apple-app-site-association
+```
+
+A new `index.json`, after an HVSC release, goes to `/srv/resonance-share/data/`
+instead; then `sudo docker restart resonance-share`, and delete the old card
+folders in `data/cards/`.
+
+From anywhere, the public file and Apple's copy of it, which Apple refreshes
+every few hours, should both return it with a 200:
+
+```bash
+curl -i https://useresonance.app/.well-known/apple-app-site-association
+```
+
+```bash
+curl -i https://app-site-association.cdn-apple.com/a/v1/useresonance.app
+```
+
+## Locally
+
+Without Docker:
 
 ```bash
 INDEX=index.json cargo run --release --manifest-path apple/share-server/Cargo.toml
