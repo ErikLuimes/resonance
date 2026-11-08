@@ -48,14 +48,15 @@ struct UserPlaylistView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                let shown = filtered(rows)
+                let shown = filtered(rows.numbered())
                 LibraryTable(rows: shown, source: source, onRemove: remove,
                              removeTitle: playlist == nil ? "Remove from Favourites" : "Remove from Playlist",
                              // Favourites keep the order they were hearted in.
                              onPlace: playlist == nil || !query.isEmpty ? nil : { files, offset in
                                  place(files, at: offset, among: shown)
                              },
-                             actions: AnyView(listActions(rows)))
+                             actions: AnyView(listActions(rows)),
+                             numbered: true)
                     .overlay {
                         if !query.isEmpty && shown.isEmpty {
                             ContentUnavailableView.search(text: query)

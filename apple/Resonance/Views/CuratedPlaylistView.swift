@@ -45,7 +45,7 @@ struct CuratedPlaylistView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .some(let rows?):
-            LibraryTable(rows: filtered(rows), source: .curated(playlist), actions: AnyView(listActions))
+            LibraryTable(rows: filtered(rows.numbered()), source: .curated(playlist), actions: AnyView(listActions), numbered: true)
                 .overlay {
                     if !query.isEmpty && filtered(rows).isEmpty {
                         ContentUnavailableView.search(text: query)

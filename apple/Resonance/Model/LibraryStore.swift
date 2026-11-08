@@ -567,6 +567,12 @@ nonisolated struct LibraryCredits: Equatable, Sendable {
 /// A tune in the library lists, with the sort keys `Table` needs.
 nonisolated struct LibraryRow: Identifiable, Hashable, Sendable {
     let item: HvscTuneItem
+    /// Its place in its playlist, from 0 (see `numbered()`).
+    var position = 0
+
+    init(item: HvscTuneItem) {
+        self.item = item
+    }
 
     var id: String { item.path }
     var url: URL { URL(filePath: item.path) }
@@ -588,5 +594,17 @@ nonisolated struct LibraryRow: Identifiable, Hashable, Sendable {
         item.durationSecs.map {
             (item.durationIsEstimate ? "~" : "") + Duration.seconds($0).formatted(.time(pattern: .minuteSecond))
         } ?? "—"
+    }
+}
+
+extension Array where Element == LibraryRow {
+    /// A playlist's rows with their places. Before any filter, so a Top 100's
+    /// number 37 stays 37 when it's the only one shown.
+    nonisolated func numbered() -> [LibraryRow] {
+        enumerated().map { index, row in
+            var row = row
+            row.position = index
+            return row
+        }
     }
 }

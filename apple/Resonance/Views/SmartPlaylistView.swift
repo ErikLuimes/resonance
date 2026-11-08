@@ -166,7 +166,7 @@ struct SmartPlaylistView: View {
         nonmutating set { library.smartSettings = newValue }
     }
 
-    private var rows: [LibraryRow] { result?.tunes.map { LibraryRow(item: $0.item) } ?? [] }
+    private var rows: [LibraryRow] { result?.tunes.map { LibraryRow(item: $0.item) }.numbered() ?? [] }
 
     private var shownRows: [LibraryRow] {
         let query = filter.trimmingCharacters(in: .whitespaces)
@@ -474,7 +474,7 @@ struct SmartPlaylistView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             } else {
-                LibraryTable(rows: shownRows, source: .smart(title: settings.title), actions: AnyView(listActions))
+                LibraryTable(rows: shownRows, source: .smart(title: settings.title), actions: AnyView(listActions), numbered: true)
                     .overlay {
                         if shownRows.isEmpty { ContentUnavailableView.search(text: filter) }
                     }

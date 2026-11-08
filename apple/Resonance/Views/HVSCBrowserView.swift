@@ -443,6 +443,8 @@ struct LibraryTable: View {
     var played: [LibraryRow.ID: String]? = nil
     /// What the list does, after Sound in the row above it: filter, Play.
     var actions: AnyView? = nil
+    /// A playlist: a # column shows each row's `position`, and sorts by it.
+    var numbered = false
 
     @Environment(LibraryStore.self) private var library
     @Environment(PlayerStore.self) private var player
@@ -480,7 +482,7 @@ struct LibraryTable: View {
         }
         // A list sorted by a column isn't sorted by likeness any more.
         .onChange(of: sortOrder) { if !sortOrder.isEmpty { similarTo = nil } }
-        .onChange(of: rows) { if let seed = similarTo, !rows.contains(seed) { similarTo = nil } }
+        .onChange(of: rows) { if let seed = similarTo, !rows.contains(where: { $0.id == seed.id }) { similarTo = nil } }
     }
 
     private struct TaskKey: Equatable {
@@ -491,26 +493,40 @@ struct LibraryTable: View {
 
     // MARK: Sound
 
-    /// The Sound menu and what the list does, and while Find Similar sorts the
-    /// list, what it's sorted by. Sound only once any row has a fingerprint.
+    /// The Sound menu and what the list does, and while Find Similar or a
+    /// column sorts the list, what it's sorted by and the way back: a header
+    /// only turns a sort around, so a list's own order (a Top 100's ranking)
+    /// would otherwise be lost. Sound only once any row has a fingerprint.
     @ViewBuilder
     private var soundBar: some View {
         let hasFingerprints = rows.contains(where: { fingerprints.fingerprint($0.id) != nil })
-        if hasFingerprints || actions != nil {
+        if hasFingerprints || actions != nil || !sortOrder.isEmpty {
             ListBar(sound: $soundFilter, showsSound: hasFingerprints, shown: shownRows.count, total: rows.count) {
                 actions
             } extra: {
                 if let seed = similarTo {
-                    HStack(spacing: 6) {
-                        Text("Sorted by how alike they sound to \u{201C}\(seed.title)\u{201D}")
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                        AccentLink("Clear") { similarTo = nil }
-                    }
+                    sortLine("Sorted by how alike they sound to \u{201C}\(seed.title)\u{201D}", undo: "Clear") { similarTo = nil }
+                } else if !isSortedByOwnOrder, let column = sortOrder.first.flatMap({ Self.columnNames[$0.keyPath] }) {
+                    sortLine("Sorted by \(column)", undo: "Back to Original Order") { sortOrder = [] }
                 }
             }
         }
     }
+
+    private func sortLine(_ text: String, undo: String, action: @escaping () -> Void) -> some View {
+        HStack(spacing: 6) {
+            Text(text)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            AccentLink(undo, action: action)
+        }
+    }
+
+    /// The columns that sort, by what they sort on.
+    private static let columnNames: [PartialKeyPath<LibraryRow>: String] = [
+        \.title: "Title", \.author: "Author", \.year: "Year", \.released: "Released",
+        \.songs: "Songs", \.length: "Length", \.stilSort: "STIL", \.position: "#",
+    ]
 
     private func findSimilar(_ row: LibraryRow) {
         likeness = [:]
@@ -573,12 +589,20 @@ struct LibraryTable: View {
 
     private var table: some View {
         Table(of: LibraryRow.self, selection: $selection, sortOrder: $sortOrder, columnCustomization: $columns) {
-            TableColumn("") { row in
-                RowPlayCell(isCurrent: isCurrent(row), isPlaying: player.isPlaying, isSelected: selection.contains(row.id),
-                            feed: player.visualizer, play: { play([row.id]) }, playPause: { player.playPause() })
+            if numbered {
+                TableColumn("#", value: \.position) { row in
+                    playCell(row, number: row.position + 1)
+                }
+                .width(36)
+                .customizationID("number")
             }
-            .width(22)
-            .customizationID("playing")
+            if !numbered {
+                TableColumn("") { row in
+                    playCell(row, number: nil)
+                }
+                .width(22)
+                .customizationID("playing")
+            }
             TableColumn("Title", value: \.title) { row in
                 TuneTitleCell(library: library, path: row.id, title: row.title, author: row.author,
                               isCurrent: isCurrent(row), mayHaveStil: row.item.hasStil)
@@ -669,6 +693,11 @@ struct LibraryTable: View {
         .onDeleteCommand(perform: removesOnDeleteKey && onRemove != nil && !selection.isEmpty ? { onRemove?(selection) } : nil)
     }
 
+    private func playCell(_ row: LibraryRow, number: Int?) -> some View {
+        RowPlayCell(isCurrent: isCurrent(row), isPlaying: player.isPlaying, isSelected: selection.contains(row.id),
+                    number: number, feed: player.visualizer, play: { play([row.id]) }, playPause: { player.playPause() })
+    }
+
     private func play(_ ids: Set<LibraryRow.ID>) {
         let picked = chosen(ids)
         if picked.count == 1 {
@@ -695,9 +724,15 @@ struct LibraryTable: View {
         return sortOrder.isEmpty ? filtered : filtered.sorted(using: sortOrder)
     }
 
-    /// No sort, Sound filter or Find Similar: the rows as the list has them.
+    /// No Sound filter or Find Similar, and no sort but # going up: the rows
+    /// as the list has them.
     private var isInOwnOrder: Bool {
-        sortOrder.isEmpty && soundFilter.isEmpty && similarTo == nil
+        isSortedByOwnOrder && soundFilter.isEmpty && similarTo == nil
+    }
+
+    private var isSortedByOwnOrder: Bool {
+        guard let sort = sortOrder.first else { return true }
+        return sort.keyPath == \LibraryRow.position && sort.order == .forward
     }
 
     /// Played from here or from the playlist, the core reports the same path.
