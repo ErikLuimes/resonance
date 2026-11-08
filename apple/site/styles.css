@@ -562,7 +562,7 @@ h3 { margin: 0; letter-spacing: -0.02em; }
 .key-row.is-pressed > span:last-child { color: var(--text); }
 
 /* Under the hood */
-.hood { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+.hood { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; align-items: start; }
 .stack { position: relative; margin: 0; padding: 0; list-style: none; display: grid; gap: 14px; }
 .stack::before {
   content: "";
