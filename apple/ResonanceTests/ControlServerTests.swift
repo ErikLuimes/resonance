@@ -77,6 +77,16 @@ final class ControlCommandsTests {
         #expect(reply["ok"] as? Bool == false)
     }
 
+    @Test func aCuratedPlaylistIsFoundByNameOrFile() {
+        let top = HvscPlaylist(name: "HVSC Favorite Top 100", file: "HVSC_Favorite_Top_100.m3u", description: nil, tracks: 100)
+        let other = HvscPlaylist(name: "Encore64", file: "Encore64.m3u", description: nil, tracks: 64)
+        #expect(ControlCommands.curated("HVSC Favorite Top 100", in: [other, top]) == top)
+        #expect(ControlCommands.curated(" hvsc favorite top 100 ", in: [other, top]) == top)
+        #expect(ControlCommands.curated("HVSC_Favorite_Top_100.m3u", in: [other, top]) == top)
+        #expect(ControlCommands.curated("Top 100", in: [other, top]) == nil)
+        #expect(ControlCommands.curated(nil, in: [other, top]) == nil)
+    }
+
     @Test func aComposersPrintIsTheAverageOfTheirTunes() {
         let print = ControlCommands.Print(path: "/MUSICIANS/H/Hubbard_Rob", traits: [0.5, 0.25])
         #expect(print.traits == [0.5, 0.25])

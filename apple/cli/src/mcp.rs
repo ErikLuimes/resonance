@@ -256,6 +256,33 @@ fn tools() -> Vec<Tool> {
             args: same,
         },
         Tool {
+            name: "hvsc_collection",
+            description: "The HVSC collection on this Mac: its release, what the last update added, and HVSC's own curated playlists (like \"HVSC Favorite Top 100\"), with how many tunes each holds.",
+            read_only: true,
+            properties: none,
+            required: &[],
+            cmd: "hvsc.info",
+            args: no_args,
+        },
+        Tool {
+            name: "show_hvsc_playlist",
+            description: "The tunes in one of HVSC's curated playlists, by its name as hvsc_collection lists it.",
+            read_only: true,
+            properties: || json!({ "name": { "type": "string", "description": "Like \"HVSC Favorite Top 100\"" } }),
+            required: &["name"],
+            cmd: "hvsc.playlist",
+            args: same,
+        },
+        Tool {
+            name: "play_hvsc_playlist",
+            description: "Play one of HVSC's curated playlists, by its name as hvsc_collection lists it.",
+            read_only: false,
+            properties: || json!({ "name": { "type": "string" } }),
+            required: &["name"],
+            cmd: "hvsc.playlist.play",
+            args: same,
+        },
+        Tool {
             name: "play_playlist",
             description: "Play Favourites or one of the user's playlists.",
             read_only: false,
@@ -477,7 +504,7 @@ mod tests {
 
     #[test]
     fn read_only_tools_only_read() {
-        let reads = ["status", "search", "recent", "sound", "playlist.list", "playlist.show"];
+        let reads = ["status", "search", "recent", "sound", "playlist.list", "playlist.show", "hvsc.info", "hvsc.playlist"];
         for tool in tools().iter().filter(|t| t.read_only) {
             assert!(reads.contains(&tool.cmd), "{} is marked read-only", tool.name);
         }

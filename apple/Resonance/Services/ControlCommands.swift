@@ -585,9 +585,16 @@ final class ControlCommands {
         }
     }
 
+    /// One of HVSC's curated playlists, by its file or its name, as
+    /// `hvsc.info` lists them; an assistant asks by name.
+    nonisolated static func curated(_ wanted: String?, in playlists: [HvscPlaylist]) -> HvscPlaylist? {
+        guard let wanted = wanted?.trimmingCharacters(in: .whitespaces).lowercased(), !wanted.isEmpty else { return nil }
+        return playlists.first { $0.file.lowercased() == wanted || $0.name.lowercased() == wanted }
+    }
+
     private func curated(_ file: String?) async throws -> HvscPlaylist {
         let info = try await collectionInfo()
-        guard let found = info.playlists.first(where: { $0.file == file }) else {
+        guard let found = Self.curated(file, in: info.playlists) else {
             throw Failure("There's no such playlist.")
         }
         return found

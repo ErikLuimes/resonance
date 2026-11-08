@@ -516,7 +516,7 @@ extension HelpTopic {
             title: "Claude and Assistants", symbol: "sparkles",
             summary: "Ask an assistant for what you'd like to hear.",
             blocks: [
-                .paragraph("Resonance's command line tool can serve the Model Context Protocol, so an assistant can search, play, make playlists and start a drift. Then you can ask for “something like Commando but darker”."),
+                .paragraph("Resonance's command line tool can serve the Model Context Protocol, so an assistant can search, play, make playlists, open HVSC's own playlists and start a drift. Then you can ask for “something like Commando but darker”, or who on HVSC Favorite Top 100 still makes music."),
                 .heading("Connect Claude Code"),
                 .steps([
                     "Install the command line tool in Settings → Integrations.",
