@@ -59,7 +59,8 @@ tokio = { version = "1.49.0", features = ["rt", "fs", "io-util", "macros", "time
 reqwest = { version = "0.13.2", features = ["json", "stream"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-zip = { version = "2", default-features = false, features = ["deflate"] }
+# Ahead of the root Cargo.toml's zip 2 on purpose: security fixes.
+zip = { version = "9", default-features = false, features = ["deflate"] }
 sevenz-rust2 = "0.21"
 # hvsc_sync.rs imports `iced::futures::StreamExt` — see ../iced-shim.
 iced = { package = "phosphor-iced-shim", path = "../iced-shim" }
