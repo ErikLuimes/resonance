@@ -3,6 +3,28 @@
     <channel>
         <title>Resonance</title>
         <item>
+            <title>0.1.0-alpha.7</title>
+            <pubDate>Sun, 08 Nov 2026 15:14:39 +0100</pubDate>
+            <sparkle:version>7</sparkle:version>
+            <sparkle:shortVersionString>0.1.0-alpha.7</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>27.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[## A new Settings
+
+Settings now has a sidebar of focused pages, like the one in System Settings, with Updates first.
+
+- **Appearance:** choose Light, Dark or Auto for Resonance alone. Now Playing and Under the Hood stay dark in all three.
+- **Update channels:** choose Stable, Beta or Alpha in Settings → Updates. Alpha also gets betas. Your choice applies from the next release on.
+- **When an update fails:** Settings → Updates gives the real reason, with the details to copy for a bug report. An update that didn't install is noticed the next time Resonance opens.
+
+## And more
+
+- Playlists have a # column with each tune's place in the list.
+- A list sorted by a column has **Back to Original Order** above it, so a Top 100 keeps its ranking.
+- Installing the `resonance` command handles more setups: it avoids a folder where another program already has the name, tells you if your terminal may still run that program, and has a line to copy if the folder isn't on your PATH.
+]]></description>
+            <enclosure url="https://github.com/ErikLuimes/resonance/releases/download/v0.1.0-alpha.7/Resonance-0.1.0-alpha.7.dmg" length="13811556" type="application/octet-stream" sparkle:edSignature="rxu8CaUfmP7K9QZm1nDknwlmpvX7kGK9El7wL0VYcXbQ8+X5Wnal8kc2AGu2dDFlMHzUtO6IWBM7XwL3k7dIBQ=="/>
+        </item>
+        <item>
             <title>0.1.0-alpha.6</title>
             <pubDate>Sun, 08 Nov 2026 03:35:24 +0100</pubDate>
             <sparkle:version>6</sparkle:version>
