@@ -201,7 +201,13 @@ async function loadRelease() {
     const size = asset ? ` · ${(asset.size / 1_048_576).toFixed(1)} MB` : '';
     status.innerHTML = `Version <strong>${escapeHtml(version)}</strong>${when}${size} · <a href="${escapeHtml(release.html_url)}">release notes</a>`;
     textOf('[data-release-line]', `Free and open source · ${version}`);
-    for (const a of $$('a[data-download]')) a.href = asset ? asset.browser_download_url : release.html_url;
+    // A release that isn't final says so on the button: "Download alpha".
+    const stage = /-(alpha|beta)\b/i.exec(version)?.[1].toLowerCase();
+    const label = stage ? `Download ${stage}` : null;
+    for (const a of $$('a[data-download]')) {
+      a.href = asset ? asset.browser_download_url : release.html_url;
+      if (label) a.querySelector('[data-download-label]').textContent = label;
+    }
   } catch {
     status.innerHTML = 'There\'s no public build yet — <a href="#build">build it from source</a> in a few minutes.';
     const [heroButton, downloadButton] = $$('a[data-download]');
