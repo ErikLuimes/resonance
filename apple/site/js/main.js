@@ -2,7 +2,8 @@
 // scopes, keyboard shortcuts, the latest GitHub release, the app's videos,
 // and scroll effects.
 
-import { VoiceMeter, drawScope, VOICE_COLORS } from './visualizer.js?v=20261104h';
+import { VoiceMeter, drawScope, VOICE_COLORS } from './visualizer.js?v=20261108c';
+import { setUpCarousel } from './carousel.js?v=20261108e';
 import { noteName, waveName, seedFor } from './tune.js?v=20261104h';
 import { SilentChip } from './chip.js?v=20261104h';
 
@@ -267,45 +268,7 @@ for (const img of $$('.media-still img')) {
   if (img.complete && img.naturalWidth) ready();
   else img.addEventListener('load', ready, { once: true });
 }
-// A carousel of screenshots: the next every few seconds while it's on
-// screen, not under the pointer or keyboard focus, and the page is in front.
-// With reduced motion it stays on the first until a dot is clicked.
-for (const figure of $$('[data-carousel]')) {
-  const slides = $$('img', figure);
-  let current = 0;
-  const dots = document.createElement('div');
-  dots.className = 'carousel-dots';
-  const buttons = slides.map((img, i) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.setAttribute('aria-label', `Screenshot ${i + 1} of ${slides.length}`);
-    button.addEventListener('click', () => show(i));
-    dots.append(button);
-    return button;
-  });
-  figure.append(dots);
-  function show(i) {
-    current = (i + slides.length) % slides.length;
-    slides.forEach((img, n) => {
-      img.classList.toggle('is-current', n === current);
-      img.setAttribute('aria-hidden', n !== current);
-    });
-    buttons.forEach((b, n) => b.setAttribute('aria-current', n === current));
-  }
-  show(0);
-  // All of them load early, so a cross-fade never shows a half-loaded picture.
-  for (const img of slides) img.loading = 'eager';
-  let visible = false;
-  new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; }, { threshold: 0.35 }).observe(figure);
-  let paused = false;
-  figure.addEventListener('pointerenter', () => { paused = true; });
-  figure.addEventListener('pointerleave', () => { paused = false; });
-  figure.addEventListener('focusin', () => { paused = true; });
-  figure.addEventListener('focusout', () => { paused = false; });
-  setInterval(() => {
-    if (visible && !paused && !document.hidden && !stillMotion.matches && !figure.closest('[hidden]')) show(current + 1);
-  }, 4500);
-}
+const carousels = new Map($$('[data-carousel]').map((figure) => [figure, setUpCarousel(figure, stillMotion)]));
 
 for (const list of $$('[data-integrations] [role="tablist"]')) {
   const tabs = $$('[role="tab"]', list);
@@ -315,6 +278,12 @@ for (const list of $$('[data-integrations] [role="tablist"]')) {
       other.setAttribute('aria-selected', on);
       other.tabIndex = on ? 0 : -1;
       document.getElementById(other.getAttribute('aria-controls')).hidden = !on;
+    }
+    // A carousel can't measure itself while its panel is hidden.
+    const shown = document.getElementById(tab.getAttribute('aria-controls')).querySelector('[data-carousel]');
+    if (shown) {
+      carousels.get(shown).reInit();
+      carousels.get(shown).wake();
     }
     if (focus) tab.focus();
   };

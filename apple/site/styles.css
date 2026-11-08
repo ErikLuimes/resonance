@@ -927,46 +927,79 @@ html.js [data-reveal].in { opacity: 1; transform: none; }
   transition: opacity 0.5s var(--ease);
 }
 .media-still.is-ready img { opacity: 1; }
-/* Several screenshots in one frame: one at a time, cross-fading, with dots
-   to pick one (main.js). */
-.media-carousel.is-ready img { opacity: 0; }
-.media-carousel.is-ready img.is-current { opacity: 1; }
-.media-carousel img { transition-duration: 0.9s; }
-.carousel-dots {
+/* A screenshot that keeps its whole shape: the panel's background shows around it. */
+.media-still img.is-whole { object-fit: contain; padding: 22px; }
+/* Several screenshots in one frame, on Embla (carousel.js). */
+.carousel-viewport {
   position: absolute;
-  left: 50%;
-  bottom: 14px;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 4px;
-  padding: 6px 8px;
-  border-radius: 999px;
-  background: rgba(10, 11, 18, 0.55);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
 }
-.carousel-dots button {
-  width: 18px;
-  height: 18px;
+.carousel-viewport:active { cursor: grabbing; }
+.carousel-track { display: flex; height: 100%; }
+.carousel-slide { position: relative; flex: 0 0 100%; min-width: 0; height: 100%; }
+.carousel-slide img { user-select: none; -webkit-user-select: none; -webkit-user-drag: none; }
+.carousel-controls {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  height: 34px;
+  margin: 10px auto 0;
+  gap: 2px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+/* The same room under a single screenshot, so the text doesn't jump between tabs. */
+.integration-panel > .media:not(.media-carousel) { margin-bottom: 44px; }
+.carousel-toggle {
+  width: 26px;
+  height: 26px;
+  margin-right: 4px;
   padding: 0;
   border: 0;
   border-radius: 50%;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background 0.2s;
+}
+.carousel-toggle:hover { background: rgba(255, 255, 255, 0.24); }
+.carousel-toggle svg { width: 12px; height: 12px; fill: currentColor; }
+.carousel-pill {
+  width: 18px;
+  height: 26px;
+  padding: 0;
+  border: 0;
   background: transparent;
   cursor: pointer;
   display: grid;
   place-items: center;
+  transition: width 0.3s var(--ease);
 }
-.carousel-dots button::before {
+.carousel-pill::before {
   content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.35);
-  transition: background 0.2s, transform 0.2s;
+  width: 100%;
+  max-width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.38);
+  transition: max-width 0.3s var(--ease), background 0.2s;
 }
-.carousel-dots button:hover::before { background: rgba(255, 255, 255, 0.6); }
-.carousel-dots button[aria-current="true"]::before { background: #fff; transform: scale(1.15); }
-.carousel-dots button:focus-visible { outline: 2px solid var(--v1); outline-offset: 1px; }
+.carousel-pill:hover::before { background: rgba(255, 255, 255, 0.65); }
+/* The current one is wider, and fills until the next. */
+.carousel-pill[aria-current="true"] { width: 52px; position: relative; }
+.carousel-pill[aria-current="true"]::before {
+  max-width: 44px;
+  background:
+    linear-gradient(#fff, #fff) left / calc(var(--progress, 0) * 100%) 100% no-repeat,
+    rgba(255, 255, 255, 0.28);
+}
+.carousel-toggle:focus-visible,
+.carousel-pill:focus-visible { outline: 2px solid var(--v1); outline-offset: 1px; border-radius: 999px; }
 .media.media-still.is-ready .media-sound { display: none; }
 
 @media (max-width: 1080px) {

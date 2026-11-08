@@ -389,7 +389,7 @@ async fn an_empty_query_returns_nothing_but_reports_the_index_size() {
 async fn an_abandoned_index_build_still_completes() {
     let tree = Tree::sample();
     let lib = library(Some(tree.root()));
-    // Start a build and drop the waiting future straight away (as a
+    // Start a build and drop the waiting future right away (as a
     // canceled Swift task would). The detached build must still install.
     tokio::select! {
         biased;

@@ -118,7 +118,7 @@ fn render(tunes: &HashMap<String, Vec<Slot>>) -> String {
         .collect();
     lines.sort();
     format!(
-        "# Song lengths worked out by Resonance, for tunes outside HVSC.\n# detector {DETECTOR_VERSION}\n{}\n",
+        "# Song lengths figured out by Resonance, for tunes outside HVSC.\n# detector {DETECTOR_VERSION}\n{}\n",
         lines.join("\n")
     )
 }
@@ -264,7 +264,7 @@ fn work(store: &LearnedLengths, shared: &Shared, done: &Sender<String>) {
         // A tune the engine can't take is only that tune's problem.
         let outcome = catch_unwind(AssertUnwindSafe(|| run_job(&job, store, done, &canceled)));
         if outcome.is_err() {
-            eprintln!("[resonance] working out the length of {} panicked", job.path.display());
+            eprintln!("[resonance] figuring out the length of {} panicked", job.path.display());
         }
         if let Ok(mut queue) = shared.queue.lock() {
             queue.taken.remove(&job.md5);
@@ -280,7 +280,7 @@ fn run_job(job: &LengthJob, store: &LearnedLengths, done: &Sender<String>, cance
         let secs = match estimate_length(&data, song, canceled) {
             Ok(estimate) => estimate.map(playable_secs),
             Err(e) => {
-                eprintln!("[resonance] working out the length of {}: {e}", job.path.display());
+                eprintln!("[resonance] figuring out the length of {}: {e}", job.path.display());
                 None
             }
         };

@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 const STEP: Duration = Duration::from_millis(33);
 const MOST_STEPS_AT_ONCE: u32 = 3;
 const POINTS: usize = 24_000;
-/// Where each voice's waves start from, a third of the way round.
+/// Where each voice's waves start from, a third of the way around.
 const POLES: [(f32, f32, f32); 3] = [(0.0, 1.0, 0.0), (0.87, -0.5, 0.0), (-0.87, -0.5, 0.0)];
 /// How long things take to settle, in seconds, as in the app.
 const LEVEL_SETTLES: f32 = 0.075;

@@ -118,12 +118,12 @@ nonisolated struct CSDbCredit: Codable, Equatable, Sendable {
         return calendar.dateComponents([.day], from: calendar.startOfDay(for: date), to: calendar.startOfDay(for: Date())).day
     }
 
-    /// "5 Nov 2026", "Nov 2026" or "2026": as much as CSDb knows.
+    /// "Nov 5, 2026", "Nov 2026" or "2026": as much as CSDb knows.
     var dateText: String? {
         guard let year else { return nil }
         guard let month, (1...12).contains(month) else { return String(year) }
         let name = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][month - 1]
-        return day.map { "\($0) \(name) \(year)" } ?? "\(name) \(year)"
+        return day.map { "\(name) \($0), \(year)" } ?? "\(name) \(year)"
     }
 }
 

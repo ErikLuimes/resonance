@@ -59,7 +59,7 @@ const HEART_SIZE: f64 = 40.0;
 /// The heart is made of the stars themselves, and nothing else.
 const HEART_POINTS: usize = STARS;
 
-const PEOPLE_PAGES: [[&str; 3]; 15] = [
+const PEOPLE_PAGES: [[&str; 3]; 16] = [
     ["A PRODUCTION BY", "ERIK LUIMES", ""],
     ["DIRECTOR OF SAYING NO", "ERIK LUIMES", "IT WAS PERFECT, PUT IT BACK"],
     ["TYPED VERY FAST", "CLAUDE", "BY ANTHROPIC"],
@@ -75,6 +75,7 @@ const PEOPLE_PAGES: [[&str; 3]; 15] = [
     ["PROFESSIONAL LISTENER", "YIZHI LI ET AL", "MERT"],
     ["SKULL SURGEON", "INIGO QUILEZ", "DISTANCE FUNCTIONS"],
     ["ALL RESPECT TO THE DEMOSCENE", "TRITON", "WE FORGIVE THE PC"],
+    ["WILL CHECK IT LATER", "RICHARD SIMPSON", "INTERNATIONAL KARATEKA ANY DAY NOW"],
 ];
 
 type V = [f64; 3];
@@ -206,7 +207,7 @@ static TIMING: LazyLock<Timing> = LazyLock::new(|| {
 });
 
 /// How far something has turned: its rate grows in from nothing when it starts, holds,
-/// then eases out as the stars settle, keeping where it got to.
+/// then eases out as the stars settle, keeping the place it reached.
 fn turned(seconds: f64, rate: f64, from: f64) -> f64 {
     let settle_from = TIMING.settle_from;
     let a = (seconds.min(settle_from) - from).max(0.0);
@@ -411,7 +412,7 @@ fn falling_in(origin: &[(f64, f64, f64)]) -> Vec<bool> {
 const SPHERE_SPEED: f64 = 2.6;
 
 /// A point of the heart, `seconds` after the third beat. Once the sphere has reached it,
-/// it drifts outwards from the middle at a speed of its own, starting gently.
+/// it drifts outward from the middle at a speed of its own, starting gently.
 fn drifted(place: &V, star: usize, seconds: f64) -> V {
     let reach = (place[0] * place[0] + place[1] * place[1] + place[2] * place[2]).sqrt();
     let since = seconds - reach / SPHERE_SPEED;
@@ -431,7 +432,7 @@ fn drifted(place: &V, star: usize, seconds: f64) -> V {
 /// the heart, not all at once. It beats, longer and thinner as it contracts, and sways.
 /// After the first beat the camera starts moving again, turning and creeping forward. On
 /// the third beat a sphere spreads from the middle of the heart, and each star it reaches
-/// starts to drift outwards at its own speed, as the camera goes on through them. They're
+/// starts to drift outward at its own speed, as the camera goes on through them. They're
 /// the same stars throughout: nothing fades in. Then it all fades.
 fn heart_stars(elapsed: f64, ending_from: f64) -> Vec<(f64, f64, f64)> {
     let place_at = |seconds: f64| placed_stars(FLIGHT_FROM + seconds, star_turn(seconds), turned(seconds, ROLL_RATE, TIMING.camera_starts));
@@ -892,7 +893,7 @@ mod tests {
     }
 
     #[test]
-    fn the_burst_throws_the_heart_outwards_and_it_all_ends_in_black() {
+    fn the_burst_throws_the_heart_outward_and_it_all_ends_in_black() {
         let from = ending_from(None);
         let bursts = COLLAPSE + *BEATING;
         assert!(in_the_middle(bursts + 3.5, from) < in_the_middle(bursts - 0.1, from) * 3 / 4);

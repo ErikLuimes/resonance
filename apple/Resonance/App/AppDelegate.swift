@@ -142,7 +142,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Closing the window quits, unless the menu bar player is showing:
-    /// then the music, and the player, carry on.
+    /// then the music, and the player, keep going.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         UserDefaults.standard.object(forKey: Pref.menuBarPlayer) as? Bool == false
     }

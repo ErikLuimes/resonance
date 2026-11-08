@@ -192,7 +192,7 @@ fn create_auto(
         return create_u64(u64_address, u64_password);
     }
 
-    Err("No SID engine could be initialised".into())
+    Err("No SID engine could be initialized".into())
 }
 
 /// USB hardware. On macOS the `macos_usb_mode` decides whether we go through

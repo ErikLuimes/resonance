@@ -21,8 +21,8 @@
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <!-- ?v= changes with each site update, so a browser that cached the last
        one fetches the new files instead of mixing old and new. -->
-  <link rel="stylesheet" href="styles.css?v=20261108a">
-  <link rel="modulepreload" href="js/main.js?v=20261108b">
+  <link rel="stylesheet" href="styles.css?v=20261108e">
+  <link rel="modulepreload" href="js/main.js?v=20261108e">
   <script>
     // Sections fade in as main.js reveals them. If it never runs (a failed
     // or stale script), show everything rather than an empty page.
@@ -336,7 +336,7 @@
             <li><svg class="i"><use href="#i-check"/></svg>A card for each composer, with STIL's notes and all their tunes a click away</li>
             <li><svg class="i"><use href="#i-check"/></svg>STIL's stories and covers set to read, and HVSC's known bugs on the tunes it names</li>
             <li><svg class="i"><use href="#i-check"/></svg>Song lengths and STIL from the release you have</li>
-            <li><svg class="i"><use href="#i-check"/></svg>Songlengths moves on at the right moment; for tunes outside it, Resonance works out the length in the background</li>
+            <li><svg class="i"><use href="#i-check"/></svg>Songlengths moves on at the right moment; for tunes outside it, Resonance figures out the length in the background</li>
           </ul>
         </div>
         <figure class="media" data-reveal>
@@ -454,7 +454,7 @@
             <button type="button" role="tab" id="tab-raycast" aria-controls="panel-raycast" aria-selected="false" tabindex="-1"><strong>Raycast</strong><span>Eleven commands, no window</span></button>
             <button type="button" role="tab" id="tab-siri" aria-controls="panel-siri" aria-selected="false" tabindex="-1"><strong>Siri and Shortcuts</strong><span>“Surprise me in Resonance”</span></button>
             <button type="button" role="tab" id="tab-spotlight" aria-controls="panel-spotlight" aria-selected="false" tabindex="-1"><strong>Spotlight and Quick Look</strong><span>Find a tune, or press Space on one</span></button>
-            <button type="button" role="tab" id="tab-dock" aria-controls="panel-dock" aria-selected="false" tabindex="-1"><strong>Dock and notifications</strong><span>The controls, and how far it's got</span></button>
+            <button type="button" role="tab" id="tab-dock" aria-controls="panel-dock" aria-selected="false" tabindex="-1"><strong>Dock and notifications</strong><span>The controls, and how far it's gotten</span></button>
             <button type="button" role="tab" id="tab-commands" aria-controls="panel-commands" aria-selected="false" tabindex="-1"><strong>Commands and zsh</strong><span>A remote control for scripts</span></button>
           </div>
 
@@ -481,9 +481,12 @@
             </div>
 
             <div class="integration-panel" role="tabpanel" id="panel-raycast" aria-labelledby="tab-raycast" hidden>
-              <figure class="media media-still">
+              <figure class="media media-still media-carousel" data-carousel aria-roledescription="carousel" aria-label="Resonance in Raycast">
                 <div class="media-soon" aria-hidden="true"><svg class="i"><use href="#i-search"/></svg><span>Raycast</span><small>Screenshot coming soon</small></div>
-                <img src="media/integration-raycast.png" alt="Searching tunes in Raycast, with each tune's fingerprint beside it" loading="lazy">
+                <img src="media/integration-raycast-search.webp" alt="Searching tunes in Raycast for Platoon, with the tune's fingerprint and how it sounds beside it" loading="lazy">
+                <img src="media/integration-raycast-now-playing.webp" alt="Now Playing in Raycast: the tune, its full fingerprint, its time and subtune, and where it's playing from" loading="lazy">
+                <img src="media/integration-raycast-recent.webp" alt="Recently played tunes in Raycast, each with its composer and fingerprint" loading="lazy">
+                <img src="media/integration-raycast-playlist.webp" alt="The tunes of a playlist in Raycast, with the composer, release, length and subtunes of the one selected" loading="lazy">
               </figure>
               <p>Search tunes, describe a sound, open your playlists and control what's playing, with a hotkey for the ones you use most. Each tune shows its fingerprint, and <kbd>⌘</kbd><kbd>L</kbd> finds what sounds like it.</p>
             </div>
@@ -491,7 +494,7 @@
             <div class="integration-panel" role="tabpanel" id="panel-siri" aria-labelledby="tab-siri" hidden>
               <figure class="media media-still">
                 <div class="media-soon" aria-hidden="true"><svg class="i"><use href="#i-mic"/></svg><span>Siri and Shortcuts</span><small>Screenshot coming soon</small></div>
-                <img src="media/integration-shortcuts.png" alt="Resonance's actions in the Shortcuts app" loading="lazy">
+                <img src="media/integration-shortcuts.webp" alt="Resonance's actions in the Shortcuts app" loading="lazy">
               </figure>
               <p>Say “Surprise me in Resonance”, “Drift from this tune in Resonance” or “Play Favorites in Resonance”. The Shortcuts app has the same actions, for your own shortcuts and automations.</p>
             </div>
@@ -499,7 +502,7 @@
             <div class="integration-panel" role="tabpanel" id="panel-spotlight" aria-labelledby="tab-spotlight" hidden>
               <figure class="media media-still">
                 <div class="media-soon" aria-hidden="true"><svg class="i"><use href="#i-search"/></svg><span>Spotlight and Quick Look</span><small>Screenshot coming soon</small></div>
-                <img src="media/integration-spotlight.png" alt="Quick Look showing a SID file's title, composer, release and subtunes" loading="lazy">
+                <img class="is-whole" src="media/integration-spotlight.webp" alt="Searching Resonance from Spotlight for 2nd Reality: the tunes by that name, each with its composer and release" loading="lazy">
               </figure>
               <p>Spotlight finds the collection's tunes by title and composer: click one to play it. In Finder, select a SID file and press <kbd>Space</kbd> to see its title, composer, release and subtunes.</p>
             </div>
@@ -507,7 +510,7 @@
             <div class="integration-panel" role="tabpanel" id="panel-dock" aria-labelledby="tab-dock" hidden>
               <figure class="media media-still">
                 <div class="media-soon" aria-hidden="true"><svg class="i"><use href="#i-play"/></svg><span>Dock and notifications</span><small>Screenshot coming soon</small></div>
-                <img src="media/integration-dock.png" alt="Resonance's Dock menu with the tune playing, its controls, Play Something Like This and Surprise Me" loading="lazy">
+                <img class="is-whole" src="media/integration-dock.webp" alt="Resonance's Dock menu with the tune playing, its controls, Play Something Like This, Drift From This Tune and Surprise Me" loading="lazy">
               </figure>
               <p>Control-click the Dock icon for the tune and its controls. The icon shows how far a download or a scan has gotten, and a notification says when it ends while Resonance is in the background.</p>
             </div>
@@ -803,6 +806,6 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
     </div>
   </footer>
 
-  <script type="module" src="js/main.js?v=20261108b"></script>
+  <script type="module" src="js/main.js?v=20261108e"></script>
 </body>
 </html>

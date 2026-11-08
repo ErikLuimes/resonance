@@ -29,9 +29,9 @@ uses and, when there's room, each voice's loudness from start to end. In Sounds
 Like, the tune being compared sits over the column, so you can see why each one matched.
 `?` explains the bars. A row of dots means no fingerprint yet.
 
-Press `v` for the music, full screen, set out like Now Playing in the app: the views to
+Press `v` for the music, full screen, laid out like Now Playing in the app: the views to
 pick from at the top, the music in the middle with room around it, then the tune, its
-voices and the time. The picker and the keys go after three seconds without a key press.
+voices and the time. The picker and the keys disappear after three seconds without a key press.
 `s` shows the skull, a 3D model in ASCII whose eyes
 glow with the voices and whose jaw chomps on the hits. `f` shows fire, where each voice
 feeds its own part of the flames and hits throw sparks; `c` colors each flame by its
@@ -41,7 +41,7 @@ new note drops in, low notes making wide ripples and high notes tight ones; `c` 
 those by voice too. `o` shows the app's Particle sphere. `v` steps through them.
 
 All of this looks best on a terminal with millions of colors, such as iTerm2, Ghostty
-or Kitty. Notes are worked out from the voices' sound, so they can be off on a very low
+or Kitty. Notes are inferred from the voices' sound, so they can be off on a very low
 note or a filtered one.
 
 ### Under the hood

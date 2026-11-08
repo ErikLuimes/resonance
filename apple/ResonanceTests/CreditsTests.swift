@@ -73,6 +73,8 @@ struct CreditsTests {
         }
         #expect(pages.contains(["SKULL SURGEON", "INIGO QUILEZ", "DISTANCE FUNCTIONS"]))
         #expect(pages.contains(["ALL RESPECT TO THE DEMOSCENE", "TRITON", "WE FORGIVE THE PC"]))
+        // Second to last before the composer playing and you.
+        #expect(pages.suffix(3).first == ["WILL CHECK IT LATER", "RICHARD SIMPSON", "INTERNATIONAL KARATEKA ANY DAY NOW"])
         for page in pages {
             #expect(page[0].count * 6 <= 320 && page[1].count * 12 <= 320 && page[2].count * 6 <= 320, "\(page)")
         }

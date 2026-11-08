@@ -21,7 +21,7 @@ for the start song:
 - `GET /card.jpg` — Resonance's own card.
 - `GET /.well-known/apple-app-site-association` — tells macOS the app opens
   `/t/*` links directly. Apple's servers fetch it, and don't follow redirects,
-  so a proxy or firewall mustn't redirect or challenge them there. A new
+  so a proxy or firewall must not redirect or challenge them there. A new
   version can take a day to reach Macs, through Apple's cache.
 - `GET /healthz`. Everything else (`/`, `/download`, …) redirects to the website (`DOWNLOAD_URL`), so the domain leads there.
 

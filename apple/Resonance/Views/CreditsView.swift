@@ -313,6 +313,7 @@ nonisolated enum CreditsScene {
         ["PROFESSIONAL LISTENER", "YIZHI LI ET AL", "MERT"],
         ["SKULL SURGEON", "INIGO QUILEZ", "DISTANCE FUNCTIONS"],
         ["ALL RESPECT TO THE DEMOSCENE", "TRITON", "WE FORGIVE THE PC"],
+        ["WILL CHECK IT LATER", "RICHARD SIMPSON", "INTERNATIONAL KARATEKA ANY DAY NOW"],
     ]
 
     typealias V = [Double]
@@ -461,7 +462,7 @@ nonisolated enum CreditsScene {
     }
 
     /// How far something has turned: its rate grows in from nothing when it starts,
-    /// holds, then eases out as the stars settle, keeping where it got to.
+    /// holds, then eases out as the stars settle, keeping the place it reached.
     static func turned(_ seconds: Double, rate: Double, from: Double) -> Double {
         let a = max(0, min(seconds, timing.settleFrom) - from)
         let b = min(settle, max(0, seconds - timing.settleFrom))
@@ -629,7 +630,7 @@ nonisolated enum CreditsScene {
     private static let sphereSpeed = 2.6
 
     /// A point of the heart, `seconds` after the third beat. Once the sphere has reached
-    /// it, it drifts outwards from the middle at a speed of its own, starting gently.
+    /// it, it drifts outward from the middle at a speed of its own, starting gently.
     static func drifted(_ place: V, star: Int, seconds: Double) -> V {
         let reach = (place[0] * place[0] + place[1] * place[1] + place[2] * place[2]).squareRoot()
         let since = seconds - reach / sphereSpeed
@@ -649,7 +650,7 @@ nonisolated enum CreditsScene {
     /// the heart, not all at once. It beats, longer and thinner as it contracts, and sways.
     /// After the first beat the camera starts moving again, turning and creeping forward.
     /// On the third beat a sphere spreads from the middle of the heart, and each star it
-    /// reaches starts to drift outwards at its own speed, as the camera goes on through
+    /// reaches starts to drift outward at its own speed, as the camera goes on through
     /// them. They're the same stars throughout: nothing fades in. Then it all fades.
     static func heartStars(elapsed: Double, endingFrom: Double, still: Bool) -> [Star] {
         let falling = fallingIn(placed(seconds: endingFrom))

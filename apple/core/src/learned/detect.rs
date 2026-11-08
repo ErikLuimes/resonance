@@ -26,7 +26,7 @@ const COPIES: usize = 3;
 /// Writes that must match for a repeat to be looked at.
 const WRITES_WINDOW: usize = 512;
 /// Note-ons that must match. Repeating notes also catch the many tunes whose
-/// filter or pulse sweeps never come round to the same writes.
+/// filter or pulse sweeps never come around to the same writes.
 const NOTES_WINDOW: usize = 24;
 /// More writes than this is a digi tune, which only the notes can say
 /// anything about: the search over them would take too much memory.

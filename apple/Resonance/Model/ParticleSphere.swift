@@ -22,7 +22,7 @@ nonisolated final class ParticleSphere {
     private var lastUpdate: Date?
     private var lastFrame: UInt64?
 
-    /// Where each voice's waves start from, a third of the way round.
+    /// Where each voice's waves start from, a third of the way around.
     static let poles: [SIMD3<Float>] = [[0, 1, 0], [0.87, -0.5, 0], [-0.87, -0.5, 0]]
 
     /// Advance to `date`. `history` is the last few SID frames, oldest

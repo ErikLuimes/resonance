@@ -24,7 +24,7 @@ nonisolated struct VoiceTheme: Codable, Hashable, Identifiable {
 
     static let presets: [VoiceTheme] = [
         resonance,
-        VoiceTheme(id: "c64", name: "C64", summary: String(localized: "The rainbow badge on a breadbin"),
+        VoiceTheme(id: "c64", name: "C64", summary: String(localized: "The rainbow badge on a breadbox"),
                    voices: [0xE2231A, 0xFFCC00, 0x1F6FC5], background: 0x16120E, badge: .rainbow),
         VoiceTheme(id: "noir", name: String(localized: "Noir"), summary: String(localized: "The dark side: saber red"),
                    voices: [0xFF2020, 0x8B0A14, 0x9A9DA6], background: 0x000000, badge: .saber),

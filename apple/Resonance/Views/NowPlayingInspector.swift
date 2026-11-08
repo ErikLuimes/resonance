@@ -89,7 +89,7 @@ struct NowPlayingInspector: View {
                     if let duration {
                         Label(duration, systemImage: "clock")
                             .fixedSize()
-                            .help(store.durationIsEstimate ? "Length, worked out by Resonance: this tune isn't in HVSC's song lengths" : "Length")
+                            .help(store.durationIsEstimate ? "Length, figured out by Resonance: this tune isn't in HVSC's song lengths" : "Length")
                     }
                     if track.songs > 1 {
                         Label("Song \(track.currentSong) of \(track.songs)", systemImage: "list.number")

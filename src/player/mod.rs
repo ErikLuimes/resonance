@@ -1331,7 +1331,7 @@ fn handle_cmd(
 
             let result = match bridge.as_mut() {
                 Some(br) => br.run_device_config(&op),
-                None => Err("device not initialised".into()),
+                None => Err("device not initialized".into()),
             };
             let payload = match result {
                 Ok(Some(snap)) => Ok(snap),

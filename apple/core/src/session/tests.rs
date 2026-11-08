@@ -438,7 +438,7 @@ fn pause_does_not_count_as_silence() {
     let mut paused = h.status(0, 1, 6, 0);
     paused.state = PlayState::Paused;
     h.feed(paused, 60.0);
-    // Resume: the first silent frame mustn't count the pause as silence.
+    // Resume: the first silent frame must not count the pause as silence.
     h.feed(h.status(0, 1, 6, 0), 60.1);
     assert!(h.sent().is_empty());
 }

@@ -81,7 +81,7 @@ const NORMAL=norm([ALONG[2],0,-ALONG[0]]);
 const add=(a,b,k)=>a.map((v,i)=>v+b[i]*k);
 const smooth=x=>{const v=Math.max(0,Math.min(1,x));return v*v*(3-2*v)};
 // How far something has turned: its rate grows in from nothing when it starts, holds,
-// then eases out to nothing as the stars settle, keeping where it got to.
+// then eases out to nothing as the stars settle, keeping the place it reached.
 function turned(s,rate,from){const a=Math.max(0,Math.min(s,SETTLE_FROM)-from),b=Math.max(0,Math.min(SETTLE,s-SETTLE_FROM));return rate*(a*a/(a+1.6)+b-b*b/(2*SETTLE))}
 // What the camera adds to the stars: turning against the text until the camera starts,
 // so they drift the other way, then rolling through the wild part.
@@ -110,7 +110,7 @@ for(const l of seen){const v=Math.round(l.lit);L.fillStyle='rgb('+(v-5)+','+v+',
 const img=L.getImageData(0,0,W,H),px=img.data;for(let n=3;n<px.length;n+=4)px[n]=px[n]>=128?255:0;L.putImageData(img,0,0);
 g.drawImage(layer,0,0)}
 function shape(k,place,face){const outline=OUTLINES[k];if(!outline)return null;const paths=outline.map(o=>o.map(place));let far=0;for(const o of paths)for(const p of o){if(p[2]<NEAR)return null;far=Math.max(far,p[2])}return{paths,far,lit:212+40*Math.abs(face[2])}}
-const pages=[['A PRODUCTION BY','ERIK LUIMES',''],['DIRECTOR OF SAYING NO','ERIK LUIMES','IT WAS PERFECT, PUT IT BACK'],['TYPED VERY FAST','CLAUDE','BY ANTHROPIC'],['BROKE THE BUILD','CLAUDE','TWICE BEFORE COFFEE'],['BUILT THE HOUSE WE MOVED INTO','MARCIN SPOCZYNSKI','PHOSPHOR'],['CHIP WHISPERER','DAG LEM','RESID'],['KEEPER OF THE FILTER CURVES','LEANDRO NINI','LIBSIDPLAYFP AND RESIDFP'],['LIGHTWEIGHT CHAMPION','HERMIT','SIDLITE'],['THREE VOICES SHOULD BE ENOUGH','BOB YANNES','MOS 6581, 1982'],['HEAD OF 60,000 THINGS','THE HVSC CREW','AND EVERY COMPOSER IN IT'],['PROFESSIONAL LISTENER','YIZHI LI ET AL','MERT'],['SKULL SURGEON','INIGO QUILEZ','DISTANCE FUNCTIONS'],['ALL RESPECT TO THE DEMOSCENE','TRITON','WE FORGIVE THE PC'],['ACTUALLY DOING THE WORK','ROB HUBBARD','COMMANDO, NOW PLAYING']];
+const pages=[['A PRODUCTION BY','ERIK LUIMES',''],['DIRECTOR OF SAYING NO','ERIK LUIMES','IT WAS PERFECT, PUT IT BACK'],['TYPED VERY FAST','CLAUDE','BY ANTHROPIC'],['BROKE THE BUILD','CLAUDE','TWICE BEFORE COFFEE'],['BUILT THE HOUSE WE MOVED INTO','MARCIN SPOCZYNSKI','PHOSPHOR'],['CHIP WHISPERER','DAG LEM','RESID'],['KEEPER OF THE FILTER CURVES','LEANDRO NINI','LIBSIDPLAYFP AND RESIDFP'],['LIGHTWEIGHT CHAMPION','HERMIT','SIDLITE'],['THREE VOICES SHOULD BE ENOUGH','BOB YANNES','MOS 6581, 1982'],['HEAD OF 60,000 THINGS','THE HVSC CREW','AND EVERY COMPOSER IN IT'],['PROFESSIONAL LISTENER','YIZHI LI ET AL','MERT'],['SKULL SURGEON','INIGO QUILEZ','DISTANCE FUNCTIONS'],['ALL RESPECT TO THE DEMOSCENE','TRITON','WE FORGIVE THE PC'],['WILL CHECK IT LATER','RICHARD SIMPSON','INTERNATIONAL KARATEKA ANY DAY NOW'],['ACTUALLY DOING THE WORK','ROB HUBBARD','COMMANDO, NOW PLAYING']];
 const hold=4;
 function page(t){const n=Math.floor(t/hold)%pages.length,f=(t/hold)%1,p=pages[n];
 const pick=(i,len,row)=>{const start=i*.012+row*.04,inn=Math.min(1,Math.max(0,(f-start)/.1)),out=Math.max(0,(f-.86-i*.004)/.08),e=1-inn;return{on:inn>0&&out<1,x:Math.round(Math.sin(i+t)*e*30+out*(i-len/2)*18),y:Math.round(-e*e*50+Math.sin(i*.9+t*4)*e*6+out*out*70)}};

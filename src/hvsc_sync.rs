@@ -245,7 +245,7 @@ async fn run_zip_sync(
         if cancel.load(Ordering::SeqCst) {
             drop(file);
             let _ = std::fs::remove_file(&tmp_path);
-            let _ = tx.send(HvscSyncEvent::Done(Err("Cancelled".to_string())));
+            let _ = tx.send(HvscSyncEvent::Done(Err("Canceled".to_string())));
             return Ok(());
         }
         let chunk = chunk.map_err(|e| format!("Download stream: {e}"))?;
@@ -340,8 +340,8 @@ fn extract_zip(
 
     for i in 0..archive.len() {
         if cancel.load(Ordering::SeqCst) {
-            let _ = tx.send(HvscSyncEvent::Done(Err("Cancelled".to_string())));
-            return Err("Cancelled".to_string());
+            let _ = tx.send(HvscSyncEvent::Done(Err("Canceled".to_string())));
+            return Err("Canceled".to_string());
         }
         let mut entry = archive
             .by_index(i)
@@ -512,7 +512,7 @@ fn extract_7z(
 
     let walk_result = sz.for_each_entries(|entry, reader| {
         if cancel.load(Ordering::SeqCst) {
-            *hard_err.borrow_mut() = Some("Cancelled".to_string());
+            *hard_err.borrow_mut() = Some("Canceled".to_string());
             return Ok(false);
         }
 

@@ -107,7 +107,7 @@ pub(crate) struct SessionView {
     pub can_seek: bool,
     /// A seek is running: the audio is silent until it lands.
     pub seeking: bool,
-    /// While seeking, where the emulation has got to on its way there.
+    /// While seeking, how far the emulation has gotten on its way there.
     pub seek_position: Option<Duration>,
     pub playlist_revision: u64,
     pub track_revision: u64,

@@ -142,7 +142,7 @@ struct CSDbFeedTests {
         #expect(profile.groups == ["The Supply Team"])
         #expect(profile.formerGroups == ["Ancients"])
         #expect(profile.latestMusic?.name == "Jan's Ballad 2 [2SID]")
-        #expect(profile.latestMusic?.dateText == "5 Nov 2026")
+        #expect(profile.latestMusic?.dateText == "Nov 5, 2026")
     }
 
     @Test func readsTheChartBestFirst() {

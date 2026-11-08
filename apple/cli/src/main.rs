@@ -52,11 +52,11 @@ enum Cmd {
     Tui,
     /// Show the credits in the terminal app, then leave
     Credits,
-    /// Play or carry on; with files, play those
+    /// Play or resume; with files, play those
     Play { files: Vec<PathBuf> },
     /// Pause
     Pause,
-    /// Pause, or carry on playing
+    /// Pause, or resume playing
     Toggle,
     /// Stop
     Stop,

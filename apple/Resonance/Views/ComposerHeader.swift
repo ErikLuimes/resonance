@@ -327,7 +327,7 @@ struct ComposerHeader: View {
         }
     }
 
-    /// "By Inge H. Pedersen, released 17 Sep 2011". Whose tune it is, when
+    /// "By Inge H. Pedersen, released Sep 17, 2011". Whose tune it is, when
     /// CSDb says: a credit can be for the original of someone else's remix.
     private func creditLine(_ release: CSDbCredit) -> String {
         let author = csdb.releaseFiles[release.id]?.hvscAuthor

@@ -176,7 +176,7 @@ pub struct Snapshot {
     /// A seek is in progress: `elapsed_ms` already says where, the audio
     /// is silent until the emulation has caught up.
     pub seeking: bool,
-    /// While seeking: how far the emulation has got on its way to
+    /// While seeking: how far the emulation has gotten on its way to
     /// `elapsed_ms` (from the top for a backward seek, from where it was
     /// for a forward one), updated every tenth of a second of tune.
     pub seek_position_ms: Option<u64>,
@@ -2702,9 +2702,9 @@ mod sync_tests {
         assert!(s.error.is_none());
 
         let mut failed = running();
-        apply_event(&mut failed, HvscSyncEvent::Done(Err("Cancelled".into())));
+        apply_event(&mut failed, HvscSyncEvent::Done(Err("Canceled".into())));
         assert!(!failed.running);
-        assert_eq!(failed.error.as_deref(), Some("Cancelled"));
+        assert_eq!(failed.error.as_deref(), Some("Canceled"));
     }
 }
 

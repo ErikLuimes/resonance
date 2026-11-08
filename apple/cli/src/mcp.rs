@@ -203,7 +203,7 @@ fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "resume",
-            description: "Carry on playing.",
+            description: "Resume playing.",
             read_only: false,
             properties: none,
             required: &[],

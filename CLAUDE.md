@@ -7,7 +7,7 @@
 - New screens start with a mockup, and Erik click-tests them; say what hasn't been click-tested. Keep the toolbar static and don't use `HSplitView`: both have caused SwiftUI layout-loop crashes.
 - Measure or derive sync and timing values. Don't ask Erik to tune them by ear.
 - Visualizers are additive: add new ones as pages of the card, never replace or delete one.
-- Don't recolour or resize the terminal app's ASCII logo without asking.
+- Don't recolor or resize the terminal app's ASCII logo without asking.
 - Each release gets notes at `apple/release-notes/<version>.md`.
 - Marketing material stays out of this public repo.
 

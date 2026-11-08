@@ -4296,7 +4296,7 @@ pub fn settings_panel<'a>(
     // ── HVSC sync ───────────────────────────────────────────────
     let hvsc_color = if hvsc_sync_status.contains("Error")
         || hvsc_sync_status.contains("fail")
-        || hvsc_sync_status.contains("Cancelled")
+        || hvsc_sync_status.contains("Canceled")
     {
         Color::from_rgb(1.0, 0.4, 0.4)
     } else if hvsc_sync_status.contains("Done") || hvsc_sync_status.contains("Last synced") {

@@ -969,7 +969,7 @@ impl App {
         self.status.as_ref().is_some_and(|s| s.state == "playing")
     }
 
-    /// How far into the tune, carried on between the app's less frequent answers.
+    /// How far into the tune, continued between the app's less frequent answers.
     fn elapsed(&self) -> f64 {
         let Some(status) = self.status.as_ref() else { return 0.0 };
         let since = match (self.is_playing(), self.now, self.status_at) {
@@ -3197,7 +3197,7 @@ fn help_lines(scheme: KeyScheme) -> [(&'static str, &'static str); 21] {
         (pick("Tab  ← →", "Tab  h l", "Tab  ⌃B ⌃F"), "Sidebar or list"),
         ("↵", "Open, or play from here"),
         (pick("/", "/", "/  ⌃S"), "Search the collection"),
-        ("p", "Pause or carry on"),
+        ("p", "Pause or resume"),
         (". ,", "Next or previous tune"),
         ("r  S  T", "Surprise Me; Home: shuffle, Top 100"),
         ("␣", "Mark a tune"),
@@ -3212,7 +3212,7 @@ fn help_lines(scheme: KeyScheme) -> [(&'static str, &'static str); 21] {
         ("s", "Show in the Resonance window"),
         ("v  u", "Visuals, or Under the hood: the tracker"),
         ("?  c", "This help, or the credits"),
-        ("q", "Quit; the music carries on"),
+        ("q", "Quit; the music plays on"),
     ]
 }
 
@@ -4299,11 +4299,11 @@ mod tests {
         let mut app = app_with(KeyScheme::Emacs);
         press(&mut app, KeyCode::Char('?'));
         let small = screen_of(&app, 80, 24);
-        assert!(small.contains("Quit; the music carries on") && !small.contains("Reading a fingerprint"), "{small}");
+        assert!(small.contains("Quit; the music plays on") && !small.contains("Reading a fingerprint"), "{small}");
         let tall = screen_of(&app, 80, 42);
         assert!(tall.contains("Reading a fingerprint") && tall.contains("Ring modulation"), "{tall}");
         let wide = screen_of(&app, 120, 30);
-        assert!(wide.contains("Reading a fingerprint") && wide.contains("Quit; the music carries on"), "{wide}");
+        assert!(wide.contains("Reading a fingerprint") && wide.contains("Quit; the music plays on"), "{wide}");
     }
 
     #[test]

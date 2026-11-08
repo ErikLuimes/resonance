@@ -112,7 +112,7 @@ struct PlayPlaylistIntent: AudioPlaybackIntent {
 
 struct PlayPauseIntent: AudioPlaybackIntent {
     static let title: LocalizedStringResource = "Play or Pause"
-    static let description = IntentDescription("Pauses Resonance, or carries on playing.")
+    static let description = IntentDescription("Pauses Resonance, or resumes playing.")
 
     @Dependency private var player: PlayerStore
 

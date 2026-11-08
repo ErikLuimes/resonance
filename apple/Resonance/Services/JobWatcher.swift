@@ -45,8 +45,7 @@ enum JobNotice: Equatable {
 /// while being watched, so launching never announces an old result.
 struct JobNotices {
     /// The core's error for a download someone stopped themselves.
-    /// Spelled as src/hvsc_sync.rs reports it, so it stays British.
-    static let canceled = "Cancelled"
+    static let canceled = "Canceled"
     /// Subtunes left for a scan to be worth a notice or a permission prompt:
     /// a new HVSC release's few hundred pass unremarked.
     static let longScan = 1000

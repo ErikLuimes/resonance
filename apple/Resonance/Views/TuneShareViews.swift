@@ -49,7 +49,7 @@ private struct SharePopover: View {
                     .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 6))
-                Text("People with Resonance open it straight in the app; others see the tune's card and a download link.")
+                Text("People with Resonance open it right in the app; others see the tune's card and a download link.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -285,7 +285,7 @@ struct SharedTuneSheet: View {
                 Button("Close") { dismiss() }
                     .keyboardShortcut(.cancelAction)
             }
-            Text("The download carries on if you close this; open the link again when it's done.")
+            Text("The download continues if you close this; open the link again when it's done.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

@@ -221,7 +221,7 @@ private struct PlaybackSettings: View {
         } header: {
             Text("Tunes")
         } footer: {
-            Text("Resonance works out the length of tunes missing from the Songlengths database by itself, in the background. The default length is used until then, and for tunes it can't work out. 0 means play until silence.")
+            Text("Resonance figures out the length of tunes missing from the Songlengths database by itself, in the background. The default length is used until then, and for tunes it can't figure out. 0 means play until silence.")
         }
 
         Section {
@@ -1204,7 +1204,8 @@ private struct UpdateSettings: View {
         return Self.dateFormatter.string(from: date)
     }
 
-    /// "Today at 14:02", "Yesterday at 09:15", "3 Nov 2026 at 21:40".
+    /// "Today at 2:02 PM", "Yesterday at 9:15 AM", "Nov 3, 2026 at 9:40 PM", or
+    /// however the person's Mac writes dates.
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium

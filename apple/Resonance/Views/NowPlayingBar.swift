@@ -5,7 +5,7 @@ import STILKit
 
 /// Transport, progress, subtunes and volume in a floating glass bar.
 ///
-/// The bar adapts to the width it's given, never the other way round: its
+/// The bar adapts to the width it's given, never the other way around: its
 /// minimum width is pinned to zero so the playlist column's minimum can't
 /// depend on what the bar shows. (When the subtune stepper appeared while the
 /// inspector was open, the bar's rigid minimum exceeded the column and the
@@ -355,8 +355,8 @@ private struct ProgressRow: View {
     }
 
     private var lengthHelp: String {
-        if duration == nil { return String(localized: "This tune isn't in HVSC's song lengths, and Resonance hasn't worked its length out yet.") }
-        return durationIsEstimate ? String(localized: "This tune isn't in HVSC's song lengths. Resonance worked this length out by running the tune, so it may be off.") : ""
+        if duration == nil { return String(localized: "This tune isn't in HVSC's song lengths, and Resonance hasn't figured out its length yet.") }
+        return durationIsEstimate ? String(localized: "This tune isn't in HVSC's song lengths. Resonance figured out this length by running the tune, so it may be off.") : ""
     }
 
     private func format(_ t: TimeInterval) -> String {

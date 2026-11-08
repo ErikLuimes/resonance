@@ -64,7 +64,7 @@ enum OnboardingStep: String, CaseIterable, Identifiable {
     var note: String? {
         switch self {
         case .collection:
-            String(localized: "About 81 MB to download and 460 MB on disk. It keeps going while you carry on.")
+            String(localized: "About 81 MB to download and 460 MB on disk. It keeps going in the background.")
 #if CSDB
         case .scene:
             String(localized: "Resonance would contact csdb.dk, a site we don't run: to fetch the news, look up composers you open, and download CSDb tunes you play. If you say no, it never does. You can change this in Settings.")

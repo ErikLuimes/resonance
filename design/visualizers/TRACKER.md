@@ -47,7 +47,7 @@ is one, with 99% of its notes on that grid.
 appear as several here, and pulse width isn't part of it. Effects are inferred: arpeggio is big
 steps coming back, vibrato is small moves crossing their middle, slide is steady in one direction.
 A multi-SID tune shows one chip at a time in the tracker, with a picker, as each chip gets its own
-rebuild and their rows needn't line up. Registers, Sweeps and Pitch Trail show every chip at once:
+rebuild and their rows don't need to line up. Registers, Sweeps and Pitch Trail show every chip at once:
 a line per voice, a column per chip and a band per chip. With no room for that they collapse to the
 chosen chip, and the picker comes back.
 

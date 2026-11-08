@@ -396,7 +396,7 @@
     "**Bars**: each voice's level, with peak hold." : {
 
     },
-    "**Color**: here the colors mean something else than on the barcode. Each point takes one of the chip's waveforms, in proportion to how much the tune uses it: green for triangle, violet for saw, cyan for pulse and orange for noise. The hover card's Waveform Mix bar shows the same shares in numbers." : {
+    "**Color**: here the colors mean something different than they do on the barcode. Each point takes one of the chip's waveforms, in proportion to how much the tune uses it: green for triangle, violet for saw, cyan for pulse and orange for noise. The hover card's Waveform Mix bar shows the same shares in numbers." : {
 
     },
     "**Curated Playlists**: HVSC's own lists, from the Top 100 to the Grand Tour." : {
@@ -576,9 +576,6 @@
     "30 Min" : {
 
     },
-    "A Commodore 1702 monitor" : {
-
-    },
     "A SID tune is a little C64 program, so there's nothing to jump to: to reach a point, Resonance runs the tune there silently at full speed, about a second per minute of tune on reSIDfp and faster on SIDLite direct. The bar shows the new position right away; the sound follows." : {
 
     },
@@ -621,7 +618,7 @@
     "About %lld minutes" : {
 
     },
-    "About 81 MB to download and 460 MB on disk. It keeps going while you carry on." : {
+    "About 81 MB to download and 460 MB on disk. It keeps going in the background." : {
 
     },
     "About Resonance" : {
@@ -1732,7 +1729,7 @@
     "If Resonance is in the background when a download or a long scan ends, or a download fails, it sends a notification. Clicking a download's opens the HVSC Home, and a failed one also offers Retry. Resonance asks for permission the first time; change your mind in System Settings → Notifications." : {
 
     },
-    "If your collection is older and doesn't have it, Resonance offers the HVSC update. With no collection yet, it offers the download. The download carries on if you close the sheet; open the link again when it's done." : {
+    "If your collection is older and doesn't have it, Resonance offers the HVSC update. With no collection yet, it offers the download. The download continues if you close the sheet; open the link again when it's done." : {
 
     },
     "In Finder, select a SID file and press Space to see its title, composer, release and subtunes." : {
@@ -1886,7 +1883,7 @@
     "Length" : {
 
     },
-    "Length, worked out by Resonance: this tune isn't in HVSC's song lengths" : {
+    "Length, figured out by Resonance: this tune isn't in HVSC's song lengths" : {
 
     },
     "Less than a minute left" : {
@@ -1995,7 +1992,7 @@
         }
       }
     },
-    "Most scales top out around where HVSC's busiest tunes sit, so a full bar means “about as much as tunes get”, not 100% of anything. Only a few tunes go past the top, and they stay at full height." : {
+    "Most scales top out around where HVSC's busiest tunes sit, so a full bar means “about as much as tunes get,” not 100% of anything. Only a few tunes go past the top, and they stay at full height." : {
 
     },
     "Mostly %@" : {
@@ -2083,7 +2080,7 @@
     "New Playlist “%@”" : {
 
     },
-    "New features a little early, and finished releases too. Expect the odd rough edge." : {
+    "New features a little early, and finished releases too. Expect some rough edges." : {
 
     },
     "New to Me" : {
@@ -2415,13 +2412,13 @@
     "Paused" : {
 
     },
-    "Pauses Resonance, or carries on playing." : {
+    "Pauses Resonance, or resumes playing." : {
 
     },
     "Pauses the tune, or plays it again. Works everywhere except while you're typing." : {
 
     },
-    "People with Resonance open it straight in the app; others see the tune's card and a download link." : {
+    "People with Resonance open it right in the app; others see the tune's card and a download link." : {
 
     },
     "People without Resonance see the tune's card and a download link." : {
@@ -2569,7 +2566,7 @@
     "Press **c** outside the music, or run **resonance credits**. They close by themselves, or with **Esc**." : {
 
     },
-    "Press **v** for the music, set out like Now Playing in the app. The picker and the keys go after three seconds without a key press. **v** steps through the views, or go straight to one:" : {
+    "Press **v** for the music, laid out like Now Playing in the app. The picker and the keys disappear after three seconds without a key press. **v** steps through the views, or go straight to one:" : {
 
     },
     "Press **⇧⌘F**, or click the tune's title or the button at the right end of the bar at the bottom of the window, and Now Playing slides up over the library: the tune, its composer, where it's playing from, and a large visualizer driven by the SID chip's own registers." : {
@@ -2824,6 +2821,9 @@
     "Resonance doesn't have the HVSC collection yet." : {
 
     },
+    "Resonance figures out the length of tunes missing from the Songlengths database by itself, in the background. The default length is used until then, and for tunes it can't figure out. 0 means play until silence." : {
+
+    },
     "Resonance hasn't fingerprinted this tune yet." : {
 
     },
@@ -2861,9 +2861,6 @@
 
     },
     "Resonance shows what's playing in Control Center, with the tune's fingerprint sphere as its picture, or its composer's colors before it's scanned, and answers your keyboard's play, next and previous keys. Control Center's position slider and its 15-second skips work too." : {
-
-    },
-    "Resonance works out the length of tunes missing from the Songlengths database by itself, in the background. The default length is used until then, and for tunes it can't work out. 0 means play until silence." : {
 
     },
     "Resonance would contact csdb.dk, a site we don't run: to fetch the news, look up composers you open, and download CSDb tunes you play. If you say no, it never does. You can change this in Settings." : {
@@ -3244,7 +3241,7 @@
         }
       }
     },
-    "Song lengths come from HVSC's Songlengths database. For tunes it doesn't know, such as ones from outside HVSC, Resonance works the length out in the background by running the tune and listening for it to end or start over; those lengths show with a ~ and can be off. Until then, or if it can't tell, a tune plays for the default song length in Settings → Playback. Some tunes sound different on another engine: try switching between reSIDfp and SIDLite direct." : {
+    "Song lengths come from HVSC's Songlengths database. For tunes it doesn't know, such as ones from outside HVSC, Resonance figures out the length in the background by running the tune and listening for it to end or start over; those lengths show with a ~ and can be off. Until then, or if it can't tell, a tune plays for the default song length in Settings → Playback. Some tunes sound different on another engine: try switching between reSIDfp and SIDLite direct." : {
 
     },
     "Songs" : {
@@ -3454,7 +3451,7 @@
     "The High Voltage SID Collection — every well-kept C64 SID in one complete, documented archive. Download it to browse by composer, search, and play." : {
 
     },
-    "The Playback menu has Repeat and Shuffle Collection besides. Your keyboard's media keys work too." : {
+    "The Playback menu also has Repeat and Shuffle Collection. Your keyboard's media keys work too." : {
 
     },
     "The SID chip has three voices, and every visualizer shows all three, each in its own color. They're drawn from the chip's registers as the tune plays, so what you see is what the chip is doing." : {
@@ -3481,7 +3478,7 @@
     "The barcode" : {
 
     },
-    "The barcode and the sphere show only part of what Sounds Like compares: 41 measurements of how a tune drives the chip, and an embedding of its sound. Two tunes can look alike and still not be close matches, or the other way round. The percentage on a match is the better guide." : {
+    "The barcode and the sphere show only part of what Sounds Like compares: 41 measurements of how a tune drives the chip, and an embedding of its sound. Two tunes can look alike and still not be close matches, or the other way around. The percentage on a match is the better guide." : {
 
     },
     "The card at the top of the inspector has three pages. Swipe between them on a trackpad, or click the dots along its bottom edge; Resonance remembers the last one." : {
@@ -3508,7 +3505,7 @@
     "The dark side: saber red" : {
 
     },
-    "The download carries on if you close this; open the link again when it's done." : {
+    "The download continues if you close this; open the link again when it's done." : {
 
     },
     "The download stopped: %@" : {
@@ -3556,7 +3553,7 @@
     "The playlist moves to the Trash. Its tunes stay where they are." : {
 
     },
-    "The rainbow badge on a breadbin" : {
+    "The rainbow badge on a breadbox" : {
 
     },
     "The release you have, updates, and downloading the collection again to restore missing or damaged files." : {
@@ -3629,10 +3626,10 @@
         }
       }
     },
-    "This tune isn't in HVSC's song lengths, and Resonance hasn't worked its length out yet." : {
+    "This tune isn't in HVSC's song lengths, and Resonance hasn't figured out its length yet." : {
 
     },
-    "This tune isn't in HVSC's song lengths. Resonance worked this length out by running the tune, so it may be off." : {
+    "This tune isn't in HVSC's song lengths. Resonance figured out this length by running the tune, so it may be off." : {
 
     },
     "This tune isn't in your HVSC %@. HVSC %lld should have it." : {

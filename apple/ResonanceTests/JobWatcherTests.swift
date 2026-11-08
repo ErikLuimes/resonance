@@ -37,7 +37,7 @@ struct JobWatcherTests {
     /// The person who canceled it knows.
     @Test func aCanceledDownloadIsQuiet() {
         // What src/hvsc_sync.rs reports, word for word.
-        #expect(JobNotices.canceled == "Cancelled")
+        #expect(JobNotices.canceled == "Canceled")
         var notices = JobNotices()
         _ = notices.observe(sync: sync(running: true), scan: nil, release: nil)
         #expect(notices.observe(sync: sync(running: false, error: JobNotices.canceled), scan: nil, release: nil).isEmpty)

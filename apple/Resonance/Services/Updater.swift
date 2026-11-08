@@ -144,7 +144,7 @@ nonisolated enum UpdateChannel: String, CaseIterable, Identifiable {
     var summary: String {
         switch self {
         case .stable: String(localized: "Finished releases only. If you've been testing, you'll keep this version until a newer stable release arrives.")
-        case .beta: String(localized: "New features a little early, and finished releases too. Expect the odd rough edge.")
+        case .beta: String(localized: "New features a little early, and finished releases too. Expect some rough edges.")
         case .alpha: String(localized: "The newest builds, as soon as they're ready, plus betas and finished releases. Things may break or change.")
         }
     }

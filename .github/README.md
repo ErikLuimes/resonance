@@ -92,7 +92,7 @@ is played.
 - **A player in the menu bar.** Click the icon, or press <kbd>⌃</kbd> <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>P</kbd>
   in any app: the tune and its voices, the heart, the controls, what's next in the list
   it plays from, Surprise Me and Add to…. Close the window and the music plays on.
-- **A proper Mac app.** Now Playing in Control Center, with its position slider and 15-second
+- **A real Mac app.** Now Playing in Control Center, with its position slider and 15-second
   skips, your keyboard's media keys, a Playback menu with shortcuts, and drag and drop for SID
   files, folders and M3U playlists.
 
