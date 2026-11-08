@@ -767,7 +767,7 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
           </details>
           <details>
             <summary>Where does it keep my playlists and settings?</summary>
-            <p>Your playlists are M3U files in <code>~/Library/Application Support/Resonance/Playlists</code>, My Playlist is <code>session.m3u</code> next to them, and your favourites, play history and sound fingerprints are in the same folder. Settings live in Resonance's own preferences.</p>
+            <p>Resonance runs in the App Sandbox, so it keeps everything in its own container. Your playlists are M3U files in <code>~/Library/Containers/<wbr>app.useresonance.resonance/<wbr>Data/Library/<wbr>Application Support/<wbr>Resonance/Playlists</code>, My Playlist is <code>session.m3u</code> next to them, and your favourites, play history and sound fingerprints are in the same folder. Settings live in Resonance's own preferences. Versions before 0.1.0-alpha.6 used <code>~/Library/Application Support/Resonance</code>, which the sandboxed app can't see; to reuse the HVSC copy there, choose its folder in Settings → HVSC.</p>
           </details>
           <details>
             <summary>How long does fingerprinting take?</summary>
