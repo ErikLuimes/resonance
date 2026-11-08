@@ -25,6 +25,9 @@ struct SettingsView: View {
                     }
                 }
             }
+            // The frame sets the width: the split view alone gives this column
+            // 144 points, too narrow for "Storage and Reset".
+            .frame(width: 200)
             .navigationSplitViewColumnWidth(200)
             .toolbar(removing: .sidebarToggle)
         } detail: {
@@ -39,7 +42,7 @@ struct SettingsView: View {
             .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .navigationTitle("Settings")
-        .frame(width: 740, height: 580)
+        .frame(width: 796, height: 580)
     }
 
     @ViewBuilder private var pageContent: some View {
