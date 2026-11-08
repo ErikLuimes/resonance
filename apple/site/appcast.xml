@@ -3,6 +3,39 @@
     <channel>
         <title>Resonance</title>
         <item>
+            <title>0.1.0-alpha.6</title>
+            <pubDate>Sun, 08 Nov 2026 03:35:24 +0100</pubDate>
+            <sparkle:version>6</sparkle:version>
+            <sparkle:shortVersionString>0.1.0-alpha.6</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>27.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[## A fresh start
+
+This version is signed and notarized by Apple, so it opens like any other app, without a trip to Privacy & Security. It also runs in the App Sandbox, macOS's safe room for apps, and that means a fresh start: Resonance opens on Welcome again and doesn't see your old favourites, playlists or settings. Your earlier files are still in ~/Library/Application Support/Resonance. To keep the collection you already have, choose its HVSC folder there when Welcome asks, instead of downloading it again.
+
+## Smart Playlists
+
+Say what you'd like to hear, in your own words, and Resonance builds a playlist from all of HVSC by how each tune actually sounds.
+
+## Resonance, from anywhere on your Mac
+
+- Siri and Shortcuts: “Surprise me”, “Play something like this”, “Drift from this tune”, “Favourite this tune” and “Play Favourites”.
+- Spotlight finds the collection's tunes, and in Finder Space shows a SID file's title, composer and release.
+- The Dock icon shows a download's or scan's progress, and its menu has the controls. When Resonance is in the background, a finished download tells you.
+- The `resonance` command and its terminal app: playlists, search, Sounds Like, the tracker and full-screen visuals. Assistants such as Claude can use it too. Install it from Settings → Integrations.
+- A shared tune link now opens Resonance directly.
+
+## And more
+
+- Search is a place of its own: type from anywhere.
+- Under the Hood (⌥⌘U) slides up the tracker, registers and sweeps, every chip at once for multi-SID tunes.
+- Tunes outside HVSC get their length worked out, shown with a ~.
+- Now Playing shows the tune's fingerprint sphere.
+- Press ? for the keyboard shortcuts, with Vim and Emacs keys in Settings.
+- New credits: About Resonance → Credits.
+]]></description>
+            <enclosure url="https://github.com/ErikLuimes/resonance/releases/download/v0.1.0-alpha.6/Resonance-0.1.0-alpha.6.dmg" length="13733682" type="application/octet-stream" sparkle:edSignature="mW4trkJsRQiCIQaNoBp656tBuO6Guhd+5aQiQikp/XCFWTOqaRSriDKBcownqQ/ewAxOeVynhA+77+tZSc75Aw=="/>
+        </item>
+        <item>
             <title>0.1.0-alpha.5</title>
             <pubDate>Thu, 05 Nov 2026 21:08:27 +0100</pubDate>
             <sparkle:version>5</sparkle:version>
