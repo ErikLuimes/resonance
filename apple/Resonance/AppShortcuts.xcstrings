@@ -1,0 +1,75 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Drift from this tune in ${applicationName}" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringSet" : {
+            "state" : "new",
+            "values" : [
+              "Drift from this tune in ${applicationName}",
+              "Start a drift in ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "Favorite this tune in ${applicationName}" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringSet" : {
+            "state" : "new",
+            "values" : [
+              "Favorite this tune in ${applicationName}",
+              "Add this to my favorites in ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "Play ${playlist} in ${applicationName}" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringSet" : {
+            "state" : "new",
+            "values" : [
+              "Play ${playlist} in ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "Play something like this in ${applicationName}" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringSet" : {
+            "state" : "new",
+            "values" : [
+              "Play something like this in ${applicationName}",
+              "More like this in ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "Surprise me in ${applicationName}" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringSet" : {
+            "state" : "new",
+            "values" : [
+              "Surprise me in ${applicationName}",
+              "Play something random in ${applicationName}"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

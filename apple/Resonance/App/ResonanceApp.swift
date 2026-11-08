@@ -43,8 +43,8 @@ struct ResonanceApp: App {
         // Opened from the app menu only, not listed in the Window menu.
         .commandsRemoved()
 
-        Window("Acknowledgements", id: AcknowledgementsView.windowID) {
-            AcknowledgementsView()
+        Window("Acknowledgments", id: AcknowledgmentsView.windowID) {
+            AcknowledgmentsView()
         }
         .defaultSize(width: 640, height: 640)
         .restorationBehavior(.disabled)

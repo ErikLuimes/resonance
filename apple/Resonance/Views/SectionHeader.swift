@@ -89,9 +89,9 @@ struct SectionHeader: View {
                 YearChart(years: facts.years, summary: facts.busiestText ?? "")
             }
             Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 4) {
-                headerFact("Playing time", facts.playingTime)
-                headerFact("HVSC notes", facts.notes)
-                headerFact("No exact year", facts.withoutExactYear)
+                headerFact(String(localized: "Playing time"), facts.playingTime)
+                headerFact(String(localized: "HVSC notes"), facts.notes)
+                headerFact(String(localized: "No exact year"), facts.withoutExactYear)
             }
         }
         .font(.callout)
@@ -105,13 +105,13 @@ struct SectionHeader: View {
         case .sound:
             SoundSharesCard(shares: shares, scanned: scanned, tunes: rows.count)
         case .longest:
-            tuneList("Longest Tunes", facts.longest) { $0.lengthText }
+            tuneList(String(localized: "Longest Tunes"), facts.longest) { $0.lengthText }
         case .oldest:
-            tuneList("Oldest Tunes", facts.oldest, detail: yearAndReleaser)
+            tuneList(String(localized: "Oldest Tunes"), facts.oldest, detail: yearAndReleaser)
         case .newest:
-            tuneList("Newest Tunes", facts.newest, detail: yearAndReleaser)
+            tuneList(String(localized: "Newest Tunes"), facts.newest, detail: yearAndReleaser)
         case .releasers:
-            HeaderCard("Released Most By") {
+            HeaderCard(String(localized: "Released Most By")) {
                 ScrollView(.vertical) {
                     VStack(alignment: .leading, spacing: 4) {
                         ForEach(facts.releasers, id: \.name) { releaser in
@@ -199,8 +199,8 @@ struct SoundShareRow: View {
 
     private var accessibilityText: String {
         let here = share.share.formatted(.percent.precision(.fractionLength(0)))
-        guard let overall = share.overall else { return "\(share.tag.name): \(here) of tunes" }
-        return "\(share.tag.name): \(here) of tunes, against \(overall.formatted(.percent.precision(.fractionLength(0)))) across HVSC"
+        guard let overall = share.overall else { return String(localized: "\(share.tag.name): \(here) of tunes") }
+        return String(localized: "\(share.tag.name): \(here) of tunes, against \(overall.formatted(.percent.precision(.fractionLength(0)))) across HVSC")
     }
 }
 
@@ -279,6 +279,6 @@ struct YearChart: View {
 
     private var accessibilityText: String {
         guard let first = years.first, let last = years.last else { return summary }
-        return "Tunes per year from \(first.year) to \(last.year). \(summary)"
+        return String(localized: "Tunes per year from \(String(first.year)) to \(String(last.year)). \(summary)")
     }
 }

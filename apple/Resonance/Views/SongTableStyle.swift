@@ -1,12 +1,12 @@
 import AppKit
 import SwiftUI
 
-/// The selection in song tables: the accent colour while the table is active,
+/// The selection in song tables: the accent color while the table is active,
 /// and the sidebar's quiet gray when it isn't. SwiftUI's `Table` has no setting
 /// for it, so this takes over where the row view draws it
 /// (`NSTableRowView.drawSelection(in:)`, swapped at launch). Other lists keep
 /// the system's. The row playing gets a faint wash of the accent, drawn the
-/// same way: a cell can't colour its whole row.
+/// same way: a cell can't color its whole row.
 ///
 /// It also makes a click on a row activate the table. A row's cells take the
 /// click themselves: the row gets selected, but the table only became active
@@ -77,7 +77,7 @@ enum SongTableStyle {
     /// As the system insets its own selection in an inset table.
     fileprivate static let inset: CGFloat = 10
     fileprivate static let radius: CGFloat = 6
-    /// As the sidebar's selected row looks: a wash of the text colour.
+    /// As the sidebar's selected row looks: a wash of the text color.
     fileprivate static let inactiveOpacity: CGFloat = 0.15
     fileprivate static let playingOpacity: CGFloat = 0.16
 }
@@ -127,7 +127,7 @@ extension NSTableRowView {
             return
         }
         (isEmphasized ? NSColor.controlAccentColor : NSColor.labelColor.withAlphaComponent(SongTableStyle.inactiveOpacity)).setFill()
-        // Selected neighbours join up: the rounded end goes past the row,
+        // Selected neighbors join up: the rounded end goes past the row,
         // where the clip cuts it off.
         var shape = bounds.insetBy(dx: SongTableStyle.inset, dy: 0)
         let reach = SongTableStyle.radius

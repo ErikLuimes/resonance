@@ -93,19 +93,19 @@ nonisolated enum SettingsPage: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .updates: "Updates"
-        case .general: "General"
-        case .appearance: "Appearance"
-        case .engine: "Engine"
-        case .playback: "Playback"
-        case .collection: "Collection"
-        case .fingerprints: "Fingerprints"
-        case .history: "History"
+        case .updates: String(localized: "Updates")
+        case .general: String(localized: "General")
+        case .appearance: String(localized: "Appearance")
+        case .engine: String(localized: "Engine")
+        case .playback: String(localized: "Playback")
+        case .collection: String(localized: "Collection")
+        case .fingerprints: String(localized: "Fingerprints")
+        case .history: String(localized: "History")
 #if CSDB
         case .csdb: "CSDb"
 #endif
-        case .integrations: "Integrations"
-        case .storage: "Storage and Reset"
+        case .integrations: String(localized: "Integrations")
+        case .storage: String(localized: "Storage and Reset")
         }
     }
 
@@ -140,9 +140,9 @@ nonisolated enum SettingsPage: String, CaseIterable, Identifiable {
 #endif
         return [
             Group(title: "Resonance", pages: [.updates, .general, .appearance]),
-            Group(title: "Sound", pages: [.engine, .playback]),
-            Group(title: "Library", pages: library),
-            Group(title: "Your Mac", pages: [.integrations, .storage]),
+            Group(title: String(localized: "Sound"), pages: [.engine, .playback]),
+            Group(title: String(localized: "Library"), pages: library),
+            Group(title: String(localized: "Your Mac"), pages: [.integrations, .storage]),
         ]
     }
 }
@@ -155,9 +155,9 @@ nonisolated enum AppAppearance: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .light: "Light"
-        case .dark: "Dark"
-        case .auto: "Auto"
+        case .light: String(localized: "Light")
+        case .dark: String(localized: "Dark")
+        case .auto: String(localized: "Auto")
         }
     }
 
@@ -175,7 +175,7 @@ nonisolated enum AppAppearance: String, CaseIterable, Identifiable {
     }
 
     /// For every window, panel and dialog of the app at once. Views made to
-    /// stay dark, such as Now Playing, set their own colour scheme.
+    /// stay dark, such as Now Playing, set their own color scheme.
     @MainActor func apply() {
         NSApp.appearance = appearanceName.flatMap(NSAppearance.init(named:))
     }
@@ -296,7 +296,7 @@ private struct CollectionSettings: View {
     var body: some View {
         Section {
             LabeledContent("Collection folder") {
-                Text(store.hvscRoot.map { RealHome.displayPath($0) } ?? "Not set")
+                Text(store.hvscRoot.map { RealHome.displayPath($0) } ?? String(localized: "Not set"))
                     .foregroundStyle(store.hvscRoot == nil ? .secondary : .primary)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -385,7 +385,7 @@ private struct UpdateRow: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .help(error)
-                    AccentLink("Try Again") { Task { await store.checkHvscUpdate() } }
+                    AccentLink(String(localized: "Try Again")) { Task { await store.checkHvscUpdate() } }
                 } else if store.hvscUpdateAvailable, let latest = store.latestHvsc {
                     if store.hvscSync?.running != true {
                         Button("Update to HVSC \(latest)") { store.startHvscSync() }
@@ -393,9 +393,9 @@ private struct UpdateRow: View {
                 } else if store.latestHvsc != nil {
                     Text("Up to date")
                         .foregroundStyle(.secondary)
-                    AccentLink("Check Again") { Task { await store.checkHvscUpdate() } }
+                    AccentLink(String(localized: "Check Again")) { Task { await store.checkHvscUpdate() } }
                 } else {
-                    AccentLink("Check for Update") { Task { await store.checkHvscUpdate() } }
+                    AccentLink(String(localized: "Check for Update")) { Task { await store.checkHvscUpdate() } }
                 }
             }
         }
@@ -429,7 +429,7 @@ private struct FingerprintSettings: View {
                 }
                 if status.failed > 0 {
                     LabeledContent("Couldn't scan \(status.failed.formatted()) tunes") {
-                        AccentLink("Retry") { Task { await fingerprints.retryFailed() } }
+                        AccentLink(String(localized: "Retry")) { Task { await fingerprints.retryFailed() } }
                     }
                 }
                 if let error = status.error {
@@ -437,7 +437,7 @@ private struct FingerprintSettings: View {
                         .foregroundStyle(.red)
                 }
             } else {
-                LabeledContent("Fingerprinted", value: "Starting…")
+                LabeledContent("Fingerprinted", value: String(localized: "Starting…"))
             }
             // Its own row: the scan runs for hours, so starting and pausing
             // it shouldn't hide among the database controls.
@@ -499,23 +499,23 @@ private struct FingerprintSettings: View {
 
     /// What the scan is doing, next to its button.
     private var scanState: String {
-        if fingerprints.status?.finished == true { return "Finished" }
-        if fingerprints.paused { return "Paused" }
-        return fingerprints.status?.running == true ? "In the background" : "Starting…"
+        if fingerprints.status?.finished == true { return String(localized: "Finished") }
+        if fingerprints.paused { return String(localized: "Paused") }
+        return fingerprints.status?.running == true ? String(localized: "In the background") : String(localized: "Starting…")
     }
 
     /// Start before anything has been scanned, Resume after, Pause while
     /// it runs. Pausing holds its place, also across launches.
     private var scanButton: String {
-        guard fingerprints.paused else { return "Pause" }
-        return (fingerprints.status?.done ?? 0) == 0 ? "Start" : "Resume"
+        guard fingerprints.paused else { return String(localized: "Pause") }
+        return (fingerprints.status?.done ?? 0) == 0 ? String(localized: "Start") : String(localized: "Resume")
     }
 
     /// "About 1 hour, 20 minutes left".
     private static func timeLeft(_ remaining: Duration) -> String {
-        guard remaining >= .seconds(60) else { return "Less than a minute left" }
+        guard remaining >= .seconds(60) else { return String(localized: "Less than a minute left") }
         let units: Set<Duration.UnitsFormatStyle.Unit> = remaining >= .seconds(3600) ? [.hours, .minutes] : [.minutes]
-        return "About \(remaining.formatted(.units(allowed: units, width: .wide))) left"
+        return String(localized: "About \(remaining.formatted(.units(allowed: units, width: .wide))) left")
     }
 }
 
@@ -564,7 +564,7 @@ private struct HistorySettings: View {
 
     private static func tunes(_ count: Int?) -> String {
         guard let count else { return "…" }
-        return count == 1 ? "1 tune" : "\(count.formatted()) tunes"
+        return count == 1 ? String(localized: "1 tune") : String(localized: "\(count.formatted()) tunes")
     }
 }
 
@@ -577,15 +577,15 @@ private struct StorageSettings: View {
         Section {
             LabeledContent("Resonance's folder") {
                 HStack {
-                    Text(size.map { $0.formatted(.byteCount(style: .file)) } ?? "Measuring…")
+                    Text(size.map { $0.formatted(.byteCount(style: .file)) } ?? String(localized: "Measuring…"))
                         .foregroundStyle(.secondary)
-                    AccentLink("Show in Finder") { NSWorkspace.shared.open(AppPaths.supportDirectory) }
+                    AccentLink(String(localized: "Show in Finder")) { NSWorkspace.shared.open(AppPaths.supportDirectory) }
                 }
             }
         } header: {
             Text("Data Folder")
         } footer: {
-            Text("Resonance keeps its favourites, play history, playlists, fingerprints and, unless you choose another folder, HVSC in its own folder.")
+            Text("Resonance keeps its favorites, play history, playlists, fingerprints and, unless you choose another folder, HVSC in its own folder.")
         }
         .task {
             let url = AppPaths.supportDirectory
@@ -598,12 +598,12 @@ private struct StorageSettings: View {
 
 /// Puts a command on the clipboard and says so for a moment.
 private struct CopyCommandButton: View {
-    var title = "Copy Command"
+    var title = String(localized: "Copy Command")
     let command: String
     @State private var copied = false
 
     var body: some View {
-        Button(copied ? "Copied" : title) {
+        Button(copied ? String(localized: "Copied") : title) {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(command, forType: .string)
             copied = true
@@ -638,7 +638,7 @@ private struct CopyIconButton: View {
         .buttonStyle(.plain)
         .animation(.default, value: copied)
         .help(label)
-        .accessibilityLabel(copied ? "Copied" : label)
+        .accessibilityLabel(copied ? String(localized: "Copied") : label)
         .task(id: copied) {
             guard copied else { return }
             try? await Task.sleep(for: .seconds(2))
@@ -690,7 +690,7 @@ private struct IntegrationSettings: View {
             }
             if let folder = installed?.deletingLastPathComponent(), !CommandLineTool.isOnDefaultPath(folder) {
                 LabeledContent {
-                    CopyCommandButton(title: "Copy Line", command: CommandLineTool.pathCommand())
+                    CopyCommandButton(title: String(localized: "Copy Line"), command: CommandLineTool.pathCommand())
                 } label: {
                     Text("Add \(folder.path) to your PATH")
                     Text("Copies the line for your shell. Run it in a terminal, then open a new window. Running it again changes nothing.")
@@ -718,7 +718,7 @@ private struct IntegrationSettings: View {
 
         Section {
             LabeledContent {
-                AccentLink("Open Shortcuts") {
+                AccentLink(String(localized: "Open Shortcuts")) {
                     NSWorkspace.shared.open(URL(filePath: "/System/Applications/Shortcuts.app"))
                 }
             } label: {
@@ -726,7 +726,7 @@ private struct IntegrationSettings: View {
                 Text("“Surprise me in Resonance”")
             }
             LabeledContent {
-                AccentLink("System Settings") { Self.openSystemSettings("com.apple.Spotlight-Settings.extension") }
+                AccentLink(String(localized: "System Settings")) { Self.openSystemSettings("com.apple.Spotlight-Settings.extension") }
             } label: {
                 Text("Spotlight")
                 Text("Finds tunes by title and composer")
@@ -738,7 +738,7 @@ private struct IntegrationSettings: View {
                 Text("Press Space on a SID file in Finder")
             }
             LabeledContent {
-                AccentLink("System Settings") {
+                AccentLink(String(localized: "System Settings")) {
                     Self.openSystemSettings("com.apple.Notifications-Settings.extension?id=\(Bundle.main.bundleIdentifier ?? "")")
                 }
             } label: {
@@ -821,7 +821,7 @@ private struct ResetSettings: View {
                 }
             }
         } message: {
-            Text("Moves Resonance's folder to the Trash: your favourites, play history, playlists, fingerprints and its HVSC collection. Its settings are forgotten. Resonance then restarts, fresh.")
+            Text("Moves Resonance's folder to the Trash: your favorites, play history, playlists, fingerprints and its HVSC collection. Its settings are forgotten. Resonance then restarts, fresh.")
         }
     }
 
@@ -849,7 +849,7 @@ private struct ResetSettings: View {
             do {
                 try await action()
             } catch {
-                self.error = "Couldn't move it to the Trash: \(error.localizedDescription)"
+                self.error = String(localized: "Couldn't move it to the Trash: \(error.localizedDescription)")
             }
             working = false
         }
@@ -875,7 +875,7 @@ nonisolated enum DiskUsage {
     }
 }
 
-/// The visualizers' colour theme: a preset or your own colours, and whether
+/// The visualizers' color theme: a preset or your own colors, and whether
 /// its badge shows.
 #if CSDB
 private struct SceneSettings: View {
@@ -926,7 +926,7 @@ private struct StartPageSettings: View {
                  : "What Resonance shows when it opens.")
                 .foregroundStyle(.secondary)
 #else
-            Text("What Resonance shows when it opens.")
+            Text(String(localized: "What Resonance shows when it opens."))
                 .foregroundStyle(.secondary)
 #endif
         }
@@ -954,7 +954,7 @@ private struct MenuBarSettings: View {
         Section {
             Toggle("Show the player in the menu bar", isOn: $showsMenuBarPlayer)
         } footer: {
-            Text("What's playing, the controls, Favourite, Shuffle, Surprise Me and what plays next, from the menu bar, with the window closed too.")
+            Text("What's playing, the controls, Favorite, Shuffle, Surprise Me and what plays next, from the menu bar, with the window closed too.")
         }
     }
 }
@@ -1007,7 +1007,7 @@ private struct AppearanceChoice: View {
 }
 
 /// A small Resonance window with the icon's three bars, on a light or dark
-/// backdrop. Auto is half of each. Its colours are fixed, whatever the app's
+/// backdrop. Auto is half of each. Its colors are fixed, whatever the app's
 /// mode is, because it pictures the modes.
 private struct AppearanceThumbnail: View {
     let mode: AppAppearance
@@ -1072,7 +1072,7 @@ private struct ThemeSettings: View {
 
     var body: some View {
         Section {
-            Picker("Colours", selection: $themeID) {
+            Picker("Colors", selection: $themeID) {
                 ForEach(VoiceTheme.presets + [VoiceTheme.custom(from: customData)]) { theme in
                     row(theme).tag(theme.id)
                 }
@@ -1098,7 +1098,7 @@ private struct ThemeSettings: View {
         } header: {
             Text("Theme")
         } footer: {
-            Text("Colours the three voices in every visualizer. Buttons and links keep the system accent colour.")
+            Text("Colors the three voices in every visualizer. Buttons and links keep the system accent color.")
         }
     }
 
@@ -1160,7 +1160,7 @@ private struct UpdateSettings: View {
                 HStack {
                     Text(lastChecked)
                         .foregroundStyle(.secondary)
-                    AccentLink("Check Now") { updater.checkForUpdates() }
+                    AccentLink(String(localized: "Check Now")) { updater.checkForUpdates() }
                         .disabled(!updater.canCheckForUpdates)
                 }
             }
@@ -1187,7 +1187,7 @@ private struct UpdateSettings: View {
                 Text("Last update failed")
                     .fontWeight(.medium)
                 Spacer()
-                CopyIconButton(label: "Copy Details", text: failure.details)
+                CopyIconButton(label: String(localized: "Copy Details"), text: failure.details)
             }
             Text(failure.message)
                 .font(.callout)
@@ -1200,7 +1200,7 @@ private struct UpdateSettings: View {
     }
 
     private var lastChecked: String {
-        guard let date = updater.lastCheck else { return "Never" }
+        guard let date = updater.lastCheck else { return String(localized: "Never") }
         return Self.dateFormatter.string(from: date)
     }
 

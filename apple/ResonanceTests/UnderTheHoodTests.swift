@@ -153,7 +153,7 @@ struct UnderTheHoodTests {
     /// With `UNDER_THE_HOOD_RENDER` set to a folder, draws each view there to look at.
     @Test func renders() throws {
         guard let folder = ProcessInfo.processInfo.environment["UNDER_THE_HOOD_RENDER"] else { return }
-        let colours = VoiceTheme.resonance.voices.map(\.color)
+        let colors = VoiceTheme.resonance.voices.map(\.color)
         let frames = (0..<512).map { frame(UInt64($0 + 1), change: UInt8($0 % 3)) }
         let flash = RegisterFlash()
         flash.take(Array(frames.suffix(8)), chip: 0)
@@ -165,11 +165,11 @@ struct UnderTheHoodTests {
             let data = try #require(NSBitmapImageRep(data: image.tiffRepresentation ?? Data())?.representation(using: .png, properties: [:]))
             try data.write(to: URL(filePath: folder).appending(path: "\(name).png"))
         }
-        try save("tracker", TrackerPage(song: song(), tuneID: "a", row: 40, height: 500, width: 980, colours: colours))
+        try save("tracker", TrackerPage(song: song(), tuneID: "a", row: 40, height: 500, width: 980, colors: colors))
         try save("registers", RegistersCanvas(frame: frames.last, chip: 0, flash: flash))
         try save("registers-narrow", RegistersCanvas(frame: frames.last, chip: 0, flash: flash).frame(width: 500, height: 370))
-        try save("sweeps", SweepsCanvas(frames: frames, shown: [0], colours: colours))
-        try save("pitch", PitchCanvas(frames: Array(frames.suffix(256)), shown: [0], colours: colours))
+        try save("sweeps", SweepsCanvas(frames: frames, shown: [0], colors: colors))
+        try save("pitch", PitchCanvas(frames: Array(frames.suffix(256)), shown: [0], colors: colors))
         for chips in [2, 3] {
             let many = (0..<512).map { frame(UInt64($0 + 1), chips: chips) }
             let flashes = (0..<3).map { _ in RegisterFlash() }
@@ -178,8 +178,8 @@ struct UnderTheHoodTests {
             try save("registers-\(chips)", VoiceLines(frame: many.last, shown: all, flashes: flashes))
             try save("registers-\(chips)-collapsed", VoiceLines(frame: many.last, shown: [1], flashes: flashes))
             try save("registers-\(chips)-plain", VoiceLines(frame: many.last, shown: all, flashes: flashes).frame(width: 520, height: 500))
-            try save("sweeps-\(chips)", SweepsCanvas(frames: many, shown: all, colours: colours))
-            try save("pitch-\(chips)", PitchCanvas(frames: Array(many.suffix(256)), shown: all, colours: colours))
+            try save("sweeps-\(chips)", SweepsCanvas(frames: many, shown: all, colors: colors))
+            try save("pitch-\(chips)", PitchCanvas(frames: Array(many.suffix(256)), shown: all, colors: colors))
         }
     }
 }

@@ -2,12 +2,12 @@
 #include <SwiftUI/SwiftUI_Metal.h>
 using namespace metal;
 
-// The Halo (HaloView.swift): three glowing rings around the centre, one per
+// The Halo (HaloView.swift): three glowing rings around the center, one per
 // voice. `radii` holds each ring's radius at 256 angles from -pi, voice after
 // voice, in units of half the view's shorter side (HaloShape.swift);
 // `levels` each voice's envelope. Every pixel looks up its angle in each
 // ring and adds a thin line, a soft glow and a faint fill in that voice's
-// colour.
+// color.
 [[ stitchable ]] half4 halo(float2 position, half4 color, float2 size,
                             device const float *radii, int radiusCount,
                             device const float *levels, int levelCount,

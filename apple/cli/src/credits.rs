@@ -286,7 +286,7 @@ fn placed_stars(flight: f64, turn: f64, bank: f64) -> Vec<(f64, f64, f64)> {
     seen
 }
 
-/// Where each star ends up: on or inside a heart, x across, y up and z towards you. The
+/// Where each star ends up: on or inside a heart, x across, y up and z toward you. The
 /// same surface as the particle heart on backtostatic.com.
 static HEART_PLACES: LazyLock<Vec<V>> = LazyLock::new(|| {
     fn surface(x: f64, y: f64, z: f64) -> f64 {
@@ -421,7 +421,7 @@ fn drifted(place: &V, star: usize, seconds: f64) -> V {
     let n = star as f64;
     let speed = 0.25 + 1.0 * hash(n * 29.3 + 1.0);
     let moved = speed * since * since / (since + 0.8);
-    // Dead centre has no way out of its own, so it's given one.
+    // Dead center has no way out of its own, so it's given one.
     let (a, b) = (hash(n * 53.1) * std::f64::consts::TAU, hash(n * 11.7 + 2.0) * std::f64::consts::PI);
     let direction = if reach > 0.05 { [place[0] / reach, place[1] / reach, place[2] / reach] } else { [b.sin() * a.cos(), b.sin() * a.sin(), b.cos()] };
     [place[0] + direction[0] * moved, place[1] + direction[1] * moved, place[2] + direction[2] * moved]
@@ -529,7 +529,7 @@ fn letters(seconds: f64, flight: f64) -> Vec<Vec<Vec<(f64, f64)>>> {
             continue;
         }
         let Some(shapes) = bold_outline(*letter) else { continue };
-        // Out of step with their neighbours by a little, never by how far along the line.
+        // Out of step with their neighbors by a little, never by how far along the line.
         let spin = turned(seconds, SPIN_RATE, timing.letters_start) + spinning * ((i as f64) * 1.7).sin() * 0.7;
         let (cs, ss) = (spin.cos(), spin.sin());
         let base = add(side, along_line, along);
@@ -554,7 +554,7 @@ fn letters(seconds: f64, flight: f64) -> Vec<Vec<Vec<(f64, f64)>>> {
     seen
 }
 
-/// A letter's fill: one half-block pixel per half a cell, by whether its centre is inside.
+/// A letter's fill: one half-block pixel per half a cell, by whether its center is inside.
 fn fill(lit: &mut [bool], columns: usize, pixels: usize, shapes: &[Vec<(f64, f64)>]) {
     let mut crossings = Vec::new();
     for row in 0..pixels {
@@ -649,7 +649,7 @@ pub fn draw(buffer: &mut Buffer, area: Rect, seconds: f64, tune: Option<&Now>) {
 
     let mut star_cells = vec![0.0_f64; columns * picture_rows as usize];
     let ending = ending_from(tune);
-    // Fading, the characters stay and their grey goes down smoothly, so nothing goes grainy.
+    // Fading, the characters stay and their gray goes down smoothly, so nothing goes grainy.
     let fading = (seconds >= ending).then(|| heart_fade(seconds - ending));
     let shown = if seconds >= ending {
         heart_stars(seconds - ending, ending)
@@ -910,7 +910,7 @@ mod tests {
         speeds.sort_unstable();
         speeds.dedup();
         assert!(speeds.len() > 20, "each at its own speed: {}", speeds.len());
-        assert!(drifted(&[0.0, 0.0, 0.0], 3, 1.0).iter().any(|v| v.abs() > 0.0), "even dead centre");
+        assert!(drifted(&[0.0, 0.0, 0.0], 3, 1.0).iter().any(|v| v.abs() > 0.0), "even dead center");
     }
 
     #[test]

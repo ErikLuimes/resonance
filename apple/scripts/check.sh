@@ -21,6 +21,7 @@ case "${1:-}" in
 esac
 
 scripts/feature-flags.sh lint
+scripts/us-english.sh
 
 echo "Rust tests…"
 cargo test -p phosphor-apple
@@ -32,7 +33,7 @@ fi
 
 # An ad-hoc build of its own: in build/DD it would replace the signed Debug app,
 # and Siri, Shortcuts and Quick Look stop working on that copy. Unregistered
-# afterwards so the system doesn't pick its Quick Look extension over the real one.
+# afterward so the system doesn't pick its Quick Look extension over the real one.
 TEST_APP="$APPLE/build/DD-tests/Build/Products/Debug/Resonance.app"
 LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 trap '"$LSREGISTER" -u "$TEST_APP" 2>/dev/null || true' EXIT
@@ -41,5 +42,7 @@ echo "Swift tests…"
 xcodebuild test -quiet -project Resonance.xcodeproj -scheme Resonance \
     -destination 'platform=macOS,arch=arm64' -derivedDataPath build/DD-tests \
     CODE_SIGN_IDENTITY=-
+
+scripts/strings.sh check
 
 echo "All checks passed."

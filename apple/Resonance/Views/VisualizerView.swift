@@ -115,9 +115,9 @@ nonisolated enum VisualizerMode: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .scope: "Scope"
-        case .bars: "Bars"
-        case .envelope: "Envelope"
+        case .scope: String(localized: "Scope")
+        case .bars: String(localized: "Bars")
+        case .envelope: String(localized: "Envelope")
         }
     }
 }

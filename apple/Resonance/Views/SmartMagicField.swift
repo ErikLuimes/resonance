@@ -1,8 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// Describe's field, with room around it, and the theme's voice colours
-/// walking round its edge.
+/// Describe's field, with room around it, and the theme's voice colors
+/// walking around its edge.
 struct SmartMagicField<Trailing: View>: View {
     let placeholder: String
     @Binding var text: String
@@ -39,7 +39,7 @@ struct SmartMagicField<Trailing: View>: View {
         .background {
             // Reaches past the field for the glow, which is why it's a
             // background: the field's own size doesn't change.
-            // Colour and movement only while it's being typed in.
+            // Color and movement only while it's being typed in.
             if isFocused {
                 SmartWalkingBorder(
                     colors: (0..<3).map { NSColor(theme.voice($0)) },
@@ -64,13 +64,13 @@ struct SmartMagicField<Trailing: View>: View {
     }
 }
 
-/// The colours walking round a capsule, a sharp line and a soft glow
+/// The colors walking around a capsule, a sharp line and a soft glow
 /// that breathes. Only there while the field has focus. Core Animation
 /// moves them, so nothing here redraws: a blurred view redrawn by the app took so
 /// much CPU that the visualizers' badge stalled.
 ///
-/// A gradient that turns about the centre, seen through the edge. Squashed to
-/// the field's shape, so the colours travel evenly along its long sides.
+/// A gradient that turns about the center, seen through the edge. Squashed to
+/// the field's shape, so the colors travel evenly along its long sides.
 struct SmartWalkingBorder: NSViewRepresentable {
     /// How far past the field it draws.
     static let reach: CGFloat = 28
@@ -186,12 +186,12 @@ private final class EdgeGradient {
         holder.mask = mask
         squash.frame = holder.bounds
         // A square, wide enough to cover the height as it turns, stretched to
-        // the width: the colours then take as long along each stretch of edge.
+        // the width: the colors then take as long along each stretch of edge.
         let side = max(bounds.height, 1) * 1.5
         gradient.bounds = CGRect(x: 0, y: 0, width: side, height: side)
         gradient.position = CGPoint(x: bounds.midX, y: bounds.midY)
         let stretch = max(bounds.width, 1) / max(bounds.height, 1)
-        // Applied about the layer's centre, which is the gradient's too.
+        // Applied about the layer's center, which is the gradient's too.
         squash.sublayerTransform = CATransform3DMakeScale(stretch, 1, 1)
     }
 
@@ -236,7 +236,7 @@ private final class EdgeGradient {
 }
 
 /// What was understood, as plain text: it rises into place, and a band of the
-/// theme's colours passes along it once. It's a new view for new words, so what
+/// theme's colors passes along it once. It's a new view for new words, so what
 /// stays the same doesn't move again.
 struct SmartRevealText: View {
     let text: String

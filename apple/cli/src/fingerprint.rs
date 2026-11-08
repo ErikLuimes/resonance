@@ -1,7 +1,7 @@
 //! A fingerprint in characters: one bar per trait, always in the same place, so
 //! tunes that sound alike look alike. The same barcode at two sizes, and what the
-//! side panel shows beside it. Height carries the value and colour only the group,
-//! so it reads on any terminal and without the colours.
+//! side panel shows beside it. Height carries the value and color only the group,
+//! so it reads on any terminal and without the colors.
 
 use crate::model::Mix;
 use crate::palette;
@@ -60,7 +60,7 @@ pub fn tall(traits: &[f32], rows: usize) -> Vec<Line<'static>> {
     lines
 }
 
-/// The waveforms' shares, largest first, with their colours as in the app.
+/// The waveforms' shares, largest first, with their colors as in the app.
 fn shares(mix: &Mix) -> Vec<(&'static str, f32, Color)> {
     let total = (mix.triangle + mix.saw + mix.pulse + mix.noise).max(f32::EPSILON);
     let mut parts = vec![
@@ -73,7 +73,7 @@ fn shares(mix: &Mix) -> Vec<(&'static str, f32, Color)> {
     parts
 }
 
-/// One bar in the waveforms' colours, and their names and shares as far as they fit.
+/// One bar in the waveforms' colors, and their names and shares as far as they fit.
 pub fn mix_lines(mix: &Mix, width: usize) -> Vec<Line<'static>> {
     let parts = shares(mix);
     let mut bar = Vec::with_capacity(parts.len());

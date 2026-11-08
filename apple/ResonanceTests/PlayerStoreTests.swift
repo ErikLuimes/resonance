@@ -160,10 +160,10 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     func hvscComposers(category: HvscCategory) async throws -> [HvscComposer] { lock.withLock { _composers } }
     func similarComposers(authorPath: String, limit: UInt32) async -> [SimilarComposer] { [] }
     func soundTagShares() async -> [SoundTagShare] { [] }
-    private var _favourites: [String] = []
-    func favoritePaths() async -> [String] { lock.withLock { _favourites } }
+    private var _favorites: [String] = []
+    func favoritePaths() async -> [String] { lock.withLock { _favorites } }
     func setFavorite(path: String, favorite: Bool) async throws {
-        lock.withLock { favorite ? _favourites.insert(path, at: 0) : _favourites.removeAll { $0 == path } }
+        lock.withLock { favorite ? _favorites.insert(path, at: 0) : _favorites.removeAll { $0 == path } }
     }
     func checkHvscUpdate() async throws -> HvscVersionCheck { record("checkHvscUpdate"); return HvscVersionCheck(latest: 86, installed: 85) }
     /// What `findSharedTune` answers; settable per test.

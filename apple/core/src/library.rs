@@ -276,7 +276,7 @@ impl Library {
     /// loads from cache) any index that isn't ready yet first.
     ///
     /// Scores with upstream's `score_entry` directly rather than the
-    /// browser's memoised `recompute_search`: that merges categories into
+    /// browser's memoized `recompute_search`: that merges categories into
     /// one ranking, and sidesteps the memo serving a result computed before
     /// the index finished.
     pub async fn search(
@@ -697,7 +697,7 @@ impl Library {
 
     /// Wait until `category`'s search index is ready, starting a build if
     /// none is running. The build (cache load, else a full walk, then a
-    /// cache save) runs detached: a cancelled caller can't leave the
+    /// cache save) runs detached: a canceled caller can't leave the
     /// browser stuck in "building".
     pub async fn ensure_index(&self, category: HvscCategory) -> Result<(), LibraryError> {
         let db = databases::loaded(&self.databases).await;

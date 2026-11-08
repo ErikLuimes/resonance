@@ -26,7 +26,7 @@ const CHAPTERS = [
   { slug: 'sounds-like', title: 'Sounds Like', text: 'Play a tune, and see the ones in HVSC that sound most like it.' },
   { slug: 'now-playing', title: 'Now Playing', text: 'Halo, Particles, Radial and the Sound Map, driven by the chip itself.' },
   { slug: 'library', title: 'All of HVSC', text: '60,000 tunes, composers by name, one search for everything.' },
-  { slug: 'playlists', title: 'Your playlists', text: 'Favourites, playlists, and drag and drop from anywhere.' },
+  { slug: 'playlists', title: 'Your playlists', text: 'Favorites, playlists, and drag and drop from anywhere.' },
 ];
 const PLACEHOLDER_SECS = 6;
 

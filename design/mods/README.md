@@ -34,10 +34,10 @@ one chip and one collection:
 | Modland | over 400,000 modules in 300+ formats, every platform | Little beyond folders | Yes (FTP) |
 | Lemon Amiga | Amiga collection | Little | Torrents with yearly updates |
 
-AMP is the HVSC of the Amiga: one platform, composer-centred, with the data
+AMP is the HVSC of the Amiga: one platform, composer-centered, with the data
 the composer pages, STIL panel and Sounds Like benchmark need. Its download
 rules mean Resonance can't fetch it without an agreement. The iOS app 4champ
-already plays AMP's catalogue, so there's precedent to point to.
+already plays AMP's catalog, so there's precedent to point to.
 
 Before any code:
 
@@ -67,7 +67,7 @@ Engines:
   resampler emulation (A500 and A1200 filter); confirm the control names
   against the version we pin.
 - **UADE**, GPLv2+, for custom formats. It emulates the 68000 and Paula and
-  runs the original EaglePlayer plugins. The licence fits Resonance's GPL, but
+  runs the original EaglePlayer plugins. The license fits Resonance's GPL, but
   each plugin's own terms need checking before bundling. This is 2.1, not 2.0.
 
 In the core: a format-neutral player interface, with the existing SID players
@@ -137,7 +137,7 @@ Visualizers are additive: mods get new pages, nothing SID-only is removed.
 - The terminal app (`apple/cli`): browsing, playback, its visualizers.
 - The MCP server: tool descriptions say "C64 SID player", and tools take HVSC
   paths. The Raycast extension.
-- Credits and `Acknowledgements.txt`: libopenmpt now, UADE in 2.1.
+- Credits and `Acknowledgments.txt`: libopenmpt now, UADE in 2.1.
 - The site and FAQ.
 - `apple/release-notes/2.0.0.md`.
 

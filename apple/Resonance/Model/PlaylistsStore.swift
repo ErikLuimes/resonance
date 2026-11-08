@@ -15,24 +15,24 @@ nonisolated struct UserPlaylist: Identifiable, Hashable, Sendable {
 /// Where a tune can be added: the Add to menu's entries.
 nonisolated enum AddTarget: Hashable, Sendable {
     case myPlaylist
-    case favourites
+    case favorites
     case playlist(String)
 }
 
-/// Your playlists, your favourites, and adding tunes to either.
+/// Your playlists, your favorites, and adding tunes to either.
 ///
 /// Playlists are plain M3U files (one absolute path per line), so other
-/// players open them too. Favourites are a favorites.json in Phosphor's
+/// players open them too. Favorites are a favorites.json in Phosphor's
 /// format, in Resonance's folder, read and written through the core.
 @Observable
 final class PlaylistsStore {
     /// Sorted by name.
     private(set) var playlists: [UserPlaylist] = []
-    /// The favourites' files, newest first; nil until loaded.
-    private(set) var favourites: [String]?
+    /// The favorites' files, newest first; nil until loaded.
+    private(set) var favorites: [String]?
     /// Each playlist's files, by id; absent until read.
     private(set) var paths: [String: [String]] = [:]
-    /// Rows for the lists shown, by id ("" for Favourites); absent until
+    /// Rows for the lists shown, by id ("" for Favorites); absent until
     /// read from the files.
     private(set) var rows: [String: [LibraryRow]] = [:]
     /// A playlist whose name the sidebar should edit (one just made).
@@ -51,9 +51,9 @@ final class PlaylistsStore {
     let folder: URL
     @ObservationIgnored private let defaults: UserDefaults
     /// Observed: the hearts read it, and must fill the moment it changes.
-    private var favouriteSet = Set<String>()
+    private var favoriteSet = Set<String>()
 
-    nonisolated static let favouritesID = ""
+    nonisolated static let favoritesID = ""
 
     init(
         player: PlayerStore,
@@ -94,7 +94,7 @@ final class PlaylistsStore {
     /// unique with a number.
     @discardableResult
     func create(named name: String? = nil) -> UserPlaylist? {
-        let base = Self.cleaned(name ?? "") ?? "Untitled Playlist"
+        let base = Self.cleaned(name ?? "") ?? String(localized: "Untitled Playlist")
         var candidate = base
         var n = 2
         while playlists.contains(where: { $0.name.localizedCaseInsensitiveCompare(candidate) == .orderedSame }) {
@@ -113,7 +113,7 @@ final class PlaylistsStore {
         guard let name = Self.cleaned(name) else { return nil }
         if name == playlist.name { return playlist }
         guard !playlists.contains(where: { $0.id != playlist.id && $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame }) else {
-            error = "There's already a playlist called “\(name)”."
+            error = String(localized: "There's already a playlist called “\(name)”.")
             return nil
         }
         let renamed = UserPlaylist(url: folder.appending(path: name + ".m3u"))
@@ -132,7 +132,7 @@ final class PlaylistsStore {
 
     @discardableResult
     func duplicate(_ playlist: UserPlaylist) -> UserPlaylist? {
-        guard let copy = create(named: "\(playlist.name) copy") else { return nil }
+        guard let copy = create(named: String(localized: "\(playlist.name) copy")) else { return nil }
         write(read(playlist), to: copy)
         return copy
     }
@@ -141,8 +141,8 @@ final class PlaylistsStore {
     /// file: only My Playlist remembers those.
     func exportContents(of target: AddTarget) -> (files: [String], songs: [String: UInt16]) {
         switch target {
-        case .favourites:
-            return (favourites ?? [], [:])
+        case .favorites:
+            return (favorites ?? [], [:])
         case .myPlaylist:
             let chosen = player.rows.filter { $0.item.selectedSong != 1 }
             return (player.rows.map(\.id), Dictionary(chosen.map { ($0.id, $0.item.selectedSong) }) { first, _ in first })
@@ -162,7 +162,7 @@ final class PlaylistsStore {
             try text.write(to: url, atomically: true, encoding: .utf8)
             return true
         } catch {
-            importNotice = "Couldn't export \(url.lastPathComponent): \(error.localizedDescription)"
+            importNotice = String(localized: "Couldn't export \(url.lastPathComponent): \(error.localizedDescription)")
             return false
         }
     }
@@ -246,8 +246,8 @@ final class PlaylistsStore {
     /// The names of the lists holding any of `files`.
     func lists(holding files: Set<String>) -> [String] {
         var names: [String] = []
-        if !files.isDisjoint(with: favouriteSet) { names.append("Favourites") }
-        if player.rows.contains(where: { files.contains($0.id) }) { names.append("My Playlist") }
+        if !files.isDisjoint(with: favoriteSet) { names.append(String(localized: "Favorites")) }
+        if player.rows.contains(where: { files.contains($0.id) }) { names.append(String(localized: "My Playlist")) }
         names += playlists.filter { !files.isDisjoint(with: read($0)) }.map(\.name)
         return names
     }
@@ -257,30 +257,30 @@ final class PlaylistsStore {
         for playlist in playlists where !files.isDisjoint(with: read(playlist)) {
             remove(files, from: playlist)
         }
-        for path in files where isFavourite(path) {
-            await setFavourite(path, false)
+        for path in files where isFavorite(path) {
+            await setFavorite(path, false)
         }
         player.remove(indices: player.rows.filter { files.contains($0.id) }.map(\.index))
     }
 
-    // MARK: Favourites
+    // MARK: Favorites
 
-    func isFavourite(_ path: String) -> Bool { favouriteSet.contains(path) }
+    func isFavorite(_ path: String) -> Bool { favoriteSet.contains(path) }
 
-    func loadFavourites() async {
+    func loadFavorites() async {
         let found = await core.favoritePaths()
-        favourites = found
-        favouriteSet = Set(found)
-        rows[Self.favouritesID] = nil
+        favorites = found
+        favoriteSet = Set(found)
+        rows[Self.favoritesID] = nil
     }
 
-    func setFavourite(_ path: String, _ favourite: Bool) async {
+    func setFavorite(_ path: String, _ favorite: Bool) async {
         do {
-            try await core.setFavorite(path: path, favorite: favourite)
+            try await core.setFavorite(path: path, favorite: favorite)
         } catch {
             self.error = LibraryStore.message(for: error)
         }
-        await loadFavourites()
+        await loadFavorites()
     }
 
     // MARK: Adding
@@ -294,11 +294,11 @@ final class PlaylistsStore {
             let present = Set(player.rows.map(\.id))
             let new = files.filter { !present.contains($0) }
             if !new.isEmpty { player.add(new.map { URL(filePath: $0) }) }
-        case .favourites:
-            for file in files where !isFavourite(file) {
+        case .favorites:
+            for file in files where !isFavorite(file) {
                 try? await core.setFavorite(path: file, favorite: true)
             }
-            await loadFavourites()
+            await loadFavorites()
         case .playlist(let id):
             guard let playlist = playlist(id) else { return }
             let existing = read(playlist)
@@ -382,34 +382,34 @@ final class PlaylistsStore {
     }
 
     private func resolve(_ urls: [URL], label: String) async -> ResolvedFiles {
-        importing = "Reading \(label)…"
+        importing = String(localized: "Reading \(label)…")
         defer { importing = nil }
         return await core.resolveFiles(paths: urls.map(\.path))
     }
 
     private static func displayName(of urls: [URL]) -> String {
-        urls.count == 1 ? urls[0].deletingPathExtension().lastPathComponent : "The dropped files"
+        urls.count == 1 ? urls[0].deletingPathExtension().lastPathComponent : String(localized: "The dropped files")
     }
 
     /// What to say about tunes that didn't load; nil when they all did.
     static func notice(for resolved: ResolvedFiles, name: String, hvscRoot: String?) -> String? {
         if resolved.paths.isEmpty {
-            let hint = hvscRoot == nil ? " Choose your HVSC folder in Settings, then try again." : ""
-            return "No playable SID files found in \(name).\(hint)"
+            let hint = hvscRoot == nil ? String(localized: " Choose your HVSC folder in Settings, then try again.") : ""
+            return String(localized: "No playable SID files found in \(name).\(hint)")
         }
         guard resolved.found < resolved.listed else { return nil }
-        return "\(name): \(resolved.found) of \(resolved.listed) tunes found."
+        return String(localized: "\(name): \(resolved.found) of \(resolved.listed) tunes found.")
     }
 
     // MARK: Rows
 
-    /// Read the rows of a playlist (or Favourites, `favouritesID`) from
+    /// Read the rows of a playlist (or Favorites, `favoritesID`) from
     /// its files' headers.
     func loadRows(_ id: String) async {
         let files: [String]
-        if id == Self.favouritesID {
-            if favourites == nil { await loadFavourites() }
-            files = favourites ?? []
+        if id == Self.favoritesID {
+            if favorites == nil { await loadFavorites() }
+            files = favorites ?? []
         } else {
             guard let playlist = playlist(id) else { return }
             files = read(playlist)

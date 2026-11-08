@@ -26,7 +26,7 @@ nonisolated struct SIDHeader: Equatable, Sendable {
             switch self {
             case .pal: "PAL"
             case .ntsc: "NTSC"
-            case .both: "PAL and NTSC"
+            case .both: String(localized: "PAL and NTSC")
             }
         }
     }
@@ -88,10 +88,10 @@ nonisolated struct SIDHeader: Equatable, Sendable {
     /// "3 subtunes", "MOS 6581", "PAL", "2 SIDs", "RSID": what's worth saying,
     /// in that order.
     var facts: [String] {
-        var facts = [songs == 1 ? "1 tune" : "\(songs) subtunes"]
+        var facts = [songs == 1 ? String(localized: "1 tune") : String(localized: "\(songs) subtunes")]
         if let model { facts.append(model.name) }
         if let clock { facts.append(clock.name) }
-        if chips > 1 { facts.append("\(chips) SIDs") }
+        if chips > 1 { facts.append(String(localized: "\(chips) SIDs")) }
         if isRSID { facts.append("RSID") }
         return facts
     }

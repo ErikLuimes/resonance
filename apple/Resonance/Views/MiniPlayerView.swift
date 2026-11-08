@@ -6,8 +6,8 @@ import PhosphorCore
 /// it plays from with what comes next, and the actions: Surprise Me, and
 /// a link that shows the tune in Resonance. Adding to playlists and
 /// sharing stay in the main window. Works with the main window closed; Settings →
-/// General hides it. No accent colour: the panel's glass takes on the
-/// desktop's colours, and the accent didn't read on it.
+/// General hides it. No accent color: the panel's glass takes on the
+/// desktop's colors, and the accent didn't read on it.
 struct MiniPlayerView: View {
     @Environment(PlayerStore.self) private var store
     @Environment(LibraryStore.self) private var library
@@ -38,8 +38,8 @@ struct MiniPlayerView: View {
         .padding(16)
         .frame(width: 340)
         .tint(.primary)
-        // A thick backing, so the secondary text keeps its grey instead of
-        // taking on the desktop's colour through the panel's glass.
+        // A thick backing, so the secondary text keeps its gray instead of
+        // taking on the desktop's color through the panel's glass.
         .background(.thickMaterial)
     }
 
@@ -59,7 +59,7 @@ struct MiniPlayerView: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 8)
-            FavouriteButton(path: track.path)
+            FavoriteButton(path: track.path)
                 .font(.title3)
         }
     }
@@ -143,10 +143,10 @@ struct MiniPlayerView: View {
     private var upNext: some View {
         if store.surpriseActive {
             listNote(store.beforeSurpriseSource.map {
-                "Next: a random tune from all of HVSC. Turn off Surprise Me to go back to \($0.name)."
-            } ?? "Next: a random tune from all of HVSC.")
+                String(localized: "Next: a random tune from all of HVSC. Turn off Surprise Me to go back to \($0.name).")
+            } ?? String(localized: "Next: a random tune from all of HVSC."))
         } else if store.shuffleCollectionActive {
-            listNote("Next: a random tune. Shuffle Collection plays all of HVSC in a random order.")
+            listNote(String(localized: "Next: a random tune. Shuffle Collection plays all of HVSC in a random order."))
         } else if let source = store.source, !playingList.isEmpty {
             VStack(alignment: .leading, spacing: 2) {
                 Divider()
@@ -163,7 +163,7 @@ struct MiniPlayerView: View {
                             .help(source.section == nil ? "Show the tune in the library" : "Show \(source.name)")
                     }
                     Spacer(minLength: 8)
-                    Text(store.shuffle ? "Shuffled · \(playingList.count.formatted())" : playingList.count.formatted())
+                    Text(store.shuffle ? String(localized: "Shuffled · \(playingList.count.formatted())") : playingList.count.formatted())
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
@@ -247,13 +247,13 @@ struct MiniPlayerView: View {
             .help(store.surpriseActive ? "Back to the list that played before" : "Random tunes from all of HVSC")
             Spacer(minLength: 8)
             // Underlined like the list's "From" link: the panel has no
-            // accent colour to mark links with.
+            // accent color to mark links with.
             Group {
                 if let path = store.nowPlaying?.path {
-                    AccentLink("Show in Resonance") { show(path) }
+                    AccentLink(String(localized: "Show in Resonance")) { show(path) }
                         .help("Open Resonance with this tune selected")
                 } else {
-                    AccentLink("Open Resonance", action: openApp)
+                    AccentLink(String(localized: "Open Resonance"), action: openApp)
                 }
             }
             .underline(color: .secondary.opacity(0.5))
@@ -282,7 +282,7 @@ struct MiniPlayerView: View {
 }
 
 /// The tune's three voices, traced over one another in the theme's
-/// colours: the player's artwork.
+/// colors: the player's artwork.
 private struct MiniScope: View {
     @Environment(PlayerStore.self) private var store
     @Environment(\.voiceTheme) private var theme
@@ -311,7 +311,7 @@ private struct MiniScope: View {
 }
 
 /// A capsule that's filled while on, plain while off. Filled with the text
-/// colour (the tint), its label in the background colour.
+/// color (the tint), its label in the background color.
 private struct ChipToggle<Label: View>: View {
     let isOn: Bool
     let action: () -> Void

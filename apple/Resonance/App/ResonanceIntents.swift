@@ -72,9 +72,9 @@ struct SoundDriftIntent: AudioPlaybackIntent {
     }
 }
 
-struct FavouriteThisTuneIntent: AppIntent {
-    static let title: LocalizedStringResource = "Favourite This Tune"
-    static let description = IntentDescription("Adds the tune playing to your Favourites.")
+struct FavoriteThisTuneIntent: AppIntent {
+    static let title: LocalizedStringResource = "Favorite This Tune"
+    static let description = IntentDescription("Adds the tune playing to your Favorites.")
 
     @Dependency private var player: PlayerStore
     @Dependency private var playlists: PlaylistsStore
@@ -82,14 +82,14 @@ struct FavouriteThisTuneIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard let track = player.nowPlaying else { throw TuneActionError.nothingPlaying }
-        await playlists.setFavourite(track.path, true)
-        return .result(dialog: "Added \(track.displayTitle) to Favourites.")
+        await playlists.setFavorite(track.path, true)
+        return .result(dialog: IntentDialog(LocalizedStringResource("Added \(track.displayTitle) to Favorites.")))
     }
 }
 
 struct PlayPlaylistIntent: AudioPlaybackIntent {
     static let title: LocalizedStringResource = "Play Playlist"
-    static let description = IntentDescription("Plays Favourites or one of your playlists.")
+    static let description = IntentDescription("Plays Favorites or one of your playlists.")
     static var parameterSummary: some ParameterSummary { Summary("Play \(\.$playlist)") }
 
     @Parameter(title: "Playlist")
@@ -138,20 +138,20 @@ struct NextTrackIntent: AudioPlaybackIntent {
 
 // MARK: - Playlists
 
-/// Favourites or one of your playlists, as Shortcuts and Siri name it.
+/// Favorites or one of your playlists, as Shortcuts and Siri name it.
 nonisolated struct PlaylistEntity: AppEntity, Identifiable {
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Playlist")
     static let defaultQuery = PlaylistEntityQuery()
-    /// Favourites' id here: in the store it's empty, which an entity's can't
+    /// Favorites' id here: in the store it's empty, which an entity's can't
     /// usefully be. Playlists' ids are file names ending .m3u, so never this.
-    static let favouritesID = "favourites"
+    static let favoritesID = "favorites"
 
     let id: String
     let name: String
 
     var displayRepresentation: DisplayRepresentation { DisplayRepresentation(title: "\(name)") }
 
-    static let favourites = PlaylistEntity(id: favouritesID, name: "Favourites")
+    static let favorites = PlaylistEntity(id: favoritesID, name: "Favorites")
 
     init(id: String, name: String) {
         self.id = id
@@ -163,16 +163,16 @@ nonisolated struct PlaylistEntity: AppEntity, Identifiable {
     }
 
     /// Its key in `PlaylistsStore`.
-    var storeID: String { id == Self.favouritesID ? PlaylistsStore.favouritesID : id }
+    var storeID: String { id == Self.favoritesID ? PlaylistsStore.favoritesID : id }
 
     var source: PlaybackSource {
-        id == Self.favouritesID ? .favourites : .playlist(id: id, name: name)
+        id == Self.favoritesID ? .favorites : .playlist(id: id, name: name)
     }
 
-    /// Favourites, then your playlists; those whose name holds `text` when
+    /// Favorites, then your playlists; those whose name holds `text` when
     /// there is one.
     static func all(in playlists: [UserPlaylist], matching text: String? = nil) -> [PlaylistEntity] {
-        let everything = [favourites] + playlists.map(PlaylistEntity.init)
+        let everything = [favorites] + playlists.map(PlaylistEntity.init)
         guard let text, !text.isEmpty else { return everything }
         return everything.filter { $0.name.localizedStandardContains(text) }
     }
@@ -212,9 +212,9 @@ struct ResonanceShortcuts: AppShortcutsProvider {
         AppShortcut(intent: SoundDriftIntent(),
                     phrases: ["Drift from this tune in \(.applicationName)", "Start a drift in \(.applicationName)"],
                     shortTitle: "Drift From This Tune", systemImageName: "wind")
-        AppShortcut(intent: FavouriteThisTuneIntent(),
-                    phrases: ["Favourite this tune in \(.applicationName)", "Add this to my favourites in \(.applicationName)"],
-                    shortTitle: "Favourite This Tune", systemImageName: "heart")
+        AppShortcut(intent: FavoriteThisTuneIntent(),
+                    phrases: ["Favorite this tune in \(.applicationName)", "Add this to my favorites in \(.applicationName)"],
+                    shortTitle: "Favorite This Tune", systemImageName: "heart")
         AppShortcut(intent: PlayPlaylistIntent(),
                     phrases: ["Play \(\.$playlist) in \(.applicationName)"],
                     shortTitle: "Play Playlist", systemImageName: "music.note.list")

@@ -15,23 +15,23 @@ enum DockMenu {
             menu.addItem(.separator())
         }
 
-        menu.addItem(ActionItem(store.isPlaying ? "Pause" : "Play", enabled: track != nil || store.currentRow != nil) {
+        menu.addItem(ActionItem(store.isPlaying ? String(localized: "Pause") : String(localized: "Play"), enabled: track != nil || store.currentRow != nil) {
             store.playPause()
         })
-        menu.addItem(ActionItem("Next Track", enabled: track != nil) { store.next() })
-        menu.addItem(ActionItem("Previous Track", enabled: track != nil) { store.previous() })
+        menu.addItem(ActionItem(String(localized: "Next Track"), enabled: track != nil) { store.next() })
+        menu.addItem(ActionItem(String(localized: "Previous Track"), enabled: track != nil) { store.previous() })
         menu.addItem(.separator())
 
         let scanned = track.map { fingerprints.fingerprint($0.path) != nil } ?? false
-        menu.addItem(ActionItem("Play Something Like This", enabled: scanned) {
+        menu.addItem(ActionItem(String(localized: "Play Something Like This"), enabled: scanned) {
             guard let track else { return }
             Task { _ = await fingerprints.playSimilar(to: track, with: library) }
         })
-        menu.addItem(ActionItem("Drift From This Tune", enabled: scanned) {
+        menu.addItem(ActionItem(String(localized: "Drift From This Tune"), enabled: scanned) {
             guard let track else { return }
             Task { _ = await fingerprints.startDrift(from: track, with: library) }
         })
-        menu.addItem(ActionItem("Surprise Me", enabled: library.hasRoot) {
+        menu.addItem(ActionItem(String(localized: "Surprise Me"), enabled: library.hasRoot) {
             Task { await library.surpriseMe() }
         })
         return menu

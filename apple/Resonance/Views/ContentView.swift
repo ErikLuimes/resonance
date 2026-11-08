@@ -20,7 +20,7 @@ enum SidebarItem: Hashable {
 #endif
     /// One of Phosphor's published playlists, by its file name.
     case curated(String)
-    case favourites
+    case favorites
     /// Making a playlist from a recipe.
     case smartPlaylist
     /// One of your playlists, by its file name.
@@ -29,7 +29,7 @@ enum SidebarItem: Hashable {
 
 /// What Resonance opens on (Settings → General).
 enum StartPage: String, CaseIterable, Identifiable {
-    case myPlaylist, favourites, recentlyPlayed, hvscHome, musicians
+    case myPlaylist, favorites, recentlyPlayed, hvscHome, musicians
 #if CSDB
     case scenePulse
 #endif
@@ -38,13 +38,13 @@ enum StartPage: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .myPlaylist: "My Playlist"
-        case .favourites: "Favourites"
-        case .recentlyPlayed: "Recently Played"
-        case .hvscHome: "HVSC Home"
-        case .musicians: "Musicians"
+        case .myPlaylist: String(localized: "My Playlist")
+        case .favorites: String(localized: "Favorites")
+        case .recentlyPlayed: String(localized: "Recently Played")
+        case .hvscHome: String(localized: "HVSC Home")
+        case .musicians: String(localized: "Musicians")
 #if CSDB
-        case .scenePulse: "Scene Pulse"
+        case .scenePulse: String(localized: "Scene Pulse")
 #endif
         }
     }
@@ -53,7 +53,7 @@ enum StartPage: String, CaseIterable, Identifiable {
     func item(csdbEnabled: Bool) -> SidebarItem {
         switch self {
         case .myPlaylist: .playlist
-        case .favourites: .favourites
+        case .favorites: .favorites
         case .recentlyPlayed: .recent
         case .hvscHome: .hvscHome
         case .musicians: .hvsc(.musicians)
@@ -79,7 +79,7 @@ enum StartPage: String, CaseIterable, Identifiable {
 }
 
 extension EnvironmentValues {
-    /// Search is over this section: it's kept, but mustn't animate, fetch or
+    /// Search is over this section: it's kept, but must not animate, fetch or
     /// react to a pointer it can't be seen under. Clicks are already stopped,
     /// but hovers aren't, nor do timers know.
     @Entry var sectionIsCovered = false
@@ -270,8 +270,8 @@ struct ContentView: View {
         // are the published playlists current?
         .task { await store.checkHvscUpdate() }
         .task { await store.syncPublishedPlaylists() }
-        // The hearts, and Favourites' count.
-        .task(id: store.hvscRoot) { await playlists.loadFavourites() }
+        // The hearts, and Favorites' count.
+        .task(id: store.hvscRoot) { await playlists.loadFavorites() }
         // No collection yet: the Home (its empty state) is the welcome pane.
         // A collection seen for the first time (downloaded, put in place by
         // hand, or another folder chosen) opens on its Home once.
@@ -351,7 +351,7 @@ struct ContentView: View {
                     .tag(SidebarItem.search)
             }
             Section("Library") {
-                SidebarLabel("Recently Played", systemImage: "clock", playing: playing(.recent))
+                SidebarLabel(String(localized: "Recently Played"), systemImage: "clock", playing: playing(.recent))
                     .modifier(RefusesFiles())
                     .tag(SidebarItem.recent)
             }
@@ -359,16 +359,16 @@ struct ContentView: View {
                 Label("Smart Playlist", systemImage: "wand.and.stars")
                     .modifier(RefusesFiles())
                     .tag(SidebarItem.smartPlaylist)
-                SidebarLabel("Favourites", systemImage: "heart", playing: playing(.favourites),
-                             count: playlists.favourites?.count)
-                    .modifier(PlaylistDrop(target: .favourites))
+                SidebarLabel(String(localized: "Favorites"), systemImage: "heart", playing: playing(.favorites),
+                             count: playlists.favorites?.count)
+                    .modifier(PlaylistDrop(target: .favorites))
                     .background(SidebarDropHighlightOff())
-                    .contextMenu { ExportPlaylistButton(target: .favourites, name: "Favourites") }
-                    .tag(SidebarItem.favourites)
-                SidebarLabel("My Playlist", systemImage: "music.note.list", playing: playing(.playlist),
+                    .contextMenu { ExportPlaylistButton(target: .favorites, name: String(localized: "Favorites")) }
+                    .tag(SidebarItem.favorites)
+                SidebarLabel(String(localized: "My Playlist"), systemImage: "music.note.list", playing: playing(.playlist),
                              count: store.rows.count)
                     .modifier(PlaylistDrop(target: .myPlaylist))
-                    .contextMenu { ExportPlaylistButton(target: .myPlaylist, name: "My Playlist") }
+                    .contextMenu { ExportPlaylistButton(target: .myPlaylist, name: String(localized: "My Playlist")) }
                     .tag(SidebarItem.playlist)
                 ForEach(playlists.playlists) { playlist in
                     UserPlaylistRow(playlist: playlist, playing: playing(.userPlaylist(playlist.id)),
@@ -412,11 +412,11 @@ struct ContentView: View {
             if csdbEnabled || !csdb.downloadedIDs.isEmpty {
                 Section("CSDb") {
                     if csdbEnabled {
-                        SidebarLabel("Scene Pulse", systemImage: "antenna.radiowaves.left.and.right", playing: playing(.scene))
+                        SidebarLabel(String(localized: "Scene Pulse"), systemImage: "antenna.radiowaves.left.and.right", playing: playing(.scene))
                             .modifier(RefusesFiles())
                             .tag(SidebarItem.scene)
                     }
-                    SidebarLabel("Downloads", systemImage: "arrow.down.circle", playing: playing(.csdbDownloads),
+                    SidebarLabel(String(localized: "Downloads"), systemImage: "arrow.down.circle", playing: playing(.csdbDownloads),
                                  count: csdb.downloadedIDs.count)
                         .modifier(RefusesFiles())
                         .tag(SidebarItem.csdbDownloads)
@@ -566,7 +566,7 @@ struct ContentView: View {
 #endif
         case .smartPlaylist:
             SmartPlaylistView()
-        case .favourites:
+        case .favorites:
             UserPlaylistView(playlist: nil)
         case .userPlaylist(let id):
             if let playlist = playlists.playlist(id) {
@@ -588,7 +588,7 @@ struct ContentView: View {
 
 /// The sidebar's collection row: it offers the download before the folder
 /// holds a tree, shows its percentage while one runs, and carries the
-/// release badge (and an update, when there is one) afterwards.
+/// release badge (and an update, when there is one) afterward.
 /// Selecting it shows the HVSC Home.
 private struct HvscCollectionRow: View {
     @Environment(PlayerStore.self) private var store
@@ -677,7 +677,7 @@ private struct StatusBanner: View {
     /// archive's files are counted.
     static func phase(of sync: HvscSyncStatus, release: UInt32?) -> String {
         let name = release.map { "HVSC \($0)" } ?? "HVSC"
-        return sync.filesTotal > 0 ? "Extracting \(name)…" : "Downloading \(name)…"
+        return sync.filesTotal > 0 ? String(localized: "Extracting \(name)…") : String(localized: "Downloading \(name)…")
     }
 
     var body: some View {
@@ -889,7 +889,7 @@ private struct UserPlaylistRow: View {
         }
         .confirmationDialog("Delete “\(playlist.name)”?", isPresented: $confirmingDelete) {
             Button("Delete", role: .destructive) {
-                if selection == .userPlaylist(playlist.id) { selection = .favourites }
+                if selection == .userPlaylist(playlist.id) { selection = .favorites }
                 playlists.delete(playlist)
             }
         } message: {
@@ -931,11 +931,11 @@ private struct RefusesFiles: ViewModifier {
     }
 }
 
-/// Tunes dragged from a list onto a sidebar playlist (or Favourites, or My
+/// Tunes dragged from a list onto a sidebar playlist (or Favorites, or My
 /// Playlist) are added to it, under the system's drop highlight, and so is
 /// what's behind files dropped from Finder. Holding ⌘
 /// as they drop moves them instead, from one of your playlists to another,
-/// as ⌘ moves in Finder; from any other list, and into Favourites or My
+/// as ⌘ moves in Finder; from any other list, and into Favorites or My
 /// Playlist, they're always added. (A sidebar row only takes drops through
 /// dropDestination, so the cursor's + can't change to show a move.)
 private struct PlaylistDrop: ViewModifier {

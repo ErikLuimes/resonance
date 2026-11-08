@@ -50,7 +50,7 @@ final class PlayerStore {
     /// A seek is running: `elapsed` already says where; the audio is silent
     /// until the emulation has caught up.
     private(set) var seeking = false
-    /// While seeking: how far the emulation has got on its way there (from
+    /// While seeking: how far the emulation has gotten on its way there (from
     /// the top for a backward seek, from where it was for a forward one).
     private(set) var seekPosition: TimeInterval?
     private(set) var rows: [TrackRow] = []
@@ -581,7 +581,7 @@ final class PlayerStore {
         hvscInfo = nil
     }
 
-    /// Start over: stop everything, move Resonance's folder (favourites,
+    /// Start over: stop everything, move Resonance's folder (favorites,
     /// history, playlists, fingerprints, its HVSC) to the Trash and forget
     /// its settings. The app should restart right after.
     func resetEverything(
@@ -629,7 +629,7 @@ final class PlayerStore {
 
 /// Where Resonance keeps its own files — separate from the Iced app's
 /// `~/Library/Application Support/phosphor`, which only Import from
-/// Phosphor reads. The engine's own files (favourites, play history, the
+/// Phosphor reads. The engine's own files (favorites, play history, the
 /// search index) go next to the session playlist; see
 /// `core/src/config.rs`.
 nonisolated enum AppPaths {

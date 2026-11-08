@@ -103,7 +103,7 @@ pub struct Status {
     pub elapsed: f64,
     pub duration: Option<f64>,
     pub has_collection: bool,
-    pub favourite: bool,
+    pub favorite: bool,
     /// The list it's playing from; an app before this didn't say.
     #[serde(default)]
     pub source: Option<String>,
@@ -114,7 +114,7 @@ pub struct Status {
 pub struct PlaylistInfo {
     pub name: String,
     pub count: u32,
-    pub is_favourites: bool,
+    pub is_favorites: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -234,7 +234,7 @@ mod tests {
     }
 
     #[test]
-    fn a_tune_needs_only_what_a_favourite_answer_has() {
+    fn a_tune_needs_only_what_a_favorite_answer_has() {
         let tune: Tune = serde_json::from_str(
             r#"{"path":"/a.sid","title":"A","author":"B","released":"1985"}"#,
         )

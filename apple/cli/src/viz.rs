@@ -24,7 +24,7 @@ const RAMP_RGB: [[(u8, u8, u8); 5]; 3] = [
 ];
 const RAMP_256: [[u8; 5]; 3] = [[23, 24, 38, 81, 195], [22, 29, 35, 115, 194], [52, 94, 172, 215, 223]];
 
-/// A voice's colour: `level` 0 is darkest, 4 brightest.
+/// A voice's color: `level` 0 is darkest, 4 brightest.
 pub fn ink(voice: usize, level: usize, truecolor: bool) -> Color {
     let (voice, level) = (voice % 3, level.min(4));
     if truecolor {

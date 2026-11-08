@@ -59,7 +59,7 @@ struct SIDPreviewView: View {
                     Text(released)
                         .foregroundStyle(.secondary)
                 }
-                Text(header?.facts.joined(separator: " · ") ?? "Commodore 64 tune")
+                Text(header?.facts.joined(separator: " · ") ?? String(localized: "Commodore 64 tune"))
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .padding(.top, 6)

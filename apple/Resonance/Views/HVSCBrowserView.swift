@@ -80,7 +80,7 @@ struct HVSCBrowserView: View {
             .id(path)
         } else {
             ContentUnavailableView(
-                "Choose \(category == .musicians ? "an Author" : "a Section")",
+                category == .musicians ? "Choose an Author" : "Choose a Section",
                 systemImage: category.symbolName,
                 description: Text("Double-click a tune to play it.")
             )
@@ -428,7 +428,7 @@ struct LibraryTable: View {
     let source: PlaybackSource
     /// Removes rows from the list shown (one of your playlists).
     var onRemove: ((Set<LibraryRow.ID>) -> Void)? = nil
-    var removeTitle = "Remove from Playlist"
+    var removeTitle = String(localized: "Remove from Playlist")
     /// The Delete key removes the selection too.
     var removesOnDeleteKey = false
     /// A menu item's title and page for a row, where it has one.
@@ -505,9 +505,9 @@ struct LibraryTable: View {
                 actions
             } extra: {
                 if let seed = similarTo {
-                    sortLine("Sorted by how alike they sound to \u{201C}\(seed.title)\u{201D}", undo: "Clear") { similarTo = nil }
+                    sortLine(String(localized: "Sorted by how alike they sound to \u{201C}\(seed.title)\u{201D}"), undo: String(localized: "Clear")) { similarTo = nil }
                 } else if !isSortedByOwnOrder, let column = sortOrder.first.flatMap({ Self.columnNames[$0.keyPath] }) {
-                    sortLine("Sorted by \(column)", undo: "Back to Original Order") { sortOrder = [] }
+                    sortLine(String(localized: "Sorted by \(column)"), undo: String(localized: "Back to Original Order")) { sortOrder = [] }
                 }
             }
         }
@@ -524,8 +524,8 @@ struct LibraryTable: View {
 
     /// The columns that sort, by what they sort on.
     private static let columnNames: [PartialKeyPath<LibraryRow>: String] = [
-        \.title: "Title", \.author: "Author", \.year: "Year", \.released: "Released",
-        \.songs: "Songs", \.length: "Length", \.stilSort: "STIL", \.position: "#",
+        \.title: String(localized: "Title"), \.author: String(localized: "Author"), \.year: String(localized: "Year"), \.released: String(localized: "Released"),
+        \.songs: String(localized: "Songs"), \.length: String(localized: "Length"), \.stilSort: "STIL", \.position: "#",
     ]
 
     private func findSimilar(_ row: LibraryRow) {

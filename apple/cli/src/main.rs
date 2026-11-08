@@ -39,7 +39,7 @@ struct Cli {
     /// The terminal app's keys; otherwise RESONANCE_KEYS, then your editor, then Emacs
     #[arg(long, global = true, value_enum, value_name = "SET")]
     keys: Option<keys::KeyScheme>,
-    /// Print the licences of the open-source software in Resonance and this tool
+    /// Print the licenses of the open-source software in Resonance and this tool
     #[arg(long)]
     licenses: bool,
     #[command(subcommand)]
@@ -66,7 +66,7 @@ enum Cmd {
     Prev,
     /// Random tunes from all of HVSC, until something else plays
     Surprise,
-    /// Add the tune playing to Favourites
+    /// Add the tune playing to Favorites
     Fav {
         /// Take it out instead
         #[arg(long)]
@@ -245,12 +245,12 @@ fn print_status(status: &Status) {
     println!("♪ {}{by}  {time}{song}{paused}", now.title);
 }
 
-/// The same text as About Resonance's Acknowledgements, from the app this tool came
+/// The same text as About Resonance's Acknowledgments, from the app this tool came
 /// in. It's long, so a pager closing early isn't a failure.
 fn print_licenses() -> Result<(), String> {
     let path = client::own_app()
-        .map(|app| app.join("Contents/Resources/Acknowledgements.txt"))
-        .ok_or("This copy isn't inside Resonance. The licences are in Acknowledgements.txt in the app, and at https://github.com/ErikLuimes/resonance.")?;
+        .map(|app| app.join("Contents/Resources/Acknowledgments.txt"))
+        .ok_or("This copy isn't inside Resonance. The licenses are in Acknowledgments.txt in the app, and at https://github.com/ErikLuimes/resonance.")?;
     let text = std::fs::read(&path).map_err(|e| format!("Can't read {}: {e}", path.display()))?;
     let _ = std::io::stdout().write_all(&text);
     Ok(())
@@ -332,9 +332,9 @@ fn run(cli: Cli) -> Result<(), String> {
             if json_out {
                 println!("{}", serde_json::to_string(&tune).unwrap_or_default());
             } else if off {
-                println!("Took {} out of Favourites.", tune.title);
+                println!("Took {} out of Favorites.", tune.title);
             } else {
-                println!("Added {} to Favourites.", tune.title);
+                println!("Added {} to Favorites.", tune.title);
             }
         }
         Cmd::Now => {

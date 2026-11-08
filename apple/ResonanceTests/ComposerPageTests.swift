@@ -93,7 +93,7 @@ struct VoiceMeterTests {
 
 struct StartPageTests {
     @Test func opensOnWhatWasChosen() {
-        #expect(StartPage.favourites.item(csdbEnabled: true) == .favourites)
+        #expect(StartPage.favorites.item(csdbEnabled: true) == .favorites)
         #expect(StartPage.musicians.item(csdbEnabled: true) == .hvsc(.musicians))
     }
 
@@ -107,8 +107,8 @@ struct StartPageTests {
     @Test func myPlaylistUntilChosen() {
         let defaults = UserDefaults(suiteName: "StartPage.\(UUID().uuidString)")!
         #expect(StartPage.saved(in: defaults) == .myPlaylist)
-        defaults.set("favourites", forKey: Pref.startPage)
-        #expect(StartPage.saved(in: defaults) == .favourites)
+        defaults.set("favorites", forKey: Pref.startPage)
+        #expect(StartPage.saved(in: defaults) == .favorites)
         defaults.set("gone", forKey: Pref.startPage)
         #expect(StartPage.saved(in: defaults) == .myPlaylist)
     }

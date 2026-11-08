@@ -64,7 +64,7 @@ struct HelpTopicsTests {
 
     @Test func everySiriPhraseIsInHelp() {
         let text = HelpTopic.topic(.siriAndSpotlight).searchText
-        for phrase in ["Surprise me", "Play something like this", "Drift from this tune", "Favourite this tune", "Play Favourites"] {
+        for phrase in ["Surprise me", "Play something like this", "Drift from this tune", "Favorite this tune", "Play Favorites"] {
             #expect(text.contains(phrase), "\(phrase)")
         }
     }

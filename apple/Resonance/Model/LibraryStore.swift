@@ -417,7 +417,7 @@ final class LibraryStore {
         if people.count > 1 {
             var others = people
             others.remove(at: index)
-            return "with \(others.formatted(.list(type: .and)))"
+            return String(localized: "with \(others.formatted(.list(type: .and)))")
         }
         return credit.handles.count == 1 ? credit.handles[0] : nil
     }
@@ -508,7 +508,7 @@ final class LibraryStore {
 
     static func message(for error: Error) -> String {
         switch error {
-        case HvscError.NoRoot: "Choose your HVSC folder in Settings."
+        case HvscError.NoRoot: String(localized: "Choose your HVSC folder in Settings.")
         case HvscError.NotFound(let message), HvscError.Io(let message): message
         default: error.localizedDescription
         }

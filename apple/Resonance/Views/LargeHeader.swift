@@ -203,7 +203,7 @@ struct LargeHeader<Card: Hashable, Picture: View, Below: View, Bio: View, CardCo
     private func slot(_ slot: Slot) -> some View {
         switch slot {
         case .bio:
-            HeaderCard("About") {
+            HeaderCard(String(localized: "About")) {
                 ScrollView(.vertical) {
                     bio
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -283,7 +283,7 @@ struct SoundSharesCard: View {
     let tunes: Int
 
     var body: some View {
-        HeaderCard("Sound") {
+        HeaderCard(String(localized: "Sound")) {
             if shares.isEmpty {
                 Text("Resonance hasn't scanned these tunes yet.")
                     .font(.callout)

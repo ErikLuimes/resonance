@@ -22,7 +22,7 @@ final class NowPlayingController {
         let canSeek: Bool
         /// A seek moves the elapsed time, and lands later: publish both.
         let seeking: Bool
-        /// Its arrival swaps the composer's colours for the sphere.
+        /// Its arrival swaps the composer's colors for the sphere.
         let scanned: Bool
     }
 

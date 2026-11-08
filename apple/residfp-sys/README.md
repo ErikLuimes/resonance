@@ -10,7 +10,7 @@ callback drives the emulation directly.
 
 ## What's vendored
 
-| Library | Version | Licence | Where |
+| Library | Version | License | Where |
 | --- | --- | --- | --- |
 | [libsidplayfp](https://github.com/libsidplayfp/libsidplayfp) | **3.1.2** (release tarball) | GPL-2.0-or-later | `csrc/libsidplayfp/` |
 | [libresidfp](https://github.com/libsidplayfp/libresidfp) | **1.2.3** (release tarball) | GPL-2.0-or-later | `csrc/libresidfp/` |

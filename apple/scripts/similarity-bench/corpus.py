@@ -84,7 +84,7 @@ def load_features(db: str = DEFAULT_DB) -> tuple[Rows, np.ndarray]:
 
 
 def current_vectors(features: np.ndarray) -> np.ndarray:
-    """Candidate A: `Index::build`, standardised over the rows it's given."""
+    """Candidate A: `Index::build`, standardized over the rows it's given."""
     mean = features.astype(np.float64).mean(axis=0)
     std = features.astype(np.float64).std(axis=0)
     std[std * std <= 1e-12] = np.inf

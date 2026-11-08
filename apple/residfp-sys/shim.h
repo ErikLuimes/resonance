@@ -119,7 +119,7 @@ const char *rsfp_format_string(const rsfp_player *p);
 int rsfp_md5(const rsfp_player *p, char out[33]);
 
 /* Select `song` (1-based; 0 = the tune's start song), configure the C64 and
- * SIDs and run the tune's init. Rendering may begin afterwards. */
+ * SIDs and run the tune's init. Rendering may begin afterward. */
 int rsfp_start(rsfp_player *p, unsigned song, const rsfp_config *cfg, rsfp_play_info *out);
 
 /* Render `frames` interleaved stereo frames. Returns the frames rendered;

@@ -95,17 +95,17 @@ nonisolated extension Engine {
         case .sidLite: "SIDLite"
         case .reSid: "reSID"
         case .reSidFp: "reSIDfp"
-        case .sidLiteDirect: "SIDLite direct"
+        case .sidLiteDirect: String(localized: "SIDLite direct")
         }
     }
 
     /// What sets each engine apart, in a line: what a newcomer needs to pick one.
     var caption: String {
         switch self {
-        case .sidLite: "Compact model, the original player."
-        case .reSid: "Older model, the heaviest."
-        case .reSidFp: "Most accurate sound."
-        case .sidLiteDirect: "Lightest on the processor."
+        case .sidLite: String(localized: "Compact model, the original player.")
+        case .reSid: String(localized: "Older model, the heaviest.")
+        case .reSidFp: String(localized: "Most accurate sound.")
+        case .sidLiteDirect: String(localized: "Lightest on the processor.")
         }
     }
 
@@ -138,9 +138,9 @@ nonisolated extension Repeat {
 
     var displayName: String {
         switch self {
-        case .off: "Off"
-        case .all: "All"
-        case .one: "One"
+        case .off: String(localized: "Off")
+        case .all: String(localized: "All")
+        case .one: String(localized: "One")
         }
     }
 
@@ -152,9 +152,9 @@ nonisolated extension Repeat {
 nonisolated extension HvscCategory {
     var displayName: String {
         switch self {
-        case .musicians: "Musicians"
-        case .games: "Games"
-        case .demos: "Demos"
+        case .musicians: String(localized: "Musicians")
+        case .games: String(localized: "Games")
+        case .demos: String(localized: "Demos")
         }
     }
 
@@ -187,9 +187,9 @@ nonisolated extension PseudoStereo {
 
     var displayName: String {
         switch self {
-        case .subtle: "Subtle"
-        case .medium: "Medium"
-        case .wide: "Wide"
+        case .subtle: String(localized: "Subtle")
+        case .medium: String(localized: "Medium")
+        case .wide: String(localized: "Wide")
         }
     }
 }

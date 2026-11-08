@@ -20,7 +20,7 @@ struct PlaylistView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            PlaylistHeader(title: "My Playlist", tunes: store.rows.count)
+            PlaylistHeader(title: String(localized: "My Playlist"), tunes: store.rows.count)
             Divider()
             if store.rows.isEmpty {
                 emptyState

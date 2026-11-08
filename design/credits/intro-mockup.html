@@ -95,7 +95,7 @@ const X=norm([ALONG[0]*Math.cos(TILT),Math.sin(TILT),ALONG[2]*Math.cos(TILT)]),Y
 const Y=add(Y0.map(v=>v*ca),NORMAL,sa),N=add(NORMAL.map(v=>v*ca),Y0,-sa);
 const letters=[];
 [...LINE].forEach((k,i)=>{if(k===' ')return;const along=ARRIVES+(AT(i)-READ_SPEED*s-ARRIVES)*(1+wildness*.6);if(along>7||along<-16+wildness*3)return;
-// Out of step with their neighbours by a little, never by how far along the line they are.
+// Out of step with their neighbors by a little, never by how far along the line they are.
 const spin=turned(s,SPIN_RATE,LETTERS_START)+spinning*Math.sin(i*1.7)*.7,cs=Math.cos(spin),ss=Math.sin(spin);
 const base=add([SIDE[0],SIDE[1]*(1-wildness*.75),SIDE[2]*(1-wildness*.32)],ALONG,along),face=view(add(N.map(v=>v*cs),X,ss));
 const place=p=>{const u=(p[0]-2.5)*WIDE,v=(p[1]-3.5)*SIZE;return view(add(add(add(base,X,u*cs),N,u*ss),Y,v))};

@@ -129,7 +129,7 @@ fn tune_hero(tune: &Tune, link: &Link, traits: &[u8; 9]) -> String {
 }
 
 /// `MorphSphereShape` (SoundGlyphs.swift), turning as in the app's hover
-/// card: the same maths, so the page shows the sphere the app does.
+/// card: the same math, so the page shows the sphere the app does.
 const SPHERE_JS: &str = r#"
 (() => {
   const canvas = document.querySelector('canvas.sphere');

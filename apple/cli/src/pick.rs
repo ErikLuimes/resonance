@@ -35,14 +35,14 @@ pub enum Outcome {
     Going,
     QueryChanged,
     Done,
-    Cancelled,
+    Canceled,
 }
 
 impl Picker {
     pub fn key(&mut self, code: KeyCode, ctrl: bool) -> Outcome {
         match code {
-            KeyCode::Esc => return Outcome::Cancelled,
-            KeyCode::Char('c' | 'g') if ctrl => return Outcome::Cancelled,
+            KeyCode::Esc => return Outcome::Canceled,
+            KeyCode::Char('c' | 'g') if ctrl => return Outcome::Canceled,
             KeyCode::Enter => return Outcome::Done,
             // Letters are for typing here, so these work in every key set, as in fzf.
             KeyCode::Up => self.cursor = self.cursor.saturating_sub(1),
@@ -132,7 +132,7 @@ pub fn run(client: &mut Client, multi: bool, playlist: Option<&str>, query: &str
                     }
                     match picker.key(key.code, key.modifiers.contains(KeyModifiers::CONTROL)) {
                         Outcome::Done => break Some(picker.chosen()),
-                        Outcome::Cancelled => break None,
+                        Outcome::Canceled => break None,
                         Outcome::QueryChanged => due = Some(Instant::now() + DEBOUNCE),
                         Outcome::Going => {}
                     }
@@ -256,7 +256,7 @@ mod tests {
 
     #[test]
     fn escape_cancels() {
-        assert!(matches!(picker(false).key(KeyCode::Esc, false), Outcome::Cancelled));
-        assert!(matches!(picker(false).key(KeyCode::Char('c'), true), Outcome::Cancelled));
+        assert!(matches!(picker(false).key(KeyCode::Esc, false), Outcome::Canceled));
+        assert!(matches!(picker(false).key(KeyCode::Char('c'), true), Outcome::Canceled));
     }
 }

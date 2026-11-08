@@ -103,7 +103,7 @@ nonisolated enum RealHome {
             return "Resonance's folder" + path.dropFirst(support.count)
         }
         if path == container || path.hasPrefix(container + "/") {
-            return "Resonance's container" + path.dropFirst(container.count)
+            return String(localized: "Resonance's container") + path.dropFirst(container.count)
         }
         let home = url.path
         if path == home || path.hasPrefix(home + "/") {

@@ -325,7 +325,7 @@ fn an_unreadable_file_reports_an_error() {
     assert_eq!(status.state, PlayState::Stopped);
     assert!(status.track_info.is_none());
     assert!(status.error.unwrap().contains("Cannot read"));
-    // A good tune afterwards clears the error.
+    // A good tune afterward clears the error.
     let path = tune_file(1, "after-error");
     rig.play(&path, 1);
     let ok = rig.wait(5.0, |s| s.state == PlayState::Playing);

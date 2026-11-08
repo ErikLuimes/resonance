@@ -263,7 +263,7 @@ public enum STILEnricher {
 
     static let bylineParticles: Set<String> = ["van", "de", "der", "den", "von", "of", "the", "la", "le", "di", "da", "and", "&"]
 
-    /// A byline that is a name or initials: every word capitalised (or a
+    /// A byline that is a name or initials: every word capitalized (or a
     /// digit, or a name particle), so "(German children's song)" isn't one.
     static func isByline(_ by: String?) -> Bool {
         guard let by, !by.isEmpty else { return false }

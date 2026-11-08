@@ -150,8 +150,8 @@ final class ControlCommandsTests {
         #expect(playlists.playlists.isEmpty)
     }
 
-    @Test func favouritesStayFavourites() async throws {
-        #expect(try await ask("playlist.delete", ["name": "favourites"])["ok"] as? Bool == false)
+    @Test func favoritesStayFavorites() async throws {
+        #expect(try await ask("playlist.delete", ["name": "favorites"])["ok"] as? Bool == false)
         #expect(try await ask("playlist.mv", ["name": "Favorites", "paths": ["/a.sid"]])["ok"] as? Bool == false)
     }
 
@@ -160,7 +160,7 @@ final class ControlCommandsTests {
         #expect((reply["error"] as? String)?.contains("/nowhere/a.sid") == true)
     }
 
-    @Test func favouritingNeedsSomethingPlaying() async throws {
+    @Test func favoritingNeedsSomethingPlaying() async throws {
         #expect(try await ask("fav")["error"] as? String == "Nothing is playing.")
     }
 }

@@ -178,9 +178,9 @@ struct CreditsTests {
         #expect(at(0.3, 1) - 0.3 < at(1.5, 1) - at(1.2, 1), "it starts gently")
         let speeds = Set((0..<40).map { (at(2, $0) * 100).rounded() })
         #expect(speeds.count > 20, "\(speeds.count)")
-        // Dead centre still goes somewhere.
-        let centre = CreditsScene.drifted([0, 0, 0], star: 3, seconds: 1)
-        #expect(centre.map(abs).max() ?? 0 > 0)
+        // Dead center still goes somewhere.
+        let center = CreditsScene.drifted([0, 0, 0], star: 3, seconds: 1)
+        #expect(center.map(abs).max() ?? 0 > 0)
     }
 
     @Test func itDoesNotExplodeAsACircleOnScreen() {

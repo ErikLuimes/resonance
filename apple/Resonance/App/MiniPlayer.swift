@@ -31,7 +31,7 @@ final class MiniPlayer: NSObject, NSWindowDelegate {
     /// The player's size, as it last measured itself.
     private var size: CGSize?
     /// When the panel last closed: a click on the item that closed it (by
-    /// taking its focus) mustn't open it again straight away.
+    /// taking its focus) must not open it again right away.
     private var closedAt = Date.distantPast
     private var hotKey: EventHotKeyRef?
     private var hotKeyHandler: EventHandlerRef?

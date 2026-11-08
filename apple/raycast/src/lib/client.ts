@@ -27,11 +27,11 @@ export type Status = {
   elapsed: number;
   duration?: number | null;
   hasCollection: boolean;
-  favourite: boolean;
+  favorite: boolean;
   source?: string | null;
 };
 
-export type PlaylistInfo = { name: string; count: number; isFavourites: boolean };
+export type PlaylistInfo = { name: string; count: number; isFavorites: boolean };
 export type Described = { title: string; note?: string | null; tunes: Tune[] };
 export type Sound = { summary: string; tags: string[] };
 export type Print = { path: string; traits: number[] };
@@ -148,7 +148,7 @@ export const playTunes = (paths: string[], start?: string, query?: string) =>
 export const playPlaylist = (name: string, start?: string) => call("playlist.play", { name, start });
 export const addToPlaylist = (name: string, paths: string[]) => call("playlist.add", { name, paths });
 export const removeFromPlaylist = (name: string, paths: string[]) => call("playlist.rm", { name, paths });
-export const setFavourite = (on: boolean) => call<Tune>("fav", { on });
+export const setFavorite = (on: boolean) => call<Tune>("fav", { on });
 export const showInApp = (path: string) => call("show", { path });
 export const startDrift = (path?: string) => call("drift", { path });
 

@@ -3,7 +3,7 @@ import PhosphorCore
 
 /// Keeps App Nap and timer coalescing away while music plays. The player
 /// thread paces C64 frames with sleep-then-spin waits; coalesced timers in a
-/// hidden or minimised window would make it stutter and fall behind.
+/// hidden or minimized window would make it stutter and fall behind.
 final class PlaybackActivity {
     private let store: PlayerStore
     private var token: NSObjectProtocol?

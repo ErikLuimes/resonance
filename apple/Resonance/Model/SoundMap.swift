@@ -106,16 +106,16 @@ nonisolated final class MFCCExtractor {
         let edges = (0..<(Self.bands + 2)).map { hz(lo + (hi - lo) * Float($0) / Float(Self.bands + 1)) }
         let lastBin = Self.size / 2 - 1
         filters = (0..<Self.bands).map { b in
-            let (left, centre, right) = (edges[b], edges[b + 1], edges[b + 2])
+            let (left, center, right) = (edges[b], edges[b + 1], edges[b + 2])
             let first = max(1, Int((left / binHz).rounded(.up)))
             let last = min(lastBin, max(first, Int((right / binHz).rounded(.down))))
             var weights = (first...last).map { bin -> Float in
                 let f = Float(bin) * binHz
-                return f <= centre ? (f - left) / (centre - left) : (right - f) / (right - centre)
+                return f <= center ? (f - left) / (center - left) : (right - f) / (right - center)
             }.map { max(0, $0) }
             // The lowest bands are narrower than a bin: take the nearest one.
             if weights.allSatisfy({ $0 == 0 }) {
-                let nearest = min(lastBin, max(1, Int((centre / binHz).rounded())))
+                let nearest = min(lastBin, max(1, Int((center / binHz).rounded())))
                 return (nearest, [1])
             }
             while weights.last == 0 { weights.removeLast() }

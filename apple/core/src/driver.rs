@@ -1,6 +1,6 @@
 //! The session's home thread.
 //!
-//! One thread owns the `Session` and serialises everything that touches it —
+//! One thread owns the `Session` and serializes everything that touches it —
 //! FFI commands, player statuses, loader results and the advance tick — the
 //! same single-threaded shape as the Iced app's `update()`. After every step
 //! it publishes an immutable read model; FFI getters only clone an `Arc`, so

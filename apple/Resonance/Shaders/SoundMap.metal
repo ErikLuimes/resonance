@@ -28,7 +28,7 @@ struct MapSegment {
 struct SegmentOut {
     float4 position [[position]];
     float4 color;
-    float across; // pixels from the centre line
+    float across; // pixels from the center line
     float half_width;
 };
 
@@ -62,9 +62,9 @@ fragment float4 mapSegmentFragment(SegmentOut in [[stage_in]]) {
 // MARK: Nodes
 
 struct MapNode {
-    float4 shape;  // centre.xy; z: half size; w: halo radius (pixels)
+    float4 shape;  // center.xy; z: half size; w: halo radius (pixels)
     float4 color;  // rgb; a: intensity
-    float4 detail; // x: flash; y: stroke width; z: fill; w: centre dot half size
+    float4 detail; // x: flash; y: stroke width; z: fill; w: center dot half size
 };
 
 struct NodeOut {
@@ -102,15 +102,15 @@ fragment float4 mapNodeFragment(NodeOut in [[stage_in]]) {
         fill = box < half_size ? in.detail.z : 0.0;
     }
     float dot_size = in.detail.w;
-    float centre = saturate(dot_size + 0.5 - box);
+    float center = saturate(dot_size + 0.5 - box);
     float halo = 0.0;
     if (in.shape.w > 0.0) {
         float r = length(p) / in.shape.w;
         halo = exp(-r * r * 4.0) * 0.45 * in.detail.x;
     }
-    // Lit nodes have a white centre; faint ones are just a dot in their colour.
+    // Lit nodes have a white center; faint ones are just a dot in their color.
     float3 dot_color = half_size > 0.0 ? float3(1.0) : in.color.rgb;
-    float3 rgb = in.color.rgb * (stroke + fill) * intensity + dot_color * centre * intensity + float3(halo);
+    float3 rgb = in.color.rgb * (stroke + fill) * intensity + dot_color * center * intensity + float3(halo);
     return float4(rgb, 0.0);
 }
 

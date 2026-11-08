@@ -135,17 +135,17 @@ nonisolated enum UpdateChannel: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .stable: "Stable"
-        case .beta: "Beta"
-        case .alpha: "Alpha"
+        case .stable: String(localized: "Stable")
+        case .beta: String(localized: "Beta")
+        case .alpha: String(localized: "Alpha")
         }
     }
 
     var summary: String {
         switch self {
-        case .stable: "Finished releases only. If you've been testing, you'll keep this version until a newer stable release arrives."
-        case .beta: "New features a little early, and finished releases too. Expect the odd rough edge."
-        case .alpha: "The newest builds, as soon as they're ready, plus betas and finished releases. Things may break or change."
+        case .stable: String(localized: "Finished releases only. If you've been testing, you'll keep this version until a newer stable release arrives.")
+        case .beta: String(localized: "New features a little early, and finished releases too. Expect the odd rough edge.")
+        case .alpha: String(localized: "The newest builds, as soon as they're ready, plus betas and finished releases. Things may break or change.")
         }
     }
 
@@ -200,13 +200,13 @@ nonisolated struct UpdateFailure: Codable, Equatable {
     var isUnreachableFeed = false
 
     var message: String {
-        let target = updateVersion ?? "the update"
+        let target = updateVersion ?? String(localized: "the update")
         return switch stage {
-        case .check: "Couldn't check for updates: \(reason)"
-        case .download: "Couldn't download \(target): \(reason)"
-        case .verify: "Couldn't verify \(target): \(reason)"
-        case .install: "Couldn't install \(target): \(reason)"
-        case .other: "Updating stopped: \(reason)"
+        case .check: String(localized: "Couldn't check for updates: \(reason)")
+        case .download: String(localized: "Couldn't download \(target): \(reason)")
+        case .verify: String(localized: "Couldn't verify \(target): \(reason)")
+        case .install: String(localized: "Couldn't install \(target): \(reason)")
+        case .other: String(localized: "Updating stopped: \(reason)")
         }
     }
 
@@ -226,7 +226,7 @@ nonisolated struct UpdateFailure: Codable, Equatable {
         return lines.joined(separator: "\n")
     }
 
-    /// Nil for what isn't a failure: no update, or the user cancelling.
+    /// Nil for what isn't a failure: no update, or the user canceling.
     init?(error: Error, updateVersion: String?, appVersion: String, date: Date = .now) {
         let chain = Self.chain(of: error)
         let top = chain[0]
@@ -249,8 +249,8 @@ nonisolated struct UpdateFailure: Codable, Equatable {
         self.appVersion = appVersion
         updateVersion = version
         stage = .install
-        reason = "Resonance is still \(appVersion) after the update tried to install. You can download the new version from the website."
-        errors = ["The installer ran after Resonance quit, and left no error."]
+        reason = String(localized: "Resonance is still \(appVersion) after the update tried to install. You can download the new version from the website.")
+        errors = [String(localized: "The installer ran after Resonance quit, and left no error.")]
     }
 
     /// SUNoUpdateError, SUInstallationCanceledError and

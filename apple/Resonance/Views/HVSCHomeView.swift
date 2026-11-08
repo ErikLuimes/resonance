@@ -157,13 +157,13 @@ extension HvscSyncStatus {
     /// before the server announces a total.
     var progressText: String {
         if filesTotal > 0 {
-            return "\(filesDone.formatted()) of \(filesTotal.formatted()) files"
+            return String(localized: "\(filesDone.formatted()) of \(filesTotal.formatted()) files")
         }
         if bytesTotal > 0 {
             let mb = Double(1024 * 1024)
             let done = (Double(bytesDone) / mb).formatted(.number.precision(.fractionLength(1)))
             let total = (Double(bytesTotal) / mb).formatted(.number.precision(.fractionLength(1)))
-            return "\(done) MB of \(total) MB"
+            return String(localized: "\(done) MB of \(total) MB")
         }
         return ""
     }
@@ -444,20 +444,20 @@ private struct CollectionHome: View {
             if compact {
                 Grid(alignment: .leading, horizontalSpacing: 28, verticalSpacing: 12) {
                     GridRow {
-                        stat(heroCounts.tunes, "tunes", delta: delta(\.tunes))
-                        stat(heroCounts.composers, "composers", delta: delta(\.composers))
+                        stat(heroCounts.tunes, String(localized: "tunes"), delta: delta(\.tunes))
+                        stat(heroCounts.composers, String(localized: "composers"), delta: delta(\.composers))
                     }
                     GridRow {
-                        stat(heroCounts.stilNotes, "STIL notes", delta: delta(\.stilNotes))
-                        stat(songLengthCoverage, "song lengths")
+                        stat(heroCounts.stilNotes, String(localized: "STIL notes"), delta: delta(\.stilNotes))
+                        stat(songLengthCoverage, String(localized: "song lengths"))
                     }
                 }
             } else {
                 HStack(spacing: 28) {
-                    stat(heroCounts.tunes, "tunes", delta: delta(\.tunes))
-                    stat(heroCounts.composers, "composers", delta: delta(\.composers))
-                    stat(heroCounts.stilNotes, "STIL notes", delta: delta(\.stilNotes))
-                    stat(songLengthCoverage, "song lengths")
+                    stat(heroCounts.tunes, String(localized: "tunes"), delta: delta(\.tunes))
+                    stat(heroCounts.composers, String(localized: "composers"), delta: delta(\.composers))
+                    stat(heroCounts.stilNotes, String(localized: "STIL notes"), delta: delta(\.stilNotes))
+                    stat(songLengthCoverage, String(localized: "song lengths"))
                 }
             }
         }
@@ -505,9 +505,9 @@ private struct CollectionHome: View {
 
     /// "Released June 28, 2026 · every C64 SID tune, archived since 1996".
     private var subtitle: String {
-        let tagline = "Every C64 SID tune, archived since 1996"
+        let tagline = String(localized: "Every C64 SID tune, archived since 1996")
         guard let date = info.releaseDate else { return tagline }
-        return "Released \(date) · \(tagline)"
+        return String(localized: "Released \(date) · \(tagline)")
     }
 
     private var songLengthCoverage: String {
@@ -526,7 +526,7 @@ private struct CollectionHome: View {
 
     private var browse: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionHeader("Browse", sub: "Tunes by where they come from")
+            sectionHeader(String(localized: "Browse"), sub: String(localized: "Tunes by where they come from"))
             let layout = width >= 520
                 ? AnyLayout(HStackLayout(spacing: 14))
                 : AnyLayout(VStackLayout(spacing: 14))
@@ -559,8 +559,8 @@ private struct CollectionHome: View {
     private var whatsNewSection: some View {
         if let update = info.update {
             VStack(alignment: .leading, spacing: 12) {
-                sectionHeader(info.version.map { "What's New in v\($0)" } ?? "What's New") {
-                    AccentLink("Announcement") { showAnnouncement = true }
+                sectionHeader(info.version.map { String(localized: "What's New in v\($0)") } ?? String(localized: "What's New")) {
+                    AccentLink(String(localized: "Announcement")) { showAnnouncement = true }
                 }
                 WhatsNewPanel(update: update)
                     .frame(maxHeight: .infinity, alignment: .top)
@@ -575,8 +575,8 @@ private struct CollectionHome: View {
         if !info.playlists.isEmpty {
             let top = Array(info.playlists.sorted { $0.tracks > $1.tracks }.prefix(4))
             VStack(alignment: .leading, spacing: 12) {
-                sectionHeader("Curated Playlists", sub: "\(info.playlists.count) playlists") {
-                    AccentLink("See All") { showAllPlaylists = true }
+                sectionHeader(String(localized: "Curated Playlists"), sub: String(localized: "\(info.playlists.count) playlists")) {
+                    AccentLink(String(localized: "See All")) { showAllPlaylists = true }
                 }
                 // Two across, or one where a card would get too narrow.
                 let columns = (wide ? (width - 20) * 7 / 12 : width) >= 440 ? 2 : 1
@@ -608,8 +608,8 @@ private struct CollectionHome: View {
             let shown = Array(recent.prefix(width >= 640 ? 6 : 4))
             let columns = width >= 640 ? 2 : 1
             VStack(alignment: .leading, spacing: 12) {
-                sectionHeader("Jump Back In", sub: "The tunes you played last") {
-                    AccentLink("History") { library.shownSection = .recent }
+                sectionHeader(String(localized: "Jump Back In"), sub: String(localized: "The tunes you played last")) {
+                    AccentLink(String(localized: "History")) { library.shownSection = .recent }
                 }
                 Grid(horizontalSpacing: 20, verticalSpacing: 2) {
                     ForEach(Array(stride(from: 0, to: shown.count, by: columns)), id: \.self) { start in
@@ -671,7 +671,7 @@ private struct CollectionHome: View {
     }
 
     private var disksPanel: some View {
-        Panel("C64 Disk Images", meta: "\(info.disks.count) \(info.disks.count == 1 ? "disk" : "disks")") {
+        Panel(String(localized: "C64 Disk Images"), meta: info.disks.count == 1 ? String(localized: "1 disk") : String(localized: "\(info.disks.count) disks")) {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(Array(info.disks.enumerated()), id: \.element.name) { index, disk in
                     HStack(spacing: 14) {
@@ -680,7 +680,7 @@ private struct CollectionHome: View {
                             Text(disk.name)
                                 .fontWeight(.semibold)
                                 .lineLimit(1)
-                            Text("\(disk.images) \(disk.images == 1 ? "image" : "images")")
+                            Text(disk.images == 1 ? "1 image" : "\(disk.images) images")
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
                         }
@@ -698,17 +698,17 @@ private struct CollectionHome: View {
 
     private var referencePanel: some View {
         let documents = URL(filePath: info.root).appending(path: "DOCUMENTS")
-        return Panel("Reference", meta: "\(info.documents) files") {
+        return Panel(String(localized: "Reference"), meta: String(localized: "\(info.documents) files")) {
             VStack(alignment: .leading, spacing: 2) {
-                ReferenceRow(symbol: "text.document", name: "STIL", detail: "Tune information",
+                ReferenceRow(symbol: "text.document", name: "STIL", detail: String(localized: "Tune information"),
                              trailing: info.stilEntries.formatted(),
                              file: documents.appending(path: "STIL.txt"))
-                ReferenceRow(symbol: "clock", name: "Songlengths", detail: "Playback durations",
+                ReferenceRow(symbol: "clock", name: "Songlengths", detail: String(localized: "Playback durations"),
                              trailing: info.songlengthEntries.formatted(), file: nil)
-                ReferenceRow(symbol: "chevron.left.forwardslash.chevron.right", name: "SID File Format",
-                             detail: "Header specification", trailing: "PSID · RSID",
+                ReferenceRow(symbol: "chevron.left.forwardslash.chevron.right", name: String(localized: "SID File Format"),
+                             detail: String(localized: "Header specification"), trailing: "PSID · RSID",
                              file: documents.appending(path: "SID_file_format.txt"))
-                ReferenceRow(symbol: "ladybug", name: "BUGlist", detail: "Known playback issues",
+                ReferenceRow(symbol: "ladybug", name: "BUGlist", detail: String(localized: "Known playback issues"),
                              trailing: "TXT", file: documents.appending(path: "BUGlist.txt"))
                 Button("Show in Finder") {
                     NSWorkspace.shared.open(documents)
@@ -720,9 +720,9 @@ private struct CollectionHome: View {
     }
 
     private var aboutPanel: some View {
-        Panel("About the Project", meta: "since May 1996") {
+        Panel(String(localized: "About the Project"), meta: String(localized: "since May 1996")) {
             VStack(alignment: .leading, spacing: 14) {
-                Text(info.summary ?? "A complete archive of the C64 era's SID music, kept alive by a volunteer crew of SID archeologists.")
+                Text(info.summary ?? String(localized: "A complete archive of the C64 era's SID music, kept alive by a volunteer crew of SID archeologists."))
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .lineSpacing(3)
@@ -746,8 +746,8 @@ private struct CollectionHome: View {
     }
 
     private var aboutFacts: [String] {
-        var facts = ["Started May 1996"]
-        if let version = info.version { facts.append("\(version) releases") }
+        var facts = [String(localized: "Started May 1996")]
+        if let version = info.version { facts.append(String(localized: "\(version) releases")) }
         facts.append("PSID & RSID")
         return facts
     }
@@ -984,18 +984,18 @@ private struct WhatsNewPanel: View {
 
     private var rows: [(label: String, count: UInt32, color: Color)] {
         var rows: [(label: String, count: UInt32, color: Color)] = []
-        if let count = update.newSids { rows.append(("new SIDs added", count, .green)) }
-        if let count = update.fixedRips { rows.append(("fixed and better rips", count, Palette.teal)) }
-        if let count = update.creditFixes { rows.append(("credit fixes", count, Palette.purple)) }
-        if let count = update.moved { rows.append(("tunes re-filed", count, Palette.orange)) }
+        if let count = update.newSids { rows.append((String(localized: "new SIDs added"), count, .green)) }
+        if let count = update.fixedRips { rows.append((String(localized: "fixed and better rips"), count, Palette.teal)) }
+        if let count = update.creditFixes { rows.append((String(localized: "credit fixes"), count, Palette.purple)) }
+        if let count = update.moved { rows.append((String(localized: "tunes re-filed"), count, Palette.orange)) }
         return rows
     }
 
     /// "Update #85, released June 28, 2026, follows v84."
     private var footnote: String {
-        var text = "Update #\(update.number)"
-        if let date = update.date { text += ", released \(date)" }
-        if let previous = update.previousVersion { text += ", follows v\(previous)" }
+        var text = String(localized: "Update #\(String(update.number))")
+        if let date = update.date { text += String(localized: ", released \(date)") }
+        if let previous = update.previousVersion { text += String(localized: ", follows v\(previous)") }
         return text + "."
     }
 }

@@ -67,7 +67,7 @@ private struct ScenePanels: View {
     }
 
     private var releases: some View {
-        ScenePanel("Fresh Releases", sub: "C64 Music") {
+        ScenePanel(String(localized: "Fresh Releases"), sub: "C64 Music") {
             VStack(spacing: 0) {
                 ForEach(showsAllMusic ? csdb.music : Array(csdb.music.prefix(5))) { ReleaseRow(release: $0) }
                 moreLink(csdb.music.count > 5, isOn: $showsAllMusic)
@@ -84,7 +84,7 @@ private struct ScenePanels: View {
     }
 
     private var events: some View {
-        ScenePanel("Coming Up", sub: "CSDb events") {
+        ScenePanel(String(localized: "Coming Up"), sub: String(localized: "CSDb events")) {
             VStack(spacing: 0) {
                 ForEach(showsAllEvents ? csdb.events : Array(csdb.events.prefix(5))) { EventRow(event: $0) }
                 moreLink(csdb.events.count > 5, isOn: $showsAllEvents)
@@ -96,7 +96,7 @@ private struct ScenePanels: View {
     @ViewBuilder
     private func moreLink(_ hasMore: Bool, isOn: Binding<Bool>) -> some View {
         if hasMore {
-            AccentLink(isOn.wrappedValue ? "Show Fewer" : "Show All") { isOn.wrappedValue.toggle() }
+            AccentLink(isOn.wrappedValue ? String(localized: "Show Fewer") : String(localized: "Show All")) { isOn.wrappedValue.toggle() }
                 .font(.caption.weight(.semibold))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 6)
@@ -109,9 +109,9 @@ private struct ScenePanels: View {
     private var news: some View {
         if !csdb.news.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
-                SectionTitle("Scene News", sub: "Comings and goings in the scene") {
+                SectionTitle(String(localized: "Scene News"), sub: String(localized: "Comings and goings in the scene")) {
                     if csdb.news.count > (wide ? 6 : 3) {
-                        AccentLink(showsAllNews ? "Show Fewer" : "Show All") { showsAllNews.toggle() }
+                        AccentLink(showsAllNews ? String(localized: "Show Fewer") : String(localized: "Show All")) { showsAllNews.toggle() }
                     }
                 }
                 let items = showsAllNews ? csdb.news : Array(csdb.news.prefix(wide ? 6 : 3))
@@ -220,10 +220,10 @@ struct SceneFeatureHeader: View {
             Text("Scene Pulse")
                 .font(.system(size: 15, weight: .bold))
                 .lineLimit(1)
-            AccentLink("Open CSDb") { openURL(URL(string: "https://csdb.dk")!) }
+            AccentLink(String(localized: "Open CSDb")) { openURL(URL(string: "https://csdb.dk")!) }
                 .font(.caption.weight(.semibold))
                 .lineLimit(1)
-            AccentLink("Refresh") { Task { await csdb.refresh(force: true) } }
+            AccentLink(String(localized: "Refresh")) { Task { await csdb.refresh(force: true) } }
                 .font(.caption.weight(.semibold))
                 .lineLimit(1)
                 .disabled(csdb.state == .loading)
@@ -327,7 +327,7 @@ private struct SceneFeaturePager: View {
     }
 }
 
-/// A picture as a backdrop, or a colour from the name until it loads or if
+/// A picture as a backdrop, or a color from the name until it loads or if
 /// there's none.
 private struct SceneBackdrop: View {
     let url: URL?
@@ -349,7 +349,7 @@ private struct SceneBackdrop: View {
 }
 
 /// How a backdrop looks: blurred, darkened and fading into the page. The
-/// picture hangs on a colour that sets the size, as a picture filling its
+/// picture hangs on a color that sets the size, as a picture filling its
 /// frame would otherwise make the frame as big as the picture.
 struct SceneBackdropLook<Picture: View>: View {
     let seed: String
@@ -413,7 +413,7 @@ private struct SceneFeatureSlide: View {
             return event.kind.uppercased()
         case .top(let release):
             let rating = release.rating.formatted(.number.precision(.fractionLength(2)))
-            return "\(rating) from \(release.votes.formatted()) votes".uppercased()
+            return String(localized: "\(rating) from \(release.votes.formatted()) votes").uppercased()
         }
     }
 
@@ -505,7 +505,7 @@ private struct SceneFeatureSlide: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(player.state == .loading)
             }
-            AccentLink("Open on CSDb") { openURL(pageURL) }
+            AccentLink(String(localized: "Open on CSDb")) { openURL(pageURL) }
                 .font(.callout.weight(.semibold))
                 .tint(Color(red: 0.61, green: 0.77, blue: 1))
         }
@@ -543,7 +543,7 @@ private struct SceneFeatureCover: View {
 /// of Scene Pulse and the Scene page. It keeps the feeds current while it
 /// shows, so "live" holds: it checks every few minutes, and the store only
 /// goes to CSDb once its hour is up. When the last answer is too old, it
-/// says so, with a still grey dot.
+/// says so, with a still gray dot.
 struct CSDbLiveStatus: View {
     @Environment(CSDbStore.self) private var csdb
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -573,12 +573,12 @@ struct CSDbLiveStatus: View {
 
     private var text: String {
         if isLive, let updated = csdb.updated {
-            return "Live from CSDb · " + SceneFormat.updated(updated)
+            return String(localized: "Live from CSDb · ") + SceneFormat.updated(updated)
         }
         if let updated = csdb.updated {
-            return "CSDb offline · " + SceneFormat.updated(updated)
+            return String(localized: "CSDb offline · ") + SceneFormat.updated(updated)
         }
-        return "Connecting to CSDb"
+        return String(localized: "Connecting to CSDb")
     }
 
     /// In a fixed frame, so the pulse never moves the text beside it.
@@ -755,16 +755,16 @@ struct CSDbPlayer {
 
     /// Where it would play from, once known: nothing to download either way.
     var tag: String? {
-        if csdb.hvscTune(ofRelease: id, library: library) != nil { return "In HVSC" }
-        return csdb.downloadedIDs.contains(id) ? "Downloaded" : nil
+        if csdb.hvscTune(ofRelease: id, library: library) != nil { return String(localized: "In HVSC") }
+        return csdb.downloadedIDs.contains(id) ? String(localized: "Downloaded") : nil
     }
 
     /// What the row says instead of its byline, while it has something to say.
     var message: String? {
         switch state {
-        case .loading: "Downloading…"
-        case .unavailable: "No SID on CSDb. Click to open its page"
-        case .failed(let reason): "Couldn't download: \(reason)"
+        case .loading: String(localized: "Downloading…")
+        case .unavailable: String(localized: "No SID on CSDb. Click to open its page")
+        case .failed(let reason): String(localized: "Couldn't download: \(reason)")
         case nil: nil
         }
     }
@@ -940,7 +940,7 @@ struct TopRatedPanel<Footer: View>: View {
     var body: some View {
         let common = CSDbTopList.commonRating(releases)
         let mostVotes = releases.map(\.votes).max() ?? 0
-        ScenePanel("Top Rated", sub: common.map { "all rated \($0.formatted(.number.precision(.fractionLength(2))))" } ?? "rating, votes") {
+        ScenePanel(String(localized: "Top Rated"), sub: common.map { String(localized: "all rated \($0.formatted(.number.precision(.fractionLength(2))))") } ?? String(localized: "rating, votes")) {
             VStack(spacing: 0) {
                 ForEach(releases) { release in
                     TopRow(release: release, mostVotes: mostVotes, showsRating: common == nil)
@@ -975,7 +975,7 @@ struct TopRow: View {
     }
 
     private var votes: String {
-        let count = release.votes == 1 ? "1 vote" : "\(release.votes.formatted()) votes"
+        let count = release.votes == 1 ? String(localized: "1 vote") : String(localized: "\(release.votes.formatted()) votes")
         return showsRating ? "\(release.rating.formatted(.number.precision(.fractionLength(2)))), \(count)" : count
     }
 
@@ -1117,7 +1117,7 @@ private struct SceneStatus: View {
             case .failed(let message):
                 Text("CSDb isn't reachable: \(message)")
                     .foregroundStyle(.secondary)
-                AccentLink("Try Again") { Task { await csdb.refresh(force: true) } }
+                AccentLink(String(localized: "Try Again")) { Task { await csdb.refresh(force: true) } }
             default:
                 ProgressView().controlSize(.small)
                 Text("Loading the scene…")
@@ -1133,7 +1133,7 @@ private struct SceneStatus: View {
 
 enum SceneFormat {
     static func updated(_ date: Date) -> String {
-        "updated " + date.formatted(date: .omitted, time: .shortened)
+        String(localized: "updated \(date.formatted(date: .omitted, time: .shortened))")
     }
 }
 
@@ -1184,7 +1184,7 @@ struct CSDbDownloadsView: View {
     }
 
     private var dialogTitle: String {
-        removing.count == 1 ? "Remove This Download?" : "Remove \(removing.count) Downloads?"
+        removing.count == 1 ? String(localized: "Remove This Download?") : String(localized: "Remove \(removing.count) Downloads?")
     }
 
     @ViewBuilder
@@ -1199,8 +1199,8 @@ struct CSDbDownloadsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 LibraryTable(rows: shown, source: .csdbDownloads, onRemove: remove,
-                             removeTitle: "Remove Download", removesOnDeleteKey: true,
-                             webLink: { path in CSDbStore.releaseURL(ofDownload: path).map { ("Open on CSDb", $0) } })
+                             removeTitle: String(localized: "Remove Download"), removesOnDeleteKey: true,
+                             webLink: { path in CSDbStore.releaseURL(ofDownload: path).map { (String(localized: "Open on CSDb"), $0) } })
                     .overlay {
                         if !query.isEmpty && shown.isEmpty {
                             ContentUnavailableView.search(text: query)
@@ -1255,10 +1255,10 @@ struct CSDbDownloadsView: View {
 
     private var subtitle: String {
         guard let count = rows?.count else { return "…" }
-        return (count == 1 ? "1 tune" : "\(count.formatted()) tunes") + " from CSDb"
+        return (count == 1 ? String(localized: "1 tune") : String(localized: "\(count.formatted()) tunes")) + String(localized: " from CSDb")
     }
 
-    /// Straight away, unless a playlist would lose the tune too.
+    /// Right away, unless a playlist would lose the tune too.
     private func remove(_ ids: Set<LibraryRow.ID>) {
         let lists = playlists.lists(holding: ids)
         if lists.isEmpty {

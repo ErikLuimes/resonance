@@ -37,7 +37,7 @@ struct NowPlayingInspector: View {
                     if store.hasCollection {
                         SoundsLikeSection(path: track.path)
                     }
-                    InspectorSection("Details") {
+                    InspectorSection(String(localized: "Details")) {
                         specs(of: track)
                     }
                 }
@@ -113,9 +113,9 @@ struct NowPlayingInspector: View {
     /// missing, and "<?>" means nothing is known.
     nonisolated static func released(_ field: String) -> String? {
         switch releasedParts(field) {
-        case let (year?, by?): return "Released \(year) by \(by)"
-        case let (year?, nil): return "Released \(year)"
-        case let (nil, by?): return "Released by \(by)"
+        case let (year?, by?): return String(localized: "Released \(year) by \(by)")
+        case let (year?, nil): return String(localized: "Released \(year)")
+        case let (nil, by?): return String(localized: "Released by \(by)")
         case (nil, nil): return nil
         }
     }
@@ -138,10 +138,10 @@ struct NowPlayingInspector: View {
         PlayingFrom(showsKind: true)
     }
 
-    /// Keep what's playing: a favourite, or into a playlist.
+    /// Keep what's playing: a favorite, or into a playlist.
     private func playlistStatus(_ track: TrackDetails) -> some View {
         HStack(spacing: 8) {
-            FavouriteButton(path: track.path)
+            FavoriteButton(path: track.path)
             AddToButton(files: [track.path])
                 .controlSize(.small)
             ShareButton(path: track.path, subtune: Int(track.currentSong))
@@ -154,14 +154,14 @@ struct NowPlayingInspector: View {
     private func specs(of track: TrackDetails) -> some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                spec("Format", track.isRsid ? "RSID" : "PSID")
+                spec(String(localized: "Format"), track.isRsid ? "RSID" : "PSID")
                 Divider()
                 spec("SID", track.chipModel.short)
                     .help(track.chipModel.full)
                 Divider()
-                spec("Clock", track.isPal ? "PAL" : "NTSC")
+                spec(String(localized: "Clock"), track.isPal ? "PAL" : "NTSC")
                 Divider()
-                spec("Chips", "\(track.numSids)")
+                spec(String(localized: "Chips"), "\(track.numSids)")
             }
             .fixedSize(horizontal: false, vertical: true)
             Divider()
@@ -195,8 +195,8 @@ nonisolated extension TrackDetails {
         switch sidModel {
         case 1: ("6581", "MOS 6581")
         case 2: ("8580", "MOS 8580")
-        case 3: ("Either", "Plays on the 6581 or the 8580")
-        default: ("—", "Not specified in the file")
+        case 3: (String(localized: "Either"), String(localized: "Plays on the 6581 or the 8580"))
+        default: ("—", String(localized: "Not specified in the file"))
         }
     }
 }
@@ -270,7 +270,7 @@ private struct KnownIssueCard: View {
     }
 }
 
-/// The inspector's links, all alike: text in the accent colour (`.link`
+/// The inspector's links, all alike: text in the accent color (`.link`
 /// would be system blue).
 struct AccentLink: View {
     let title: String
@@ -312,13 +312,13 @@ private struct ComposerCard: View {
                             .foregroundStyle(.secondary)
                     }
                     if let path = composer.authorPath {
-                        AccentLink("Show All Tunes") {
+                        AccentLink(String(localized: "Show All Tunes")) {
                             library.reveal = LibraryReveal(authorPath: path, tunePath: tunePath)
                         }
                         .help("Show all tunes by \(composer.name)")
                     } else if library.player.hasCollection {
                         // No folder: the tunes whose header credits them.
-                        AccentLink("Show All Tunes") {
+                        AccentLink(String(localized: "Show All Tunes")) {
                             library.credits = LibraryCredits(
                                 name: composer.name,
                                 category: library.category(of: tunePath) ?? .musicians

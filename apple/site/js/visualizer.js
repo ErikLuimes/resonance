@@ -1,6 +1,6 @@
 // The chip section's drawing, after Resonance's VisualizerView.swift and
 // SIDVoice.swift: per-voice levels with fast attack and slow release, and a
-// stylised scope of each voice's waveform.
+// stylized scope of each voice's waveform.
 
 import { TRI, SAW, PUL, NOI } from './tune.js?v=20261104h';
 
@@ -72,7 +72,7 @@ function waveAt(wave, p, pw, noise) {
 }
 
 /**
- * A stylised oscilloscope of one voice: its waveform drawn from the
+ * A stylized oscilloscope of one voice: its waveform drawn from the
  * driver's state (not measured audio), more cycles for higher notes,
  * scaled by the envelope.
  */

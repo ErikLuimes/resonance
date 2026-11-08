@@ -58,7 +58,7 @@ finds tunes with plenty of samples, and the line under the field says it can't t
 
 ## Intensity
 
-There's no reference for "chill", so this is a judgement checked by proxies, not
+There's no reference for "chill", so this is a judgment checked by proxies, not
 a measured truth. The tune's rank against the pool on four measures, weighted,
 then ranked again so 0 is the calmest and 1 the most intense:
 
@@ -85,10 +85,10 @@ moves.
 
 The average of the heard tunes' feature vectors, then unheard music from 75% to
 95% of the way out from it. Not the furthest tunes, which are mostly oddities.
-It stops at under 25 heard tunes (`MIN_HISTORY`), which is a judgement.
+It stops at under 25 heard tunes (`MIN_HISTORY`), which is a judgment.
 
 This is the weakest of the recipes. With 283 heard tunes the average leans only
-about a fifth of a standard deviation towards louder and higher, so "different"
+about a fifth of a standard deviation toward louder and higher, so "different"
 is a mild signal, and it should get better with history. Features, not
 embeddings: those all lie close together, and an average blurs them further.
 
@@ -161,7 +161,7 @@ Hülsbeck" Thomas Mogensen. A shared surname means whoever has the most tunes. A
 nickname that's an English word ("Eye") needs "by". Close spellings count from
 five letters, and the note says so: "Did you mean Rob Hubbard?"
 
-**It always answers.** Once Return is pressed, a sentence with nothing recognised
+**It always answers.** Once Return is pressed, a sentence with nothing recognized
 becomes tunes with one of its words in the title, or else a random mix, and the note
 says which. While typing, it leaves the list alone until the words mean something.
 
@@ -218,7 +218,7 @@ known" but not rank them. CSDb's ratings could do better once CSDb ships.
 A list of a set length leaves out tunes under a minute and tunes that scanned as
 silence; All still has them, as it says. Lists of up to 500 flow: each next tune is
 the closest to the one before by another composer, by Sounds Like's feature vectors.
-On three Never Heard hours, neighbouring tunes scored 0.31, 0.34 and 0.42 against
+On three Never Heard hours, neighboring tunes scored 0.31, 0.34 and 0.42 against
 0.06, 0.13 and 0.19 for the same tunes shuffled, with no composer twice in a row. In
 a rising list only the calm stretch flows, since the climb's order is the point.
 

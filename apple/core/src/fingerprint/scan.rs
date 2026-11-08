@@ -271,8 +271,8 @@ fn scan_file(
             .clamp(MIN_SCAN_SECS, MAX_SCAN_SECS);
 
         store.mark_scanning(&md5, subtune)?;
-        let cancelled = || shared.cancel.load(Ordering::Acquire);
-        let result = catch_unwind(AssertUnwindSafe(|| scan_tune(&data, subtune, secs, &cancelled)))
+        let canceled = || shared.cancel.load(Ordering::Acquire);
+        let result = catch_unwind(AssertUnwindSafe(|| scan_tune(&data, subtune, secs, &canceled)))
             .unwrap_or_else(|_| Err("the emulator panicked".into()));
         match result {
             // Stopped, not stuck: this attempt doesn't count.

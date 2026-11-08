@@ -118,7 +118,7 @@ impl Fingerprint {
         self.voice_level.iter().all(|&l| l < 0.005) && self.digi < 0.05
     }
 
-    /// The vector "Sounds like" compares, before standardising. Rates are
+    /// The vector "Sounds like" compares, before standardizing. Rates are
     /// log-compressed so a few busy tunes don't swamp the scale.
     pub fn features(&self) -> [f32; FEATURES] {
         let ln = |x: f32| (1.0 + x.max(0.0)).ln();
@@ -827,13 +827,13 @@ fn header_asks_for_8580(data: &[u8]) -> bool {
 }
 
 /// Emulate `subtune` (1-based) of a SID file for `secs` and fingerprint it.
-/// `cancelled` is polled every few seconds of emulated time; Ok(None) when
+/// `canceled` is polled every few seconds of emulated time; Ok(None) when
 /// it stopped the scan.
 pub(crate) fn scan_tune(
     data: &[u8],
     subtune: u16,
     secs: f32,
-    cancelled: &dyn Fn() -> bool,
+    canceled: &dyn Fn() -> bool,
 ) -> Result<Option<Fingerprint>, String> {
     let mut player = Player::new()?;
     // No ROMs: libsidplayfp's built-in stubs cover PSIDs and most RSIDs.
@@ -851,7 +851,7 @@ pub(crate) fn scan_tune(
     extractor.set_8580(header_asks_for_8580(data));
     let mut writes = Vec::with_capacity(256);
     for frame in 0..frames {
-        if frame % 256 == 0 && cancelled() {
+        if frame % 256 == 0 && canceled() {
             return Ok(None);
         }
         player.play(cycles)?;

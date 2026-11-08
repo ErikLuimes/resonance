@@ -43,7 +43,7 @@ struct BarsVisualizer: View {
     }
 
     /// The bars themselves, also drawn by the welcome. `label` draws what's
-    /// under voice `i`, given the voice's centre and the labels' top.
+    /// under voice `i`, given the voice's center and the labels' top.
     static func drawBars(
         levels: [Double],
         peaks: [Double],

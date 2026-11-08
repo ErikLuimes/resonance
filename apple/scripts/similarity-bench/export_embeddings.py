@@ -25,18 +25,18 @@ import numpy as np
 import corpus
 
 SET_VERSION = 1
-LICENCE = """Resonance audio embeddings, set {version}.
+LICENSE = """Resonance audio embeddings, set {version}.
 
 Compressed embeddings of High Voltage SID Collection tunes, made with
 MERT-v1-95M (https://huggingface.co/m-a-p/MERT-v1-95M, revision {revision}) by
 Yizhi Li et al., whose weights are under the Creative Commons
-Attribution-NonCommercial 4.0 licence. These embeddings are distributed under
-the same licence: https://creativecommons.org/licenses/by-nc/4.0/
+Attribution-NonCommercial 4.0 license. These embeddings are distributed under
+the same license: https://creativecommons.org/licenses/by-nc/4.0/
 
 Changes: rendered audio was embedded, averaged per subtune, then reduced to
 {dims} dimensions by uncentered PCA and quantized to 8 bits.
 
-Resonance's code is MIT-licensed; that licence doesn't extend to this file.
+Resonance's code is MIT-licensed; that license doesn't extend to this file.
 """
 
 
@@ -99,7 +99,7 @@ def main():
             archive.write(db_path, "embeddings.sqlite")
             archive.writestr(
                 "LICENSE.txt",
-                LICENCE.format(version=SET_VERSION, revision=args.revision, dims=args.dims),
+                LICENSE.format(version=SET_VERSION, revision=args.revision, dims=args.dims),
             )
     print(f"{args.out}: {os.path.getsize(args.out) / 1e6:.1f} MB")
 

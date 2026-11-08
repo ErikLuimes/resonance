@@ -188,7 +188,7 @@ fn frame_shade(ch: char) -> Color {
     }
 }
 
-fn put_centred(buffer: &mut Buffer, area: Rect, row: u16, text: &str, style: Option<Style>) {
+fn put_centered(buffer: &mut Buffer, area: Rect, row: u16, text: &str, style: Option<Style>) {
     let width = text.chars().count() as u16;
     let left = area.x + area.width.saturating_sub(width) / 2;
     for (n, ch) in text.chars().enumerate() {
@@ -253,18 +253,18 @@ pub fn draw(buffer: &mut Buffer, area: Rect, plan: Plan) {
         Size::Full => {
             put_art(buffer, area, &FULL, FULL_COLUMNS, plan.scale);
             let art = scaled(FULL.len(), plan.scale);
-            put_centred(buffer, area, art, SUBTITLE, Some(bold));
-            put_centred(buffer, area, art + 1, DETAILS, Some(Style::new().fg(Color::Indexed(246))));
+            put_centered(buffer, area, art, SUBTITLE, Some(bold));
+            put_centered(buffer, area, art + 1, DETAILS, Some(Style::new().fg(Color::Indexed(246))));
         }
         Size::Tight => {
             put_art(buffer, area, &FULL[1..FULL.len() - 1], FULL_COLUMNS, 1.0);
-            put_centred(buffer, area, TIGHT_ROWS - 1, SUBTITLE, Some(bold));
+            put_centered(buffer, area, TIGHT_ROWS - 1, SUBTITLE, Some(bold));
         }
         Size::Compact => {
             put_art(buffer, area, &COMPACT, COMPACT_COLUMNS, plan.scale);
-            put_centred(buffer, area, scaled(COMPACT.len(), plan.scale), SHORT_SUBTITLE, Some(bold));
+            put_centered(buffer, area, scaled(COMPACT.len(), plan.scale), SHORT_SUBTITLE, Some(bold));
         }
-        Size::Line => put_centred(buffer, area, 0, LINE, Some(bold)),
+        Size::Line => put_centered(buffer, area, 0, LINE, Some(bold)),
     }
 }
 

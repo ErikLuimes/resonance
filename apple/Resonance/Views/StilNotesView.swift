@@ -164,7 +164,7 @@ private struct StilSectionCard: View {
     }
 }
 
-/// Someone remembered, set like an epitaph: centred and unframed, a thin
+/// Someone remembered, set like an epitaph: centered and unframed, a thin
 /// candle flame, the name in the quotes' serif, and when it happened.
 struct MemorialCard: View {
     let memorial: STILMemorial
@@ -195,9 +195,9 @@ struct MemorialCard: View {
 
     /// "On May 6th, 2011." → "Passed away on May 6th, 2011".
     nonisolated static func passed(_ details: String?) -> String {
-        guard var details, !details.isEmpty else { return "Passed away" }
+        guard var details, !details.isEmpty else { return String(localized: "Passed away") }
         if details.hasSuffix(".") { details.removeLast() }
-        return "Passed away " + details.prefix(1).lowercased() + details.dropFirst()
+        return String(localized: "Passed away ") + details.prefix(1).lowercased() + details.dropFirst()
     }
 }
 
@@ -223,9 +223,9 @@ private struct NoSongNotesCard: View {
 
 /// A small heading inside a card: "IN THEIR WORDS".
 private struct StilOverline: View {
-    let title: LocalizedStringKey
+    let title: LocalizedStringResource
 
-    init(_ title: LocalizedStringKey) {
+    init(_ title: LocalizedStringResource) {
         self.title = title
     }
 
@@ -328,7 +328,7 @@ private struct StilTranscript: View {
                     if let answer = exchange.answer {
                         GridRow {
                             Monogram(name: answer.by ?? "A")
-                                .help(answer.by.map { answer.role == .composer ? "\($0), composer" : $0 } ?? "Answer")
+                                .help(answer.by.map { answer.role == .composer ? String(localized: "\($0), composer") : $0 } ?? String(localized: "Answer"))
                             AnswerView(answer: answer)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
@@ -367,7 +367,7 @@ private struct AnswerView: View {
             }
             .textSelection(.enabled)
             if folds {
-                AccentLink(expanded ? "Show Less" : "Read More") { expanded.toggle() }
+                AccentLink(expanded ? String(localized: "Show Less") : String(localized: "Read More")) { expanded.toggle() }
             }
         }
     }
@@ -450,7 +450,7 @@ private struct StilBlockView: View {
     }
 
     private var foldLink: some View {
-        AccentLink(expanded ? "Show Less" : "Read More") { expanded.toggle() }
+        AccentLink(expanded ? String(localized: "Show Less") : String(localized: "Read More")) { expanded.toggle() }
     }
 }
 
@@ -605,6 +605,20 @@ nonisolated struct RelationLink: Equatable {
         relation = lead
         hvscPath = path
     }
+
+    /// `relation` in the app's language. STIL itself is always English.
+    var title: LocalizedStringResource {
+        switch relation.lowercased() {
+        case "remix of": "Remix of"
+        case "same as": "Same as"
+        case "covers": "Covers"
+        case "inspired by": "Inspired by"
+        case "see also": "See also"
+        case "edit of": "Edit of"
+        case "based on": "Based on"
+        default: LocalizedStringResource(stringLiteral: relation)
+        }
+    }
 }
 
 /// The tune a note relates this one to, with who wrote it; a click shows
@@ -618,7 +632,7 @@ private struct RelationCard: View {
         let tune = library.linkedTunes[relation.hvscPath] ?? nil
         let title = tune?.title ?? LinkedTune.fallbackTitle(relation.hvscPath)
         VStack(alignment: .leading, spacing: 6) {
-            StilOverline(LocalizedStringKey(relation.relation))
+            StilOverline(relation.title)
             Button {
                 library.reveal(hvscPath: relation.hvscPath)
             } label: {
@@ -696,10 +710,10 @@ private struct CoversView: View {
         }
         let named = cover.title != nil || cover.unknown
         if let source = cover.source {
-            text = Text("\(text)\(named ? " from " : "From ")\(source)")
+            text = named ? Text("\(text) from \(source)") : Text("From \(source)")
         }
         if let artist = cover.artist {
-            text = Text("\(text)\(named || cover.source != nil ? ", by " : "A tune by ")\(artist)")
+            text = named || cover.source != nil ? Text("\(text), by \(artist)") : Text("A tune by \(artist)")
         }
         if let at = cover.at {
             let range = cover.until.map { "\(Self.time(at))–\(Self.time($0))" } ?? Self.time(at)
@@ -713,14 +727,14 @@ private struct CoversView: View {
         let timed = covers.filter { $0.at != nil }
         let sources = Set(timed.map(\.source))
         let artists = Set(timed.map(\.artist))
-        var line = "A medley"
+        var line = String(localized: "A medley")
         if sources.count == 1, let source = sources.first ?? nil {
-            line += " from \(source)"
+            line += String(localized: " from \(source)")
         } else {
-            line += " of \(timed.count) parts"
+            line += String(localized: " of \(timed.count) parts")
         }
         if artists.count == 1, let artist = artists.first ?? nil {
-            line += ", music by \(artist)"
+            line += String(localized: ", music by \(artist)")
         }
         return line
     }
@@ -805,7 +819,7 @@ private struct MedleyTimeline: View {
                 .fontWeight(isActive ? .semibold : .regular)
                 .lineLimit(1)
             Spacer(minLength: 8)
-            Text(segment.end.map { "\(CoversView.time(segment.start))–\(CoversView.time($0))" } ?? "from \(CoversView.time(segment.start))")
+            Text(segment.end.map { "\(CoversView.time(segment.start))–\(CoversView.time($0))" } ?? String(localized: "from \(CoversView.time(segment.start))"))
                 .font(.callout.monospacedDigit())
                 .foregroundStyle(.secondary)
         }
@@ -816,7 +830,7 @@ private struct MedleyTimeline: View {
 }
 
 extension Color {
-    /// A medley's parts: quiet grey, a stronger grey for the one that's
+    /// A medley's parts: quiet gray, a stronger gray for the one that's
     /// playing.
     static let stilCover = Color(nsColor: .tertiaryLabelColor)
     static let stilCoverActive = Color(nsColor: .secondaryLabelColor)

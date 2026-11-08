@@ -46,7 +46,7 @@ nonisolated struct VisualizerFeed {
         core.setVizOutputLatencyMs(ms: UInt32(clamping: Int((latency / .milliseconds(1)).rounded())))
     }
 
-    /// Fine-tuning on top of the modelled latency; positive shows frames later.
+    /// Fine-tuning on top of the modeled latency; positive shows frames later.
     func setOffset(milliseconds: Int) {
         core.setVizOffsetMs(ms: Int32(clamping: milliseconds))
     }

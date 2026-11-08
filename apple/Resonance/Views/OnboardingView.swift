@@ -14,33 +14,33 @@ enum OnboardingStep: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .collection: "Welcome to Resonance"
-        case .smartPlaylists: "Say What You'd Like to Hear"
-        case .soundsLike: "Find What Sounds Alike"
+        case .collection: String(localized: "Welcome to Resonance")
+        case .smartPlaylists: String(localized: "Say What You'd Like to Hear")
+        case .soundsLike: String(localized: "Find What Sounds Alike")
 #if CSDB
-        case .scene: "Follow the Scene"
+        case .scene: String(localized: "Follow the Scene")
 #endif
         }
     }
 
     var subtitle: String {
         switch self {
-        case .collection: "A player for Commodore 64 music."
-        case .smartPlaylists: "Your words, your Mac. Nothing leaves it."
-        case .soundsLike: "Nothing to set up. It works with the collection."
+        case .collection: String(localized: "A player for Commodore 64 music.")
+        case .smartPlaylists: String(localized: "Your words, your Mac. Nothing leaves it.")
+        case .soundsLike: String(localized: "Nothing to set up. It works with the collection.")
 #if CSDB
-        case .scene: "Optional. Everything so far works without it."
+        case .scene: String(localized: "Optional. Everything so far works without it.")
 #endif
         }
     }
 
     var feature: String {
         switch self {
-        case .collection: "Get the Collection"
-        case .smartPlaylists: "Smart Playlists"
-        case .soundsLike: "Sounds Like"
+        case .collection: String(localized: "Get the Collection")
+        case .smartPlaylists: String(localized: "Smart Playlists")
+        case .soundsLike: String(localized: "Sounds Like")
 #if CSDB
-        case .scene: "News from CSDb"
+        case .scene: String(localized: "News from CSDb")
 #endif
         }
     }
@@ -48,14 +48,14 @@ enum OnboardingStep: String, CaseIterable, Identifiable {
     var text: String {
         switch self {
         case .collection:
-            "The High Voltage SID Collection holds more than 60,000 tunes, organised by composer and documented by volunteers since 1996."
+            String(localized: "The High Voltage SID Collection holds more than 60,000 tunes, organized by composer and documented by volunteers since 1996.")
         case .smartPlaylists:
-            "Describe a mood, a composer, a year or a length in your own words, and Resonance makes the playlist from the collection."
+            String(localized: "Describe a mood, a composer, a year or a length in your own words, and Resonance makes the playlist from the collection.")
         case .soundsLike:
-            "Start from a tune you love and Resonance finds others that sound like it, by any composer. It compares how they sound and how they drive the SID chip."
+            String(localized: "Start from a tune you love and Resonance finds others that sound like it, by any composer. It compares how they sound and how they drive the SID chip.")
 #if CSDB
         case .scene:
-            "The C64 scene still releases music. CSDb is its database. Turn this on for Scene Pulse, with new releases and parties, and for composers' groups and credits."
+            String(localized: "The C64 scene still releases music. CSDb is its database. Turn this on for Scene Pulse, with new releases and parties, and for composers' groups and credits.")
 #endif
         }
     }
@@ -64,10 +64,10 @@ enum OnboardingStep: String, CaseIterable, Identifiable {
     var note: String? {
         switch self {
         case .collection:
-            "About 81 MB to download and 460 MB on disk. It keeps going while you carry on."
+            String(localized: "About 81 MB to download and 460 MB on disk. It keeps going while you carry on.")
 #if CSDB
         case .scene:
-            "Resonance would contact csdb.dk, a site we don't run: to fetch the news, look up composers you open, and download CSDb tunes you play. If you say no, it never does. You can change this in Settings."
+            String(localized: "Resonance would contact csdb.dk, a site we don't run: to fetch the news, look up composers you open, and download CSDb tunes you play. If you say no, it never does. You can change this in Settings.")
 #endif
         default:
             nil
@@ -245,15 +245,15 @@ struct OnboardingView: View {
         switch step {
         case .collection:
             VStack(spacing: 8) {
-                primaryButton("Download the Collection") {
+                primaryButton(String(localized: "Download the Collection")) {
                     store.startHvscSync()
                     advance()
                 }
-                AccentLink("Choose a Folder You Already Have") { choosingFolder = true }
-                AccentLink("Not Now") { advance() }
+                AccentLink(String(localized: "Choose a Folder You Already Have")) { choosingFolder = true }
+                AccentLink(String(localized: "Not Now")) { advance() }
             }
         case .smartPlaylists, .soundsLike:
-            primaryButton(isLast ? "Start Listening" : "Continue") { advance() }
+            primaryButton(isLast ? String(localized: "Start Listening") : String(localized: "Continue")) { advance() }
 #if CSDB
         case .scene:
             // A real choice, so neither answer is the highlighted one.
@@ -319,12 +319,12 @@ private struct OnboardingDownloadLine: View {
 
     private var text: String? {
         if let error = store.hvscSyncError ?? store.hvscSync?.error {
-            return "The download stopped: \(error)"
+            return String(localized: "The download stopped: \(error)")
         }
         guard let sync = store.hvscSync, sync.running else { return nil }
         let progress = sync.progressText
-        if sync.filesTotal > 0 { return "Extracting the collection: \(progress)" }
-        return progress.isEmpty ? "Downloading the collection" : "Downloading the collection: \(progress)"
+        if sync.filesTotal > 0 { return String(localized: "Extracting the collection: \(progress)") }
+        return progress.isEmpty ? String(localized: "Downloading the collection") : String(localized: "Downloading the collection: \(progress)")
     }
 }
 

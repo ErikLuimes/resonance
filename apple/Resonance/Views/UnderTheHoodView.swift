@@ -9,10 +9,10 @@ enum UnderTheHoodTab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .tracker: "Tracker"
-        case .registers: "Registers"
-        case .sweeps: "Sweeps"
-        case .pitch: "Pitch Trail"
+        case .tracker: String(localized: "Tracker")
+        case .registers: String(localized: "Registers")
+        case .sweeps: String(localized: "Sweeps")
+        case .pitch: String(localized: "Pitch Trail")
         }
     }
 }
@@ -214,12 +214,12 @@ struct UnderTheHoodView: View {
                     }
                 }
             case .sweeps:
-                live(frames: 512) { frames, colours in
-                    SweepsCanvas(frames: frames, shown: shown, colours: colours)
+                live(frames: 512) { frames, colors in
+                    SweepsCanvas(frames: frames, shown: shown, colors: colors)
                 }
             case .pitch:
-                live(frames: 256) { frames, colours in
-                    PitchCanvas(frames: frames, shown: shown, colours: colours)
+                live(frames: 256) { frames, colors in
+                    PitchCanvas(frames: frames, shown: shown, colors: colors)
                 }
             }
         }
@@ -259,13 +259,13 @@ private struct TrackerTab: View {
                 GeometryReader { space in
                     TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !store.isPlaying)) { _ in
                         let row = song.row(atSecs: store.visualizer.heardSecs ?? 0)
-                        let colours = (0..<3).map { theme.voice($0) }
-                        TrackerPage(song: song, tuneID: tune?.path ?? "", row: row, height: space.size.height, width: space.size.width, colours: colours)
+                        let colors = (0..<3).map { theme.voice($0) }
+                        TrackerPage(song: song, tuneID: tune?.path ?? "", row: row, height: space.size.height, width: space.size.width, colors: colors)
                             .equatable()
                     }
                 }
             } else {
-                Text(problem ?? "Rebuilding the tune from what its player writes…")
+                Text(problem ?? String(localized: "Rebuilding the tune from what its player writes…"))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -285,7 +285,7 @@ private struct TrackerTab: View {
             song = made
         } catch {
             guard !Task.isCancelled else { return }
-            problem = "This tune couldn't be rebuilt."
+            problem = String(localized: "This tune couldn't be rebuilt.")
         }
     }
 }
@@ -297,7 +297,7 @@ struct TrackerPage: View, Equatable {
     let row: Int
     let height: CGFloat
     let width: CGFloat
-    let colours: [Color]
+    let colors: [Color]
 
     private static let rowHeight: CGFloat = 17
     private static let panelFrom: CGFloat = 640
@@ -307,7 +307,7 @@ struct TrackerPage: View, Equatable {
 
     nonisolated static func == (a: Self, b: Self) -> Bool {
         a.row == b.row && a.tuneID == b.tuneID && a.height == b.height && a.width == b.width
-            && a.song.rows.count == b.song.rows.count && a.colours == b.colours
+            && a.song.rows.count == b.song.rows.count && a.colors == b.colors
     }
 
     private var visible: Int { max(Int((height - 34) / Self.rowHeight), 1) }
@@ -342,7 +342,7 @@ struct TrackerPage: View, Equatable {
                 let name = current[voice]?.name.components(separatedBy: " › ").last ?? ""
                 Text("V\(voice + 1) \(name)")
                     .fontWeight(.semibold)
-                    .foregroundStyle(colours[voice])
+                    .foregroundStyle(colors[voice])
                     .frame(width: 124, alignment: .leading)
                     .lineLimit(1)
             }
@@ -371,7 +371,7 @@ struct TrackerPage: View, Equatable {
     private func cell(_ cell: TrackerCell, voice: Int, isCurrent: Bool) -> some View {
         let note = cell.note ?? (cell.off ? "---" : "···")
         let hasNote = cell.note != nil
-        let noteColour: Color = hasNote ? (isCurrent ? .white : colours[voice]) : (cell.off ? Self.dim : Self.empty)
+        let noteColor: Color = hasNote ? (isCurrent ? .white : colors[voice]) : (cell.off ? Self.dim : Self.empty)
         let effect: String? = switch cell.effect {
         case .arpeggio: "ARP"
         case .slide: "SLD"
@@ -379,7 +379,7 @@ struct TrackerPage: View, Equatable {
         case .none: nil
         }
         return HStack(spacing: 8) {
-            Text(note).foregroundStyle(noteColour).fontWeight(hasNote && isCurrent ? .bold : .regular)
+            Text(note).foregroundStyle(noteColor).fontWeight(hasNote && isCurrent ? .bold : .regular)
             Text(cell.instrument > 0 ? String(format: "%02X", cell.instrument) : "··")
                 .foregroundStyle(cell.instrument > 0 ? Self.dim : Self.empty)
             Text(effect ?? "···").foregroundStyle(effect == nil ? Self.empty : Color.white.opacity(0.85))
@@ -392,7 +392,7 @@ struct TrackerPage: View, Equatable {
             ForEach(0..<3, id: \.self) { voice in
                 if let instrument = current[voice] {
                     Text("\(instrument.name)  \(String(format: "%02X %02X", instrument.attackDecay, instrument.sustainRelease))")
-                        .foregroundStyle(colours[voice])
+                        .foregroundStyle(colors[voice])
                         .lineLimit(1)
                 }
             }
@@ -439,12 +439,12 @@ struct TrackerPage: View, Equatable {
 // MARK: Registers
 
 private let monoFont = Font.system(size: 12, design: .monospaced)
-private let dimColour = Color(red: 0x8D / 255, green: 0x8E / 255, blue: 0x96 / 255)
-private let faintColour = Color(red: 0x3A / 255, green: 0x3A / 255, blue: 0x42 / 255)
-private let violetColour = Color(red: 0xA2 / 255, green: 0x7C / 255, blue: 0xF6 / 255)
+private let dimColor = Color(red: 0x8D / 255, green: 0x8E / 255, blue: 0x96 / 255)
+private let faintColor = Color(red: 0x3A / 255, green: 0x3A / 255, blue: 0x42 / 255)
+private let violetColor = Color(red: 0xA2 / 255, green: 0x7C / 255, blue: 0xF6 / 255)
 
-private func label(_ text: String, at point: CGPoint, colour: Color, bold: Bool = false, in gc: GraphicsContext) {
-    gc.draw(Text(text).font(monoFont.weight(bold ? .semibold : .regular)).foregroundColor(colour), at: point, anchor: .leading)
+private func label(_ text: String, at point: CGPoint, color: Color, bold: Bool = false, in gc: GraphicsContext) {
+    gc.draw(Text(text).font(monoFont.weight(bold ? .semibold : .regular)).foregroundColor(color), at: point, anchor: .leading)
 }
 
 struct RegistersCanvas: View {
@@ -469,7 +469,7 @@ struct RegistersCanvas: View {
             let top: CGFloat = 20
             for voice in 0..<3 {
                 let x = 14 + CGFloat(voice) * column
-                label("VOICE \(voice + 1)", at: CGPoint(x: x, y: top), colour: theme.voice(voice), bold: true, in: gc)
+                label("VOICE \(voice + 1)", at: CGPoint(x: x, y: top), color: theme.voice(voice), bold: true, in: gc)
                 for (i, name) in Self.names.enumerated() {
                     row(register: voice * 7 + i, name: name, value: registers[voice * 7 + i], x: x, y: top + CGFloat(i + 1) * rowHeight, in: gc)
                 }
@@ -477,7 +477,7 @@ struct RegistersCanvas: View {
                 for (bit, name) in Self.bits.enumerated() {
                     let on = control & (1 << UInt8(bit)) != 0
                     label(name, at: CGPoint(x: x + CGFloat(bit % 4) * 34, y: top + CGFloat(8 + bit / 4) * rowHeight + 4),
-                          colour: on ? .accentColor : faintColour, bold: on, in: gc)
+                          color: on ? .accentColor : faintColor, bold: on, in: gc)
                 }
             }
             let filter = [(0x15, "CUT LO"), (0x16, "CUT HI"), (0x17, "RES/ROUT"), (0x18, "MODE/VOL")]
@@ -485,18 +485,18 @@ struct RegistersCanvas: View {
             var bottom = top + 10 * rowHeight
             if wide {
                 let x = 14 + 3 * column
-                label("FILTER", at: CGPoint(x: x, y: top), colour: violetColour, bold: true, in: gc)
+                label("FILTER", at: CGPoint(x: x, y: top), color: violetColor, bold: true, in: gc)
                 for (i, item) in filter.enumerated() {
                     row(register: item.0, name: item.1, value: registers[item.0], x: x, y: top + CGFloat(i + 1) * rowHeight, in: gc)
                 }
-                label("READ-ONLY", at: CGPoint(x: x, y: top + 6 * rowHeight), colour: dimColour, bold: true, in: gc)
+                label("READ-ONLY", at: CGPoint(x: x, y: top + 6 * rowHeight), color: dimColor, bold: true, in: gc)
                 for (i, item) in readOnly.enumerated() {
                     row(register: item.0, name: item.1, value: registers[item.0], x: x, y: top + CGFloat(i + 7) * rowHeight, lights: false, in: gc)
                 }
             } else {
                 let y = top + 10 * rowHeight + 6
-                label("FILTER", at: CGPoint(x: 14, y: y), colour: violetColour, bold: true, in: gc)
-                label("READ-ONLY", at: CGPoint(x: 14 + 2 * column, y: y), colour: dimColour, bold: true, in: gc)
+                label("FILTER", at: CGPoint(x: 14, y: y), color: violetColor, bold: true, in: gc)
+                label("READ-ONLY", at: CGPoint(x: 14 + 2 * column, y: y), color: dimColor, bold: true, in: gc)
                 for (i, item) in filter.enumerated() {
                     row(register: item.0, name: item.1, value: registers[item.0], x: 14 + CGFloat(i % 2) * column, y: y + CGFloat(i / 2 + 1) * rowHeight, in: gc)
                 }
@@ -505,20 +505,20 @@ struct RegistersCanvas: View {
                 }
                 bottom = y + 3 * rowHeight
             }
-            label("Frame \(frame.index), \(frame.isPal ? "PAL" : "NTSC"). Bytes light up as the player writes them.",
-                  at: CGPoint(x: 14, y: max(size.height - 14, bottom + 20)), colour: dimColour, in: gc)
+            label(String(localized: "Frame \(String(frame.index)), \(frame.isPal ? "PAL" : "NTSC"). Bytes light up as the player writes them."),
+                  at: CGPoint(x: 14, y: max(size.height - 14, bottom + 20)), color: dimColor, in: gc)
         }
     }
 
     private func row(register: Int, name: String, value: UInt8, x: CGFloat, y: CGFloat, lights: Bool = true, in gc: GraphicsContext) {
-        label(String(format: "$D4%02X", register), at: CGPoint(x: x, y: y), colour: dimColour, in: gc)
-        label(name, at: CGPoint(x: x + 46, y: y), colour: .white.opacity(0.85), in: gc)
+        label(String(format: "$D4%02X", register), at: CGPoint(x: x, y: y), color: dimColor, in: gc)
+        label(name, at: CGPoint(x: x + 46, y: y), color: .white.opacity(0.85), in: gc)
         let at = CGPoint(x: x + 118, y: y)
         if lights, flash.isLit(register) {
             gc.fill(Path(roundedRect: CGRect(x: at.x - 3, y: y - 8, width: 21, height: 16), cornerRadius: 3), with: .color(.accentColor))
-            label(String(format: "%02X", value), at: at, colour: .black, bold: true, in: gc)
+            label(String(format: "%02X", value), at: at, color: .black, bold: true, in: gc)
         } else {
-            label(String(format: "%02X", value), at: at, colour: .white, in: gc)
+            label(String(format: "%02X", value), at: at, color: .white, in: gc)
         }
     }
 }
@@ -570,7 +570,7 @@ struct VoiceLines: View {
             var headings = [(6, "NOTE"), (at.freq, "FREQ"), (at.wave, "WAVE"), (at.bits, "BITS"), (at.ad, "AD"), (at.sr, "SR")]
             headings += bars ? [(12, "LEVEL"), (31, "PULSE WIDTH")] : [(at.pulse, "PW")]
             for (n, name) in headings {
-                label(name, at: CGPoint(x: column(n), y: y), colour: dimColour, in: gc)
+                label(name, at: CGPoint(x: column(n), y: y), color: dimColor, in: gc)
             }
             y += Self.rowHeight
             for index in shown where frame.chips.indices.contains(index) && frame.chips[index].registers.count >= 29 {
@@ -579,7 +579,7 @@ struct VoiceLines: View {
                 let flash = flashes.indices.contains(index) ? flashes[index] : nil
                 let isLit = { (lit: [Int]) -> Bool in lit.contains { flash?.isLit($0) == true } }
                 if shown.count > 1 {
-                    label("SID \(index + 1)", at: CGPoint(x: 14, y: y), colour: .white, bold: true, in: gc)
+                    label("SID \(index + 1)", at: CGPoint(x: 14, y: y), color: .white, bold: true, in: gc)
                     let rule = Path { $0.move(to: CGPoint(x: column(6), y: y)); $0.addLine(to: CGPoint(x: column(at.sr + 2), y: y)) }
                     gc.stroke(rule, with: .color(.white.opacity(0.12)), lineWidth: 1)
                     y += Self.rowHeight
@@ -589,40 +589,40 @@ struct VoiceLines: View {
                     let control = registers[base + 4]
                     let open = control & 1 != 0
                     // Accent only ever means just written; a voice with its gate shut fades.
-                    let colour = { (lit: [Int]) -> Color in isLit(lit) ? .accentColor : (open ? .white : dimColour) }
+                    let color = { (lit: [Int]) -> Color in isLit(lit) ? .accentColor : (open ? .white : dimColor) }
                     let point = { (n: Int) in CGPoint(x: column(n), y: y) }
-                    label("V\(voice + 1)", at: point(0), colour: open ? theme.voice(voice) : dimColour, bold: open, in: gc)
+                    label("V\(voice + 1)", at: point(0), color: open ? theme.voice(voice) : dimColor, bold: open, in: gc)
                     let sound = chip.voices.indices.contains(voice) ? chip.voices[voice] : nil
-                    label(sound?.note ?? "—", at: point(6), colour: sound?.note == nil ? faintColour : (open ? .white : dimColour), in: gc)
+                    label(sound?.note ?? "—", at: point(6), color: sound?.note == nil ? faintColor : (open ? .white : dimColor), in: gc)
                     if bars {
-                        Self.bar(Double(sound?.envLevel ?? 0), at: point(12), width: 9 * Self.charWidth, colour: open ? theme.voice(voice) : dimColour, in: gc)
+                        Self.bar(Double(sound?.envLevel ?? 0), at: point(12), width: 9 * Self.charWidth, color: open ? theme.voice(voice) : dimColor, in: gc)
                         let width = Double(UInt16(registers[base + 3] & 0x0F) << 8 | UInt16(registers[base + 2])) / 4095
                         // A pulse width means nothing to a voice not on a pulse wave.
-                        Self.bar(width, at: point(31), width: 8 * Self.charWidth, colour: open && control & 0x40 != 0 ? theme.voice(voice) : dimColour, in: gc)
+                        Self.bar(width, at: point(31), width: 8 * Self.charWidth, color: open && control & 0x40 != 0 ? theme.voice(voice) : dimColor, in: gc)
                     }
-                    label(String(format: "%02X%02X", registers[base + 1], registers[base]), at: point(at.freq), colour: colour([base, base + 1]), bold: isLit([base, base + 1]), in: gc)
-                    label(String(format: "%X%02X", registers[base + 3] & 0x0F, registers[base + 2]), at: point(at.pulse), colour: colour([base + 2, base + 3]), bold: isLit([base + 2, base + 3]), in: gc)
+                    label(String(format: "%02X%02X", registers[base + 1], registers[base]), at: point(at.freq), color: color([base, base + 1]), bold: isLit([base, base + 1]), in: gc)
+                    label(String(format: "%X%02X", registers[base + 3] & 0x0F, registers[base + 2]), at: point(at.pulse), color: color([base + 2, base + 3]), bold: isLit([base + 2, base + 3]), in: gc)
                     let wave = Self.waveName(control)
-                    label(wave, at: point(at.wave), colour: wave == "—" ? faintColour : colour([base + 4]), bold: isLit([base + 4]), in: gc)
+                    label(wave, at: point(at.wave), color: wave == "—" ? faintColor : color([base + 4]), bold: isLit([base + 4]), in: gc)
                     let bits = Self.bitsName(control)
-                    label(bits, at: point(at.bits), colour: bits == "—" ? faintColour : (open ? .white : dimColour), bold: open && bits != "—", in: gc)
-                    label(String(format: "%02X", registers[base + 5]), at: point(at.ad), colour: colour([base + 5]), bold: isLit([base + 5]), in: gc)
-                    label(String(format: "%02X", registers[base + 6]), at: point(at.sr), colour: colour([base + 6]), bold: isLit([base + 6]), in: gc)
+                    label(bits, at: point(at.bits), color: bits == "—" ? faintColor : (open ? .white : dimColor), bold: open && bits != "—", in: gc)
+                    label(String(format: "%02X", registers[base + 5]), at: point(at.ad), color: color([base + 5]), bold: isLit([base + 5]), in: gc)
+                    label(String(format: "%02X", registers[base + 6]), at: point(at.sr), color: color([base + 6]), bold: isLit([base + 6]), in: gc)
                     y += Self.rowHeight
                 }
                 let routed = (0..<3).filter { registers[0x17] & (1 << UInt8($0)) != 0 }.map { "V\($0 + 1)" }
                 let modes = [("LP", UInt8(0x10)), ("BP", 0x20), ("HP", 0x40)].filter { registers[0x18] & $0.1 != 0 }.map(\.0)
-                let colour = { (lit: [Int]) -> Color in isLit(lit) ? .accentColor : .white }
-                label("FILT", at: CGPoint(x: 14, y: y), colour: violetColour, bold: true, in: gc)
+                let color = { (lit: [Int]) -> Color in isLit(lit) ? .accentColor : .white }
+                label("FILT", at: CGPoint(x: 14, y: y), color: violetColor, bold: true, in: gc)
                 let cutoff = UInt16(registers[0x16]) << 3 | UInt16(registers[0x15] & 7)
                 var x = 6
                 var parts: [(name: String, value: String, lit: [Int])] = []
                 if bars {
-                    label(modes.joined(separator: "+"), at: CGPoint(x: column(6), y: y), colour: colour([0x18]), bold: isLit([0x18]), in: gc)
+                    label(modes.joined(separator: "+"), at: CGPoint(x: column(6), y: y), color: color([0x18]), bold: isLit([0x18]), in: gc)
                     // Registers can hold old values with no voice going through the filter.
-                    Self.bar(Double(cutoff) / 2047, at: CGPoint(x: column(12), y: y), width: 9 * Self.charWidth, colour: routed.isEmpty ? dimColour : violetColour, in: gc)
-                    label(String(format: "%03X", cutoff), at: CGPoint(x: column(at.freq), y: y), colour: colour([0x15, 0x16]), bold: isLit([0x15, 0x16]), in: gc)
-                    label("cutoff", at: CGPoint(x: column(at.freq + 4), y: y), colour: dimColour, in: gc)
+                    Self.bar(Double(cutoff) / 2047, at: CGPoint(x: column(12), y: y), width: 9 * Self.charWidth, color: routed.isEmpty ? dimColor : violetColor, in: gc)
+                    label(String(format: "%03X", cutoff), at: CGPoint(x: column(at.freq), y: y), color: color([0x15, 0x16]), bold: isLit([0x15, 0x16]), in: gc)
+                    label("cutoff", at: CGPoint(x: column(at.freq + 4), y: y), color: dimColor, in: gc)
                     x = at.freq + 12
                 } else {
                     parts.append(("cutoff", String(format: "%03X", cutoff), [0x15, 0x16]))
@@ -639,16 +639,16 @@ struct VoiceLines: View {
                 ]
                 for part in parts {
                     if !part.name.isEmpty {
-                        label(part.name, at: CGPoint(x: column(x), y: y), colour: dimColour, in: gc)
+                        label(part.name, at: CGPoint(x: column(x), y: y), color: dimColor, in: gc)
                         x += part.name.count + 1
                     }
-                    label(part.value, at: CGPoint(x: column(x), y: y), colour: colour(part.lit), bold: isLit(part.lit), in: gc)
+                    label(part.value, at: CGPoint(x: column(x), y: y), color: color(part.lit), bold: isLit(part.lit), in: gc)
                     x += part.value.count + 2
                 }
                 y += Self.rowHeight * 2
             }
-            label("Accent: just written. Faded: gate shut. FREQ and PW join two bytes each.",
-                  at: CGPoint(x: 14, y: max(size.height - 14, y)), colour: dimColour, in: gc)
+            label(String(localized: "Accent: just written. Faded: gate shut. FREQ and PW join two bytes each."),
+                  at: CGPoint(x: 14, y: max(size.height - 14, y)), color: dimColor, in: gc)
         }
     }
 
@@ -657,12 +657,12 @@ struct VoiceLines: View {
         let freq, pulse, wave, bits, ad, sr: Int
     }
 
-    private static func bar(_ share: Double, at point: CGPoint, width: CGFloat, colour: Color, in gc: GraphicsContext) {
+    private static func bar(_ share: Double, at point: CGPoint, width: CGFloat, color: Color, in gc: GraphicsContext) {
         let track = CGRect(x: point.x, y: point.y - 4, width: width, height: 8)
-        gc.fill(Path(roundedRect: track, cornerRadius: 2), with: .color(faintColour))
+        gc.fill(Path(roundedRect: track, cornerRadius: 2), with: .color(faintColor))
         // Anything sounding at all shows.
         let filled = share > 0 ? max(width * CGFloat(min(share, 1)), 2) : 0
-        gc.fill(Path(roundedRect: CGRect(x: track.minX, y: track.minY, width: filled, height: 8), cornerRadius: 2), with: .color(colour))
+        gc.fill(Path(roundedRect: CGRect(x: track.minX, y: track.minY, width: filled, height: 8), cornerRadius: 2), with: .color(color))
     }
 }
 
@@ -672,7 +672,7 @@ struct VoiceLines: View {
 struct SweepsCanvas: View {
     let frames: [VizSidFrame]
     let shown: [Int]
-    let colours: [Color]
+    let colors: [Color]
 
     var body: some View {
         Canvas { gc, size in
@@ -693,7 +693,7 @@ struct SweepsCanvas: View {
         let heading: CGFloat = beside ? 22 : 0
         let laneHeight = max((area.height - gateHeight - 16 - heading) / 2, 40)
         if beside {
-            label("SID \(index + 1)", at: CGPoint(x: area.minX + margin, y: 16), colour: .white, bold: true, in: gc)
+            label("SID \(index + 1)", at: CGPoint(x: area.minX + margin, y: 16), color: .white, bold: true, in: gc)
         }
 
         // The first voice on a pulse wave: a pulse width means nothing to the others.
@@ -703,26 +703,26 @@ struct SweepsCanvas: View {
         var lane = CGRect(x: area.minX + margin, y: 8 + heading, width: width, height: laneHeight)
         let pulseName = switch (voice == nil, beside) {
         case (false, false): String(format: "PULSE WIDTH V%d  %03X", shown + 1, width12)
-        case (true, false): "PULSE WIDTH  no voice on a pulse wave now"
+        case (true, false): String(localized: "PULSE WIDTH  no voice on a pulse wave now")
         case (false, true): String(format: "PULSE V%d  %03X", shown + 1, width12)
-        case (true, true): "PULSE  none"
+        case (true, true): String(localized: "PULSE  none")
         }
-        label(pulseName, at: CGPoint(x: lane.minX, y: lane.minY + 8), colour: colours[shown], bold: true, in: gc)
-        plot(chips.map { Double($0.voices[shown].pulseWidth) / 4095 }, in: lane.insetBy(dx: 0, dy: 16), colour: colours[shown], in: gc)
+        label(pulseName, at: CGPoint(x: lane.minX, y: lane.minY + 8), color: colors[shown], bold: true, in: gc)
+        plot(chips.map { Double($0.voices[shown].pulseWidth) / 4095 }, in: lane.insetBy(dx: 0, dy: 16), color: colors[shown], in: gc)
 
         lane.origin.y += laneHeight
         label(String(format: beside ? "CUTOFF %03X  RES %X" : "FILTER CUTOFF  %03X   RESONANCE  %X", latest.cutoff, latest.resonance),
-              at: CGPoint(x: lane.minX, y: lane.minY + 8), colour: violetColour, bold: true, in: gc)
+              at: CGPoint(x: lane.minX, y: lane.minY + 8), color: violetColor, bold: true, in: gc)
         let inner = lane.insetBy(dx: 0, dy: 16)
-        plot(chips.map { Double($0.cutoff) / 2047 }, in: inner, colour: violetColour, in: gc)
-        plot(chips.map { Double($0.resonance) / 15 }, in: inner, colour: violetColour.opacity(0.5), dash: [4, 4], in: gc)
+        plot(chips.map { Double($0.cutoff) / 2047 }, in: inner, color: violetColor, in: gc)
+        plot(chips.map { Double($0.resonance) / 15 }, in: inner, color: violetColor.opacity(0.5), dash: [4, 4], in: gc)
 
         lane.origin.y += laneHeight
-        label("GATES", at: CGPoint(x: lane.minX, y: lane.minY + 8), colour: dimColour, bold: true, in: gc)
+        label("GATES", at: CGPoint(x: lane.minX, y: lane.minY + 8), color: dimColor, bold: true, in: gc)
         let step = width / CGFloat(max(chips.count - 1, 1))
         for v in 0..<3 {
             let y = lane.minY + 26 + CGFloat(v) * 16
-            label("V\(v + 1)", at: CGPoint(x: lane.minX, y: y), colour: colours[v], in: gc)
+            label("V\(v + 1)", at: CGPoint(x: lane.minX, y: y), color: colors[v], in: gc)
             var from: Int?
             for (i, chip) in chips.enumerated() {
                 if chip.voices[v].gate, from == nil { from = i }
@@ -730,14 +730,14 @@ struct SweepsCanvas: View {
                 if ends, let start = from {
                     let x = lane.minX + 26 + CGFloat(start) * step * (width - 26) / width
                     let end = lane.minX + 26 + CGFloat(i) * step * (width - 26) / width
-                    gc.fill(Path(roundedRect: CGRect(x: x, y: y - 4, width: max(end - x, 1.5), height: 8), cornerRadius: 2), with: .color(colours[v]))
+                    gc.fill(Path(roundedRect: CGRect(x: x, y: y - 4, width: max(end - x, 1.5), height: 8), cornerRadius: 2), with: .color(colors[v]))
                     from = nil
                 }
             }
         }
     }
 
-    private func plot(_ values: [Double], in rect: CGRect, colour: Color, dash: [CGFloat] = [], in gc: GraphicsContext) {
+    private func plot(_ values: [Double], in rect: CGRect, color: Color, dash: [CGFloat] = [], in gc: GraphicsContext) {
         guard values.count > 1 else { return }
         var path = Path()
         for (i, value) in values.enumerated() {
@@ -745,7 +745,7 @@ struct SweepsCanvas: View {
                                 y: rect.maxY - rect.height * CGFloat(min(max(value, 0), 1)))
             if i == 0 { path.move(to: point) } else { path.addLine(to: point) }
         }
-        gc.stroke(path, with: .color(colour), style: StrokeStyle(lineWidth: 1.5, lineJoin: .round, dash: dash))
+        gc.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: 1.5, lineJoin: .round, dash: dash))
     }
 }
 
@@ -755,7 +755,7 @@ struct SweepsCanvas: View {
 struct PitchCanvas: View {
     let frames: [VizSidFrame]
     let shown: [Int]
-    let colours: [Color]
+    let colors: [Color]
 
     private static let low = 24.0
     private static let high = 96.0
@@ -781,7 +781,7 @@ struct PitchCanvas: View {
         }
         // Every octave only where the labels won't run into each other.
         for octave in stride(from: Self.low, through: Self.high, by: bottom - top < 110 ? 24 : 12) {
-            label("C\(Int(octave) / 12 - 1)", at: CGPoint(x: 14, y: y(octave)), colour: dimColour, in: gc)
+            label("C\(Int(octave) / 12 - 1)", at: CGPoint(x: 14, y: y(octave)), color: dimColor, in: gc)
             gc.stroke(Path { $0.move(to: CGPoint(x: left, y: y(octave))); $0.addLine(to: CGPoint(x: right, y: y(octave))) },
                       with: .color(.white.opacity(0.07)), lineWidth: 1)
         }
@@ -800,10 +800,10 @@ struct PitchCanvas: View {
                 if drawing { path.addLine(to: point) } else { path.move(to: point) }
                 drawing = true
             }
-            gc.stroke(path, with: .color(colours[voice]), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            gc.stroke(path, with: .color(colors[voice]), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
         }
         if beside {
-            label("SID \(index + 1)", at: CGPoint(x: right + 12, y: top + 4), colour: .white, bold: true, in: gc)
+            label("SID \(index + 1)", at: CGPoint(x: right + 12, y: top + 4), color: .white, bold: true, in: gc)
         }
         if let latest = chips.last {
             let first = beside ? top + 24 : top + 10
@@ -811,9 +811,9 @@ struct PitchCanvas: View {
             for voice in 0..<3 {
                 let sound = latest.voices[voice]
                 let row = first + CGFloat(voice) * spacing
-                label("V\(voice + 1) \(sound.gate ? (sound.note ?? "—") : "—")", at: CGPoint(x: right + 12, y: row), colour: colours[voice], bold: true, in: gc)
+                label("V\(voice + 1) \(sound.gate ? (sound.note ?? "—") : "—")", at: CGPoint(x: right + 12, y: row), color: colors[voice], bold: true, in: gc)
                 if spacing >= 32 {
-                    label(sound.waveformName.isEmpty ? "—" : sound.waveformName, at: CGPoint(x: right + 12, y: row + 16), colour: dimColour, in: gc)
+                    label(sound.waveformName.isEmpty ? "—" : sound.waveformName, at: CGPoint(x: right + 12, y: row + 16), color: dimColor, in: gc)
                 }
             }
         }

@@ -567,9 +567,9 @@ void mixInto(rsfp_player *p, int16_t *out, size_t n)
         const int16_t *c = p->pending[2].data() + h;
         for (size_t i = 0; i < n; ++i)
         {
-            const int centre = c[i] / 2;
-            out[2 * i] = sat(a[i] + centre);
-            out[2 * i + 1] = sat(b[i] + centre);
+            const int center = c[i] / 2;
+            out[2 * i] = sat(a[i] + center);
+            out[2 * i + 1] = sat(b[i] + center);
         }
         break;
     }

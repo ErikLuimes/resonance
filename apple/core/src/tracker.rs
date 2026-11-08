@@ -103,7 +103,7 @@ struct Frame {
 }
 
 /// Runs the tune for `secs` and keeps the registers at the end of each frame.
-fn capture(data: &[u8], subtune: u16, secs: f64, chip: usize, cancelled: &dyn Fn() -> bool) -> Result<Option<(Vec<Frame>, bool, u32)>, String> {
+fn capture(data: &[u8], subtune: u16, secs: f64, chip: usize, canceled: &dyn Fn() -> bool) -> Result<Option<(Vec<Frame>, bool, u32)>, String> {
     let mut player = Player::new()?;
     player.set_roms(None, None, None);
     player.load(data, subtune)?;
@@ -114,7 +114,7 @@ fn capture(data: &[u8], subtune: u16, secs: f64, chip: usize, cancelled: &dyn Fn
     let mut frames = Vec::with_capacity(count);
     let mut regs = [0u8; 32];
     for index in 0..count {
-        if index % 256 == 0 && cancelled() {
+        if index % 256 == 0 && canceled() {
             return Ok(None);
         }
         player.play(cycles)?;
@@ -412,9 +412,9 @@ fn rebuild(frames: &[Frame], is_pal: bool, chips: u32) -> TrackerSong {
 }
 
 /// The tune as a tracker would show it, for `secs`, one chip's voices at a time. None if
-/// `cancelled` said to stop.
-pub fn tracker_song(data: &[u8], subtune: u16, secs: f64, chip: usize, cancelled: &dyn Fn() -> bool) -> Result<Option<TrackerSong>, String> {
-    let Some((frames, is_pal, chips)) = capture(data, subtune, secs, chip, cancelled)? else { return Ok(None) };
+/// `canceled` said to stop.
+pub fn tracker_song(data: &[u8], subtune: u16, secs: f64, chip: usize, canceled: &dyn Fn() -> bool) -> Result<Option<TrackerSong>, String> {
+    let Some((frames, is_pal, chips)) = capture(data, subtune, secs, chip, canceled)? else { return Ok(None) };
     Ok(Some(rebuild(&frames, is_pal, chips)))
 }
 

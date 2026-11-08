@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// A colour theme for the visualizers: the three voices' colours and the
+/// A color theme for the visualizers: the three voices' colors and the
 /// dark background they're drawn on, plus a badge drawn in them
 /// (`ThemeBadgeView`). The app's accent stays the system's.
 ///
@@ -19,30 +19,30 @@ nonisolated struct VoiceTheme: Codable, Hashable, Identifiable {
     func voice(_ i: Int) -> Color { voices[i % 3].color }
 
     static let resonance = VoiceTheme(
-        id: "resonance", name: "Resonance", summary: "Cyan, violet and amber",
+        id: "resonance", name: "Resonance", summary: String(localized: "Cyan, violet and amber"),
         voices: [0x5AC8E8, 0xA27CF6, 0xF2A154], background: 0x0E0E10, badge: .waves)
 
     static let presets: [VoiceTheme] = [
         resonance,
-        VoiceTheme(id: "c64", name: "C64", summary: "The rainbow badge on a breadbin",
+        VoiceTheme(id: "c64", name: "C64", summary: String(localized: "The rainbow badge on a breadbin"),
                    voices: [0xE2231A, 0xFFCC00, 0x1F6FC5], background: 0x16120E, badge: .rainbow),
-        VoiceTheme(id: "noir", name: "Noir", summary: "The dark side: saber red",
+        VoiceTheme(id: "noir", name: String(localized: "Noir"), summary: String(localized: "The dark side: saber red"),
                    voices: [0xFF2020, 0x8B0A14, 0x9A9DA6], background: 0x000000, badge: .saber),
-        VoiceTheme(id: "ember", name: "Ember", summary: "Fire: red, orange and gold",
+        VoiceTheme(id: "ember", name: String(localized: "Ember"), summary: String(localized: "Fire: red, orange and gold"),
                    voices: [0xFF3B2F, 0xFF8C1A, 0xFFD25A], background: 0x140705, badge: .flame),
-        VoiceTheme(id: "abyss", name: "Abyss", summary: "Deep sea, low light",
+        VoiceTheme(id: "abyss", name: String(localized: "Abyss"), summary: String(localized: "Deep sea, low light"),
                    voices: [0x2F6FDB, 0x15A39A, 0x8A4DE0], background: 0x02060D, badge: .plasma),
-        VoiceTheme(id: "phosphor", name: "Phosphor", summary: "A green monochrome screen",
+        VoiceTheme(id: "phosphor", name: "Phosphor", summary: String(localized: "A green monochrome screen"),
                    voices: [0x39FF6E, 0x1FA84A, 0xC8FFD6], background: 0x030A05, badge: .screen),
-        VoiceTheme(id: "greyscale", name: "Greyscale", summary: "White, silver and graphite",
+        VoiceTheme(id: "grayscale", name: String(localized: "Grayscale"), summary: String(localized: "White, silver and graphite"),
                    voices: [0xFFFFFF, 0xA8A8A8, 0x5E5E5E], background: 0x0A0A0A, badge: .starfield),
     ]
 
     static let customID = "custom"
 
-    /// The custom theme's starting colours.
+    /// The custom theme's starting colors.
     static let defaultCustom = VoiceTheme(
-        id: customID, name: "Custom", summary: "Your own colours",
+        id: customID, name: String(localized: "Custom"), summary: String(localized: "Your own colors"),
         voices: [0x7FE0C2, 0xF07A8A, 0xF5E27A], background: 0x101418, badge: .scroller)
 
     /// The custom theme as stored in `Pref.customTheme`, or its defaults.
@@ -66,11 +66,11 @@ nonisolated struct VoiceTheme: Codable, Hashable, Identifiable {
 nonisolated enum ThemeBadge: String, Codable, Hashable {
     /// Three interleaved sine waves.
     case waves
-    /// The Commodore rainbow badge's colours as rotating raster bars.
+    /// The Commodore rainbow badge's colors as rotating raster bars.
     case rainbow
     /// A lit lightsaber.
     case saber
-    /// Flames rising from the first voice's colour to the third's.
+    /// Flames rising from the first voice's color to the third's.
     case flame
     /// A demoscene plasma.
     case plasma
@@ -87,7 +87,7 @@ nonisolated enum ThemeBadge: String, Codable, Hashable {
     }
 }
 
-/// An sRGB colour, stored as 0xRRGGBB.
+/// An sRGB color, stored as 0xRRGGBB.
 nonisolated struct RGB: Codable, Hashable, ExpressibleByIntegerLiteral {
     var hex: UInt32
 

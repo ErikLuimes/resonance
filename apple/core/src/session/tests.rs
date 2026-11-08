@@ -460,7 +460,7 @@ fn debounce_allows_one_advance_per_half_second() {
     // A fresh subtune-2 status already past its length within 500 ms…
     h.feed(h.status(0, 2, 20, 5), 10.2);
     assert!(h.sent().is_empty(), "suppressed by the debounce");
-    // …is honoured once the window has passed.
+    // …is honored once the window has passed.
     h.feed(h.status(0, 2, 20, 5), 10.6);
     assert_eq!(subtunes(&h.sent()), vec![3]);
 }

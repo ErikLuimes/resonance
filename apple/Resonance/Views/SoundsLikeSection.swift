@@ -4,7 +4,7 @@ import PhosphorCore
 /// The inspector's "Sounds Like": the playing tune's sphere and its sound
 /// in a sentence, then the tunes in HVSC that sound most like it, each a
 /// link to where it is in the library, and a way to play them all. Until
-/// the scan reaches the tune, how far the scan has got.
+/// the scan reaches the tune, how far the scan has gotten.
 struct SoundsLikeSection: View {
     let path: String
 
@@ -120,7 +120,7 @@ struct SoundsLikeSection: View {
                     .fixedSize(horizontal: false, vertical: true)
                 ProgressView(value: Double(status.done), total: Double(max(status.total, 1)))
                     .controlSize(.small)
-                AccentLink(fingerprints.paused ? "Resume Fingerprinting" : "Pause Fingerprinting") {
+                AccentLink(fingerprints.paused ? String(localized: "Resume Fingerprinting") : String(localized: "Pause Fingerprinting")) {
                     fingerprints.paused.toggle()
                 }
             }

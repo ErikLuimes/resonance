@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The theme's badge: a small strip drawn in its colours, e.g. the C64's
+/// The theme's badge: a small strip drawn in its colors, e.g. the C64's
 /// rainbow bars or Noir's lightsaber. Draws nothing when badges are turned
 /// off in Settings. Scales to whatever size it's given; designed at about
 /// 10:1.
@@ -34,14 +34,14 @@ struct ThemeBadgeView: View {
 
     /// Abyss's demoscene plasma, worked out at one sample per 2 points and
     /// drawn smoothed as one image. Four sine fields (across, along,
-    /// diagonal, and rings round a wandering centre) add up to a value that
-    /// picks a colour from a slowly cycling loop through the three voices'
-    /// colours; the troughs sink into the background, so it stays dark.
+    /// diagonal, and rings around a wandering center) add up to a value that
+    /// picks a color from a slowly cycling loop through the three voices'
+    /// colors; the troughs sink into the background, so it stays dark.
     private static func plasma(_ theme: VoiceTheme, time: Double, size: CGSize) -> Image? {
         let cols = max(Int(size.width / 2), 1), rows = max(Int(size.height / 2), 1)
         let t = time.truncatingRemainder(dividingBy: 3600)
         let unit = Double(rows)
-        let centre = (x: Double(cols) / unit * (0.5 + 0.35 * sin(t * 0.23)), y: 0.5 + 0.8 * cos(t * 0.31))
+        let center = (x: Double(cols) / unit * (0.5 + 0.35 * sin(t * 0.23)), y: 0.5 + 0.8 * cos(t * 0.31))
         let loop = theme.voices + [theme.voices[0]]
         let bg = theme.background
         var bytes = [UInt8](repeating: 255, count: cols * rows * 4)
@@ -50,7 +50,7 @@ struct ThemeBadgeView: View {
             for col in 0..<cols {
                 let x = (Double(col) + 0.5) / unit
                 let v = sin(x * 1.1 + t * 0.9) + sin(y * 3 - t * 0.7) + sin(x * 0.6 + y * 2 + t * 1.1)
-                    + sin(hypot(x - centre.x, y - centre.y) * 2.4 - t * 1.5)
+                    + sin(hypot(x - center.x, y - center.y) * 2.4 - t * 1.5)
                 var u = (v * 0.125 + 0.5 + t * 0.04).truncatingRemainder(dividingBy: 1)
                 if u < 0 { u += 1 }
                 u *= 3
@@ -86,10 +86,10 @@ struct ThemeBadgeView: View {
         let v = (0..<3).map(theme.voice)
         switch theme.badge {
         case .rainbow:
-            // Raster bars in the badge's colours wrapped round a cylinder
+            // Raster bars in the badge's colors wrapped around a cylinder
             // turning about a horizontal axis. Each raster line looks up
             // which bar is on the cylinder's front there (and, dimmed, its
-            // back), so bars flatten towards the edges, fatten facing you
+            // back), so bars flatten toward the edges, fatten facing you
             // and pass behind each other the way the real effect does.
             let t = time.truncatingRemainder(dividingBy: 3600)
             let radius = h / 2
@@ -174,7 +174,7 @@ struct ThemeBadgeView: View {
             }
 
         case .waves:
-            // Neighbours drift opposite ways, each swelling and settling.
+            // Neighbors drift opposite ways, each swelling and settling.
             let t = time.truncatingRemainder(dividingBy: 3600)
             for i in 0..<3 {
                 let phase = t * (0.9 + 0.35 * Double(i)) * (i == 1 ? -1 : 1)
@@ -264,8 +264,8 @@ struct ThemeBadgeView: View {
 
         case .scroller:
             // A sine scroller: chunky letters running right to left, each
-            // riding a sine wave and coloured by where it is on the strip,
-            // through the three voices' colours, over a faint mirrored
+            // riding a sine wave and colored by where it is on the strip,
+            // through the three voices' colors, over a faint mirrored
             // reflection.
             let t = time.truncatingRemainder(dividingBy: 3600)
             let font = Font.system(size: h * 0.62, weight: .black, design: .monospaced)

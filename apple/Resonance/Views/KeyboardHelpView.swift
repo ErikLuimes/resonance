@@ -64,14 +64,14 @@ struct KeyboardHelpPanel: View {
                     .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityAddTraits(.updatesFrequently)
-                AccentLink("Open Resonance Help") { AppKeys.activate(.help) }
+                AccentLink(String(localized: "Open Resonance Help")) { AppKeys.activate(.help) }
                     .fixedSize()
             }
             .font(.callout)
         }
         .padding(18)
         .frame(width: 720)
-        // Tinted with the window's colour, so the small text stays readable
+        // Tinted with the window's color, so the small text stays readable
         // over a busy list.
         .glassEffect(.regular.tint(Color(nsColor: .windowBackgroundColor).opacity(0.7)), in: .rect(cornerRadius: 22))
         // Clicks on the panel don't reach the dimming behind it.

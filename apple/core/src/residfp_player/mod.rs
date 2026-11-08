@@ -208,7 +208,7 @@ struct Live {
 impl Live {
     /// Run silently from `from` to `target`: digitally, then the last
     /// `RENDER_TAIL` in full, reporting where it is in `position_ms` every
-    /// `SEEK_STEP`. Afterwards the sample count says `target`.
+    /// `SEEK_STEP`. Afterward the sample count says `target`.
     fn skip_to(&mut self, from: Duration, target: Duration, position_ms: &AtomicU64) {
         let cycles = ((target.saturating_sub(from)).as_secs_f64() * self.cpu_hz) as u64;
         let tail = ((RENDER_TAIL.as_secs_f64() * self.cpu_hz) as u64).min(cycles);

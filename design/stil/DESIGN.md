@@ -20,7 +20,7 @@ are on the claude.ai canvas.
 2. **Turn references into navigation.** Paths, covers and subtune references become things you can
    tap. Resonance is about discovery; STIL is a graph of related tunes hiding in prose.
 3. **Follow the playing song.** File-level notes are always shown; subtune notes appear when that song plays.
-4. **Never invent.** Don't fill gaps STIL leaves (unlabelled medley gaps, unknown roles, missing
+4. **Never invent.** Don't fill gaps STIL leaves (unlabeled medley gaps, unknown roles, missing
    song lengths). Show "Title unknown" rather than `<?>`, and say nothing rather than guess.
 5. **The visualizer stays visible.** STIL lives below the visualizer and folds long text, so the
    inspector doesn't become a reading pane by default.
@@ -75,7 +75,7 @@ Inspector width 400 pt, 16 pt side padding, 18 pt gap between cards.
 - **link**: resolve the HVSC path in the library → "Tune Title ▸" in `accent`, 600 weight; tap opens
   the tune (and subtune). If it can't be resolved, show the file name without `.sid`.
 - **em**: italic. **url**: `accent`, opens the browser.
-- **tech**: SF Mono at 0.85× size, `techText` colour.
+- **tech**: SF Mono at 0.85× size, `techText` color.
 
 ### Cover / version
 - Chip "Cover" (`coverChipBg` / `coverChipFg`, 22 high, radius 11, 12/600). In medleys of a game
@@ -94,13 +94,13 @@ When a note *starts* with a relation and a link ("Remix of", "Same as", "Covers"
 - Bar 28 high, `timelineBg`, radius 6; quoted segments in `coverChipFg`, the active one lighter
   (`coverActive`); 2 pt white playhead. Axis labels in mono 11 tertiary at 0:00 and each minute,
   plus the song length at the end.
-- Segment list: rows 34 high: colour dot, title, mono time range. The active row gets `coverChipBg`
+- Segment list: rows 34 high: color dot, title, mono time range. The active row gets `coverChipBg`
   and weight 600. **Tap = seek** to the segment start.
 - Needs the song length (HVSC Songlengths.md5). Without it: show the list only, no bar.
-- Gaps between quoted segments stay unlabelled.
+- Gaps between quoted segments stay unlabeled.
 
 ### In memoriam (`memoriam`)
-- Quiet, set like an epitaph: centred, no frame or fill, a thin line candle icon, the NAME in the
+- Quiet, set like an epitaph: centered, no frame or fill, a thin line candle icon, the NAME in the
   quote serif (17) and "Passed away on DATE, …" in caption secondary. (Replaced an outlined card
   with "In memory of NAME" 15/600, which read too much like a UI box.) Put it on the **musician page** (folder entry) and at the top of the
   tune's notes. No black banners or crosses.
@@ -113,7 +113,7 @@ When a note *starts* with a relation and a link ("Remix of", "Same as", "Covers"
   Symbol `flame` at light weight as the candle.
 
 ### Tune list teaser
-- Second line under the title (row height 58) with `teaser`, ellipsised. Quote teasers in **serif
+- Second line under the title (row height 58) with `teaser`, ellipsized. Quote teasers in **serif
   italic** with "— Name"; note teasers in plain sans. Cover/version chip inline after the title.
 - Make it a list display option (dense rows without teaser vs. comfortable rows with teaser).
 
@@ -144,7 +144,7 @@ When a note *starts* with a relation and a link ("Remix of", "Same as", "Covers"
 | coverActive | `#ffc685` | active medley segment |
 | techText | `#b9c9e0` | monospace tech tokens |
 
-Voice colours (unchanged): `#5ac8e8`, `#a27cf6`, `#f2a154`.
+Voice colors (unchanged): `#5ac8e8`, `#a27cf6`, `#f2a154`.
 Contrast (WCAG): secondary on cardBg 6.0:1, tertiary on windowBg 5.2:1 and on cardBg 4.6:1, cover chip 6.4:1, accent on cardBg 5.3:1.
 **Fix:** white text on `selection #2f7cf6` (active song chip, 13 pt) is only 3.9:1. Use `#2a6be6` (4.8:1) for selection behind small text.
 

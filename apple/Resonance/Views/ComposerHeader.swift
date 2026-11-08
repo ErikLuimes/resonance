@@ -11,10 +11,17 @@ import SwiftUI
 nonisolated enum ComposerFacts {
     /// "176 tunes from 1986 to 2020", or "28 demo tunes": as much as is known.
     static func tunes(_ count: Int, kind: String? = nil, firstYear: Int?, lastYear: Int?) -> String {
-        let noun = kind.map { "\($0) tune" } ?? "tune"
-        let tunes = count == 1 ? "1 \(noun)" : "\(count.formatted()) \(noun)s"
+        let tunes = switch (kind, count) {
+        case ("demo", 1): String(localized: "1 demo tune")
+        case ("demo", _): String(localized: "\(count.formatted()) demo tunes")
+        case ("game", 1): String(localized: "1 game tune")
+        case ("game", _): String(localized: "\(count.formatted()) game tunes")
+        case (_, 1): String(localized: "1 tune")
+        default: String(localized: "\(count.formatted()) tunes")
+        }
         guard let firstYear, let lastYear else { return tunes }
-        return firstYear == lastYear ? "\(tunes) from \(firstYear)" : "\(tunes) from \(firstYear) to \(lastYear)"
+        let first = String(firstYear)
+        return firstYear == lastYear ? String(localized: "\(tunes) from \(first)") : String(localized: "\(tunes) from \(first) to \(String(lastYear))")
     }
 
     /// "Maniacs of Noise (MON), formed 1987". CSDb only says when a group
@@ -23,7 +30,7 @@ nonisolated enum ComposerFacts {
         guard !groups.isEmpty else { return nil }
         let names = groups.joined(separator: ", ")
         guard groups.count == 1, let formed else { return names }
-        return "\(names), formed \(formed)"
+        return String(localized: "\(names), formed \(formed)")
     }
 
     /// How a composer reads: "Hubbard, Rob" is "Rob Hubbard". A folder that puts
@@ -67,7 +74,7 @@ nonisolated enum ComposerInfoCard: Hashable {
 ///
 /// CSDb's trivia is only a card if switched on in Settings, and says it's
 /// unverified: its users write it unreviewed, accusations about named people
-/// included, and it mustn't read as ours.
+/// included, and it must not read as ours.
 struct ComposerHeader: View {
     /// Their MUSICIANS folder.
     let authorPath: String
@@ -135,7 +142,7 @@ struct ComposerHeader: View {
     }
 
     var body: some View {
-        LargeHeader(title: title, detail: tuneCount, extra: realName.map { "Real name: \($0)" },
+        LargeHeader(title: title, detail: tuneCount, extra: realName.map { String(localized: "Real name: \($0)") },
                     hasBio: hasBio, cards: cards) {
             ComposerPortrait(name: shownName, realName: summary?.realName, cornerRadius: 17)
         } below: {
@@ -175,11 +182,11 @@ struct ComposerHeader: View {
             if hasFacts {
                 Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 4) {
 #if CSDB
-                    headerFact("Country", profile?.country)
-                    headerFact("Also known as", profile?.aka)
-                    headerFact(profile?.groups.count == 1 ? "Group" : "Groups",
+                    headerFact(String(localized: "Country"), profile?.country)
+                    headerFact(String(localized: "Also known as"), profile?.aka)
+                    headerFact(profile?.groups.count == 1 ? String(localized: "Group") : String(localized: "Groups"),
                                profile.flatMap { ComposerFacts.groups($0.groups, formed: $0.groupFormed) })
-                    headerFact("Formerly", profile.flatMap(former))
+                    headerFact(String(localized: "Formerly"), profile.flatMap(former))
 #endif
                 }
             }
@@ -196,19 +203,19 @@ struct ComposerHeader: View {
                         ForEach(profile.roles, id: \.self) { SceneChip(text: $0) }
                     }
                 }
-                AccentLink("Open Scener on CSDb") { openURL(profile.url) }
+                AccentLink(String(localized: "Open Scener on CSDb")) { openURL(profile.url) }
                     .font(.caption.weight(.semibold))
             } else if csdbEnabled, !isLookingUp, csdb.lookup(for: [name]) != nil {
                 Text("CSDb doesn't list one scener by this name.")
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 if let url = csdbSearch {
-                    AccentLink("Search CSDb") { openURL(url) }
+                    AccentLink(String(localized: "Search CSDb")) { openURL(url) }
                         .font(.caption.weight(.semibold))
                 }
             }
             if let photo {
-                AccentLink("Photo: \(photo.credit)") { openURL(photo.page) }
+                AccentLink(String(localized: "Photo: \(photo.credit)")) { openURL(photo.page) }
                     .font(.caption)
                     .lineLimit(2)
                     .help("Open the photo's page on Wikimedia Commons")
@@ -225,7 +232,7 @@ struct ComposerHeader: View {
         guard !profile.formerGroups.isEmpty else { return nil }
         let shown = profile.formerGroups.prefix(3).joined(separator: ", ")
         let more = profile.formerGroups.count - 3
-        return more > 0 ? "\(shown) and \(more) more" : shown
+        return more > 0 ? String(localized: "\(shown) and \(more) more") : shown
     }
 
     private var csdbSearch: URL? {
@@ -248,7 +255,7 @@ struct ComposerHeader: View {
             SoundSharesCard(shares: SectionFacts.soundShares(tags: tags, overall: fingerprints.tagShares, limit: 4),
                             scanned: tags.count, tunes: rows.count)
         case .note:
-            HeaderCard("HVSC Note") {
+            HeaderCard(String(localized: "HVSC Note")) {
                 ScrollView(.vertical) {
                     if let note {
                         StilCommentsView(entry: note)
@@ -265,14 +272,14 @@ struct ComposerHeader: View {
                 newestCard(release, by: profile)
             }
         case .results:
-            HeaderCard("Compo Results") {
+            HeaderCard(String(localized: "Compo Results")) {
                 ScrollView(.vertical) {
                     resultsContent
                 }
                 .font(.callout)
             }
         case .trivia:
-            HeaderCard("Unverified Trivia") {
+            HeaderCard(String(localized: "Unverified Trivia")) {
                 ScrollView(.vertical) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Written by CSDb's users")
@@ -297,8 +304,8 @@ struct ComposerHeader: View {
     /// "Just released" only while it is: an old credit is just their newest.
     private func newestCard(_ release: CSDbCredit, by profile: CSDbProfile) -> some View {
         let age = release.daysOld
-        return HeaderCard(age.map { $0 <= 30 } == true ? "Just Released" : "Newest Music Credit",
-                         badge: age == 0 ? "New today" : (age ?? .max) <= 30 ? "New" : nil) {
+        return HeaderCard(age.map { $0 <= 30 } == true ? String(localized: "Just Released") : String(localized: "Newest Music Credit"),
+                         badge: age == 0 ? String(localized: "New today") : (age ?? .max) <= 30 ? String(localized: "New") : nil) {
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .top, spacing: 10) {
@@ -325,9 +332,9 @@ struct ComposerHeader: View {
     private func creditLine(_ release: CSDbCredit) -> String {
         let author = csdb.releaseFiles[release.id]?.hvscAuthor
         switch (author, release.dateText) {
-        case (let author?, let date?): return "By \(author), released \(date)"
-        case (let author?, nil): return "By \(author)"
-        case (nil, let date?): return "Released \(date)"
+        case (let author?, let date?): return String(localized: "By \(author), released \(date)")
+        case (let author?, nil): return String(localized: "By \(author)")
+        case (nil, let date?): return String(localized: "Released \(date)")
         case (nil, nil): return release.kind
         }
     }
@@ -355,10 +362,10 @@ struct ComposerHeader: View {
             }
             if csdb.hvscTune(ofRelease: release.id, library: library) != nil,
                let path = csdb.releaseFiles[release.id]?.hvscPath {
-                AccentLink("Show in HVSC") { library.reveal(hvscPath: path) }
+                AccentLink(String(localized: "Show in HVSC")) { library.reveal(hvscPath: path) }
                     .font(.caption.weight(.semibold))
             }
-            AccentLink("Open on CSDb") { openURL(release.url) }
+            AccentLink(String(localized: "Open on CSDb")) { openURL(release.url) }
                 .font(.caption.weight(.semibold))
         }
     }
@@ -387,7 +394,7 @@ struct ComposerHeader: View {
     private func resultText(_ result: CSDbResult) -> String {
         var text = "\(result.title), \(result.compo)"
         if let event = result.event {
-            text += " at \(event)"
+            text += String(localized: " at \(event)")
         } else if let year = result.year {
             text += " (\(year))"
         }
@@ -454,7 +461,7 @@ struct SimilarComposerChips: View {
 }
 
 /// A composer's picture, the same wherever they appear: their photo when
-/// there is one, else a colour field from their name. It fills the frame it's
+/// there is one, else a color field from their name. It fills the frame it's
 /// given.
 struct ComposerPortrait: View {
     /// As it's spoken: "Martin Galway". Photos are found and kept by it.

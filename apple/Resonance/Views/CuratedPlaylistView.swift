@@ -35,7 +35,7 @@ struct CuratedPlaylistView: View {
         switch library.playlistTunes[playlist.file] {
         case nil:
             // The first load in a category builds (or reads) its index.
-            ProgressView(store.hvscIndexing.isEmpty ? "Loading the playlist…" : "Indexing the collection…")
+            ProgressView(store.hvscIndexing.isEmpty ? String(localized: "Loading the playlist…") : String(localized: "Indexing the collection…"))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .some(nil), .some([]):
             ContentUnavailableView {
@@ -89,7 +89,7 @@ struct CuratedPlaylistView: View {
     private var listActions: some View {
         Group {
             ListFilterField(text: $filter)
-            ListPlayButton(title: isPlaying ? "Play Again" : "Play", isDisabled: rows.isEmpty) {
+            ListPlayButton(title: isPlaying ? String(localized: "Play Again") : String(localized: "Play"), isDisabled: rows.isEmpty) {
                 library.play(rows, from: .curated(playlist))
             }
         }
@@ -99,12 +99,12 @@ struct CuratedPlaylistView: View {
     /// the Songlengths database doesn't know count as nothing).
     private var summary: String {
         let count = rows.isEmpty ? Int(playlist.tracks) : rows.count
-        var text = "\(count.formatted()) \(count == 1 ? "tune" : "tunes")"
+        var text = count == 1 ? String(localized: "1 tune") : String(localized: "\(count.formatted()) tunes")
         let seconds = rows.compactMap(\.item.durationSecs).reduce(0) { $0 + Int($1) }
         if seconds > 0 {
             text += " · " + Duration.seconds(seconds).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))
         }
-        if isPlaying { text += " · playing" }
+        if isPlaying { text += String(localized: " · playing") }
         return text
     }
 
@@ -187,7 +187,7 @@ struct PlaylistArtwork: View {
 
 #Preview {
     CuratedPlaylistView(
-        playlist: HvscPlaylist(name: "Epic C64 SID Collection", file: "epic.m3u", description: "Big tunes.", tracks: 210)
+        playlist: HvscPlaylist(name: "Epic C64 SID Collection", file: "epic.m3u", description: String(localized: "Big tunes."), tracks: 210)
     )
     .environment(PlayerStore.preview)
     .environment(LibraryStore(player: .preview))

@@ -445,7 +445,7 @@ def _is_label(head: str) -> bool:
             and not head.endswith((".", "!", "?", ":", ",")))
 
 
-# A byline that is a name or initials: every word capitalised (or a digit,
+# A byline that is a name or initials: every word capitalized (or a digit,
 # or a name particle), so "(German children's song)" isn't one.
 BYLINE_PARTICLES = {"van", "de", "der", "den", "von", "of", "the", "la", "le", "di", "da", "and", "&"}
 

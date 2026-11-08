@@ -64,7 +64,7 @@ same composer 0.64% of the time.
 
 ## What was learned
 
-- **The similarity formula barely matters; the input does.** Euclidean, rank-normalised and whitened
+- **The similarity formula barely matters; the input does.** Euclidean, rank-normalized and whitened
   variants of the original features all tied with cosine.
 - **Envelope settings carry most of B's gain.** Leaving out ADSR drops same-composer from 21.9% to
   16.8% and same-file from 50.0% to 40.1%. Filter, time and interval features add little.
@@ -80,7 +80,7 @@ same composer 0.64% of the time.
 ## Limits
 
 - These are proxies for "sounds alike". Same-composer may partly reward a composer's register habits
-  and player routine, not only how tunes sound, and that favours register features. A listening
+  and player routine, not only how tunes sound, and that favors register features. A listening
   test would be stronger evidence and hasn't been run.
 - The rendered audio uses reSID with default settings, three 10-second segments per subtune.
 - Melody-based cover detection is a different feature and isn't attempted here.
@@ -94,9 +94,9 @@ same composer 0.64% of the time.
 - Tunes without an embedding (new in a later HVSC release, or silent or failed in the render) use the
   features alone as a seed, and don't appear in the lists of tunes that have embeddings.
 
-## Licences
+## Licenses
 
-- MERT-v1-95M weights are CC-BY-NC 4.0, and the published embeddings carry the same licence in their
+- MERT-v1-95M weights are CC-BY-NC 4.0, and the published embeddings carry the same license in their
   own release asset (`embeddings-e1.zip`). The app does no ML inference and doesn't ship the weights.
 - MERT's repository code was read before running it, at revision
   `12af15fef9d0ac838c3f475bfbbf26d2060dd4f5`.

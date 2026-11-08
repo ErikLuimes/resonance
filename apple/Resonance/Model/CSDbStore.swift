@@ -27,7 +27,7 @@ struct CSDbRelease: Identifiable, Hashable {
                                    options: [.regularExpression, .caseInsensitive])
     }
 
-    var byline: String { groups.isEmpty ? "Unknown group" : groups.joined(separator: ", ") }
+    var byline: String { groups.isEmpty ? String(localized: "Unknown group") : groups.joined(separator: ", ") }
 }
 
 /// An event on CSDb: a party, a compo, a meeting.
@@ -258,7 +258,7 @@ final class CSDbStore {
     var checkedPhotos = Set<String>()
     private(set) var updated: Date?
     private(set) var state = State.idle
-    /// Composers looked up on CSDb, by normalised name (see CSDbProfile.swift).
+    /// Composers looked up on CSDb, by normalized name (see CSDbProfile.swift).
     var profiles: [String: CSDbLookup] = [:]
 
     private static let base = URL(string: "https://csdb.dk/rss/")!
@@ -321,7 +321,7 @@ final class CSDbStore {
             detail = CSDbGroupInfo.detail(from: data)
         } else {
             detail = CSDbScener.profile(from: data).map { profile in
-                let lines = [profile.country, profile.aka.map { "Also known as \($0)" },
+                let lines = [profile.country, profile.aka.map { String(localized: "Also known as \($0)") },
                              profile.roles.isEmpty ? nil : profile.roles.joined(separator: ", ")]
                 return CSDbNewsDetail(name: profile.name, lines: lines.compactMap { $0 })
             }
@@ -371,8 +371,8 @@ nonisolated enum CSDbGroupInfo {
         var lines: [String] = []
         if let country = reader.fields["BaseCountry"] { lines.append(country) }
         if !reader.types.isEmpty { lines.append(reader.types.joined(separator: ", ")) }
-        if let year = reader.fields["FoundYear"] { lines.append("Formed \(year)") }
-        if let year = reader.fields["DissolveYear"] { lines.append("Dissolved \(year)") }
+        if let year = reader.fields["FoundYear"] { lines.append(String(localized: "Formed \(year)")) }
+        if let year = reader.fields["DissolveYear"] { lines.append(String(localized: "Dissolved \(year)")) }
         let short = reader.fields["Short"].map { " (\($0))" } ?? ""
         return CSDbNewsDetail(name: name + short, lines: lines)
     }

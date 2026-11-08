@@ -58,7 +58,7 @@ can be read from our emulator. After I approve, implement it plus a small debug 
 
 Visualizers are additive: every one stays available as a page of the card. Each one is its own view (`ScopeVisualizer`, `BarsVisualizer`, `EnvelopeVisualizer`) behind `VisualizerView`, with note labels drawn by the shared `VoiceLabels`.
 
-**Acceptance:** smooth at display refresh rate, under ~3% CPU on Apple Silicon, correct colours per voice, and gate-off and rests look calm rather than jittery.
+**Acceptance:** smooth at display refresh rate, under ~3% CPU on Apple Silicon, correct colors per voice, and gate-off and rests look calm rather than jittery.
 
 **Prompt:**
 ```
@@ -66,7 +66,7 @@ Phase 1 from design/visualizers/ROADMAP.md. Using VisualizerFeed from Phase 0, r
 bar visualizer in the inspector card with the oscilloscope from reference/Main.dc.html, then add the
 mode switcher from reference/AppInspector.dc.html with Lanes and Envelope modes. Port the drawing
 logic from the JS in each reference file's data-dc-script block to SwiftUI Canvas + TimelineView.
-Use the colours and fonts in IMPLEMENTATION_NOTES.md. Start with the scope only, show me, then add
+Use the colors and fonts in IMPLEMENTATION_NOTES.md. Start with the scope only, show me, then add
 the other modes.
 ```
 
@@ -123,7 +123,7 @@ building it (see the tracker note in ROADMAP.md).
 - [x] Radial spectrum — `reference/RadialBars.dc.html`. `RadialView`, a Canvas over `VoiceSpectrum`.
 - [x] Particle sphere — `reference/Particles.dc.html`. `ParticlesView`: an MTKView with 24,000 points. The vertex shader (`Shaders/Particles.metal`) does the displacement, so no compute pass is needed. `ParticleSphere` keeps each voice's level, ripple rate and last note start (gate opening) on the CPU.
 - [ ] Spectrogram waterfall (texture scroll) — `reference/Spectrogram.dc.html`
-- [x] Sound Map, after a bird-song "map of sound" the user shared. `SoundMap` reads each voice's timbre 35 ms after every note start (gate on, or a pitch change of over half a semitone): 40 MFCCs (vDSP FFT over 2048 samples, 40 mel bands from 40 Hz to 11 kHz, DCT), plus RMS, spectral centroid and spread. `TimbrePCA` reduces c1–c39 to 3D with a slowly forgetting covariance, refitted every 2 s from the last axes and turned to line up with them, and the drawn axes ease over, so the map never jumps. Each node links to up to 4 earlier ones nearest in MFCC space and to its voice's previous note; 1,200 nodes at most, reset when the tune restarts. `SoundMapView` draws it with Metal (Shaders/SoundMap.metal): additive lines, squares and SF Mono glyph-atlas labels in a half-float scene, with MPS bloom. A new note flashes white for 1 s, then fades in its centroid's colour (0–10 kHz scale); by 4 s its labels and lines are gone and only a faint dot stays. The camera orbits the whole map, faster while notes keep coming. Timings and camera are measured from the user's reference recording (IMPLEMENTATION_NOTES.md). Visualization only, no HUD (the user's choice). About 5 ms per full-screen frame, Debug build, including the GPU.
+- [x] Sound Map, after a bird-song "map of sound" the user shared. `SoundMap` reads each voice's timbre 35 ms after every note start (gate on, or a pitch change of over half a semitone): 40 MFCCs (vDSP FFT over 2048 samples, 40 mel bands from 40 Hz to 11 kHz, DCT), plus RMS, spectral centroid and spread. `TimbrePCA` reduces c1–c39 to 3D with a slowly forgetting covariance, refitted every 2 s from the last axes and turned to line up with them, and the drawn axes ease over, so the map never jumps. Each node links to up to 4 earlier ones nearest in MFCC space and to its voice's previous note; 1,200 nodes at most, reset when the tune restarts. `SoundMapView` draws it with Metal (Shaders/SoundMap.metal): additive lines, squares and SF Mono glyph-atlas labels in a half-float scene, with MPS bloom. A new note flashes white for 1 s, then fades in its centroid's color (0–10 kHz scale); by 4 s its labels and lines are gone and only a faint dot stays. The camera orbits the whole map, faster while notes keep coming. Timings and camera are measured from the user's reference recording (IMPLEMENTATION_NOTES.md). Visualization only, no HUD (the user's choice). About 5 ms per full-screen frame, Debug build, including the GPU.
 
 **Prompt:**
 ```
@@ -140,7 +140,7 @@ followed by Radial spectrum, Particles and Spectrogram. Keep one MTKView and swi
 - [x] Batch scanner over HVSC computing a feature vector per subtune (Phase 2's pre-scan didn't exist yet, so this is the first one)
 - [x] Store in SQLite next to the library index (MD5 + subtune)
 - [x] Sound column with mini fingerprint in the list — `reference/AppFingerprints.dc.html`. Built as a nine-bar trait barcode (`SoundBarcode`), not voice lanes: every trait sits in the same place, so tunes that sound alike look alike down a column.
-- [x] Hover card (fingerprint, waveform mix, tags, Play / Find similar). The card shows the tune's `MorphSphere`, a particle sphere that bulges towards its traits. Find Similar sorts the list by likeness, with a Match column.
+- [x] Hover card (fingerprint, waveform mix, tags, Play / Find similar). The card shows the tune's `MorphSphere`, a particle sphere that bulges toward its traits. Find Similar sorts the list by likeness, with a Match column.
 - [x] Filter chips (Arpeggios, Filter sweeps, Noise drums, Ring mod, Sync leads, Digi samples). A tune needs every chip that's on.
 - [x] "Sounds like" panel in the inspector (cosine similarity on the feature vector): the sphere, the sound in a sentence, seven matches as links, Play These. Scan progress and Pause are in Settings › Sound Fingerprints.
 

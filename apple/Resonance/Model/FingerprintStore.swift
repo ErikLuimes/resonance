@@ -304,14 +304,28 @@ nonisolated extension SoundTag {
 
     var name: String {
         switch self {
-        case .arpeggios: "Arpeggios"
-        case .filterSweeps: "Filter sweeps"
-        case .noiseDrums: "Noise drums"
-        case .ringMod: "Ring mod"
-        case .syncLeads: "Sync leads"
-        case .digiSamples: "Digi samples"
-        case .pulseBass: "Pulse bass"
-        case .vibratoLeads: "Vibrato leads"
+        case .arpeggios: String(localized: "Arpeggios")
+        case .filterSweeps: String(localized: "Filter sweeps")
+        case .noiseDrums: String(localized: "Noise drums")
+        case .ringMod: String(localized: "Ring mod")
+        case .syncLeads: String(localized: "Sync leads")
+        case .digiSamples: String(localized: "Digi samples")
+        case .pulseBass: String(localized: "Pulse bass")
+        case .vibratoLeads: String(localized: "Vibrato leads")
+        }
+    }
+}
+
+/// A waveform in a tune's mix.
+nonisolated enum MixWave: Hashable {
+    case triangle, saw, pulse, noise
+
+    var name: String {
+        switch self {
+        case .triangle: String(localized: "Triangle")
+        case .saw: String(localized: "Saw")
+        case .pulse: String(localized: "Pulse")
+        case .noise: String(localized: "Noise")
         }
     }
 }
@@ -319,41 +333,41 @@ nonisolated extension SoundTag {
 nonisolated extension TuneFingerprint {
     /// The waveforms by share, largest first, leaving out the ones that
     /// barely sound.
-    var waveforms: [(name: String, share: Double)] {
-        [("Triangle", mix.triangle), ("Saw", mix.saw), ("Pulse", mix.pulse), ("Noise", mix.noise)]
-            .map { ($0.0, Double($0.1)) }
-            .filter { $0.1 >= 0.02 }
-            .sorted { $0.1 > $1.1 }
+    var waveforms: [(kind: MixWave, name: String, share: Double)] {
+        [(MixWave.triangle, mix.triangle), (.saw, mix.saw), (.pulse, mix.pulse), (.noise, mix.noise)]
+            .map { ($0.0, $0.0.name, Double($0.1)) }
+            .filter { $0.2 >= 0.02 }
+            .sorted { $0.2 > $1.2 }
     }
 
     /// The sound in a sentence: "Mostly pulse, with noise drums and fast
     /// arpeggios."
     var summary: String {
-        if silent { return "Silent in the part that was scanned." }
+        if silent { return String(localized: "Silent in the part that was scanned.") }
         let waves = waveforms
         var opening: String
         if let first = waves.first, first.share >= 0.6 {
-            opening = "Mostly \(first.name.lowercased())"
+            opening = String(localized: "Mostly \(first.name.lowercased())")
         } else if waves.count >= 2 {
-            opening = "\(waves[0].name) and \(waves[1].name.lowercased())"
+            opening = String(localized: "\(waves[0].name) and \(waves[1].name.lowercased())")
         } else {
-            opening = waves.first?.name ?? "Quiet"
+            opening = waves.first?.name ?? String(localized: "Quiet")
         }
         var traits: [String] = []
         for tag in tags {
             switch tag {
-            case .arpeggios: traits.append(arpeggioRate >= 25 ? "fast arpeggios" : "arpeggios")
-            case .filterSweeps: traits.append("filter sweeps")
-            case .noiseDrums: traits.append("noise drums")
-            case .ringMod: traits.append("ring modulation")
-            case .syncLeads: traits.append("sync leads")
-            case .digiSamples: traits.append("sampled sounds")
-            case .pulseBass: traits.append("pulse bass")
-            case .vibratoLeads: traits.append("vibrato")
+            case .arpeggios: traits.append(arpeggioRate >= 25 ? String(localized: "fast arpeggios") : String(localized: "arpeggios"))
+            case .filterSweeps: traits.append(String(localized: "filter sweeps"))
+            case .noiseDrums: traits.append(String(localized: "noise drums"))
+            case .ringMod: traits.append(String(localized: "ring modulation"))
+            case .syncLeads: traits.append(String(localized: "sync leads"))
+            case .digiSamples: traits.append(String(localized: "sampled sounds"))
+            case .pulseBass: traits.append(String(localized: "pulse bass"))
+            case .vibratoLeads: traits.append(String(localized: "vibrato"))
             }
         }
         if !traits.isEmpty {
-            opening += ", with " + traits.formatted(.list(type: .and))
+            opening += String(localized: ", with ") + traits.formatted(.list(type: .and))
         }
         return opening + "."
     }

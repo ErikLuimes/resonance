@@ -79,7 +79,7 @@ private struct SharePopover: View {
     }
 
     private func subtitle(_ share: PreparedShare) -> String {
-        [share.author, subtune.map { "subtune \($0)" }].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · ")
+        [share.author, subtune.map { String(localized: "subtune \($0)") }].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · ")
     }
 }
 
@@ -177,12 +177,12 @@ struct SharedTuneSheet: View {
 
     // MARK: Text
 
-    private var title: String { tune?.title ?? link.title ?? "A shared tune" }
+    private var title: String { tune?.title ?? link.title ?? String(localized: "A shared tune") }
     private var author: String? { tune?.author ?? link.author }
 
     private var origin: String {
-        var parts = [link.hvsc.map { "Shared from HVSC \($0)" } ?? "Shared from HVSC"]
-        if let subtune = link.subtune { parts.append("subtune \(subtune)") }
+        var parts = [link.hvsc.map { String(localized: "Shared from HVSC \(String($0))") } ?? String(localized: "Shared from HVSC")]
+        if let subtune = link.subtune { parts.append(String(localized: "subtune \(subtune)")) }
         return parts.joined(separator: " · ")
     }
 
@@ -245,7 +245,7 @@ struct SharedTuneSheet: View {
                 Button("Update to HVSC \(to)") { update() }
                     .keyboardShortcut(.defaultAction)
             case .checkForUpdate:
-                Button(checking ? "Checking…" : "Check for Update") {
+                Button(checking ? String(localized: "Checking…") : String(localized: "Check for Update")) {
                     Task {
                         checking = true
                         await store.checkHvscUpdate()

@@ -44,7 +44,7 @@ struct SIDFrame {
 
 **FFT:** `vDSP.FFT` / `vDSP_DFT_zrop` on each voice's sample window (1024–2048, Hann window), log-frequency mapping for display, and attack/release smoothing (fast rise, slow fall) for calm bars.
 
-## Behaviour details worth keeping from the mockups
+## Behavior details worth keeping from the mockups
 
 - Gate-off and rests fade gently. Use envelope level, not gate alone, so nothing snaps to zero.
 - Bars and levels rise fast and fall slowly.
@@ -67,7 +67,7 @@ struct SIDFrame {
 | UI font | SF Pro |
 | Accent | `#2F7CF6` (matches the sidebar selection) |
 
-Make voice colours a setting from the start. Some people will want the classic C64 palette.
+Make voice colors a setting from the start. Some people will want the classic C64 palette.
 
 ## Sound Map timings (measured)
 
@@ -75,7 +75,7 @@ Measured from the user's reference recording (7.7 s, 57 fps) with OpenCV: optica
 
 | What | Measured | Used |
 |---|---|---|
-| Camera framing | The cloud's centre stays at 0.48–0.69 × width, 0.50–0.60 × height; its spread stays at 0.20–0.33 of the frame, even while the camera dollies | Orbit the centre of all nodes, at 1.9 × the radius that holds 85% of them (measured spread 0.17 at 2.7×, so moved in; both eased over 2 s). On top, it zooms out while more than 2% of the nodes are off screen, and back in slowly once 98% sit within 70% of the way to the edge (the user asked for this) |
+| Camera framing | The cloud's center stays at 0.48–0.69 × width, 0.50–0.60 × height; its spread stays at 0.20–0.33 of the frame, even while the camera dollies | Orbit the center of all nodes, at 1.9 × the radius that holds 85% of them (measured spread 0.17 at 2.7×, so moved in; both eased over 2 s). On top, it zooms out while more than 2% of the nodes are off screen, and back in slowly once 98% sit within 70% of the way to the edge (the user asked for this) |
 | Orbit speed | 0.63–0.70 rad/s while notes arrive, slowing to 0.33 rad/s after about 3.5 s without new ones | 0.3 rad/s plus up to 0.38 with activity (about 6 notes/s is busy), which calms with a 3 s time constant |
 | Fresh node | Holds full brightness for about 1 s | White and fully lit for 1 s |
 | Fade | Lit pixels halve about every 0.65 s once no new notes arrive; tracked spots fall from 255 to about 40% in 2.5–3 s | Exponential, 1 s time constant, shifted to reach zero at 4 s: labels, links and paths are gone by then (the user asked for 4 s), leaving a faint dot |

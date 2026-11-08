@@ -6,19 +6,19 @@ struct ResonanceIntentsTests {
     private let lists = [UserPlaylist(url: URL(filePath: "/p/Late night.m3u")),
                          UserPlaylist(url: URL(filePath: "/p/Galway.m3u"))]
 
-    @Test func favouritesComeBeforeYourPlaylists() {
-        #expect(PlaylistEntity.all(in: lists).map(\.name) == ["Favourites", "Late night", "Galway"])
+    @Test func favoritesComeBeforeYourPlaylists() {
+        #expect(PlaylistEntity.all(in: lists).map(\.name) == ["Favorites", "Late night", "Galway"])
     }
 
     @Test func findsByPartOfTheNameIgnoringCase() {
         #expect(PlaylistEntity.all(in: lists, matching: "NIGHT").map(\.name) == ["Late night"])
-        #expect(PlaylistEntity.all(in: lists, matching: "fav").map(\.name) == ["Favourites"])
+        #expect(PlaylistEntity.all(in: lists, matching: "fav").map(\.name) == ["Favorites"])
         #expect(PlaylistEntity.all(in: lists, matching: "").count == 3)
     }
 
-    @Test func favouritesUseTheStoresEmptyID() {
-        #expect(PlaylistEntity.favourites.storeID == PlaylistsStore.favouritesID)
-        #expect(PlaylistEntity.favourites.source == .favourites)
+    @Test func favoritesUseTheStoresEmptyID() {
+        #expect(PlaylistEntity.favorites.storeID == PlaylistsStore.favoritesID)
+        #expect(PlaylistEntity.favorites.source == .favorites)
     }
 
     @Test func aPlaylistIsItsFile() {

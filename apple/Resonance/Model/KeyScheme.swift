@@ -9,9 +9,9 @@ enum KeyScheme: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .normal: "Normal"
-        case .vim: "Vim"
-        case .emacs: "Emacs"
+        case .normal: String(localized: "Normal")
+        case .vim: String(localized: "Vim")
+        case .emacs: String(localized: "Emacs")
         }
     }
 
@@ -89,47 +89,47 @@ enum KeyAction: CaseIterable, Hashable {
 
     /// The panel's columns, with their headings.
     static let columns: [(title: String, actions: [KeyAction])] = [
-        ("Playback", [.playPause, .stop, .nextTrack, .previousTrack, .nextSubtune, .previousSubtune, .volumeUp, .volumeDown]),
-        ("Lists", [.moveDown, .moveUp, .top, .bottom, .playSelected, .remove, .search, .addFiles]),
-        ("Discovery and Windows", [.shuffle, .surpriseMe, .nowPlaying, .underTheHood, .menuBarPlayer, .settings, .help, .shortcuts, .close]),
+        (String(localized: "Playback"), [.playPause, .stop, .nextTrack, .previousTrack, .nextSubtune, .previousSubtune, .volumeUp, .volumeDown]),
+        (String(localized: "Lists"), [.moveDown, .moveUp, .top, .bottom, .playSelected, .remove, .search, .addFiles]),
+        (String(localized: "Discovery and Windows"), [.shuffle, .surpriseMe, .nowPlaying, .underTheHood, .menuBarPlayer, .settings, .help, .shortcuts, .close]),
     ]
 
     var title: String {
         switch self {
-        case .playPause: "Play or Pause"
-        case .stop: "Stop"
-        case .nextTrack: "Next Track"
-        case .previousTrack: "Previous Track"
-        case .nextSubtune: "Next Subtune"
-        case .previousSubtune: "Previous Subtune"
-        case .volumeUp: "Volume Up"
-        case .volumeDown: "Volume Down"
-        case .moveDown: "Move Down"
-        case .moveUp: "Move Up"
-        case .top: "Top of List"
-        case .bottom: "End of List"
-        case .playSelected: "Play Selected"
-        case .remove: "Remove from Playlist"
-        case .search: "Search"
-        case .addFiles: "Add Files or Folders"
-        case .shuffle: "Shuffle"
-        case .surpriseMe: "Surprise Me"
-        case .nowPlaying: "Now Playing"
-        case .underTheHood: "Under the Hood"
-        case .menuBarPlayer: "Menu Bar Player"
-        case .settings: "Settings"
-        case .help: "Resonance Help"
-        case .shortcuts: "These Shortcuts"
-        case .close: "Close"
+        case .playPause: String(localized: "Play or Pause")
+        case .stop: String(localized: "Stop")
+        case .nextTrack: String(localized: "Next Track")
+        case .previousTrack: String(localized: "Previous Track")
+        case .nextSubtune: String(localized: "Next Subtune")
+        case .previousSubtune: String(localized: "Previous Subtune")
+        case .volumeUp: String(localized: "Volume Up")
+        case .volumeDown: String(localized: "Volume Down")
+        case .moveDown: String(localized: "Move Down")
+        case .moveUp: String(localized: "Move Up")
+        case .top: String(localized: "Top of List")
+        case .bottom: String(localized: "End of List")
+        case .playSelected: String(localized: "Play Selected")
+        case .remove: String(localized: "Remove from Playlist")
+        case .search: String(localized: "Search")
+        case .addFiles: String(localized: "Add Files or Folders")
+        case .shuffle: String(localized: "Shuffle")
+        case .surpriseMe: String(localized: "Surprise Me")
+        case .nowPlaying: String(localized: "Now Playing")
+        case .underTheHood: String(localized: "Under the Hood")
+        case .menuBarPlayer: String(localized: "Menu Bar Player")
+        case .settings: String(localized: "Settings")
+        case .help: String(localized: "Resonance Help")
+        case .shortcuts: String(localized: "These Shortcuts")
+        case .close: String(localized: "Close")
         }
     }
 
     /// Its name on the help page, away from the panel.
     var helpPageTitle: String {
         switch self {
-        case .playPause: "Play or Pause (not while typing)"
-        case .shortcuts: "Show or Hide the Keyboard Shortcuts Panel"
-        case .close: "Close the Panel, or What's Open"
+        case .playPause: String(localized: "Play or Pause (not while typing)")
+        case .shortcuts: String(localized: "Show or Hide the Keyboard Shortcuts Panel")
+        case .close: String(localized: "Close the Panel, or What's Open")
         default: title
         }
     }
@@ -137,31 +137,31 @@ enum KeyAction: CaseIterable, Hashable {
     /// One line on what it does, in the panel's fixed place for it.
     var summary: String {
         switch self {
-        case .playPause: "Pauses the tune, or plays it again. Works everywhere except while you're typing."
-        case .stop: "Stops the tune."
-        case .nextTrack: "Plays the next tune in the list you're playing from."
-        case .previousTrack: "Plays the previous tune in the list you're playing from."
-        case .nextSubtune: "One SID file can hold several songs. This plays the next one in the file."
-        case .previousSubtune: "One SID file can hold several songs. This plays the previous one in the file."
-        case .volumeUp: "Turns the volume up by 10%."
-        case .volumeDown: "Turns the volume down by 10%."
-        case .moveDown: "Moves the selection down the song list."
-        case .moveUp: "Moves the selection up the song list."
-        case .top: "Jumps to the first tune in the list."
-        case .bottom: "Jumps to the last tune in the list."
-        case .playSelected: "Plays the selected tune."
-        case .remove: "Removes the selected tunes from the playlist you're looking at."
-        case .search: "Puts the cursor in the search field."
-        case .addFiles: "Adds SID files, folders or M3U playlists to My Playlist."
-        case .shuffle: "Turns shuffle on or off."
-        case .surpriseMe: "Starts a radio of random tunes from all of HVSC."
-        case .nowPlaying: "Slides the large player over the library, or away again."
-        case .underTheHood: "Slides up the tracker, registers, sweeps and pitch trail, or away again."
-        case .menuBarPlayer: "Opens the small player from the menu bar, from any app."
-        case .settings: "Opens Resonance's settings."
-        case .help: "Opens the full guide to Resonance."
-        case .shortcuts: "Shows or hides this panel."
-        case .close: "Closes this panel. Pressed again, it closes Now Playing or Under the Hood."
+        case .playPause: String(localized: "Pauses the tune, or plays it again. Works everywhere except while you're typing.")
+        case .stop: String(localized: "Stops the tune.")
+        case .nextTrack: String(localized: "Plays the next tune in the list you're playing from.")
+        case .previousTrack: String(localized: "Plays the previous tune in the list you're playing from.")
+        case .nextSubtune: String(localized: "One SID file can hold several songs. This plays the next one in the file.")
+        case .previousSubtune: String(localized: "One SID file can hold several songs. This plays the previous one in the file.")
+        case .volumeUp: String(localized: "Turns the volume up by 10%.")
+        case .volumeDown: String(localized: "Turns the volume down by 10%.")
+        case .moveDown: String(localized: "Moves the selection down the song list.")
+        case .moveUp: String(localized: "Moves the selection up the song list.")
+        case .top: String(localized: "Jumps to the first tune in the list.")
+        case .bottom: String(localized: "Jumps to the last tune in the list.")
+        case .playSelected: String(localized: "Plays the selected tune.")
+        case .remove: String(localized: "Removes the selected tunes from the playlist you're looking at.")
+        case .search: String(localized: "Puts the cursor in the search field.")
+        case .addFiles: String(localized: "Adds SID files, folders or M3U playlists to My Playlist.")
+        case .shuffle: String(localized: "Turns shuffle on or off.")
+        case .surpriseMe: String(localized: "Starts a radio of random tunes from all of HVSC.")
+        case .nowPlaying: String(localized: "Slides the large player over the library, or away again.")
+        case .underTheHood: String(localized: "Slides up the tracker, registers, sweeps and pitch trail, or away again.")
+        case .menuBarPlayer: String(localized: "Opens the small player from the menu bar, from any app.")
+        case .settings: String(localized: "Opens Resonance's settings.")
+        case .help: String(localized: "Opens the full guide to Resonance.")
+        case .shortcuts: String(localized: "Shows or hides this panel.")
+        case .close: String(localized: "Closes this panel. Pressed again, it closes Now Playing or Under the Hood.")
         }
     }
 
@@ -202,7 +202,7 @@ enum KeyAction: CaseIterable, Hashable {
     private var bindings: (normal: KeyBinding, vim: KeyBinding, emacs: KeyBinding) {
         switch self {
         case .playPause:
-            let space = KeyBinding.key("Space", KeyStroke.space)
+            let space = KeyBinding.key(String(localized: "Space"), KeyStroke.space)
             return (space, space, space)
         case .stop:
             return (.system("⌘.", ".", .command), .key("x", "x"), .key("⌃X", "x", .control))
@@ -223,11 +223,11 @@ enum KeyAction: CaseIterable, Hashable {
         case .moveUp:
             return (.system("↑", KeyStroke.up), .key("k", "k"), .key("⌃P", "p", .control))
         case .top:
-            return (.key("Home", KeyStroke.home), .twice("g"), .key("⌥<", "<", .option))
+            return (.key(String(localized: "Home"), KeyStroke.home), .twice("g"), .key("⌥<", "<", .option))
         case .bottom:
-            return (.key("End", KeyStroke.end), .key("G", "G"), .key("⌥>", ">", .option))
+            return (.key(String(localized: "End"), KeyStroke.end), .key("G", "G"), .key("⌥>", ">", .option))
         case .playSelected:
-            let enter = KeyBinding.system("Return", KeyStroke.enter)
+            let enter = KeyBinding.system(String(localized: "Return"), KeyStroke.enter)
             return (enter, enter, enter)
         case .remove:
             return (.system("⌫", KeyStroke.delete), .twice("d"), .key("⌃D", "d", .control))
@@ -257,7 +257,7 @@ enum KeyAction: CaseIterable, Hashable {
             let question = KeyBinding.key("?", "?")
             return (question, question, question)
         case .close:
-            let escape = KeyBinding.key("Esc", KeyStroke.escape)
+            let escape = KeyBinding.key(String(localized: "Esc"), KeyStroke.escape)
             return (escape, escape, .key("⌃G", "g", .control))
         }
     }

@@ -72,7 +72,7 @@ is played.
   notes that sound alike gather together and the music draws its own map as it plays.
 - **Every voice, live.** The inspector's visualizer shows each SID voice as a scope, as level
   bars with peak hold, or as its envelope, with the note and waveform it's playing.
-- **Themes.** Colour the three voices Resonance, C64, Noir, Ember, Abyss, Phosphor, Greyscale
+- **Themes.** Color the three voices Resonance, C64, Noir, Ember, Abyss, Phosphor, Grayscale
   or your own.
 
 ### Know the tune
@@ -84,8 +84,8 @@ is played.
 
 ### Your music
 
-- **Playlists and Favourites.** Make as many playlists as you like, heart tunes into
-  Favourites, and add anything with **Add to…**, which finds a playlist
+- **Playlists and Favorites.** Make as many playlists as you like, heart tunes into
+  Favorites, and add anything with **Add to…**, which finds a playlist
   as you type. Drag tunes onto a playlist in the sidebar, or reorder them inside it.
 - **Always know what's playing from.** "Playing from Rob Hubbard", "Playing from Search
   'commando'": every source is named, and one click takes you back to it.
@@ -120,15 +120,15 @@ is played.
    Resonance fetches the newest release into its own folder. Already have it? Choose its folder
    in **Settings → Collection**.
 3. **Press <kbd>⇧</kbd><kbd>⌘</kbd><kbd>R</kbd>.** Surprise Me starts the radio. Or drop SID
-   files, folders and M3U playlists onto the window. Sounds Like works straight away: the first
+   files, folders and M3U playlists onto the window. Sounds Like works right away: the first
    time, Resonance imports the published fingerprint set (about 37 MB) for all of HVSC, and a
    background scan fills in anything it doesn't cover.
 
 > [!NOTE]
-> **Coming from Phosphor?** Resonance is its own app and keeps its own favourites, history,
+> **Coming from Phosphor?** Resonance is its own app and keeps its own favorites, history,
 > playlists, settings and collection in `~/Library/Application Support/Resonance/`.
 > **Settings → Advanced → Import from Phosphor** brings over Phosphor's playback settings,
-> favourites and play history, and its HVSC collection if Resonance has none. Nothing in Phosphor
+> favorites and play history, and its HVSC collection if Resonance has none. Nothing in Phosphor
 > changes.
 
 ## Keyboard shortcuts
@@ -209,7 +209,7 @@ Phosphor is © 2026 Marcin Spoczynski, also
 SID emulation by reSID (through resid-rs), SIDLite and libsidplayfp, which are
 GPL-licensed: the Resonance app as built and distributed is therefore covered by the
 [GNU GPL, version 3](https://www.gnu.org/licenses/gpl-3.0.html), with its full source
-here. About Resonance → Acknowledgements lists every library in the app.
+here. About Resonance → Acknowledgments lists every library in the app.
 
 Tunes, song lengths and STIL come from the
 [High Voltage SID Collection](https://hvsc.c64.org); the music belongs to its composers.

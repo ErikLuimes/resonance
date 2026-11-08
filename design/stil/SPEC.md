@@ -123,7 +123,7 @@ join           = "line + ' ' + next", except a word hyphenated across lines
   else, so it gets the **Cover chip**. The ARTIST is the *original* artist, not the SID composer.
 - **Medley** = a section with ≥ 2 timestamped covers (769 sections). Segments: a range is used as
   is; a single timestamp runs **until the next timestamped part starts**, or the song end for the
-  last one (`medleySegments`). Gaps between segments are **not labelled**; STIL doesn't say what's
+  last one (`medleySegments`). Gaps between segments are **not labeled**; STIL doesn't say what's
   in them.
 
 ---
@@ -145,7 +145,7 @@ composer's quote.
 - **Lead-in quotes** (no sentence break before the quote): `Same as /…/Remoteness.sid "Used in the
   game without my permission…" (Geir Tjelta)`, `SW1.8 "Title is a direct reference…" (NP)`. Split at
   the earliest opening `"` whose rest is balanced when the attribution is a **byline** (every word
-  capitalised, a digit or a name particle: so not "(German children's song)") and the quote is a
+  capitalized, a digit or a name particle: so not "(German children's song)") and the quote is a
   phrase (≥ 4 words) or follows a short label (≤ 3 words). A quote that opens after such a lead-in
   (≤ 3 words, or ending in a `.sid` path) and closes, signed with a byline, in a **later**
   paragraph is split the same way. ~150 more quotes on v85; short inline quotes inside a sentence

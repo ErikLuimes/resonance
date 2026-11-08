@@ -353,7 +353,7 @@ impl Skull {
     }
 }
 
-/// Whether the terminal says it shows millions of colours.
+/// Whether the terminal says it shows millions of colors.
 pub fn terminal_has_truecolor() -> bool {
     std::env::var("COLORTERM").is_ok_and(|v| v.contains("truecolor") || v.contains("24bit"))
 }

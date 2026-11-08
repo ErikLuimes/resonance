@@ -8,7 +8,7 @@ import SwiftUI
 /// under the pointer while dragging, or the point just asked for until the
 /// player reports it, so the parent's elapsed label can show it.
 ///
-/// While the engine runs to the target, the fill there turns grey (where
+/// While the engine runs to the target, the fill there turns gray (where
 /// you'll land) and a solid fill races up to it from where the run started:
 /// the emulation's real position (`seekPosition`), like a tape winding.
 ///
@@ -26,7 +26,7 @@ struct ScrubBar: View {
     var hasSubtunes = false
     /// The player is running to the point asked for; the fill dims.
     let seeking: Bool
-    /// How far it has got, while seeking.
+    /// How far it has gotten, while seeking.
     var seekPosition: TimeInterval?
     /// White on Now Playing's dark background instead of the accent.
     var onDark = false
@@ -57,7 +57,7 @@ struct ScrubBar: View {
     }
 
     /// The accent fill, 0...1: what plays now, or while seeking how far the
-    /// engine has got, never past the target.
+    /// engine has gotten, never past the target.
     private var played: Double? {
         guard let target else { return clamped(elapsed) }
         let at = seeking && dragFraction == nil && pending == nil ? (seekPosition ?? elapsed) : elapsed
@@ -68,7 +68,7 @@ struct ScrubBar: View {
         onDark ? Color.white.opacity(0.85) : Color.accentColor
     }
 
-    /// The target: grey, a step up from the track.
+    /// The target: gray, a step up from the track.
     private var targetColor: Color {
         onDark ? Color.white.opacity(0.4) : Color.primary.opacity(0.3)
     }
@@ -81,7 +81,7 @@ struct ScrubBar: View {
                     ProgressView()
                         .progressViewStyle(.linear)
                         .controlSize(.small)
-                        // Grey: it says it's playing, not how far along.
+                        // Gray: it says it's playing, not how far along.
                         .tint(onDark ? Color.white.opacity(0.5) : Color.gray)
                         .labelsHidden()
                         .frame(width: width)

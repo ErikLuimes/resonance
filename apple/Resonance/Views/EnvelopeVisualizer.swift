@@ -64,7 +64,7 @@ struct EnvelopeVisualizer: View {
     }
 
     /// "A0 D9 SA R0", one hex digit per setting as the SID stores them, with
-    /// the phase the voice is in lit in its colour. Fits `width`: in a
+    /// the phase the voice is in lit in its color. Fits `width`: in a
     /// narrow inspector the gaps close up first, then the text shrinks.
     private func drawSettings(_ voice: VizVoice, color: Color, at origin: CGPoint, width: CGFloat,
                               in gc: GraphicsContext) {

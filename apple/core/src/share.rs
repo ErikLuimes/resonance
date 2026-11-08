@@ -348,7 +348,7 @@ mod tests {
         assert!(!json.contains("\"f\""), "no traits without fingerprints: {json}");
     }
 
-    /// A folder in the temp dir, removed afterwards.
+    /// A folder in the temp dir, removed afterward.
     mod tempdir {
         use std::path::PathBuf;
         use std::sync::atomic::{AtomicU32, Ordering};

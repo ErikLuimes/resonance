@@ -12,7 +12,7 @@
 //! don't show — fine for visuals, and the same on both engines.
 //!
 //! Frames sit on the player's emulated timeline (`elapsed`). Reads map
-//! wall-clock time to the position being heard by modelling the engine's
+//! wall-clock time to the position being heard by modeling the engine's
 //! audio buffer, which upstream doesn't expose:
 //!
 //! - At each track start the engine queues 150 ms of silence, then waits

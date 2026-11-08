@@ -36,7 +36,7 @@ impl FakeApp {
                         // Playing the first of the tunes, well into it.
                         let path = result[0]["path"].clone();
                         let now = json!({ "path": path, "title": "T", "author": "A", "released": "", "song": 1, "songs": 1 });
-                        let status = json!({ "state": "playing", "now": now, "elapsed": 999.0, "hasCollection": true, "favourite": false });
+                        let status = json!({ "state": "playing", "now": now, "elapsed": 999.0, "hasCollection": true, "favorite": false });
                         json!({ "id": request["id"], "ok": true, "result": status })
                     } else {
                         json!({ "id": request["id"], "ok": true, "result": result })
@@ -106,7 +106,7 @@ fn search_can_play_what_it_found() {
 
 #[test]
 fn now_says_nothing_is_playing() {
-    let app = FakeApp::start(json!({ "state": "stopped", "now": null, "elapsed": 0.0, "hasCollection": true, "favourite": false }));
+    let app = FakeApp::start(json!({ "state": "stopped", "now": null, "elapsed": 0.0, "hasCollection": true, "favorite": false }));
     assert_eq!(text(&app.run(&["now"])), "Nothing is playing.\n");
 }
 
@@ -115,7 +115,7 @@ fn now_shows_the_tune_and_time() {
     let app = FakeApp::start(json!({
         "state": "paused",
         "now": { "path": "/a.sid", "title": "Commando", "author": "Rob Hubbard", "released": "1985", "song": 2, "songs": 3 },
-        "elapsed": 84.0, "duration": 252.0, "hasCollection": true, "favourite": false
+        "elapsed": 84.0, "duration": 252.0, "hasCollection": true, "favorite": false
     }));
     assert_eq!(text(&app.run(&["now"])), "♪ Commando · Rob Hubbard  1:24 / 4:12  (2 of 3)  paused\n");
 }
@@ -130,7 +130,7 @@ fn relative_files_become_absolute() {
 
 #[test]
 fn playlist_commands_name_the_list() {
-    let app = FakeApp::start(json!({ "name": "Mix", "count": 0, "isFavourites": false }));
+    let app = FakeApp::start(json!({ "name": "Mix", "count": 0, "isFavorites": false }));
     app.run(&["playlist", "new", "Mix"]);
     assert_eq!(app.last()["cmd"], "playlist.new");
     app.run(&["playlist", "rename", "Mix", "Max"]);
@@ -159,8 +159,8 @@ fn playlist_add_reads_paths_from_a_pipe() {
 
 #[test]
 fn playlist_names_alone_in_a_pipe_for_completions() {
-    let app = FakeApp::start(json!([{ "name": "Favourites", "count": 2, "isFavourites": true }, { "name": "Mix", "count": 1, "isFavourites": false }]));
-    assert_eq!(text(&app.run(&["playlist", "list"])), "Favourites\nMix\n");
+    let app = FakeApp::start(json!([{ "name": "Favorites", "count": 2, "isFavorites": true }, { "name": "Mix", "count": 1, "isFavorites": false }]));
+    assert_eq!(text(&app.run(&["playlist", "list"])), "Favorites\nMix\n");
 }
 
 #[test]
@@ -238,7 +238,7 @@ fn drift_names_a_file_when_given_one() {
 fn licenses_says_where_to_look_outside_the_app() {
     let output = Command::new(env!("CARGO_BIN_EXE_resonance")).arg("--licenses").env("RESONANCE_NO_LAUNCH", "1").output().unwrap();
     assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("Acknowledgements.txt"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Acknowledgments.txt"));
 }
 
 /// The whole of `resonance mcp` over real pipes.

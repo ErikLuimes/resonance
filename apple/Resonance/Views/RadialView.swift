@@ -5,7 +5,7 @@ import PhosphorCore
 /// voice's spectrum (`VoiceSpectrum`), mirrored left and right so the low
 /// bands meet at the top and the highs at the bottom
 /// (design/visualizers/reference/RadialBars.dc.html). The rings turn
-/// slowly, neighbours opposite ways.
+/// slowly, neighbors opposite ways.
 ///
 /// Shows the first chip, like the Halo.
 struct RadialView: View {

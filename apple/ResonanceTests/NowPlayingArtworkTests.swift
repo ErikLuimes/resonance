@@ -17,7 +17,7 @@ struct NowPlayingArtworkTests {
         #expect(pixels(first) != pixels(second))
     }
 
-    @Test func anUnscannedTuneShowsItsComposersColours() {
+    @Test func anUnscannedTuneShowsItsComposersColors() {
         let hubbard = NowPlayingArtwork.image(fingerprint: nil, composer: "Rob Hubbard")
         let galway = NowPlayingArtwork.image(fingerprint: nil, composer: "Martin Galway")
         #expect(hubbard != nil)

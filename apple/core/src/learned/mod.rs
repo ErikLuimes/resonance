@@ -246,7 +246,7 @@ impl Drop for Analyzer {
 
 fn work(store: &LearnedLengths, shared: &Shared, done: &Sender<String>) {
     lower_priority();
-    let cancelled = || shared.queue.lock().map_or(true, |q| q.quit);
+    let canceled = || shared.queue.lock().map_or(true, |q| q.quit);
     loop {
         let job = {
             let Ok(mut queue) = shared.queue.lock() else { return };
@@ -262,7 +262,7 @@ fn work(store: &LearnedLengths, shared: &Shared, done: &Sender<String>) {
             }
         };
         // A tune the engine can't take is only that tune's problem.
-        let outcome = catch_unwind(AssertUnwindSafe(|| run_job(&job, store, done, &cancelled)));
+        let outcome = catch_unwind(AssertUnwindSafe(|| run_job(&job, store, done, &canceled)));
         if outcome.is_err() {
             eprintln!("[resonance] working out the length of {} panicked", job.path.display());
         }
@@ -272,12 +272,12 @@ fn work(store: &LearnedLengths, shared: &Shared, done: &Sender<String>) {
     }
 }
 
-fn run_job(job: &LengthJob, store: &LearnedLengths, done: &Sender<String>, cancelled: &dyn Fn() -> bool) {
+fn run_job(job: &LengthJob, store: &LearnedLengths, done: &Sender<String>, canceled: &dyn Fn() -> bool) {
     let Ok(data) = std::fs::read(&job.path) else { return };
     let mut songs = store.not_run(&job.md5, job.songs);
     songs.sort_by_key(|&song| song != job.first_song);
     for song in songs {
-        let secs = match estimate_length(&data, song, cancelled) {
+        let secs = match estimate_length(&data, song, canceled) {
             Ok(estimate) => estimate.map(playable_secs),
             Err(e) => {
                 eprintln!("[resonance] working out the length of {}: {e}", job.path.display());
@@ -285,7 +285,7 @@ fn run_job(job: &LengthJob, store: &LearnedLengths, done: &Sender<String>, cance
             }
         };
         // Stopped halfway, which says nothing about the tune.
-        if cancelled() {
+        if canceled() {
             return;
         }
         store.record(&job.md5, job.songs, song, secs);

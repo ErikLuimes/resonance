@@ -2,7 +2,7 @@ import SwiftUI
 import PhosphorCore
 
 /// The nine traits a fingerprint's glyphs draw, in `TuneFingerprint.traits`
-/// order, each with its colour: rhythm and pitch movement in cyan, the
+/// order, each with its color: rhythm and pitch movement in cyan, the
 /// filter in violet, the chip's harsher tricks in orange, samples in red,
 /// pulse-width sweeps in green.
 nonisolated enum SoundTrait: Int, CaseIterable {
@@ -10,15 +10,15 @@ nonisolated enum SoundTrait: Int, CaseIterable {
 
     var name: String {
         switch self {
-        case .notes: "Notes"
-        case .arpeggios: "Arpeggios"
-        case .vibrato: "Vibrato"
-        case .filter: "Filter"
-        case .ring: "Ring mod"
-        case .sync: "Sync"
-        case .digi: "Digi"
-        case .noise: "Noise"
-        case .pulseWidth: "Pulse width"
+        case .notes: String(localized: "Notes")
+        case .arpeggios: String(localized: "Arpeggios")
+        case .vibrato: String(localized: "Vibrato")
+        case .filter: String(localized: "Filter")
+        case .ring: String(localized: "Ring mod")
+        case .sync: String(localized: "Sync")
+        case .digi: String(localized: "Digi")
+        case .noise: String(localized: "Noise")
+        case .pulseWidth: String(localized: "Pulse width")
         }
     }
 
@@ -34,19 +34,19 @@ nonisolated enum SoundTrait: Int, CaseIterable {
     }
 }
 
-/// The waveform colours of the mix bar and the sphere.
+/// The waveform colors of the mix bar and the sphere.
 nonisolated enum WaveformColor {
     static let triangle = Color(red: 0.50, green: 0.86, blue: 0.64)
     static let saw = Color(red: 0.64, green: 0.49, blue: 0.96)
     static let pulse = Color(red: 0.35, green: 0.78, blue: 0.91)
     static let noise = Color(red: 0.95, green: 0.63, blue: 0.33)
 
-    static func of(_ name: String) -> Color {
-        switch name {
-        case "Triangle": triangle
-        case "Saw": saw
-        case "Noise": noise
-        default: pulse
+    static func of(_ wave: MixWave) -> Color {
+        switch wave {
+        case .triangle: triangle
+        case .saw: saw
+        case .pulse: pulse
+        case .noise: noise
         }
     }
 }
@@ -81,12 +81,12 @@ struct SoundBarcode: View {
     /// The traits that stand out, for VoiceOver.
     nonisolated static func description(_ traits: [Float]) -> String {
         let strong = SoundTrait.allCases.filter { traits.indices.contains($0.rawValue) && traits[$0.rawValue] >= 0.5 }
-        return strong.isEmpty ? "Sound fingerprint" : "Sound fingerprint: " + strong.map(\.name).formatted(.list(type: .and))
+        return strong.isEmpty ? String(localized: "Sound fingerprint") : String(localized: "Sound fingerprint: ") + strong.map(\.name).formatted(.list(type: .and))
     }
 }
 
-/// A slowly turning sphere of particles that bulges towards each of a
-/// tune's traits, coloured by its waveform mix: the tune's look, for the
+/// A slowly turning sphere of particles that bulges toward each of a
+/// tune's traits, colored by its waveform mix: the tune's look, for the
 /// hover card and "Sounds like". Traits always point the same way, so
 /// similar tunes have similar shapes.
 struct MorphSphere: View {
@@ -133,7 +133,7 @@ nonisolated struct MorphSphereShape {
     }
 
     let points: [Point]
-    /// The farthest point from the centre, which the drawing fits.
+    /// The farthest point from the center, which the drawing fits.
     let extent: Double
     static let palette = [WaveformColor.triangle, WaveformColor.saw, WaveformColor.pulse, WaveformColor.noise]
 
@@ -190,7 +190,7 @@ nonisolated struct MorphSphereShape {
         let tilt = 0.3
         let (cx, sx) = (cos(tilt), sin(tilt))
         // Fit the shape: its farthest point fills the frame when it's side
-        // on, and stays about inside it when it turns towards you.
+        // on, and stays about inside it when it turns toward you.
         let camera = 3.2
         let scale = min(size.width, size.height) * 0.44 * zoom * (camera - extent / 2) / max(extent, 0.1)
         var projected: [(z: Double, x: Double, y: Double, color: Int)] = points.map { p in
@@ -222,7 +222,7 @@ struct WaveformMixBar: View {
             GeometryReader { geo in
                 HStack(spacing: 2) {
                     ForEach(waves, id: \.name) { wave in
-                        WaveformColor.of(wave.name)
+                        WaveformColor.of(wave.kind)
                             .frame(width: max(2, (geo.size.width - CGFloat(waves.count - 1) * 2) * wave.share))
                     }
                 }

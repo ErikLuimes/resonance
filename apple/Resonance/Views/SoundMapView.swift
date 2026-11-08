@@ -10,10 +10,10 @@ import PhosphorCore
 /// that sound alike sit together and the music draws paths and clusters as
 /// it repeats and changes. A new note flashes white with large labels
 /// (amplitude above, spectral spread left, centroid right, time below),
-/// settles into its centroid's colour, stays lit for a few seconds, then
+/// settles into its centroid's color, stays lit for a few seconds, then
 /// fades into a faint map of everything played so far. Each node links to
 /// the earlier ones it sounds most like, and to its voice's previous note
-/// in the voice's colour. The camera drifts after the newest notes.
+/// in the voice's color. The camera drifts after the newest notes.
 ///
 /// Drawn with Metal (Shaders/SoundMap.metal): lines, squares and labels
 /// add up in a half-float scene with bloom. Shows the first chip.
@@ -237,7 +237,7 @@ final class SoundMapRenderer: NSObject, MTKViewDelegate {
     }
 
     /// A node's look at a given age: white and fully lit for
-    /// `freshSeconds`, then fading in its colour, then faint for good.
+    /// `freshSeconds`, then fading in its color, then faint for good.
     struct Life {
         var flash: Float
         var lit: Float
@@ -281,12 +281,12 @@ final class SoundMapRenderer: NSObject, MTKViewDelegate {
             time += dt
             if !points.isEmpty {
                 // The middle, and the distance that holds 85% of the nodes.
-                let centre = points.reduce(.zero, +) / Float(points.count)
-                var reach = points.map { simd_length($0 - centre) }
+                let center = points.reduce(.zero, +) / Float(points.count)
+                var reach = points.map { simd_length($0 - center) }
                 reach.sort()
                 let extent = max(0.2, reach[min(reach.count - 1, Int(Float(reach.count) * 0.85))])
                 let k = started ? 1 - exp(-dt / 2) : 1
-                focus += (centre - focus) * k
+                focus += (center - focus) * k
                 radius += (extent - radius) * k
                 started = true
             }
@@ -306,7 +306,7 @@ final class SoundMapRenderer: NSObject, MTKViewDelegate {
         /// Zooms out quickly while more than 2% of the nodes are off screen
         /// (or behind the camera), and back in slowly once nearly all of
         /// them sit well inside it. `edges` is each node's place as a
-        /// fraction of the way from the centre to the view's edge.
+        /// fraction of the way from the center to the view's edge.
         mutating func fit(_ edges: [Float], dt: Float) {
             guard edges.count >= 8 else { return }
             let sorted = edges.sorted()
@@ -374,7 +374,7 @@ final class SoundMapRenderer: NSObject, MTKViewDelegate {
             let white = max(lives[i].white, lives[j].white) * 0.7
             segment(pa, pb, mix(spectrum(nodes[j].centroid), SIMD3(1, 1, 1), t: white), lit * 0.45, 0.6 * unit)
         }
-        // Each voice's path, white at first, then in the voice's colour.
+        // Each voice's path, white at first, then in the voice's color.
         for (j, node) in nodes.enumerated() {
             guard lives[j].lit > 0, let previous = node.previous, let i = index(previous),
                   let pa = projected[i], let pb = projected[j] else { continue }

@@ -62,12 +62,12 @@ Good luck hearing all 60,000+ — at four minutes each that's only about 167 str
 | `→` | Next track |
 | `↑` | Select previous track in playlist |
 | `↓` | Select next track in playlist |
-| `F` | Toggle full-screen visualiser |
-| `V` | Cycle visualiser mode (Bars → Scope → Tracker → Karaoke) |
+| `F` | Toggle full-screen visualizer |
+| `V` | Cycle visualizer mode (Bars → Scope → Tracker → Karaoke) |
 | `K` | Toggle karaoke lyrics (MUS files with .wds) |
 | `L` | Toggle 📚 Library panel |
 | `M` | Toggle mini player |
-| `H` | Toggle favourite for currently playing track |
+| `H` | Toggle favorite for currently playing track |
 | `Shift+H` | Toggle shuffle |
 | `,` / `.` | Nudge master volume −5% / +5% |
 | `?` | Show keyboard shortcuts & about |
@@ -94,15 +94,15 @@ Phosphor includes a built-in web server for controlling playback from any device
 3. Browse the playlist, search, play/pause/skip — all from the browser
 4. Hit 🔊 **Listen** to stream the live audio through the browser (reSID / SIDLite engines only — hardware playback paths can't be tapped)
 
-**Playlist management** — right-click / long-press a row for a context menu (Play now, Toggle favourite, Move to top / up / down, Copy title, Remove). Desktop users can drag rows to reorder. The toolbar adds Import M3U / Save as M3U / Clear / Favourites-only chip / Sort dropdown, and every action pops a small toast confirmation.
+**Playlist management** — right-click / long-press a row for a context menu (Play now, Toggle favorite, Move to top / up / down, Copy title, Remove). Desktop users can drag rows to reorder. The toolbar adds Import M3U / Save as M3U / Clear / Favorites-only chip / Sort dropdown, and every action pops a small toast confirmation.
 
 **Library discovery** — Published Playlists (with inline preview accordion — click any playlist to see its track list before loading), HVSC browser (Musicians / Demos / Games), Recently Played history, plus one-click **HVSC sync** trigger with live progress.
 
-**Modern-player polish** — persistent Now Playing bar on phones so the transport controls stay reachable when you scroll deep in the playlist, iOS lock-screen + Android notification-shade media controls with title / author / progress (via the Media Session API), subtune stepper `1/N ◀ ▶` when a tune has multiple songs, keyboard shortcuts mirroring the desktop (`Space`, `← / →`, `F` / `H` favourite, `S` surprise, `R` shuffle, `L` library, `/` search focus, `?` help), skeleton loading rows during first fetch, friendly empty-state panels, smooth CSS view-transition animations for reorder / remove / import in Chromium browsers.
+**Modern-player polish** — persistent Now Playing bar on phones so the transport controls stay reachable when you scroll deep in the playlist, iOS lock-screen + Android notification-shade media controls with title / author / progress (via the Media Session API), subtune stepper `1/N ◀ ▶` when a tune has multiple songs, keyboard shortcuts mirroring the desktop (`Space`, `← / →`, `F` / `H` favorite, `S` surprise, `R` shuffle, `L` library, `/` search focus, `?` help), skeleton loading rows during first fetch, friendly empty-state panels, smooth CSS view-transition animations for reorder / remove / import in Chromium browsers.
 
 **Quick settings** — the ⚙ Settings drawer in the browser flips Skip RSID / Force stereo / Surprise Me source / Repeat mode / Shuffle without walking to the desk.
 
-The web UI auto-refreshes whenever the desktop side changes the playlist (Surprise Me, drag-add, favourites toggle, sort, reorder). Port is configurable (default 8364). The setting persists across restarts. A green **● Remote** pill in the desktop's bottom toolbar shows when the server is up and clicking it opens the URL.
+The web UI auto-refreshes whenever the desktop side changes the playlist (Surprise Me, drag-add, favorites toggle, sort, reorder). Port is configurable (default 8364). The setting persists across restarts. A green **● Remote** pill in the desktop's bottom toolbar shows when the server is up and clicking it opens the URL.
 
 ## Liked Tracks (♥)
 
@@ -124,7 +124,7 @@ Hearting a tune with the ♥ button (or the `H` key) remembers it forever in `<c
 
 ## Install from source
 
-> **You don't need to build from source.** Prebuilt binaries for macOS, Linux, and Windows are available on the [Releases](https://github.com/sandlbn/Phosphor/releases) page. The instructions below are only needed if you want to develop or customise Phosphor.
+> **You don't need to build from source.** Prebuilt binaries for macOS, Linux, and Windows are available on the [Releases](https://github.com/sandlbn/Phosphor/releases) page. The instructions below are only needed if you want to develop or customize Phosphor.
 
 ### macOS
 
@@ -149,7 +149,7 @@ Double-click either, or use the CLI:
 sudo installer -pkg dist/Phosphor-<version>.pkg -target /
 ```
 
-For signing + notarisation flags see the comment headers in `build_bundle.sh` and `build_pkg.sh`. Release builds should pass `--notarize` so Gatekeeper accepts the installer. The macOS USB transport toggle (Settings → Bridge / Direct) is covered in [MACOS_DEBUG.md](MACOS_DEBUG.md#direct-usb-mode-on-macos).
+For signing + notarization flags see the comment headers in `build_bundle.sh` and `build_pkg.sh`. Release builds should pass `--notarize` so Gatekeeper accepts the installer. The macOS USB transport toggle (Settings → Bridge / Direct) is covered in [MACOS_DEBUG.md](MACOS_DEBUG.md#direct-usb-mode-on-macos).
 
 #### Uninstalling on macOS
 

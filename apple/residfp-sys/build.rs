@@ -109,7 +109,7 @@ fn main() {
         build
             .cpp(true)
             .std("c++17")
-            // The emulation runs in the audio callback: full optimisation
+            // The emulation runs in the audio callback: full optimization
             // in every profile (a workspace member would get -O1 in dev).
             .opt_level(3)
             .warnings(false)

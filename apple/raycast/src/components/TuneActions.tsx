@@ -6,7 +6,7 @@ import { byline } from "../lib/format";
 import { closeWith, stayWith } from "./run";
 import { SoundsLikeList } from "./SoundsLikeList";
 
-/** Favourites and your playlists, asked for only when the menu opens. */
+/** Favorites and your playlists, asked for only when the menu opens. */
 export function AddToPlaylist({ paths }: { paths: string[] }) {
   const [opened, setOpened] = useState(false);
   const { data, isLoading } = useCachedPromise(playlists, [], { execute: opened });
@@ -22,7 +22,7 @@ export function AddToPlaylist({ paths }: { paths: string[] }) {
         <Action
           key={list.name}
           title={list.name}
-          icon={list.isFavourites ? Icon.Star : Icon.List}
+          icon={list.isFavorites ? Icon.Star : Icon.List}
           onAction={() => stayWith(`Added to ${list.name}`, () => addToPlaylist(list.name, paths))}
         />
       ))}

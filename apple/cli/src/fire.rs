@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 const STEP: Duration = Duration::from_millis(33);
 const MOST_STEPS_AT_ONCE: u32 = 3;
 const MOST_EMBERS: usize = 90;
-/// How many colours the heat is drawn in. Fewer colours means fewer cells changing
+/// How many colors the heat is drawn in. Fewer colors means fewer cells changing
 /// each frame, so less to send to the terminal.
 const SHADES: usize = 28;
 const NOISE_SIZE: usize = 64;
@@ -28,7 +28,7 @@ const GLOW: [(f32, (u8, u8, u8)); 8] = [
     (0.88, (255, 220, 92)),
     (1.0, (255, 250, 214)),
 ];
-/// The same glow where the terminal has only 256 colours.
+/// The same glow where the terminal has only 256 colors.
 const GLOW_256: [u8; 12] = [16, 52, 88, 124, 160, 196, 202, 208, 214, 220, 228, 230];
 
 fn glow_rgb(heat: f32) -> (u8, u8, u8) {
@@ -41,7 +41,7 @@ fn glow_rgb(heat: f32) -> (u8, u8, u8) {
     (mix(a.0, b.0), mix(a.1, b.1), mix(a.2, b.2))
 }
 
-/// The colour for a shade; 0 is no fire at all, so the terminal's own background.
+/// The color for a shade; 0 is no fire at all, so the terminal's own background.
 fn shade_color(shade: usize, truecolor: bool) -> Color {
     if shade == 0 {
         return Color::Reset;
@@ -55,10 +55,10 @@ fn shade_color(shade: usize, truecolor: bool) -> Color {
     }
 }
 
-/// The voices' colours, for the view that shows which voice each flame came from.
+/// The voices' colors, for the view that shows which voice each flame came from.
 const CHANNELS: [(f32, f32, f32); 3] = [(94.0, 234.0, 212.0), (244.0, 114.0, 208.0), (255.0, 138.0, 112.0)];
 
-/// Each voice's share of a bit of flame, as a colour that's darker where it's cooler
+/// Each voice's share of a bit of flame, as a color that's darker where it's cooler
 /// and paler at the hottest. Rounded, so fewer cells change from frame to frame.
 fn channel_color(shade: usize, share: [f32; 3], truecolor: bool) -> Color {
     if shade == 0 {
@@ -71,8 +71,8 @@ fn channel_color(shade: usize, share: [f32; 3], truecolor: bool) -> Color {
         return viz::ink(voice, (heat * 5.0) as usize, false);
     }
     let channel = |pick: fn(&(f32, f32, f32)) -> f32| {
-        let colour: f32 = (0..3).map(|v| pick(&CHANNELS[v]) * share[v] / total).sum();
-        let value = if heat < 0.6 { colour * (heat / 0.6) } else { colour + (255.0 - colour) * (heat - 0.6) / 0.4 * 0.7 };
+        let color: f32 = (0..3).map(|v| pick(&CHANNELS[v]) * share[v] / total).sum();
+        let value = if heat < 0.6 { color * (heat / 0.6) } else { color + (255.0 - color) * (heat - 0.6) / 0.4 * 0.7 };
         ((value / 12.0).round() * 12.0).min(255.0) as u8
     };
     Color::Rgb(channel(|c| c.0), channel(|c| c.1), channel(|c| c.2))
@@ -184,8 +184,8 @@ impl Fire {
         let at = (x as f32 + 0.5) / self.width.max(1) as f32;
         let (mut heat, mut parts) = (0.0_f32, [0.0_f32; 3]);
         for (voice, level) in self.voices.iter().enumerate() {
-            let centre = (voice as f32 * 2.0 + 1.0) / 6.0;
-            let off = (at - centre) / 0.27;
+            let center = (voice as f32 * 2.0 + 1.0) / 6.0;
+            let off = (at - center) / 0.27;
             parts[voice] = level * (-off * off).exp();
             heat = heat.max(parts[voice]);
         }
@@ -306,7 +306,7 @@ impl Fire {
     }
 
     /// The fire so far, filling an area of the size last given to `advance`: in a
-    /// flame's colours, or with `channels` in those of the voices it came from.
+    /// flame's colors, or with `channels` in those of the voices it came from.
     pub fn draw(&self, buffer: &mut Buffer, area: Rect, truecolor: bool, channels: bool) {
         if self.width != area.width as usize || self.height != area.height as usize * 2 {
             return;
@@ -415,7 +415,7 @@ mod tests {
         assert!(fire.side_heat(60, 90) > fire.side_heat(0, 30) * 3.0);
     }
 
-    /// The colour of the most flame in these columns, as the voice it's closest to.
+    /// The color of the most flame in these columns, as the voice it's closest to.
     fn voice_of_flames(fire: &Fire, from: usize, to: usize) -> usize {
         let mut totals = [0.0_f32; 3];
         for (row, heats) in fire.heat.chunks(fire.width).enumerate() {
@@ -430,7 +430,7 @@ mod tests {
     }
 
     #[test]
-    fn flames_carry_the_colour_of_the_voice_that_fed_them_as_they_rise() {
+    fn flames_carry_the_color_of_the_voice_that_fed_them_as_they_rise() {
         let mut fire = fire(90, 30);
         fire.run(120, [1.0, 1.0, 1.0]);
         assert_eq!(voice_of_flames(&fire, 0, 25), 0);
@@ -439,7 +439,7 @@ mod tests {
     }
 
     #[test]
-    fn channel_colours_are_the_voices_and_pale_when_hottest() {
+    fn channel_colors_are_the_voices_and_pale_when_hottest() {
         let warm = |share| channel_color(SHADES / 2, share, true);
         let Color::Rgb(r, g, b) = warm([1.0, 0.0, 0.0]) else { panic!() };
         assert!(g > r && b > r, "voice 1 should be teal: {r} {g} {b}");

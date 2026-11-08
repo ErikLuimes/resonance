@@ -95,7 +95,7 @@ pub struct CoreConfig {
     pub hvsc_root: Option<String>,
 }
 
-/// What `import_from_phosphor` added to Resonance's favourites and play
+/// What `import_from_phosphor` added to Resonance's favorites and play
 /// history.
 /// The tunes behind dropped files, folders and playlists.
 #[derive(Debug, Clone, Default, uniffi::Record)]
@@ -213,7 +213,7 @@ pub struct HvscSyncStatus {
     pub root: String,
     /// False once the download has ended, success or failure.
     pub running: bool,
-    /// Set when the download failed or was cancelled.
+    /// Set when the download failed or was canceled.
     pub error: Option<String>,
     pub current: String,
     /// Archive entries extracted, including those skipped as already
@@ -1024,7 +1024,7 @@ struct HvscInfoCache {
 impl PlayerCore {
     #[uniffi::constructor]
     pub fn new(config: CoreConfig) -> Arc<Self> {
-        // The engine's files (favourites, history, the search index) go
+        // The engine's files (favorites, history, the search index) go
         // next to the session playlist, in Resonance's own folder.
         if let Some(dir) = Path::new(&config.session_path).parent() {
             crate::config::set_data_dir(dir.to_path_buf());
@@ -1411,7 +1411,7 @@ impl PlayerCore {
         viz::lock(&self.driver.viz).set_output_latency(Duration::from_millis(ms.into()));
     }
 
-    /// Fine-tuning on top of the modelled latency; positive shows frames
+    /// Fine-tuning on top of the modeled latency; positive shows frames
     /// later.
     pub fn set_viz_offset_ms(&self, ms: i32) {
         viz::lock(&self.driver.viz).set_offset_ms(ms);
@@ -1621,11 +1621,11 @@ impl PlayerCore {
         .unwrap_or_default()
     }
 
-    // ── Favourites (favorites.json, in Phosphor's format) ──
+    // ── Favorites (favorites.json, in Phosphor's format) ──
 
-    /// The favourite tunes' files, newest first. A file that moved is
+    /// The favorite tunes' files, newest first. A file that moved is
     /// found again by its MD5 in the collection (Phosphor's fallback), and
-    /// the healed path saved; favourites found nowhere are left out.
+    /// the healed path saved; favorites found nowhere are left out.
     pub async fn favorite_paths(&self) -> Vec<String> {
         let db = databases::loaded(&self.databases).await;
         let root = self.library.root();
@@ -1645,7 +1645,7 @@ impl PlayerCore {
         .unwrap_or_default()
     }
 
-    /// Make the tune at `path` a favourite, or not.
+    /// Make the tune at `path` a favorite, or not.
     pub async fn set_favorite(&self, path: String, favorite: bool) -> Result<(), HvscError> {
         tokio::task::spawn_blocking(move || {
             let entry = PlaylistEntry::from_path(Path::new(&path)).map_err(|message| HvscError::Io { message })?;
@@ -2028,7 +2028,7 @@ impl PlayerCore {
         tokio::task::spawn_blocking(move || smart_composers_from(&credits)).await.unwrap_or_default()
     }
 
-    /// Every distinct title, for recognising one in a sentence.
+    /// Every distinct title, for recognizing one in a sentence.
     pub async fn smart_titles(&self) -> Vec<String> {
         self.library.warm_indexes().await;
         let library = self.library.clone();
@@ -2214,7 +2214,7 @@ fn to_usize(v: Vec<u32>) -> Vec<usize> {
 /// The archive to download: the default mirror's `<N>-all-of-them`
 /// archive at `latest` (the release the update check found). Follows
 /// upstream's `HvscZipSyncStart` resolution with its default settings;
-/// unlike it, an unrecognised mirror host falls back to brona.dk's, the
+/// unlike it, an unrecognized mirror host falls back to brona.dk's, the
 /// canonical mirror, rather than dead-ending.
 fn sync_archive_url(latest: Option<u32>) -> String {
     // Upstream's defaults: Resonance doesn't read Phosphor's config.json.

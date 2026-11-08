@@ -129,15 +129,15 @@ struct PlaylistsStoreTests {
         #expect(store.read(mix) == ["/a.sid"])
     }
 
-    @Test func exportsFavouritesNewestFirst() async throws {
+    @Test func exportsFavoritesNewestFirst() async throws {
         defer { try? FileManager.default.removeItem(at: folder) }
         let store = makeStore()
-        await store.add(["/old.sid"], to: .favourites)
-        await store.add(["/new.sid"], to: .favourites)
+        await store.add(["/old.sid"], to: .favorites)
+        await store.add(["/new.sid"], to: .favorites)
         let out = FileManager.default.temporaryDirectory.appending(path: "Export-\(UUID().uuidString).m3u")
         defer { try? FileManager.default.removeItem(at: out) }
 
-        #expect(store.export(.favourites, to: out))
+        #expect(store.export(.favorites, to: out))
         #expect(try String(contentsOf: out, encoding: .utf8) == "#EXTM3U\n/new.sid\n/old.sid\n")
     }
 
@@ -188,24 +188,24 @@ struct PlaylistsStoreTests {
         #expect(store.recentlyUsed.map(\.name) == ["A", "B"])
     }
 
-    @Test func favouritesGoThroughTheCore() async {
+    @Test func favoritesGoThroughTheCore() async {
         let store = makeStore()
-        await store.add(["/a.sid"], to: .favourites)
-        #expect(store.isFavourite("/a.sid"))
-        await store.setFavourite("/a.sid", false)
-        #expect(!store.isFavourite("/a.sid"))
+        await store.add(["/a.sid"], to: .favorites)
+        #expect(store.isFavorite("/a.sid"))
+        await store.setFavorite("/a.sid", false)
+        #expect(!store.isFavorite("/a.sid"))
     }
 
-    /// A heart reading isFavourite redraws when the tune is hearted.
+    /// A heart reading isFavorite redraws when the tune is hearted.
     @Test func heartingNotifiesWhoeverAsked() async {
         let store = makeStore()
         let changed = Mutex(false)
         withObservationTracking {
-            _ = store.isFavourite("/a.sid")
+            _ = store.isFavorite("/a.sid")
         } onChange: {
             changed.withLock { $0 = true }
         }
-        await store.setFavourite("/a.sid", true)
+        await store.setFavorite("/a.sid", true)
         #expect(changed.withLock { $0 })
     }
 }

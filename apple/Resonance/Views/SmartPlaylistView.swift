@@ -12,9 +12,9 @@ nonisolated struct SmartSettings: Hashable, Sendable {
 
         var title: String {
             switch self {
-            case .veryClose: "Very Close"
-            case .close: "Close"
-            case .loose: "Loose"
+            case .veryClose: String(localized: "Very Close")
+            case .close: String(localized: "Close")
+            case .loose: String(localized: "Loose")
             }
         }
     }
@@ -67,13 +67,13 @@ nonisolated struct SmartSettings: Hashable, Sendable {
 
     static func lengthTitle(_ minutes: UInt32?) -> String {
         switch minutes {
-        case nil: "All"
-        case 1440?: "Whole Day"
-        case 30?: "30 Min"
-        case 60?: "1 Hour"
-        case 120?: "2 Hours"
+        case nil: String(localized: "All")
+        case 1440?: String(localized: "Whole Day")
+        case 30?: String(localized: "30 Min")
+        case 60?: String(localized: "1 Hour")
+        case 120?: String(localized: "2 Hours")
         case let minutes?:
-            minutes >= 60 ? "\(minutes / 60) h \(minutes % 60) min" : "\(minutes) Min"
+            minutes >= 60 ? String(localized: "\(minutes / 60) h \(minutes % 60) min") : String(localized: "\(minutes) Min")
         }
     }
 
@@ -127,17 +127,17 @@ nonisolated struct SmartSettings: Hashable, Sendable {
     }
 
     /// What a saved copy is named, and what "Playing from" says.
-    var title: String { sentence.isEmpty ? "Smart Playlist" : String(sentence.prefix(60)) }
+    var title: String { sentence.isEmpty ? String(localized: "Smart Playlist") : String(sentence.prefix(60)) }
 }
 
 /// How long a list plays: "19 tunes, 61 minutes", "155 tunes, 8 h 58 min".
 nonisolated enum SmartFacts {
     static func tunes(_ count: Int, secs: UInt64) -> String {
-        let tunes = count == 1 ? "1 tune" : "\(count.formatted()) tunes"
+        let tunes = count == 1 ? String(localized: "1 tune") : String(localized: "\(count.formatted()) tunes")
         let minutes = Int((Double(secs) / 60).rounded())
-        if minutes < 90 { return "\(tunes), \(minutes) \(minutes == 1 ? "minute" : "minutes")" }
-        if minutes >= 100 * 60 { return "\(tunes), about \((minutes / 60).formatted()) hours" }
-        return "\(tunes), \(minutes / 60) h \(minutes % 60) min"
+        if minutes < 90 { return minutes == 1 ? String(localized: "\(tunes), 1 minute") : String(localized: "\(tunes), \(minutes) minutes") }
+        if minutes >= 100 * 60 { return String(localized: "\(tunes), about \((minutes / 60).formatted()) hours") }
+        return String(localized: "\(tunes), \(minutes / 60) h \(minutes % 60) min")
     }
 }
 
@@ -230,7 +230,7 @@ struct SmartPlaylistView: View {
     private var header: some View {
         VStack(spacing: 10) {
             HStack(spacing: 10) {
-                SmartMagicField(placeholder: "Say what you'd like to hear", text: $typed) {
+                SmartMagicField(placeholder: String(localized: "Say what you'd like to hear"), text: $typed) {
                     sentFromField = SmartSettings.stored(typed)
                     Task { await library.describe(typed, isFinal: true) }
                 } trailing: {
@@ -273,8 +273,8 @@ struct SmartPlaylistView: View {
 
     private var suggestions: some View {
         SmartFlow(spacing: 8) {
-            suggestion("New to Me", sentence: "new to me")
-            suggestion("Never Heard", sentence: "never heard")
+            suggestion(String(localized: "New to Me"), sentence: "new to me")
+            suggestion(String(localized: "Never Heard"), sentence: "never heard")
             Button("Similar to a Tune") { similarToATune() }
                 .popover(isPresented: $choosingSeed, arrowEdge: .bottom) {
                     SmartSeedPicker { seed in
@@ -282,7 +282,7 @@ struct SmartPlaylistView: View {
                         library.describeTune(seed)
                     }
                 }
-            suggestion("Slow to Intense", sentence: "slow to intense")
+            suggestion(String(localized: "Slow to Intense"), sentence: "slow to intense")
         }
         .buttonStyle(.bordered)
         .buttonBorderShape(.capsule)
@@ -320,7 +320,7 @@ struct SmartPlaylistView: View {
         if let understood = settings.understood {
             let text = settings.note ?? understood.description(seedTitles: settings.describedSeeds.map {
                 // The composer's said once, if they're a filter too.
-                understood.composers.isEmpty ? "\($0.title) by \($0.author)" : $0.title
+                understood.composers.isEmpty ? String(localized: "\($0.title) by \($0.author)") : $0.title
             })
             SmartRevealText(text: text)
                 .id(text)
@@ -443,7 +443,7 @@ struct SmartPlaylistView: View {
                 ContentUnavailableView {
                     Label("New to Me Needs More to Go On", systemImage: "sparkles")
                 } description: {
-                    Text("It compares what you've played with everything else. You've played \(result.heard == 1 ? "1 tune" : "\(result.heard) tunes") so far, so it would mostly be guessing.")
+                    Text("It compares what you've played with everything else. You've played \(result.heard == 1 ? String(localized: "1 tune") : String(localized: "\(result.heard) tunes")) so far, so it would mostly be guessing.")
                 } actions: {
                     Button("Try Never Heard") {
                         typed = "never heard"
@@ -614,7 +614,7 @@ struct SmartSearchOffer: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                     Spacer(minLength: 8)
-                    AccentLink("Make a Playlist") {
+                    AccentLink(String(localized: "Make a Playlist")) {
                         Task {
                             await library.describe(query, isFinal: true)
                             library.shownSection = .smartPlaylist

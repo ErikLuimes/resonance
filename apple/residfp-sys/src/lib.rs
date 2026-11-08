@@ -446,7 +446,7 @@ impl Player {
     }
 
     /// Select `song` (1-based; 0 = the tune's start song), configure the
-    /// machine and run the tune's init. Rendering may begin afterwards.
+    /// machine and run the tune's init. Rendering may begin afterward.
     pub fn start(&mut self, song: u16, cfg: &Config) -> Result<Started, String> {
         let c = raw::rsfp_config {
             sample_rate: cfg.sample_rate,

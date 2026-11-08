@@ -68,14 +68,14 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
     is the queue as a radio: the session asks for a random pick one tune
     ahead, the driver's loader picks it from all of HVSC (skipping anything
     heard since launch), and each pick plays only its default subtune.
-  - `driver.rs` — one thread owns the session and serialises commands,
+  - `driver.rs` — one thread owns the session and serializes commands,
     player statuses and the auto-advance tick; a loader thread parses files
     and loads the Songlengths/STIL databases (`databases.rs`). It publishes
     an immutable snapshot after every step.
   - `library.rs` — the HVSC collection: authors, tunes, fuzzy search and
     random picks, wrapping upstream's `hvsc_browser` model (one per
     category) and its index cache. Index builds wait for the databases and
-    run detached, so a cancelled search can't leave one stuck.
+    run detached, so a canceled search can't leave one stuck.
   - `ffi.rs` — `PlayerCore`, the UniFFI object Swift talks to. Playback calls
     return immediately; Swift polls `snapshot()` at 20 Hz and `viz_frame()`
     per display frame. Library calls are `async` (Swift `await`s them) and
@@ -114,7 +114,7 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
 - Everything Resonance writes is in its sandbox container, in
   `~/Library/Containers/app.useresonance.resonance/Data/Library/Application Support/Resonance/`:
   My Playlist (`session.m3u`), your playlists (`Playlists/`), the fingerprints,
-  and the files the engine sources keep in their config folder — favourites,
+  and the files the engine sources keep in their config folder — favorites,
   play history, the HVSC search-index cache, the curated playlists cache and
   `phosphor-debug.log`. `core/src/config.rs` points upstream's `config_dir()`
   there, without changing `src/`. Settings are in its own user defaults
@@ -230,7 +230,7 @@ release.
   tune, rendered once and kept on disk (title, composer, release, length,
   the strongest sound traits and the tune's barcode, as list rows draw it:
   it stays legible when chat apps shrink the card). The page itself shows
-  the fingerprint sphere turning, the same maths as the app's
+  the fingerprint sphere turning, the same math as the app's
   `MorphSphere`, and its Open in Resonance button hands over to the app;
   Download Resonance goes to the website. GitHub Pages can't do this: crawlers don't run
   JavaScript, and ~60,000 pre-rendered images won't fit. Deploying it is in
@@ -297,6 +297,34 @@ release.
   `npm test` (the socket client and formatting, against a stand-in for the app),
   `npm run lint` and `npm run build`. `npm run publish` opens the store pull
   request.
+
+## Strings
+
+All text and code is US English. `scripts/us-english.sh`, part of `check.sh`,
+fails on the British spellings that have turned up here.
+
+The app's text lives in String Catalogs: `Resonance/Localizable.xcstrings`,
+`Resonance/AppShortcuts.xcstrings` for what you can say to Siri, and
+`ResonanceQuickLook/Localizable.xcstrings`. Xcode adds new strings when it builds.
+A command-line build doesn't, so run `scripts/strings.sh sync` after `check.sh`,
+which fails if the code has a string its catalog doesn't.
+
+- A literal given straight to a SwiftUI view is found by itself. Text held in a
+  `String` first needs `String(localized:)`, or a parameter of type
+  `LocalizedStringResource`.
+- `String(localized:)` formats numbers: a year comes out as 1,986. Interpolate
+  `String(year)` for years, versions and IDs, and leave counts as numbers, so a
+  translation can vary by plural.
+- Don't compare or look up displayed text. It changes with the language, so go by
+  an enum or an ID, as `MixWave` does.
+
+These stay English: the terminal app and the answers it gets from the app, Describe
+(`SmartSentence` reads and writes English), Under the Hood's chip labels, the
+credits, the update failure report, and error text from the Rust core.
+
+The catalogs only hold English so far, which adds nothing to the app bundle. Sentences
+are still put together from pieces in places, and plurals are separate strings, so
+both need a look before the first translation.
 
 ## Releases
 
@@ -433,8 +461,8 @@ The variables at the top of `release.sh` point a build at a local feed
 and a test key, to try an update end to end without touching the real
 feed.
 
-Before a release, after changing dependencies: `scripts/acknowledgements.sh`
-rewrites `Resonance/Acknowledgements.txt`, the licences About Resonance
+Before a release, after changing dependencies: `scripts/acknowledgments.sh`
+rewrites `Resonance/Acknowledgments.txt`, the licenses About Resonance
 shows.
 
 ## License
@@ -446,8 +474,8 @@ Phosphor's MIT license, in [`../LICENSE`](../LICENSE).
 The app as built also includes GPL-licensed SID emulators (reSID through
 resid-rs, SIDLite and libsidplayfp), so builds of Resonance are distributed
 under the GNU GPL, version 3, with the source here. About Resonance →
-Acknowledgements lists every library in the app and its licence.
+Acknowledgments lists every library in the app and its license.
 
 The audio embeddings Sounds Like downloads aren't part of the app or this
-licence. They derive from MERT-v1-95M and are released under CC BY-NC 4.0, in
-their own asset, `embeddings-e1.zip`, with a licence file inside.
+license. They derive from MERT-v1-95M and are released under CC BY-NC 4.0, in
+their own asset, `embeddings-e1.zip`, with a license file inside.

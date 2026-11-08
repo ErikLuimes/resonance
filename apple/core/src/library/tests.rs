@@ -390,7 +390,7 @@ async fn an_abandoned_index_build_still_completes() {
     let tree = Tree::sample();
     let lib = library(Some(tree.root()));
     // Start a build and drop the waiting future straight away (as a
-    // cancelled Swift task would). The detached build must still install.
+    // canceled Swift task would). The detached build must still install.
     tokio::select! {
         biased;
         _ = std::future::ready(()) => {}

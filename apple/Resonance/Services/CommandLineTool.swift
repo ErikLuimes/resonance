@@ -130,9 +130,9 @@ nonisolated enum CommandLineTool {
 
     static func message(for error: any Error) -> String {
         switch error as? Failure {
-        case .nameTaken(let paths): "Something else is already at \(paths.formatted(.list(type: .and)))."
-        case .notInApp: "This copy of Resonance doesn't include the tool."
-        case .noFolder: "No folder for it could be written to."
+        case .nameTaken(let paths): String(localized: "Something else is already at \(paths.formatted(.list(type: .and))).")
+        case .notInApp: String(localized: "This copy of Resonance doesn't include the tool.")
+        case .noFolder: String(localized: "No folder for it could be written to.")
         case nil: error.localizedDescription
         }
     }

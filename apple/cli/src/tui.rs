@@ -184,7 +184,7 @@ pub enum Tag {
     TrackerPosition,
     /// A list from a sentence, by when it was asked for; `seeded` if from what's playing.
     Described { asked: u64, seeded: bool },
-    /// Favourites starting for the credits; if it can't, Surprise Me does.
+    /// Favorites starting for the credits; if it can't, Surprise Me does.
     CreditsMusic,
     /// Nothing to read in the answer: say this, and maybe refresh.
     Ack { message: Option<String>, reload: bool },
@@ -434,7 +434,7 @@ impl App {
         let mut app = App {
             lists: Vec::new(),
             sidebar: FIXED_ROWS,
-            view: View::Playlist("Favourites".into()),
+            view: View::Playlist("Favorites".into()),
             rows: Vec::new(),
             cursor: 0,
             marked: BTreeSet::new(),
@@ -489,7 +489,7 @@ impl App {
         self.send(Tag::Ack { message, reload }, cmd, args);
     }
 
-    /// Search, Recently Played, then Favourites and your playlists.
+    /// Search, Recently Played, then Favorites and your playlists.
     pub fn sidebar_entries(&self) -> Vec<String> {
         let mut entries = vec!["Search".to_string(), "Describe".to_string(), "Recently Played".to_string()];
         entries.extend(self.lists.iter().map(|l| l.name.clone()));
@@ -1271,8 +1271,8 @@ impl App {
             KeyCode::Char('f') => {
                 let paths = self.chosen();
                 if !paths.is_empty() {
-                    let message = format!("Added {} to Favourites.", count(paths.len()));
-                    self.ack(Some(message), true, "playlist.add", json!({ "name": "Favourites", "paths": paths }));
+                    let message = format!("Added {} to Favorites.", count(paths.len()));
+                    self.ack(Some(message), true, "playlist.add", json!({ "name": "Favorites", "paths": paths }));
                 }
             }
             KeyCode::Char('a') if !self.chosen().is_empty() => self.mode = Mode::AddTo(0),
@@ -1306,7 +1306,7 @@ impl App {
         self.start_credits_music();
     }
 
-    /// Credits need a soundtrack: Favourites if nothing's on. Something paused is left
+    /// Credits need a soundtrack: Favorites if nothing's on. Something paused is left
     /// alone, as that was someone's choice. It waits for the app to say what's playing,
     /// which `resonance credits` doesn't know yet as it opens.
     fn start_credits_music(&mut self) {
@@ -1314,7 +1314,7 @@ impl App {
         self.credits_want_music = false;
         let silent = status.now.is_none() || status.state == "stopped";
         if silent && matches!(self.mode, Mode::Credits(_)) {
-            self.send(Tag::CreditsMusic, "playlist.play", json!({ "name": "Favourites" }));
+            self.send(Tag::CreditsMusic, "playlist.play", json!({ "name": "Favorites" }));
         }
     }
 
@@ -1416,8 +1416,8 @@ impl App {
     /// Up or down one, at once; the app is told in the background.
     fn move_tune(&mut self, by: isize) {
         let Some(name) = self.current_playlist() else { return };
-        if name == "Favourites" {
-            self.message = Some("Favourites keeps its own order.".into());
+        if name == "Favorites" {
+            self.message = Some("Favorites keeps its own order.".into());
             return;
         }
         let Some(to) = self.cursor.checked_add_signed(by).filter(|to| *to < self.rows.len()) else { return };
@@ -1625,7 +1625,7 @@ fn draw_splash(frame: &mut Frame, app: &App, started: Instant) {
 
 fn draw_announcement(frame: &mut Frame, app: &App, top: usize) {
     let Some(update) = app.hvsc.as_ref().and_then(|info| info.update.as_ref()) else { return };
-    let area = centred(frame.area(), 84, frame.area().height.saturating_sub(4));
+    let area = centered(frame.area(), 84, frame.area().height.saturating_sub(4));
     frame.render_widget(Clear, area);
     let block = pane(format!(" Update #{}  ↑↓ read  esc close ", update.number), true);
     let height = block.inner(area).height as usize;
@@ -1956,7 +1956,7 @@ fn tune_lines(app: &App, rows: u16) -> Vec<Line<'static>> {
         now.title.clone(),
         Style::new().fg(if paused { palette::muted() } else { palette::accent() }).add_modifier(Modifier::BOLD),
     )];
-    if status.favourite {
+    if status.favorite {
         title.push(Span::styled("  ♥", Style::new().fg(palette::red())));
     }
     if paused {
@@ -2035,9 +2035,9 @@ fn draw_transport(frame: &mut Frame, app: &App, area: Rect) {
 fn visual_keys(app: &App) -> Vec<(&'static str, &'static str)> {
     let page = match (app.page, app.channels) {
         (Page::Skull, _) => Some((app.keys.scheme.choose("← →", "h l", "⌃B ⌃F"), "spin")),
-        (Page::Fire | Page::Water, false) => Some(("c", "channel colours")),
-        (Page::Fire, true) => Some(("c", "flame colours")),
-        (Page::Water, true) => Some(("c", "water colours")),
+        (Page::Fire | Page::Water, false) => Some(("c", "channel colors")),
+        (Page::Fire, true) => Some(("c", "flame colors")),
+        (Page::Water, true) => Some(("c", "water colors")),
         _ => None,
     };
     let mut keys = vec![("esc", "back")];
@@ -2119,7 +2119,7 @@ fn heading(text: String, focused: bool) -> Paragraph<'static> {
     Paragraph::new(text).style(Style::new().fg(color).add_modifier(Modifier::BOLD))
 }
 
-/// The cursor: a band that leaves what's under it its colours, brighter when its
+/// The cursor: a band that leaves what's under it its colors, brighter when its
 /// pane has the focus.
 fn cursor_style(focused: bool) -> Style {
     Style::new().bg(if focused { palette::selection() } else { palette::quiet_selection() })
@@ -2366,7 +2366,7 @@ fn draw_drawer(frame: &mut Frame, app: &App, since: Instant, closing: bool) {
     let spare = if panel { area.width.saturating_sub(34) } else { area.width };
     let step = (spare.saturating_sub(8) / 3).clamp(11, 16);
     let columns = [8, 8 + step, 8 + step * 2];
-    let colours = [palette::cyan(), palette::green(), palette::orange()];
+    let colors = [palette::cyan(), palette::green(), palette::orange()];
     let row_now = app.tracker_row();
     let current = current_instruments(song, row_now);
 
@@ -2377,8 +2377,8 @@ fn draw_drawer(frame: &mut Frame, app: &App, since: Instant, closing: bool) {
         let level = state.position.levels.get(v).copied().unwrap_or(0.0);
         let meter = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"][((level * 7.99) as usize).min(7)];
         let heading = format!("V{} {name}", v + 1);
-        put(buffer, area, columns[v], 3, meter, Style::new().fg(colours[v]));
-        put(buffer, area, columns[v] + 2, 3, &heading, Style::new().fg(colours[v]).add_modifier(Modifier::BOLD));
+        put(buffer, area, columns[v], 3, meter, Style::new().fg(colors[v]));
+        put(buffer, area, columns[v] + 2, 3, &heading, Style::new().fg(colors[v]).add_modifier(Modifier::BOLD));
     }
     let middle = (body_rows / 2) as i64;
     let row_width = columns[2] + 11;
@@ -2402,7 +2402,7 @@ fn draw_drawer(frame: &mut Frame, app: &App, since: Instant, closing: bool) {
                 "···" => empty,
                 "---" => band.fg(palette::muted()),
                 _ if here => band.fg(palette::text()).add_modifier(Modifier::BOLD),
-                _ => band.fg(colours[v]),
+                _ => band.fg(colors[v]),
             };
             put(buffer, area, columns[v], y, note, note_style);
             put(buffer, area, columns[v] + 4, y, instrument, if instrument == "··" { empty } else { band.fg(palette::muted()) });
@@ -2410,11 +2410,11 @@ fn draw_drawer(frame: &mut Frame, app: &App, since: Instant, closing: bool) {
         }
     }
     if panel {
-        draw_tracker_panel(buffer, area, song, row_now, &current, row_width + 3, &colours, state.looking_at.is_some());
+        draw_tracker_panel(buffer, area, song, row_now, &current, row_width + 3, &colors, state.looking_at.is_some());
     }
 }
 
-const VOICE_COLOURS: fn() -> [ratatui::style::Color; 3] = || [palette::cyan(), palette::green(), palette::orange()];
+const VOICE_COLORS: fn() -> [ratatui::style::Color; 3] = || [palette::cyan(), palette::green(), palette::orange()];
 
 fn draw_nothing_yet(buffer: &mut ratatui::buffer::Buffer, area: Rect) {
     put(buffer, area, 2, 0, "Nothing to show until a tune plays.", dim());
@@ -2427,7 +2427,7 @@ fn draw_registers(buffer: &mut ratatui::buffer::Buffer, app: &App, area: Rect) {
     if state.chips() > 1 {
         return draw_voice_lines(buffer, state, area);
     }
-    let colours = VOICE_COLOURS();
+    let colors = VOICE_COLORS();
     let cell = |n: usize| -> Style {
         if state.lit(n) { Style::new().bg(palette::accent()).fg(palette::background()).add_modifier(Modifier::BOLD) } else { Style::new().fg(palette::text()) }
     };
@@ -2435,7 +2435,7 @@ fn draw_registers(buffer: &mut ratatui::buffer::Buffer, app: &App, area: Rect) {
     let columns = (area.width.saturating_sub(2) / step).max(1);
     for v in 0..3usize {
         let (x, y) = (2 + step * (v as u16 % columns), (v as u16 / columns) * 12);
-        put(buffer, area, x, y, &format!("VOICE {}", v + 1), Style::new().fg(colours[v]).add_modifier(Modifier::BOLD));
+        put(buffer, area, x, y, &format!("VOICE {}", v + 1), Style::new().fg(colors[v]).add_modifier(Modifier::BOLD));
         for (i, name) in VOICE_REGISTERS.iter().enumerate() {
             let n = v * 7 + i;
             let row = y + 1 + i as u16;
@@ -2506,13 +2506,13 @@ fn bits_name(control: u8) -> String {
     if words.len() <= 10 { words } else { on.iter().map(|name| &name[..1]).collect::<Vec<_>>().join(" ") }
 }
 
-/// A horizontal bar: `share` of it in `colour`, the rest faint.
-fn draw_bar(buffer: &mut ratatui::buffer::Buffer, area: Rect, x: u16, y: u16, width: u16, share: f32, colour: ratatui::style::Color) {
+/// A horizontal bar: `share` of it in `color`, the rest faint.
+fn draw_bar(buffer: &mut ratatui::buffer::Buffer, area: Rect, x: u16, y: u16, width: u16, share: f32, color: ratatui::style::Color) {
     let filled = (share.clamp(0.0, 1.0) * f32::from(width)).round() as u16;
     // Anything sounding at all shows.
     let filled = if share > 0.0 { filled.max(1) } else { filled };
     for at in 0..width {
-        let (mark, shade) = if at < filled { ("█", colour) } else { ("░", palette::faint()) };
+        let (mark, shade) = if at < filled { ("█", color) } else { ("░", palette::faint()) };
         put(buffer, area, x + at, y, mark, Style::new().fg(shade));
     }
 }
@@ -2526,7 +2526,7 @@ fn draw_voice_lines(buffer: &mut ratatui::buffer::Buffer, state: &TrackerState, 
     let bars = area.width >= VOICE_BARS_WIDTH;
     // Where each column starts, with and without its bar.
     let (level, freq, pw_bar, pw, wave, bits, ad, sr) = if bars { (14, 26, 33, 43, 49, 57, 68, 72) } else { (0, 14, 0, 21, 27, 35, 46, 50) };
-    let colours = VOICE_COLOURS();
+    let colors = VOICE_COLORS();
     let bold = Style::new().add_modifier(Modifier::BOLD);
     let text = Style::new().fg(palette::text());
     let lit = bold.fg(palette::accent());
@@ -2558,15 +2558,15 @@ fn draw_voice_lines(buffer: &mut ratatui::buffer::Buffer, state: &TrackerState, 
             let open = control & 1 != 0;
             let plain = if open { text } else { dim() };
             let style = |n: &[usize]| if changed(n) { lit } else { plain };
-            put(buffer, area, 2, y, &format!("V{}", v + 1), if open { bold.fg(colours[v]) } else { dim() });
+            put(buffer, area, 2, y, &format!("V{}", v + 1), if open { bold.fg(colors[v]) } else { dim() });
             let note = state.position.all_notes.get(chip).or(Some(&state.position.notes)).and_then(|notes| notes.get(v)).cloned().flatten();
             put(buffer, area, 8, y, note.as_deref().unwrap_or("—"), if note.is_some() { plain } else { Style::new().fg(palette::faint()) });
             if bars {
                 let share = state.position.all_levels.get(chip).and_then(|levels| levels.get(v)).copied().unwrap_or(0.0);
-                draw_bar(buffer, area, level, y, 10, share, if open { colours[v] } else { palette::muted() });
+                draw_bar(buffer, area, level, y, 10, share, if open { colors[v] } else { palette::muted() });
                 let width = (u16::from(registers[at + 3] & 0x0F) << 8 | u16::from(registers[at + 2])) as f32 / 4095.0;
                 // A pulse width means nothing to a voice not on a pulse wave.
-                draw_bar(buffer, area, pw_bar, y, 8, width, if open && control & 0x40 != 0 { colours[v] } else { palette::muted() });
+                draw_bar(buffer, area, pw_bar, y, 8, width, if open && control & 0x40 != 0 { colors[v] } else { palette::muted() });
             }
             put(buffer, area, freq, y, &format!("{:02X}{:02X}", registers[at + 1], registers[at]), style(&[at, at + 1]));
             put(buffer, area, pw, y, &format!("{:X}{:02X}", registers[at + 3] & 0x0F, registers[at + 2]), style(&[at + 2, at + 3]));
@@ -2641,14 +2641,14 @@ fn chip_frames(history: &std::collections::VecDeque<Vec<u8>>, columns: usize, ch
 }
 
 /// A strip of block characters `rows` tall, with values 0–1 across it.
-fn draw_strip(buffer: &mut ratatui::buffer::Buffer, area: Rect, x: u16, y: u16, rows: u16, values: &[f32], colour: ratatui::style::Color) {
+fn draw_strip(buffer: &mut ratatui::buffer::Buffer, area: Rect, x: u16, y: u16, rows: u16, values: &[f32], color: ratatui::style::Color) {
     const BLOCKS: [&str; 9] = [" ", "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
     for (c, value) in values.iter().enumerate() {
         let eighths = (value.clamp(0.0, 1.0) * f32::from(rows) * 8.0).round() as u16;
         for r in 0..rows {
             let level = eighths.saturating_sub(r * 8).min(8) as usize;
             if level > 0 {
-                put(buffer, area, x + c as u16, y + rows - 1 - r, BLOCKS[level], Style::new().fg(colour));
+                put(buffer, area, x + c as u16, y + rows - 1 - r, BLOCKS[level], Style::new().fg(color));
             }
         }
     }
@@ -2683,7 +2683,7 @@ fn draw_sweeps_of(buffer: &mut ratatui::buffer::Buffer, state: &TrackerState, ar
         put(buffer, area, 2, 0, &format!("SID {}", chip + 1), label.fg(palette::text()));
         y = 1;
     }
-    let colours = VOICE_COLOURS();
+    let colors = VOICE_COLORS();
     let v = voice.unwrap_or(0);
     let pulse_width = |frame: &[u8]| (u16::from(frame[v * 7 + 3] & 0x0F) << 8 | u16::from(frame[v * 7 + 2])) as f32 / 4095.0;
     let pw_now = u16::from(latest[v * 7 + 3] & 0x0F) << 8 | u16::from(latest[v * 7 + 2]);
@@ -2693,9 +2693,9 @@ fn draw_sweeps_of(buffer: &mut ratatui::buffer::Buffer, state: &TrackerState, ar
         (true, true) => format!("PULSE V{} {pw_now:03X}", v + 1),
         (false, true) => "PULSE none".to_string(),
     };
-    put(buffer, area, 2, y, &pw_name, label.fg(colours[v]));
+    put(buffer, area, 2, y, &pw_name, label.fg(colors[v]));
     let values: Vec<f32> = frames.iter().map(|f| pulse_width(f)).collect();
-    draw_strip(buffer, area, 2, y + 1, strip_rows, &values, colours[v]);
+    draw_strip(buffer, area, 2, y + 1, strip_rows, &values, colors[v]);
     y += strip_rows + 1;
 
     let cutoff = |frame: &[u8]| u16::from(frame[0x16]) << 3 | u16::from(frame[0x15] & 7);
@@ -2716,12 +2716,12 @@ fn draw_sweeps_of(buffer: &mut ratatui::buffer::Buffer, state: &TrackerState, ar
 
     put(buffer, area, 2, y, "GATES", label);
     for voice in 0..3u16 {
-        let colour = colours[voice as usize];
+        let color = colors[voice as usize];
         let row = y + 1 + voice;
-        put(buffer, area, 2, row, &format!("V{}", voice + 1), Style::new().fg(colour));
+        put(buffer, area, 2, row, &format!("V{}", voice + 1), Style::new().fg(color));
         for (c, frame) in frames.iter().enumerate() {
             let open = frame[voice as usize * 7 + 4] & 1 == 1;
-            let (mark, style) = if open { ("━", Style::new().fg(colour)) } else { ("─", Style::new().fg(palette::faint())) };
+            let (mark, style) = if open { ("━", Style::new().fg(color)) } else { ("─", Style::new().fg(palette::faint())) };
             put(buffer, area, 6 + c as u16, row, mark, style);
         }
     }
@@ -2763,7 +2763,7 @@ fn draw_pitch_of(buffer: &mut ratatui::buffer::Buffer, state: &TrackerState, are
         }
     }
     let clock = state.clock();
-    let colours = VOICE_COLOURS();
+    let colors = VOICE_COLORS();
     for voice in 0..3usize {
         for (c, frame) in frames.iter().enumerate() {
             let registers = &frame[voice * 7..voice * 7 + 7];
@@ -2773,14 +2773,14 @@ fn draw_pitch_of(buffer: &mut ratatui::buffer::Buffer, state: &TrackerState, are
             }
             let midi = 69.0 + 12.0 * (f64::from(freq) * clock / 16_777_216.0 / 440.0).log2();
             if let Some(y) = row_of(midi) {
-                put(buffer, area, 6 + c as u16, y, "━", Style::new().fg(colours[voice]));
+                put(buffer, area, 6 + c as u16, y, "━", Style::new().fg(colors[voice]));
             }
         }
         let notes = state.position.all_notes.get(chip).unwrap_or(&state.position.notes);
         let note = notes.get(voice).cloned().flatten().unwrap_or_else(|| "—".into());
         let x = 7 + width as u16;
         let y = if beside { voice as u16 + 1 } else { voice as u16 * 2 };
-        put(buffer, area, x, y, &format!("V{}", voice + 1), Style::new().fg(colours[voice]).add_modifier(Modifier::BOLD));
+        put(buffer, area, x, y, &format!("V{}", voice + 1), Style::new().fg(colors[voice]).add_modifier(Modifier::BOLD));
         put(buffer, area, x + 3, y, &note, Style::new().fg(palette::text()));
     }
     if beside {
@@ -2816,7 +2816,7 @@ fn current_instruments(song: &TrackerSong, row: usize) -> [Option<usize>; 3] {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn draw_tracker_panel(buffer: &mut ratatui::buffer::Buffer, area: Rect, song: &TrackerSong, row: usize, current: &[Option<usize>; 3], x: u16, colours: &[ratatui::style::Color; 3], looking: bool) {
+fn draw_tracker_panel(buffer: &mut ratatui::buffer::Buffer, area: Rect, song: &TrackerSong, row: usize, current: &[Option<usize>; 3], x: u16, colors: &[ratatui::style::Color; 3], looking: bool) {
     let heading = Style::new().fg(palette::muted()).add_modifier(Modifier::BOLD);
     let mut y = 3;
     put(buffer, area, x, y, "INSTRUMENTS", heading);
@@ -2825,7 +2825,7 @@ fn draw_tracker_panel(buffer: &mut ratatui::buffer::Buffer, area: Rect, song: &T
     for v in 0..3 {
         let Some(instrument) = current[v].and_then(|i| song.instruments.get(i).map(|f| (i, f))) else { continue };
         let name: String = instrument.1.name.chars().take(14).collect();
-        put(buffer, area, x, y, &format!("{:02X} {name:<15}{:02X} {:02X}", instrument.0 + 1, instrument.1.ad, instrument.1.sr), Style::new().fg(colours[v]));
+        put(buffer, area, x, y, &format!("{:02X} {name:<15}{:02X} {:02X}", instrument.0 + 1, instrument.1.ad, instrument.1.sr), Style::new().fg(colors[v]));
         y += 1;
     }
     put(buffer, area, x, y, &format!("{total} in this tune"), dim());
@@ -3024,7 +3024,7 @@ fn now_line(app: &App) -> Line<'static> {
             if now.songs > 1 {
                 spans.push(Span::styled(format!("  subtune {} of {}", now.song, now.songs), dim()));
             }
-            if status.favourite {
+            if status.favorite {
                 spans.push(Span::styled("  ♥", Style::new().fg(palette::red())));
             }
             if status.state == "paused" {
@@ -3119,21 +3119,21 @@ fn bar_keys(app: &App) -> Vec<(&'static str, &'static str)> {
             View::Describe if matches!(app.mode, Mode::Describing(_)) => return vec![("type", "what you'd like to hear"), ("↵", "make the list"), ("↓", "suggestions"), ("esc", "done")],
             View::Describe if app.rows.is_empty() => return vec![movement, ("↵", "try it"), ("/", "say it"), ("tab", "library"), ("?", "all keys"), ("q", "quit")],
             View::Describe if app.marked.is_empty() => return vec![movement, ("↵", "play"), ("/", "change it"), ("n", "save as playlist"), (scheme.choose("l", "L", "l"), "sounds like"), ("esc", "start over"), ("?", "all keys"), ("q", "quit")],
-            View::Composer { .. } | View::Curated { .. } => return vec![movement, ("↵", "play"), (scheme.choose("l", "L", "l"), "sounds like"), ("f", "favourite"), ("esc", "back"), ("?", "all keys"), ("q", "quit")],
+            View::Composer { .. } | View::Curated { .. } => return vec![movement, ("↵", "play"), (scheme.choose("l", "L", "l"), "sounds like"), ("f", "favorite"), ("esc", "back"), ("?", "all keys"), ("q", "quit")],
             _ => {}
         }
     }
     match (&app.mode, app.focus) {
         (Mode::Search, _) => vec![("type", "to search"), ("↵", "go to the list"), ("esc", "back")],
         (_, Focus::Sidebar) => vec![movement, ("↵", "open"), ("tab", "list"), ("/", "search"), ("p", "pause"), ("?", "all keys"), ("q", "quit")],
-        _ if !app.marked.is_empty() => vec![("a", "add to playlist"), ("n", "new playlist"), (scheme.choose("x", "dd", "⌃D"), "remove"), ("f", "favourite"), ("␣", "mark"), ("?", "all keys")],
+        _ if !app.marked.is_empty() => vec![("a", "add to playlist"), ("n", "new playlist"), (scheme.choose("x", "dd", "⌃D"), "remove"), ("f", "favorite"), ("␣", "mark"), ("?", "all keys")],
         _ => vec![
             movement,
             ("↵", "play"),
             ("p", "pause"),
             (scheme.choose("l", "L", "l"), "sounds like"),
             (scheme.choose("d", "D", "d"), "drift"),
-            ("f", "favourite"),
+            ("f", "favorite"),
             ("/", "search"),
             ("v", "visuals"),
             ("tab", "library"),
@@ -3143,14 +3143,14 @@ fn bar_keys(app: &App) -> Vec<(&'static str, &'static str)> {
     }
 }
 
-fn centred(area: Rect, width: u16, height: u16) -> Rect {
+fn centered(area: Rect, width: u16, height: u16) -> Rect {
     let width = width.min(area.width);
     let height = height.min(area.height);
     Rect::new(area.x + (area.width - width) / 2, area.y + (area.height - height) / 2, width, height)
 }
 
 fn draw_add_to(frame: &mut Frame, app: &App, cursor: usize) {
-    let area = centred(frame.area(), 40, 14);
+    let area = centered(frame.area(), 40, 14);
     frame.render_widget(Clear, area);
     let items: Vec<ListItem> = app.lists.iter().map(|l| ListItem::new(l.name.clone())).collect();
     let mut state = ListState::default().with_selected(Some(cursor));
@@ -3163,13 +3163,13 @@ fn draw_add_to(frame: &mut Frame, app: &App, cursor: usize) {
 }
 
 fn draw_prompt(frame: &mut Frame, title: &str, text: &str) {
-    let area = centred(frame.area(), 46, 3);
+    let area = centered(frame.area(), 46, 3);
     frame.render_widget(Clear, area);
     frame.render_widget(Paragraph::new(format!("{text}▏")).block(pane(format!(" {title} "), true)), area);
 }
 
 fn draw_browser(frame: &mut Frame, browser: &Browser, scheme: KeyScheme) {
-    let area = centred(frame.area(), 70, 22);
+    let area = centered(frame.area(), 70, 22);
     frame.render_widget(Clear, area);
     let items: Vec<ListItem> = browser
         .entries
@@ -3203,7 +3203,7 @@ fn help_lines(scheme: KeyScheme) -> [(&'static str, &'static str); 21] {
         ("␣", "Mark a tune"),
         (pick("l", "L", "l"), "Sounds Like this tune"),
         (pick("d", "D", "d"), "Sound Drift from this tune"),
-        ("f", "Add to Favourites"),
+        ("f", "Add to Favorites"),
         ("a", "Add to a playlist"),
         ("n", "New playlist, with what's marked"),
         (pick("x", "x  dd", "x  ⌃D"), "Take out of this playlist"),
@@ -3228,7 +3228,7 @@ fn draw_help(frame: &mut Frame, choice: Choice) {
         (_, true) => (HELP_WIDTH, HELP_HEIGHT + legend_rows),
         _ => (HELP_WIDTH, HELP_HEIGHT),
     };
-    let area = centred(window, width, height);
+    let area = centered(window, width, height);
     frame.render_widget(Clear, area);
     let mut lines: Vec<Line> = help_lines(choice.scheme)
         .iter()
@@ -3405,8 +3405,8 @@ mod tests {
         let mut app = App::new();
         app.outbox.clear();
         app.lists = vec![
-            PlaylistInfo { name: "Favourites".into(), count: 2, is_favourites: true },
-            PlaylistInfo { name: "Late Night".into(), count: 3, is_favourites: false },
+            PlaylistInfo { name: "Favorites".into(), count: 2, is_favorites: true },
+            PlaylistInfo { name: "Late Night".into(), count: 3, is_favorites: false },
         ];
         app.view = View::Playlist("Late Night".into());
         app.sidebar = 4;
@@ -3426,7 +3426,7 @@ mod tests {
     }
 
     #[test]
-    fn starts_by_asking_for_the_lists_and_favourites() {
+    fn starts_by_asking_for_the_lists_and_favorites() {
         let mut app = App::new();
         let asked: Vec<&str> = sent(&mut app).iter().map(|s| s.0).collect();
         assert_eq!(asked, ["playlist.list", "playlist.show"]);
@@ -3523,9 +3523,9 @@ mod tests {
     }
 
     #[test]
-    fn favourites_keeps_its_order() {
+    fn favorites_keeps_its_order() {
         let mut app = app();
-        app.view = View::Playlist("Favourites".into());
+        app.view = View::Playlist("Favorites".into());
         press(&mut app, KeyCode::Char('J'));
         assert!(app.outbox.is_empty());
         assert_eq!(app.rows[0].title, "A");
@@ -3618,11 +3618,11 @@ mod tests {
             elapsed: 84.0,
             duration: Some(252.0),
             has_collection: true,
-            favourite: true,
+            favorite: true,
             source: None,
         });
         let shown = screen(&app);
-        for expected in ["Favourites", "Late Night", "Recently Played", "Composer", "♪ B", "subtune 1 of 3", "1:24 / 4:12", "♥"] {
+        for expected in ["Favorites", "Late Night", "Recently Played", "Composer", "♪ B", "subtune 1 of 3", "1:24 / 4:12", "♥"] {
             assert!(shown.contains(expected), "missing {expected}\n{shown}");
         }
     }
@@ -3644,7 +3644,7 @@ mod tests {
             "state": state,
             "elapsed": 10.0,
             "duration": 100.0,
-            "favourite": false,
+            "favorite": false,
             "hasCollection": true,
             "now": { "path": "/A.sid", "title": "Commando", "author": "Rob Hubbard", "released": "1985", "song": 1, "songs": 1 },
         }))
@@ -3721,11 +3721,11 @@ mod tests {
     }
 
     #[test]
-    fn c_switches_the_fires_colours_and_only_on_the_fire() {
+    fn c_switches_the_fires_colors_and_only_on_the_fire() {
         let mut app = app();
         press(&mut app, KeyCode::Char('v'));
         press(&mut app, KeyCode::Char('c'));
-        assert!(!app.channels, "the skull has no such colours");
+        assert!(!app.channels, "the skull has no such colors");
         press(&mut app, KeyCode::Char('f'));
         press(&mut app, KeyCode::Char('c'));
         assert!(app.channels);
@@ -4082,9 +4082,9 @@ mod tests {
         assert_eq!(fit_bar(visual_keys(&app), 10, "esc"), [("esc", "back")]);
 
         press(&mut app, KeyCode::Char('f'));
-        assert_eq!(fit_bar(visual_keys(&app), 77, "esc")[1], ("c", "channel colours"));
+        assert_eq!(fit_bar(visual_keys(&app), 77, "esc")[1], ("c", "channel colors"));
         press(&mut app, KeyCode::Char('c'));
-        assert_eq!(fit_bar(visual_keys(&app), 77, "esc")[1], ("c", "flame colours"));
+        assert_eq!(fit_bar(visual_keys(&app), 77, "esc")[1], ("c", "flame colors"));
         // A page with nothing of its own.
         press(&mut app, KeyCode::Char('t'));
         assert_eq!(fit_bar(visual_keys(&app), 77, "esc")[1], ("v", "next view"));
@@ -4307,7 +4307,7 @@ mod tests {
     }
 
     #[test]
-    fn every_cell_has_the_windows_colours_or_its_own() {
+    fn every_cell_has_the_windows_colors_or_its_own() {
         let mut app = app_with(KeyScheme::Normal);
         for mode in ['?', 'q'] {
             let mut terminal = Terminal::new(TestBackend::new(120, 40)).unwrap();
@@ -4336,7 +4336,7 @@ mod tests {
     fn visuals_with_a_tune() -> App {
         let mut app = app();
         let mut status = playing("playing");
-        status.source = Some("Favourites".into());
+        status.source = Some("Favorites".into());
         app.status = Some(status);
         press(&mut app, KeyCode::Char('v'));
         app
@@ -4347,8 +4347,8 @@ mod tests {
         let app = visuals_with_a_tune();
         let shown = screen_of(&app, 160, 48);
         let row = |text: &str| shown.lines().position(|line| line.contains(text)).unwrap_or_else(|| panic!("no {text}\n{shown}"));
-        assert!(row("s Skull") < row("PLAYING FROM FAVOURITES"));
-        assert!(row("PLAYING FROM FAVOURITES") < row("◀◀"));
+        assert!(row("s Skull") < row("PLAYING FROM FAVORITES"));
+        assert!(row("PLAYING FROM FAVORITES") < row("◀◀"));
         assert!(row("◀◀") < row("esc back"));
         assert_eq!(row("✕"), row("s Skull"));
         assert!(shown.contains("r Surprise Me"));
@@ -4477,7 +4477,7 @@ mod tests {
     }
 
     #[test]
-    fn the_credits_start_favourites_when_nothing_is_playing() {
+    fn the_credits_start_favorites_when_nothing_is_playing() {
         let mut app = app_with(KeyScheme::Normal);
         app.status = Some(stopped());
         app.outbox.clear();
@@ -4485,7 +4485,7 @@ mod tests {
         let asked = sent(&mut app);
         assert_eq!(asked.len(), 1);
         assert_eq!(asked[0].0, "playlist.play");
-        assert_eq!(asked[0].1["name"], "Favourites");
+        assert_eq!(asked[0].1["name"], "Favorites");
     }
 
     #[test]
@@ -4494,7 +4494,7 @@ mod tests {
         app.status = Some(stopped());
         press(&mut app, KeyCode::Char('c'));
         app.outbox.clear();
-        app.reply(Tag::CreditsMusic, Err("Favourites has no tunes in it.".into()));
+        app.reply(Tag::CreditsMusic, Err("Favorites has no tunes in it.".into()));
         assert_eq!(app.message, None);
         assert_eq!(sent(&mut app).iter().map(|s| s.0).collect::<Vec<_>>(), ["surprise"]);
     }
@@ -4887,7 +4887,7 @@ mod tests {
         let app = app();
         let shown = screen_of(&app, 160, 40);
         let at = |what: &str| shown.find(what).unwrap_or_else(|| panic!("no {what}\n{shown}"));
-        let order = ["▓▒░ Library", " Search", " Describe", " Recently Played", "▓▒░ Playlists", " Favourites", "▓▒░ HVSC", " Home"].map(at);
+        let order = ["▓▒░ Library", " Search", " Describe", " Recently Played", "▓▒░ Playlists", " Favorites", "▓▒░ HVSC", " Home"].map(at);
         assert!(order.windows(2).all(|pair| pair[0] < pair[1]), "{shown}");
     }
 

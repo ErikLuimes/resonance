@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A composer's colours, from their name alone. It fills the frame it's given.
+/// A composer's colors, from their name alone. It fills the frame it's given.
 /// Shared with the Quick Look extension, so a composer looks the same there.
 struct ComposerColorField: View {
     let name: String

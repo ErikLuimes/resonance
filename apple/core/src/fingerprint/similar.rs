@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use super::extract::FEATURES;
 use super::store::FeatureRow;
 
-/// How much each feature counts after standardising. The waveform mix and
+/// How much each feature counts after standardizing. The waveform mix and
 /// the voice levels come as groups of four and three, so their members
 /// count for less each.
 const WEIGHTS: [f32; FEATURES] = [
@@ -39,7 +39,7 @@ const EMBEDDING_SHARE: f32 = 0.75;
 
 pub(crate) struct Index {
     rows: Vec<FeatureRow>,
-    /// Standardised, weighted and unit length, row-major.
+    /// Standardized, weighted and unit length, row-major.
     vectors: Vec<[f32; FEATURES]>,
     /// Unit length; None where the subtune has no embedding.
     embeddings: Vec<Option<Box<[f32]>>>,
@@ -200,8 +200,8 @@ impl Index {
             .into_iter()
             .filter(|(_, s)| s.tunes >= min_tunes)
             .map(|(f, mut s)| {
-                normalise(&mut s.features);
-                normalise(&mut s.embedding);
+                normalize(&mut s.features);
+                normalize(&mut s.embedding);
                 (f, s)
             })
             .collect();
@@ -225,7 +225,7 @@ impl Index {
         scored
     }
 
-    /// Each file's start song as (path, features before standardising).
+    /// Each file's start song as (path, features before standardizing).
     pub fn start_songs(&self) -> Vec<(&str, &[f32; FEATURES])> {
         self.by_path.iter().map(|(path, &i)| (path.as_str(), &self.rows[i].features)).collect()
     }
@@ -239,19 +239,19 @@ impl Index {
     /// the features alone: embeddings all lie close together, which an
     /// average blurs further. Empty when none of `group` is in the index.
     pub fn likeness_to_group(&self, group: &[&str]) -> HashMap<&str, f32> {
-        let mut centre = vec![0f32; FEATURES];
+        let mut center = vec![0f32; FEATURES];
         let mut count = 0;
         for path in group {
             if let Some(&i) = self.by_path.get(*path) {
-                add(&mut centre, &self.vectors[i]);
+                add(&mut center, &self.vectors[i]);
                 count += 1;
             }
         }
         if count == 0 {
             return HashMap::new();
         }
-        normalise(&mut centre);
-        self.by_path.iter().map(|(path, &i)| (path.as_str(), dot(&self.vectors[i], &centre))).collect()
+        normalize(&mut center);
+        self.by_path.iter().map(|(path, &i)| (path.as_str(), dot(&self.vectors[i], &center))).collect()
     }
 
     /// How alike two files sound (their start songs), −1…1; None when
@@ -305,7 +305,7 @@ fn add(sum: &mut [f32], v: &[f32]) {
     }
 }
 
-fn normalise(v: &mut [f32]) {
+fn normalize(v: &mut [f32]) {
     let length = dot(v, v).sqrt();
     if length > 1e-6 {
         v.iter_mut().for_each(|x| *x /= length);
@@ -314,7 +314,7 @@ fn normalise(v: &mut [f32]) {
 
 fn unit_embedding(mut v: Vec<f32>) -> Option<Box<[f32]>> {
     (dot(&v, &v) > 1e-12).then(|| {
-        normalise(&mut v);
+        normalize(&mut v);
         v.into_boxed_slice()
     })
 }

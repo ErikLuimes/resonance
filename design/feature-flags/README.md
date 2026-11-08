@@ -78,6 +78,10 @@ up first. The plan:
   once it's always on. Test it again in the first beta that has it.
 - **Flags piling up:** `shipsWhen` says what ends each flag. Remove it when that
   happens.
+- **Translations:** a String Catalog keeps the text of a feature that was on when it
+  last synced, whatever the build. English adds nothing to the app, but a translation
+  ships in every build, and the marker check only catches text with a marker in it.
+  Translate a feature's text when its flag goes, not before.
 
 The Rust core has no flags, so everything here is Swift. A feature in the core
 would need a Cargo feature passed by `scripts/build-core.sh` too.

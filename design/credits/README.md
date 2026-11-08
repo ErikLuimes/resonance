@@ -27,7 +27,7 @@ The window is a 320×200 picture scaled up with hard pixels: a starfield with a 
 ## Still to check or decide
 
 - The engine credits are checked against the `AUTHORS` files and reSID's README. The filter's measurements are Dag Lem's, the distortion simulation Antti Lankila's, and Leandro Nini's are the transistor-level reverse engineering and the engines themselves. The mockups still show older titles.
-- The last page names what's playing. It needs a fallback for HVSC's unknown composer, `<?>`, and it should follow a change of tune. If nothing is playing, Favourites starts, or Surprise Me if that can't play; something paused is left alone.
+- The last page names what's playing. It needs a fallback for HVSC's unknown composer, `<?>`, and it should follow a change of tune. If nothing is playing, Favorites starts, or Surprise Me if that can't play; something paused is left alone.
 - Whether the stars react to the music. The idea was the camera speeding up slightly with the level.
 - How to close it: Esc and a click, with perhaps a brief hint, as there's no button.
 - With Reduce Motion on, it should show a still page.
@@ -40,4 +40,4 @@ The style comes from the text part of *Crystal Dream II* by Triton (1993): a bro
 
 It's a reference to watch only. The code, letter shapes and wording here are our own, and nothing from the demo should go into Resonance.
 
-Triton gets its own page in the credits, `ALL RESPECT TO THE DEMOSCENE`, because the idea came from them. They're credited in the intro of `Acknowledgements.txt` too, from `apple/scripts/acknowledgements.sh`.
+Triton gets its own page in the credits, `ALL RESPECT TO THE DEMOSCENE`, because the idea came from them. They're credited in the intro of `Acknowledgments.txt` too, from `apple/scripts/acknowledgments.sh`.

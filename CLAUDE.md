@@ -30,3 +30,5 @@ Amiga mods (the 2.0 plan): design/mods/README.md.
 Credits page, in the app and the terminal app: design/credits/README.md, with the approved mockups beside it.
 
 Feature flags (what's in which build): design/feature-flags/README.md. Update channels never decide this.
+
+Strings (US English, String Catalogs, what stays English): "Strings" in apple/README.md. `String(localized:)` formats numbers, so years and IDs go in as `String(year)`.

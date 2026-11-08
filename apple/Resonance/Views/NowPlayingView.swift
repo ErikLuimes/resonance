@@ -116,7 +116,7 @@ struct NowPlayingView: View {
         }
     }
 
-    /// The system's segmented control, centred above everything.
+    /// The system's segmented control, centered above everything.
     private var picker: some View {
         Picker("Visualizer", selection: $visual) {
             ForEach(NowPlayingVisual.allCases) { option in
@@ -179,11 +179,11 @@ struct NowPlayingView: View {
 
     /// Which list is playing, and where in My Playlist.
     private var source: String {
-        guard let source = store.source else { return "Now playing" }
+        guard let source = store.source else { return String(localized: "Now playing") }
         if source == .myPlaylist, let index = store.currentIndex {
-            return "Playing from My Playlist · \(index + 1) / \(store.rows.count)"
+            return String(localized: "Playing from My Playlist · \(index + 1) / \(store.rows.count)")
         }
-        return "Playing from \(source.name)"
+        return String(localized: "Playing from \(source.name)")
     }
 
     private func tag(_ text: String) -> some View {
@@ -196,11 +196,11 @@ struct NowPlayingView: View {
 
     // MARK: Controls
 
-    /// Keep what's playing: a heart for Favourites, and Add to… for a
+    /// Keep what's playing: a heart for Favorites, and Add to… for a
     /// playlist.
     private func playlistStatus(_ track: TrackDetails) -> some View {
         HStack(spacing: 10) {
-            FavouriteButton(path: track.path)
+            FavoriteButton(path: track.path)
                 .font(.title3)
             AddToButton(files: [track.path])
                 .buttonStyle(.plain)
@@ -334,10 +334,10 @@ nonisolated enum NowPlayingVisual: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .halo: "Halo"
-        case .particles: "Particles"
-        case .radial: "Radial"
-        case .soundMap: "Sound Map"
+        case .halo: String(localized: "Halo")
+        case .particles: String(localized: "Particles")
+        case .radial: String(localized: "Radial")
+        case .soundMap: String(localized: "Sound Map")
         }
     }
 }

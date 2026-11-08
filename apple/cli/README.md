@@ -34,13 +34,13 @@ pick from at the top, the music in the middle with room around it, then the tune
 voices and the time. The picker and the keys go after three seconds without a key press.
 `s` shows the skull, a 3D model in ASCII whose eyes
 glow with the voices and whose jaw chomps on the hits. `f` shows fire, where each voice
-feeds its own part of the flames and hits throw sparks; `c` colours each flame by its
+feeds its own part of the flames and hits throw sparks; `c` colors each flame by its
 voice, to see which is which. `t` shows Tesla coils, where each voice's pitch sets how
 high its lightning strikes and hits fire across all three. `w` shows a pool, where each
-new note drops in, low notes making wide ripples and high notes tight ones; `c` colours
+new note drops in, low notes making wide ripples and high notes tight ones; `c` colors
 those by voice too. `o` shows the app's Particle sphere. `v` steps through them.
 
-All of this looks best on a terminal with millions of colours, such as iTerm2, Ghostty
+All of this looks best on a terminal with millions of colors, such as iTerm2, Ghostty
 or Kitty. Notes are worked out from the voices' sound, so they can be off on a very low
 note or a filtered one.
 
@@ -108,7 +108,7 @@ too.
 ### Credits
 
 Press `c`, or run `resonance credits`, for the credits, with a nod to the demoscene. If nothing
-is playing they start your Favourites, or Surprise Me if that can't play, and they name the tune
+is playing they start your Favorites, or Surprise Me if that can't play, and they name the tune
 playing. They close by themselves, or with `esc`.
 
 ## Commands
@@ -162,10 +162,10 @@ take tunes out of them, but it can't delete a playlist.
 claude mcp add resonance -- resonance mcp
 ```
 
-## Licences
+## Licenses
 
-`resonance --licenses` prints the licences of the open-source software in Resonance and
-this tool, the same text as Acknowledgements in About Resonance.
+`resonance --licenses` prints the licenses of the open-source software in Resonance and
+this tool, the same text as Acknowledgments in About Resonance.
 
 ## How it talks to the app
 

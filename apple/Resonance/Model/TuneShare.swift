@@ -176,6 +176,6 @@ nonisolated struct PreparedShare: Equatable, Sendable {
 
     /// "Commando by Rob Hubbard", for a message or mail subject.
     var subject: String {
-        author.isEmpty || author == "<?>" ? title : "\(title) by \(author)"
+        author.isEmpty || author == "<?>" ? title : String(localized: "\(title) by \(author)")
     }
 }

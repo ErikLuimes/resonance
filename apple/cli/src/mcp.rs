@@ -229,8 +229,8 @@ fn tools() -> Vec<Tool> {
             args: no_args,
         },
         Tool {
-            name: "favourite_this_tune",
-            description: "Add the tune playing to Favourites.",
+            name: "favorite_this_tune",
+            description: "Add the tune playing to Favorites.",
             read_only: false,
             properties: none,
             required: &[],
@@ -239,7 +239,7 @@ fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "list_playlists",
-            description: "Favourites and the user's playlists, with how many tunes each holds.",
+            description: "Favorites and the user's playlists, with how many tunes each holds.",
             read_only: true,
             properties: none,
             required: &[],
@@ -248,7 +248,7 @@ fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "show_playlist",
-            description: "The tunes in Favourites or one of the user's playlists.",
+            description: "The tunes in Favorites or one of the user's playlists.",
             read_only: true,
             properties: || json!({ "name": { "type": "string" } }),
             required: &["name"],
@@ -284,7 +284,7 @@ fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "play_playlist",
-            description: "Play Favourites or one of the user's playlists.",
+            description: "Play Favorites or one of the user's playlists.",
             read_only: false,
             properties: || json!({ "name": { "type": "string" } }),
             required: &["name"],
@@ -307,7 +307,7 @@ fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "add_to_playlist",
-            description: "Add tunes to Favourites or one of the user's playlists.",
+            description: "Add tunes to Favorites or one of the user's playlists.",
             read_only: false,
             properties: || {
                 json!({
@@ -321,7 +321,7 @@ fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "remove_from_playlist",
-            description: "Take tunes out of Favourites or one of the user's playlists. The tunes themselves stay.",
+            description: "Take tunes out of Favorites or one of the user's playlists. The tunes themselves stay.",
             read_only: false,
             properties: || {
                 json!({
@@ -544,7 +544,7 @@ mod tests {
     #[test]
     fn a_tools_failure_is_for_the_assistant_to_read() {
         let mut fake = Fake { fail: Some("Nothing is playing.".into()), ..Fake::default() };
-        let answer = ask("tools/call", json!({ "name": "favourite_this_tune" }), &mut fake);
+        let answer = ask("tools/call", json!({ "name": "favorite_this_tune" }), &mut fake);
         assert_eq!(answer["result"]["isError"], true);
         assert_eq!(answer["result"]["content"][0]["text"], "Nothing is playing.");
     }

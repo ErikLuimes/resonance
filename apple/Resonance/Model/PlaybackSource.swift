@@ -7,7 +7,7 @@ import PhosphorCore
 nonisolated enum PlaybackSource: Equatable, Sendable {
     /// The playlist Resonance keeps between launches.
     case myPlaylist
-    case favourites
+    case favorites
     /// One of your playlists, by its file name.
     case playlist(id: String, name: String)
     /// One of Phosphor's published playlists.
@@ -38,23 +38,23 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
     /// "Rob Hubbard", "Search “commando”".
     var name: String {
         switch self {
-        case .myPlaylist: "My Playlist"
-        case .favourites: "Favourites"
+        case .myPlaylist: String(localized: "My Playlist")
+        case .favorites: String(localized: "Favorites")
         case .playlist(_, let name): name
         case .curated(let playlist): playlist.name
         case .folder(let name, _): name
-        case .search(let query): "Search “\(query)”"
-        case .recentlyPlayed: "Recently Played"
-        case .soundsLike(let title): "Sounds like \(title)"
-        case .drift(let title): "Drifting from \(title)"
+        case .search(let query): String(localized: "Search “\(query)”")
+        case .recentlyPlayed: String(localized: "Recently Played")
+        case .soundsLike(let title): String(localized: "Sounds like \(title)")
+        case .drift(let title): String(localized: "Drifting from \(title)")
         case .smart(let title): title
-        case .surprise: "Surprise Me"
-        case .shuffleCollection: "Shuffle Collection"
-        case .files: "Files"
-        case .shared: "Shared Link"
+        case .surprise: String(localized: "Surprise Me")
+        case .shuffleCollection: String(localized: "Shuffle Collection")
+        case .files: String(localized: "Files")
+        case .shared: String(localized: "Shared Link")
 #if CSDB
-        case .scene: "Scene Pulse"
-        case .csdbDownloads: "Downloads"
+        case .scene: String(localized: "Scene Pulse")
+        case .csdbDownloads: String(localized: "Downloads")
 #endif
         }
     }
@@ -69,21 +69,21 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
     /// What kind of list it is, for the inspector: "Composer".
     var kind: String {
         switch self {
-        case .myPlaylist, .playlist: "Your playlist"
-        case .favourites: "Your favourites"
-        case .curated: "Curated playlist"
-        case .folder(_, let category): category == .musicians ? "Composer" : category.displayName
-        case .search: "Search"
-        case .recentlyPlayed: "History"
-        case .soundsLike: "Sounds like"
-        case .drift: "Sound Drift"
-        case .smart: "Smart Playlist"
-        case .surprise: "Random tunes from HVSC"
-        case .shuffleCollection: "All of HVSC, shuffled"
-        case .files: "Added files"
-        case .shared: "Opened from"
+        case .myPlaylist, .playlist: String(localized: "Your playlist")
+        case .favorites: String(localized: "Your favorites")
+        case .curated: String(localized: "Curated playlist")
+        case .folder(_, let category): category == .musicians ? String(localized: "Composer") : category.displayName
+        case .search: String(localized: "Search")
+        case .recentlyPlayed: String(localized: "History")
+        case .soundsLike: String(localized: "Sounds like")
+        case .drift: String(localized: "Sound Drift")
+        case .smart: String(localized: "Smart Playlist")
+        case .surprise: String(localized: "Random tunes from HVSC")
+        case .shuffleCollection: String(localized: "All of HVSC, shuffled")
+        case .files: String(localized: "Added files")
+        case .shared: String(localized: "Opened from")
 #if CSDB
-        case .scene, .csdbDownloads: "From CSDb"
+        case .scene, .csdbDownloads: String(localized: "From CSDb")
 #endif
         }
     }
@@ -91,7 +91,7 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
     var symbol: String {
         switch self {
         case .myPlaylist, .playlist: "music.note.list"
-        case .favourites: "heart"
+        case .favorites: "heart"
         case .curated: "list.star"
         case .folder(_, let category): category.symbolName
         case .search: "magnifyingglass"
@@ -115,7 +115,7 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
     @MainActor var section: SidebarItem? {
         switch self {
         case .myPlaylist: .playlist
-        case .favourites: .favourites
+        case .favorites: .favorites
         case .playlist(let id, _): .userPlaylist(id)
         case .curated(let playlist): .curated(playlist.file)
         case .smart: .smartPlaylist

@@ -72,7 +72,7 @@ in identical chip state and identical audio.
 **The Digital skip is exact.** On 59 random HVSC tunes (30 s in) plus the
 three above, the chip state after a Digital skip (registers, envelope
 counters, OSC3, ENV3) was identical to the state after a full one in every
-case. The audio afterwards differs only while the filter and resampler
+case. The audio afterward differs only while the filter and resampler
 settle: the loudness envelope (RMS per 10 ms) deviated by 5 % median and
 24 % at the 90th percentile in the first half second, 0.2 % median and
 0.5 % at most after 1.5 s (the worst first half second, 490 %, is a tune

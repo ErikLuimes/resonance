@@ -7,7 +7,7 @@ enum VoiceLabels {
     /// Room to leave under a voice's drawing.
     static let height: CGFloat = 38
 
-    /// Draw `voice`'s labels centred on `x`, below `top`. A released note
+    /// Draw `voice`'s labels centered on `x`, below `top`. A released note
     /// still sounds, so its name stays, dimmed; nil draws placeholders.
     static func draw(_ voice: VizVoice?, color: Color, centeredAt x: CGFloat, top: CGFloat, in gc: GraphicsContext) {
         let sounding = voice.map { $0.gate || $0.envLevel > 0 } ?? false

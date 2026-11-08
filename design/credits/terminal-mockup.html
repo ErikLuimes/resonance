@@ -99,7 +99,7 @@ const X=norm([ALONG[0]*Math.cos(TILT),Math.sin(TILT),ALONG[2]*Math.cos(TILT)]),Y
 const Y=add(Y0.map(v=>v*ca),NORMAL,sa),N=add(NORMAL.map(v=>v*ca),Y0,-sa);
 const letters=[];
 [...LINE].forEach((k,i)=>{if(k===' ')return;const along=ARRIVES+(AT(i)-READ_SPEED*s-ARRIVES)*(1+wildness*.6);if(along>7||along<-16+wildness*3)return;
-// Out of step with their neighbours by a little, never by how far along the line they are.
+// Out of step with their neighbors by a little, never by how far along the line they are.
 const spin=turned(s,SPIN_RATE,LETTERS_START)+spinning*Math.sin(i*1.7)*.7,cs=Math.cos(spin),ss=Math.sin(spin);
 const base=add([SIDE[0],SIDE[1]*(1-wildness*.75),SIDE[2]*(1-wildness*.32)],ALONG,along),face=view(add(N.map(v=>v*cs),X,ss));
 const place=p=>{const u=(p[0]-2.5)*WIDE,v=(p[1]-3.5)*SIZE;return view(add(add(add(base,X,u*cs),N,u*ss),Y,v))};
@@ -119,7 +119,7 @@ const LOOP=INTRO+pages.length*hold;
 function draw(t){const s=t%LOOP,star=CAMERA_FROM+s;g.fillStyle='#050608';g.fillRect(0,0,W,H);sky(star,starTurn(s),turned(s,ROLL_RATE,CAMERA_STARTS));g.fillStyle=vig;g.fillRect(0,0,W,H);if(s<INTRO)name3d(s,star)}
 
 // The terminal: half-block pixels for the picture, one character per star, real text for
-// the credits. Only colours a 256-colour terminal has.
+// the credits. Only colors a 256-color terminal has.
 const term=document.getElementById('term'),t2=term.getContext('2d');
 let wide=120,tall=38;const CW=8,CH=16;
 function resize(a,b){wide=a;tall=b;term.width=wide*CW;term.height=tall*CH;document.getElementById('size').textContent=wide+' columns by '+tall+' tall'}
@@ -128,7 +128,7 @@ resize(120,38);
 const PAPER='#14161a',WHITE='#eeeeee';
 function put(col,row,ch,color,bold){t2.font=(bold?'bold ':'')+'14px Menlo,monospace';t2.fillStyle=color;t2.fillText(ch,col*CW+CW/2,row*CH+CH/2+1)}
 function line(row,text,color,bold,shown){const x=Math.round((wide-text.length)/2);for(let i=0;i<Math.min(shown,text.length);i++)put(x+i,row,text[i],color,bold)}
-// 16:10 in the terminal's half-cells, centred, keeping every cell in use on the long side.
+// 16:10 in the terminal's half-cells, centered, keeping every cell in use on the long side.
 function paint(t){
 draw(t);const s=t%LOOP,data=g.getImageData(0,0,W,H).data;
 const picRows=tall-1,px=picRows*2;

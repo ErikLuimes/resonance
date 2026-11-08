@@ -18,7 +18,7 @@ publish = false
 # metadata format, which changes between UniFFI releases.
 uniffi = { version = "=0.32.2", default-features = false }
 
-# Same profiles as the root Cargo.toml — unoptimised builds make the real-time
+# Same profiles as the root Cargo.toml — unoptimized builds make the real-time
 # DSP and reSID fall behind the player's frame clock.
 [profile.dev]
 opt-level = 1
@@ -34,6 +34,6 @@ opt-level = 3
 # resid-rs's resampler multiplies past i32 range (sampler.rs:297). Release
 # builds wrap silently — which is what Phosphor ships — but debug builds
 # panic with "attempt to multiply with overflow" and kill the player thread
-# on the reSID engine. Match release behaviour for that one crate.
+# on the reSID engine. Match release behavior for that one crate.
 [profile.dev.package.resid-rs]
 overflow-checks = false

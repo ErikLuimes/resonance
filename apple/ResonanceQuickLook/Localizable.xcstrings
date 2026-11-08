@@ -1,0 +1,21 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%lld SIDs" : {
+
+    },
+    "%lld subtunes" : {
+
+    },
+    "1 tune" : {
+
+    },
+    "Commodore 64 tune" : {
+
+    },
+    "PAL and NTSC" : {
+
+    }
+  },
+  "version" : "1.0"
+}

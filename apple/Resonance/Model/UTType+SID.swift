@@ -9,7 +9,7 @@ nonisolated extension UTType {
     /// What Add Files offers: SID tunes, playlists and folders, by every
     /// type this Mac gives their extensions. Another player (Modizer, say)
     /// can claim .sid with its own type, and the sandbox's open panel goes
-    /// by a file's type, so `sidTune` alone would grey them out.
+    /// by a file's type, so `sidTune` alone would gray them out.
     static var addable: [UTType] {
         let extensions = ["sid", "psid", "rsid", "mus", "m3u", "m3u8", "pls"]
         var types: [UTType] = [.sidTune, .m3uPlaylist, .folder]

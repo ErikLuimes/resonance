@@ -35,11 +35,11 @@ struct SearchView: View {
 
         var title: String {
             switch self {
-            case .all: "All"
-            case .tunes: "Tunes"
-            case .composers: "Composers"
-            case .games: "Games"
-            case .demos: "Demos"
+            case .all: String(localized: "All")
+            case .tunes: String(localized: "Tunes")
+            case .composers: String(localized: "Composers")
+            case .games: String(localized: "Games")
+            case .demos: String(localized: "Demos")
             }
         }
 
@@ -225,10 +225,10 @@ struct SearchView: View {
     private var matchingPlaylists: [PlaylistMatch] {
         let yours = playlists.playlists
             .filter { $0.name.localizedStandardContains(query) }
-            .map { PlaylistMatch(id: .userPlaylist($0.id), name: $0.name, kind: "Your playlist") }
+            .map { PlaylistMatch(id: .userPlaylist($0.id), name: $0.name, kind: String(localized: "Your playlist")) }
         let curated = (player.hvscInfo?.playlists ?? [])
             .filter { $0.name.localizedStandardContains(query) }
-            .map { PlaylistMatch(id: .curated($0.file), name: $0.name, kind: "Curated playlist") }
+            .map { PlaylistMatch(id: .curated($0.file), name: $0.name, kind: String(localized: "Curated playlist")) }
         return yours + curated
     }
 
@@ -285,7 +285,7 @@ struct SearchView: View {
                     .font(.title2.weight(.bold))
                     .lineLimit(1)
                     .truncationMode(.middle)
-                Text(isWaiting ? "Searching…" : searchError == nil ? summary : "")
+                Text(isWaiting ? String(localized: "Searching…") : searchError == nil ? summary : "")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -303,26 +303,30 @@ struct SearchView: View {
         case .all:
             var parts: [String] = []
             let tuneCount = Int(results?.totalMatches ?? 0) + localMatches.count
-            if tuneCount > 0 { parts.append(Self.count(tuneCount, "tune")) }
-            if !composers.isEmpty { parts.append(Self.count(composers.count, "composer")) }
-            return parts.isEmpty ? "No matches" : parts.formatted(.list(type: .and))
+            if tuneCount > 0 { parts.append(Self.tunesText(tuneCount)) }
+            if !composers.isEmpty { parts.append(Self.composersText(composers.count)) }
+            return parts.isEmpty ? String(localized: "No matches") : parts.formatted(.list(type: .and))
         case .tunes:
-            guard let results, !results.items.isEmpty else { return "No matches" }
+            guard let results, !results.items.isEmpty else { return String(localized: "No matches") }
             let total = results.totalMatches.formatted()
             let indexed = results.indexed.formatted()
             return results.totalMatches > UInt32(results.items.count)
-                ? "Best \(results.items.count) of \(total) matches among \(indexed) tunes"
-                : "\(total) matches among \(indexed) tunes"
+                ? String(localized: "Best \(results.items.count) of \(total) matches among \(indexed) tunes")
+                : String(localized: "\(total) matches among \(indexed) tunes")
         case .composers:
-            return composers.isEmpty ? "No matches" : Self.count(composers.count, "composer")
+            return composers.isEmpty ? String(localized: "No matches") : Self.composersText(composers.count)
         case .games, .demos:
-            guard let categoryTunes else { return "Searching…" }
-            return categoryTunes.isEmpty ? "No matches" : Self.count(categoryTunes.count, "tune")
+            guard let categoryTunes else { return String(localized: "Searching…") }
+            return categoryTunes.isEmpty ? String(localized: "No matches") : Self.tunesText(categoryTunes.count)
         }
     }
 
-    private static func count(_ count: Int, _ noun: String) -> String {
-        "\(count.formatted()) \(noun)\(count == 1 ? "" : "s")"
+    private static func tunesText(_ count: Int) -> String {
+        count == 1 ? String(localized: "1 tune") : String(localized: "\(count.formatted()) tunes")
+    }
+
+    private static func composersText(_ count: Int) -> String {
+        count == 1 ? String(localized: "1 composer") : String(localized: "\(count.formatted()) composers")
     }
 
     @ViewBuilder
@@ -332,7 +336,7 @@ struct SearchView: View {
         } else if isWaiting {
             VStack(spacing: 10) {
                 ProgressView()
-                Text(isIndexing ? "Indexing \(indexingNames)…" : "Searching…")
+                Text(isIndexing ? String(localized: "Indexing \(indexingNames)…") : String(localized: "Searching…"))
                     .foregroundStyle(.secondary)
                 if isIndexing {
                     Text("The first search builds an index of the collection; later ones are instant.")
@@ -427,7 +431,7 @@ struct SearchView: View {
                         topRow(top, first)
                     }
                     if !others.isEmpty {
-                        SearchSection("Composers", seeAll: others.count > Self.shownComposers ? { filter = .composers } : nil) {
+                        SearchSection(String(localized: "Composers"), seeAll: others.count > Self.shownComposers ? { filter = .composers } : nil) {
                             LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 10)], spacing: 8) {
                                 ForEach(others.prefix(Self.shownComposers), id: \.path) { composer in
                                     composerButton(composer)
@@ -437,14 +441,14 @@ struct SearchView: View {
                     }
                     gamesAndDemos(games, demos)
                     if !lists.isEmpty {
-                        SearchSection("Playlists") {
+                        SearchSection(String(localized: "Playlists")) {
                             VStack(spacing: 0) {
                                 ForEach(lists) { playlistRow($0) }
                             }
                         }
                     }
                     if !local.isEmpty {
-                        SearchSection("In Your Lists", sub: "My Playlist and Downloads") {
+                        SearchSection(String(localized: "In Your Lists"), sub: String(localized: "My Playlist and Downloads")) {
                             VStack(spacing: 0) {
                                 ForEach(local.prefix(Self.shownInSection)) { row in
                                     SearchTuneRow(row: row) { play(row, in: local) }
@@ -466,8 +470,8 @@ struct SearchView: View {
     @ViewBuilder
     private func topRow(_ top: SearchTopResult, _ first: [LibraryRow]) -> some View {
         let tunesSection = SearchSection(
-            "Tunes",
-            sub: Self.count(Int(results?.totalMatches ?? 0) + localMatches.count, "tune"),
+            String(localized: "Tunes"),
+            sub: Self.tunesText(Int(results?.totalMatches ?? 0) + localMatches.count),
             seeAll: allTunes.count > first.count ? { filter = .tunes } : nil
         ) {
             VStack(spacing: 0) {
@@ -496,7 +500,7 @@ struct SearchView: View {
     }
 
     private func topCard(_ top: SearchTopResult) -> some View {
-        SearchSection("Top Result", isCard: false) {
+        SearchSection(String(localized: "Top Result"), isCard: false) {
             switch top {
             case .composer(let composer):
                 let name = LibraryStore.spokenName(composer.displayName)
@@ -508,7 +512,7 @@ struct SearchView: View {
                         .frame(width: 72, height: 72)
                 }
             case .tune(let row):
-                TopResultButton(title: row.title, subtitle: "Tune by \(row.author), \(row.lengthText)") {
+                TopResultButton(title: row.title, subtitle: String(localized: "Tune by \(row.author), \(row.lengthText)")) {
                     play(row, in: allTunes)
                 } art: {
                     PlaylistArtwork(name: row.title, size: 72)
@@ -518,15 +522,15 @@ struct SearchView: View {
     }
 
     private func composerFacts(_ composer: HvscAuthorItem) -> String {
-        guard let tunes = library.composers[.musicians]?[composer.path]?.tunes else { return "Composer" }
-        return "Composer, " + Self.count(Int(tunes), "tune")
+        guard let tunes = library.composers[.musicians]?[composer.path]?.tunes else { return String(localized: "Composer") }
+        return String(localized: "Composer, ") + Self.tunesText(Int(tunes))
     }
 
     /// Side by side, the same height, when they both have tunes and there's room.
     @ViewBuilder
     private func gamesAndDemos(_ games: [LibraryRow], _ demos: [LibraryRow]) -> some View {
-        let gamesSection = tuneSection("Games", games, from: tunes.filter { $0.item.category == .games }, showing: .games)
-        let demosSection = tuneSection("Demos", demos, from: tunes.filter { $0.item.category == .demos }, showing: .demos)
+        let gamesSection = tuneSection(String(localized: "Games"), games, from: tunes.filter { $0.item.category == .games }, showing: .games)
+        let demosSection = tuneSection(String(localized: "Demos"), demos, from: tunes.filter { $0.item.category == .demos }, showing: .demos)
         if width >= 620, !games.isEmpty, !demos.isEmpty {
             HStack(alignment: .top, spacing: 24) {
                 gamesSection
@@ -589,7 +593,7 @@ struct SearchView: View {
         .id(composer.path)
         .safeAreaInset(edge: .top, spacing: 0) {
             HStack {
-                AccentLink("Back to Results") { opened = nil }
+                AccentLink(String(localized: "Back to Results")) { opened = nil }
                     .font(.callout.weight(.semibold))
                 Spacer(minLength: 0)
             }
@@ -626,7 +630,7 @@ private struct SearchSection<Content: View>: View {
         VStack(alignment: .leading, spacing: 10) {
             SectionTitle(title, sub: sub) {
                 if let seeAll {
-                    AccentLink("See All", action: seeAll)
+                    AccentLink(String(localized: "See All"), action: seeAll)
                 }
             }
             if isCard {
@@ -756,7 +760,7 @@ enum SearchByline {
     }
 
     private static func name(author: String, category: HvscCategory) -> String? {
-        if author == "<?>" || author.uppercased() == "UNKNOWN" { return "Unknown" }
+        if author == "<?>" || author.uppercased() == "UNKNOWN" { return String(localized: "Unknown") }
         if category != .musicians, author.wholeMatch(of: /[A-Za-z0-9]+-[A-Za-z0-9]+/) != nil { return nil }
         return LibraryStore.spokenName(author)
     }

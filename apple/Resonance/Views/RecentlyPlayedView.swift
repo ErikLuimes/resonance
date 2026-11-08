@@ -97,11 +97,11 @@ struct RecentlyPlayedView: View {
     private var heardText: String? {
         guard let heard = library.heardCount, heard > 0 else { return nil }
         guard let total = store.hvscInfo?.totalTunes, total > 0 else {
-            return "You've heard \(heard.formatted()) different tunes."
+            return String(localized: "You've heard \(heard.formatted()) different tunes.")
         }
         let share = Double(heard) / Double(total)
         let percent = share.formatted(.percent.precision(.fractionLength(share < 0.01 ? 1 : 0)))
-        return "You've heard \(heard.formatted()) of \(total.formatted()) HVSC tunes (\(percent))."
+        return String(localized: "You've heard \(heard.formatted()) of \(total.formatted()) HVSC tunes (\(percent)).")
     }
 
     private var rows: [LibraryRow] { library.recent?.map(\.row) ?? [] }

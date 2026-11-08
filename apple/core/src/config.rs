@@ -1,6 +1,6 @@
 //! Upstream's `config` module, except for where the data goes.
 //!
-//! The engine sources find their folder (favourites, play history, the
+//! The engine sources find their folder (favorites, play history, the
 //! search index, the curated playlists cache, the debug log) by calling
 //! `crate::config::config_dir()`. This module is that path: it re-exports
 //! everything in upstream's `src/config.rs` (compiled as
@@ -108,9 +108,9 @@ mod tests {
                 has_wds: false,
             };
 
-            let mut favourites = FavoritesDb::load();
-            favourites.toggle(&entry);
-            favourites.save();
+            let mut favorites = FavoritesDb::load();
+            favorites.toggle(&entry);
+            favorites.save();
 
             let mut recent = RecentlyPlayed::load();
             recent.record("0123456789abcdef0123456789abcdef", "Commando", "Rob Hubbard", "1985", &entry.path);

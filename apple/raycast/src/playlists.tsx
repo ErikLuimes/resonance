@@ -48,7 +48,7 @@ export default function Command() {
         <List.Item
           key={list.name}
           title={list.name}
-          icon={list.isFavourites ? Icon.Star : Icon.List}
+          icon={list.isFavorites ? Icon.Star : Icon.List}
           accessories={[{ text: list.count === 1 ? "1 tune" : `${list.count} tunes` }]}
           actions={
             <ActionPanel>

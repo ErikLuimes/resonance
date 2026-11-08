@@ -2,7 +2,7 @@
 //! Every new note drops into its voice's part of the pool, low notes making wide
 //! ripples and high notes tight ones; noise falls as rain, and big hits make a splash.
 //! Waves pass through each other, so each voice keeps a field of its own, added up to
-//! draw: that also tells how much of each voice is in any ripple, for its colours.
+//! draw: that also tells how much of each voice is in any ripple, for its colors.
 
 use crate::viz::{self, VoiceReading};
 use ratatui::buffer::Buffer;
@@ -46,7 +46,7 @@ fn blend(a: (f32, f32, f32), b: (f32, f32, f32), t: f32) -> (f32, f32, f32) {
     (a.0 + (b.0 - a.0) * t, a.1 + (b.1 - a.1) * t, a.2 + (b.2 - a.2) * t)
 }
 
-/// The colour for an amount of light, -1 to 1, on water of this colour when lit.
+/// The color for an amount of light, -1 to 1, on water of this color when lit.
 fn water_rgb(light: f32, lit: (f32, f32, f32)) -> (f32, f32, f32) {
     if light <= 0.0 {
         blend(DEEP, SHADOW, -light)
@@ -109,11 +109,11 @@ impl Water {
         (x >> 8) as f32 / (1u32 << 24) as f32
     }
 
-    /// Somewhere in a voice's part of the pool, which runs off into its neighbours'.
+    /// Somewhere in a voice's part of the pool, which runs off into its neighbors'.
     fn place(&mut self, voice: usize) -> (f32, f32) {
-        let centre = (voice as f32 * 2.0 + 1.0) / 6.0;
+        let center = (voice as f32 * 2.0 + 1.0) / 6.0;
         let spread = (self.chance() + self.chance() - 1.0) * 0.26;
-        ((centre + spread) * self.width as f32, self.chance() * self.height as f32)
+        ((center + spread) * self.width as f32, self.chance() * self.height as f32)
     }
 
     fn drop_in(&mut self, voice: usize, radius: f32, strength: f32) {
@@ -266,9 +266,9 @@ impl Water {
             let parts = [self.fields[0].now[at].abs(), self.fields[1].now[at].abs(), self.fields[2].now[at].abs()];
             let total = (parts[0] + parts[1] + parts[2]).max(1e-5);
             let mix = |pick: fn(&(f32, f32, f32)) -> f32| (0..3).map(|v| pick(&CHANNELS[v]) * parts[v] / total).sum::<f32>();
-            let colour = (mix(|c| c.0), mix(|c| c.1), mix(|c| c.2));
-            // Rounded too, so that a ripple's colour doesn't shimmer in every cell.
-            ((colour.0 / 16.0).round() * 16.0, (colour.1 / 16.0).round() * 16.0, (colour.2 / 16.0).round() * 16.0)
+            let color = (mix(|c| c.0), mix(|c| c.1), mix(|c| c.2));
+            // Rounded too, so that a ripple's color doesn't shimmer in every cell.
+            ((color.0 / 16.0).round() * 16.0, (color.1 / 16.0).round() * 16.0, (color.2 / 16.0).round() * 16.0)
         } else {
             LIT
         };
@@ -276,7 +276,7 @@ impl Water {
         Color::Rgb(r as u8, g as u8, b as u8)
     }
 
-    /// The pool, filling an area of the size last given to `advance`: in water's colours,
+    /// The pool, filling an area of the size last given to `advance`: in water's colors,
     /// or with `channels` in those of the voices making each ripple.
     pub fn draw(&self, buffer: &mut Buffer, area: Rect, truecolor: bool, channels: bool) {
         if self.width != area.width as usize || self.height != area.height as usize * 2 {
@@ -325,7 +325,7 @@ mod tests {
     }
 
     #[test]
-    fn still_water_stays_still_and_all_one_colour() {
+    fn still_water_stays_still_and_all_one_color() {
         let mut water = pool();
         water.run(30);
         assert_eq!(water.energy(0, 120), 0.0);
@@ -443,7 +443,7 @@ mod tests {
     }
 
     #[test]
-    fn channel_colours_follow_the_voice_in_the_ripple() {
+    fn channel_colors_follow_the_voice_in_the_ripple() {
         let mut water = pool();
         dropped(&mut water, 2, 3.0);
         water.run(8);

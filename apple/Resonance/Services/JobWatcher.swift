@@ -26,17 +26,17 @@ enum JobNotice: Equatable {
 
     var title: String {
         switch self {
-        case .downloadFinished(let release): "\(release.map { "HVSC \($0)" } ?? "HVSC") Is Ready"
-        case .downloadFailed: "The HVSC Download Stopped"
-        case .scanFinished: "Sounds Like Is Ready"
+        case .downloadFinished(let release): String(localized: "\(release.map { "HVSC \($0)" } ?? "HVSC") Is Ready")
+        case .downloadFailed: String(localized: "The HVSC Download Stopped")
+        case .scanFinished: String(localized: "Sounds Like Is Ready")
         }
     }
 
     var body: String {
         switch self {
-        case .downloadFinished: "The collection has finished downloading."
+        case .downloadFinished: String(localized: "The collection has finished downloading.")
         case .downloadFailed(let reason): reason
-        case .scanFinished: "Sounds Like now covers your whole collection."
+        case .scanFinished: String(localized: "Sounds Like now covers your whole collection.")
         }
     }
 }
@@ -45,7 +45,8 @@ enum JobNotice: Equatable {
 /// while being watched, so launching never announces an old result.
 struct JobNotices {
     /// The core's error for a download someone stopped themselves.
-    static let cancelled = "Cancelled"
+    /// Spelled as src/hvsc_sync.rs reports it, so it stays British.
+    static let canceled = "Cancelled"
     /// Subtunes left for a scan to be worth a notice or a permission prompt:
     /// a new HVSC release's few hundred pass unremarked.
     static let longScan = 1000
@@ -59,7 +60,7 @@ struct JobNotices {
         if let sync {
             if downloading, !sync.running {
                 if let error = sync.error {
-                    if error != Self.cancelled { notices.append(.downloadFailed(error)) }
+                    if error != Self.canceled { notices.append(.downloadFailed(error)) }
                 } else {
                     notices.append(.downloadFinished(release: release))
                 }
@@ -90,7 +91,7 @@ struct JobNotices {
     }
 }
 
-/// How far the job the Dock icon shows has got: the download while there is
+/// How far the job the Dock icon shows has gotten: the download while there is
 /// one, else the scan; nil with neither, or the scan paused.
 enum JobProgress {
     static func fraction(sync: HvscSyncStatus?, scan: FingerprintScanStatus?) -> Double? {
@@ -126,7 +127,7 @@ final class JobWatcher: NSObject, UNUserNotificationCenterDelegate {
     func start() {
         let center = UNUserNotificationCenter.current()
         center.delegate = self
-        let retry = UNNotificationAction(identifier: Self.retryAction, title: "Retry")
+        let retry = UNNotificationAction(identifier: Self.retryAction, title: String(localized: "Retry"))
         center.setNotificationCategories([
             UNNotificationCategory(identifier: Self.failedCategory, actions: [retry], intentIdentifiers: []),
         ])

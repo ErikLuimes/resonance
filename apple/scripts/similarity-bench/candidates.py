@@ -51,14 +51,14 @@ def save(path: str, paths, subtunes, vectors, metric="cosine"):
     print(f"{path}: {np.shape(vectors)}")
 
 
-def standardise(x: np.ndarray) -> np.ndarray:
+def standardize(x: np.ndarray) -> np.ndarray:
     std = x.std(axis=0)
     std[std < 1e-9] = np.inf
     return (x - x.mean(axis=0)) / std
 
 
 def cmd_b(args):
-    """A's standardised, weighted features plus the new ones at A's typical weight."""
+    """A's standardized, weighted features plus the new ones at A's typical weight."""
     wanted = None
     if args.subset:
         with open(args.subset) as f:
@@ -79,8 +79,8 @@ def cmd_b(args):
     if args.drop:
         columns = [i for i in range(extra.shape[1]) if str(i) not in args.drop.split(",")]
         extra = extra[:, columns]
-    a = standardise(features[keep]) * corpus.WEIGHTS
-    b = np.hstack([a, standardise(extra) * float(corpus.WEIGHTS.mean())])
+    a = standardize(features[keep]) * corpus.WEIGHTS
+    b = np.hstack([a, standardize(extra) * float(corpus.WEIGHTS.mean())])
     save(args.out, rows.paths[keep], rows.subtunes[keep], b)
 
 
@@ -119,7 +119,7 @@ def cmd_mfcc(args):
         paths.append(path)
         subtunes.append(subtune)
         vectors.append(np.hstack([c.mean(0), c.std(0), delta.std(0)]))
-    save(args.out, paths, subtunes, standardise(np.array(vectors, dtype=np.float32)))
+    save(args.out, paths, subtunes, standardize(np.array(vectors, dtype=np.float32)))
 
 
 def load(path):

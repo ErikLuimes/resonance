@@ -184,8 +184,8 @@ struct NowPlayingBar: View {
     nonisolated static func songTitle(_ entry: STILEntry?, song: Int) -> String {
         let section = entry?.sections.first { $0.subtune == song }
         let name = section?.names.first
-            ?? (section?.isMedley == true ? "Medley" : section?.covers.compactMap(\.title).first)
-        return name.map { "Song \(song): \($0)" } ?? "Song \(song)"
+            ?? (section?.isMedley == true ? String(localized: "Medley") : section?.covers.compactMap(\.title).first)
+        return name.map { String(localized: "Song \(song): \($0)") } ?? String(localized: "Song \(song)")
     }
 
     /// A speaker button that shows the level, like Music's; a click slides
@@ -254,7 +254,7 @@ struct NowPlayingBar: View {
 /// whatever scrolls under it shows through anything lighter.
 /// The transport's shuffle switch, in the bar and the menu bar player.
 /// Both modes read the same way: bright like the other buttons when on
-/// (the accent colour didn't read on the glass), dimmed when off.
+/// (the accent color didn't read on the glass), dimmed when off.
 struct ShuffleButton: View {
     @Environment(PlayerStore.self) private var store
 
@@ -324,7 +324,7 @@ private struct ProgressRow: View {
     private var seeking: Bool { store.seeking }
     private var seekPosition: TimeInterval? { store.seekPosition }
 
-    private static let how = "Drag or click to a point in the tune. The sound pauses while the engine runs there, about a second per minute of tune."
+    private static let how = String(localized: "Drag or click to a point in the tune. The sound pauses while the engine runs there, about a second per minute of tune.")
 
     var body: some View {
         HStack(spacing: 8) {
@@ -345,7 +345,7 @@ private struct ProgressRow: View {
             )
             // The row's height, so the thin bar is easy to hit.
             .frame(height: 14)
-            .help(canSeek ? Self.how : "The \(engine.displayName) engine can't scrub. Click for why.")
+            .help(canSeek ? Self.how : String(localized: "The \(engine.displayName) engine can't scrub. Click for why."))
             Text(duration.map { (durationIsEstimate ? "~" : "") + format($0) } ?? "--:--")
                 .help(lengthHelp)
         }
@@ -355,8 +355,8 @@ private struct ProgressRow: View {
     }
 
     private var lengthHelp: String {
-        if duration == nil { return "This tune isn't in HVSC's song lengths, and Resonance hasn't worked its length out yet." }
-        return durationIsEstimate ? "This tune isn't in HVSC's song lengths. Resonance worked this length out by running the tune, so it may be off." : ""
+        if duration == nil { return String(localized: "This tune isn't in HVSC's song lengths, and Resonance hasn't worked its length out yet.") }
+        return durationIsEstimate ? String(localized: "This tune isn't in HVSC's song lengths. Resonance worked this length out by running the tune, so it may be off.") : ""
     }
 
     private func format(_ t: TimeInterval) -> String {

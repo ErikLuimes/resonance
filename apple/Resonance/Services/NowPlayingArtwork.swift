@@ -5,7 +5,7 @@ import SwiftUI
 
 /// The picture macOS shows beside the tune in Now Playing: the tune's own
 /// fingerprint sphere, or before it's scanned (or outside HVSC) its
-/// composer's colours. Never their photo: those are Debug-only, and their
+/// composer's colors. Never their photo: those are Debug-only, and their
 /// licenses ask for a credit this has nowhere to show.
 enum NowPlayingArtwork {
     /// Points, not pixels: the sphere's dots are a fixed size, so this keeps

@@ -14,7 +14,7 @@ const CLIPS: [u64; 6] = [2, 4, 8, 15, 30, 60];
 
 /// Today's tune, the same for everyone with the same list.
 pub fn daily_index(day: u64, pool: usize) -> usize {
-    // FNV-1a, so neighbouring days don't pick neighbouring tunes.
+    // FNV-1a, so neighboring days don't pick neighboring tunes.
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
     for byte in day.to_le_bytes() {
         hash ^= u64::from(byte);
@@ -234,7 +234,7 @@ mod tests {
     }
 
     #[test]
-    fn an_empty_list_doesnt_crash_the_maths() {
+    fn an_empty_list_doesnt_crash_the_math() {
         assert_eq!(daily_index(1, 0), 0);
     }
 

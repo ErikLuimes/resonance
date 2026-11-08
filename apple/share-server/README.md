@@ -7,7 +7,7 @@ for the start song:
 
 - `GET /t/<code>` — a page with Open Graph and Twitter tags (title
   "Commando — Rob Hubbard", the preview card as `og:image`), the tune's
-  fingerprint sphere turning (a canvas script with the app's maths; the
+  fingerprint sphere turning (a canvas script with the app's math; the
   card instead when the index has no fingerprint), an
   **Open in Resonance** button (`resonance://tune/<md5>?s=&v=&p=&t=&a=`)
   and **Download Resonance**. Unknown MD5s get a 404 page with the generic

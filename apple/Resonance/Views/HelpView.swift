@@ -18,7 +18,7 @@ struct HelpView: View {
                 ForEach(HelpTopic.Group.allCases, id: \.self) { group in
                     let topics = shown.filter { $0.group == group }
                     if !topics.isEmpty {
-                        Section(group.rawValue) {
+                        Section(group.title) {
                             ForEach(topics) { topic in
                                 Label(topic.title, systemImage: topic.symbol)
                                     .tag(topic.id)

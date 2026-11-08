@@ -68,11 +68,11 @@ impl Stream {
 }
 
 /// How long `song` (1-based) of a tune lasts; `None` when running it didn't
-/// tell, or `cancelled` said to stop.
+/// tell, or `canceled` said to stop.
 pub fn estimate_length(
     data: &[u8],
     song: u16,
-    cancelled: &dyn Fn() -> bool,
+    canceled: &dyn Fn() -> bool,
 ) -> Result<Option<LengthEstimate>, String> {
     let mut player = Player::new()?;
     player.load_bytes(data)?;
@@ -90,7 +90,7 @@ pub fn estimate_length(
     let check_every = (CHECK_EVERY_SECS * FRAMES_PER_SEC) as usize;
 
     for frame in 0..(CAP_SECS * FRAMES_PER_SEC) as usize {
-        if frame % 50 == 0 && cancelled() {
+        if frame % 50 == 0 && canceled() {
             return Ok(None);
         }
         if player.render(&mut audio) < audio.len() / 2 {
@@ -370,7 +370,7 @@ mod tests {
     }
 
     #[test]
-    fn cancelling_stops_the_run() {
+    fn canceling_stops_the_run() {
         let tune = residfp_sys::testing::tiny_psid(1);
         assert_eq!(estimate_length(&tune, 1, &|| true).unwrap(), None);
     }

@@ -1,11 +1,11 @@
 import SwiftUI
 import PhosphorCore
 
-/// Favourites, or one of your playlists: a header with its name and count, then
-/// its tunes. Tunes can be taken out of a playlist (a favourite
+/// Favorites, or one of your playlists: a header with its name and count, then
+/// its tunes. Tunes can be taken out of a playlist (a favorite
 /// is un-hearted instead).
 struct UserPlaylistView: View {
-    /// Nil for Favourites.
+    /// Nil for Favorites.
     let playlist: UserPlaylist?
 
     @Environment(PlaylistsStore.self) private var playlists
@@ -13,9 +13,9 @@ struct UserPlaylistView: View {
     /// The list's own filter.
     @State private var filter = ""
 
-    private var id: String { playlist?.id ?? PlaylistsStore.favouritesID }
+    private var id: String { playlist?.id ?? PlaylistsStore.favoritesID }
     private var source: PlaybackSource {
-        playlist.map { .playlist(id: $0.id, name: $0.name) } ?? .favourites
+        playlist.map { .playlist(id: $0.id, name: $0.name) } ?? .favorites
     }
 
     var body: some View {
@@ -39,7 +39,7 @@ struct UserPlaylistView: View {
         if let rows = playlists.rows[id] {
             if rows.isEmpty {
                 ContentUnavailableView {
-                    Label(playlist == nil ? "No Favourites Yet" : "Empty Playlist",
+                    Label(playlist == nil ? "No Favorites Yet" : "Empty Playlist",
                           systemImage: playlist == nil ? "heart" : "music.note.list")
                 } description: {
                     Text(playlist == nil
@@ -50,8 +50,8 @@ struct UserPlaylistView: View {
             } else {
                 let shown = filtered(rows.numbered())
                 LibraryTable(rows: shown, source: source, onRemove: remove,
-                             removeTitle: playlist == nil ? "Remove from Favourites" : "Remove from Playlist",
-                             // Favourites keep the order they were hearted in.
+                             removeTitle: playlist == nil ? String(localized: "Remove from Favorites") : String(localized: "Remove from Playlist"),
+                             // Favorites keep the order they were hearted in.
                              onPlace: playlist == nil || !query.isEmpty ? nil : { files, offset in
                                  place(files, at: offset, among: shown)
                              },
@@ -70,7 +70,7 @@ struct UserPlaylistView: View {
     }
 
     private var header: some View {
-        PlaylistHeader(title: source.name, tunes: playlists.rows[id]?.count, isFavourites: playlist == nil)
+        PlaylistHeader(title: source.name, tunes: playlists.rows[id]?.count, isFavorites: playlist == nil)
     }
 
     private func listActions(_ rows: [LibraryRow]) -> some View {
@@ -91,7 +91,7 @@ struct UserPlaylistView: View {
         if let playlist {
             playlists.remove(ids, from: playlist)
         } else {
-            Task { for path in ids { await playlists.setFavourite(path, false) } }
+            Task { for path in ids { await playlists.setFavorite(path, false) } }
         }
     }
 
@@ -112,17 +112,17 @@ struct PlaylistHeader: View {
     let title: String
     /// Nil until the list has loaded.
     let tunes: Int?
-    var isFavourites = false
+    var isFavorites = false
 
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
-            Image(systemName: isFavourites ? "heart.fill" : "music.note.list")
+            Image(systemName: isFavorites ? "heart.fill" : "music.note.list")
                 .font(.system(size: 30, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.92))
                 .frame(width: 76, height: 76)
                 .background(
                     LinearGradient(
-                        colors: isFavourites
+                        colors: isFavorites
                             ? [Color(red: 1, green: 0.42, blue: 0.55), Color(red: 0.78, green: 0.25, blue: 0.62)]
                             : [Color(red: 0.42, green: 0.48, blue: 1), Color(red: 155 / 255, green: 107 / 255, blue: 1.0)],
                         startPoint: .topLeading,

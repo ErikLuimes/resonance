@@ -1,5 +1,5 @@
 /* Resonance — website styles.
-   Dark only, like the app icon. The three voice colours come from the
+   Dark only, like the app icon. The three voice colors come from the
    icon's layers (Resonance/AppIcon.icon). */
 
 :root {
@@ -139,7 +139,7 @@ kbd {
 kbd.wide { min-width: 5.5em; }
 kbd + kbd { margin-left: 0.25em; }
 
-/* Aurora: three blurred orbs in the voice colours. They breathe with the
+/* Aurora: three blurred orbs in the voice colors. They breathe with the
    demo (--l1…--l3 are its voice levels). */
 .aurora {
   position: fixed;
@@ -484,7 +484,7 @@ h3 { margin: 0; letter-spacing: -0.02em; }
 .tile h3 kbd { margin-left: 4px; font-size: 0.72em; }
 
 /* Scrubbing, on a seven-second loop: playing at 1:30, the pointer comes
-   in and clicks at 2:05 (a dip in scale), grey marks the target, the engine
+   in and clicks at 2:05 (a dip in scale), gray marks the target, the engine
    winds up to it over two seconds, the sound is back, play goes on. */
 .seek-art { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 22px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .sa-time { min-width: 32px; }
@@ -874,7 +874,7 @@ html.js [data-reveal].in { opacity: 1; transform: none; }
 .vis-card h3 { margin: 0 0 6px; font-size: 1.05rem; color: var(--c); }
 .vis-card p { margin: 0; color: var(--muted); font-size: 14.5px; line-height: 1.5; }
 
-/* Voice themes, under the visualizers they colour. */
+/* Voice themes, under the visualizers they color. */
 .theme-strip { margin-top: 28px; text-align: center; }
 .theme-strip p { margin: 0 0 14px; color: var(--muted); font-size: 15px; }
 .swatches { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 0; padding: 0; list-style: none; }

@@ -2,8 +2,8 @@ import SwiftUI
 import PhosphorCore
 
 /// The About window, in the Mac's classic shape: the icon, the name and
-/// version, a line on what it is, who it's built on, the licence, and
-/// buttons to the acknowledgements, the website and the source. A fixed
+/// version, a line on what it is, who it's built on, the license, and
+/// buttons to the acknowledgments, the website and the source. A fixed
 /// width, so the window's size follows its text and nothing else.
 struct AboutView: View {
     @Environment(\.openWindow) private var openWindow
@@ -44,7 +44,7 @@ struct AboutView: View {
             .foregroundStyle(.secondary)
             .padding(.top, 14)
 
-            Text("© 2026 Erik Luimes. MIT licence; distributed under the GNU GPL, version 3.")
+            Text("© 2026 Erik Luimes. MIT license; distributed under the GNU GPL, version 3.")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .padding(.top, 14)
@@ -52,7 +52,7 @@ struct AboutView: View {
             VStack(spacing: 8) {
                 HStack(spacing: 8) {
                     Button("Credits") { openWindow(id: CreditsView.windowID) }
-                    Button("Acknowledgements") { openWindow(id: AcknowledgementsView.windowID) }
+                    Button("Acknowledgments") { openWindow(id: AcknowledgmentsView.windowID) }
                 }
                 HStack(spacing: 8) {
                     Button("Website") { openURL(Self.website) }
@@ -99,16 +99,16 @@ extension AboutView {
     static let windowID = "about"
 }
 
-/// The licences of the open-source code built into the app, from
-/// Acknowledgements.txt (scripts/acknowledgements.sh writes it). One Text
-/// per licence, lazily: the whole file is too long for one.
-struct AcknowledgementsView: View {
-    static let windowID = "acknowledgements"
+/// The licenses of the open-source code built into the app, from
+/// Acknowledgments.txt (scripts/acknowledgments.sh writes it). One Text
+/// per license, lazily: the whole file is too long for one.
+struct AcknowledgmentsView: View {
+    static let windowID = "acknowledgments"
 
     private let sections: [String] = {
-        guard let url = Bundle.main.url(forResource: "Acknowledgements", withExtension: "txt"),
+        guard let url = Bundle.main.url(forResource: "Acknowledgments", withExtension: "txt"),
               let text = try? String(contentsOf: url, encoding: .utf8)
-        else { return ["The acknowledgements are missing from this build."] }
+        else { return [String(localized: "The acknowledgments are missing from this build.")] }
         return text.components(separatedBy: "\n" + String(repeating: "-", count: 72) + "\n")
     }()
 

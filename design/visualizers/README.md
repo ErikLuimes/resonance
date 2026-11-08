@@ -7,8 +7,8 @@ Design reference for adding SID voice visualizers to Resonance, built iterativel
 | Path | What it is |
 |---|---|
 | `ROADMAP.md` | Phased plan. Each phase has a goal, the data it needs, acceptance criteria, the reference mockup, and a prompt to paste into Claude Code. |
-| `IMPLEMENTATION_NOTES.md` | How the mockup concepts map to Swift/macOS (SwiftUI Canvas, Metal, vDSP), the shared data model, colours and fonts. |
-| `reference/*.dc.html` | Source of every mockup from the design canvas. **Reference only**: they need the canvas runtime to render, but the JS in each `<script data-dc-script>` block holds the drawing maths (waveform shapes, envelope curves, ripples, spectrum mapping) you can port. |
+| `IMPLEMENTATION_NOTES.md` | How the mockup concepts map to Swift/macOS (SwiftUI Canvas, Metal, vDSP), the shared data model, colors and fonts. |
+| `reference/*.dc.html` | Source of every mockup from the design canvas. **Reference only**: they need the canvas runtime to render, but the JS in each `<script data-dc-script>` block holds the drawing math (waveform shapes, envelope curves, ripples, spectrum mapping) you can port. |
 
 The live canvas (all artboards, animated) stays here:
 https://claude.ai/artifact/DL8ku3K4EKLA6CmM6oKu8y

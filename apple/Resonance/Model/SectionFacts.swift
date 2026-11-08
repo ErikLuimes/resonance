@@ -15,12 +15,12 @@ nonisolated struct SectionIdentity: Equatable, Sendable {
 
     private var isUnknown: Bool { name.caseInsensitiveCompare("unknown") == .orderedSame }
 
-    private var tunesAreFrom: String { category == .demos ? "demos" : "games" }
+    private var tunesAreFrom: String { category == .demos ? String(localized: "demos") : String(localized: "games") }
 
     /// "Games A-F", "Unknown Composers", "Commodore".
     var title: String {
-        if isRange { return "\(category == .demos ? "Demos" : "Games") \(name)" }
-        return isUnknown ? "Unknown Composers" : name
+        if isRange { return category == .demos ? String(localized: "Demos \(name)") : String(localized: "Games \(name)") }
+        return isUnknown ? String(localized: "Unknown Composers") : name
     }
 
     /// What its tunes are, when the title doesn't say.
@@ -37,13 +37,13 @@ nonisolated struct SectionIdentity: Equatable, Sendable {
     var description: String? {
         if isRange {
             let ends = name.split(separator: "-")
-            let composers = "by composers with fewer than three tunes in HVSC"
-            return "Music from \(tunesAreFrom), filed \(ends[0]) to \(ends[1]) by title, "
-                + (category == .demos ? "\(composers)." : "\(composers), or none known.")
+            let composers = String(localized: "by composers with fewer than three tunes in HVSC")
+            return String(localized: "Music from \(tunesAreFrom), filed \(ends[0]) to \(ends[1]) by title, ")
+                + (category == .demos ? "\(composers)." : String(localized: "\(composers), or none known."))
         }
-        if isUnknown { return "Music from \(tunesAreFrom) whose composers aren't known." }
+        if isUnknown { return String(localized: "Music from \(tunesAreFrom) whose composers aren't known.") }
         if category == .demos, name == "Commodore" {
-            return "Mostly music from the C64's manuals and the test disks that came with its drives."
+            return String(localized: "Mostly music from the C64's manuals and the test disks that came with its drives.")
         }
         return nil
     }
@@ -79,7 +79,7 @@ nonisolated struct SectionFacts: Equatable, Sendable {
 
     init(rows: [LibraryRow], listLength: Int = 5) {
         let dated = rows.compactMap { row -> (year: Int, row: LibraryRow)? in
-            // A typo in a SID's header mustn't make a chart of centuries.
+            // A typo in a SID's header must not make a chart of centuries.
             guard let year = Int(row.year), (1970...2100).contains(year) else { return nil }
             return (year, row)
         }
@@ -125,35 +125,35 @@ nonisolated struct SectionFacts: Equatable, Sendable {
     var playingTime: String? {
         guard playingSeconds > 0 else { return nil }
         let minutes = (Double(playingSeconds) / 60).rounded()
-        if minutes < 1 { return "Under a minute" }
-        if minutes == 1 { return "About a minute" }
-        if minutes < 60 { return "About \(Int(minutes)) minutes" }
+        if minutes < 1 { return String(localized: "Under a minute") }
+        if minutes == 1 { return String(localized: "About a minute") }
+        if minutes < 60 { return String(localized: "About \(Int(minutes)) minutes") }
         let hours = (Double(playingSeconds) / 3600).rounded()
-        return hours == 1 ? "About an hour" : "About \(Int(hours).formatted()) hours"
+        return hours == 1 ? String(localized: "About an hour") : String(localized: "About \(Int(hours).formatted()) hours")
     }
 
     /// "On 247 tunes".
     var notes: String? {
         guard notedTunes > 0 else { return nil }
-        return notedTunes == 1 ? "On 1 tune" : "On \(notedTunes.formatted()) tunes"
+        return notedTunes == 1 ? String(localized: "On 1 tune") : String(localized: "On \(notedTunes.formatted()) tunes")
     }
 
     /// "62 tunes".
     var withoutExactYear: String? {
         guard undated > 0 else { return nil }
-        return undated == 1 ? "1 tune" : "\(undated.formatted()) tunes"
+        return undated == 1 ? String(localized: "1 tune") : String(localized: "\(undated.formatted()) tunes")
     }
 
     /// "Most in 1984: 90 tunes".
     var busiestText: String? {
-        busiest.map { "Most in \($0.year): \(Self.tunes($0.tunes))" }
+        busiest.map { String(localized: "Most in \(String($0.year)): \(Self.tunes($0.tunes))") }
     }
 
     static func tunes(_ count: Int) -> String {
         switch count {
-        case 0: "no tunes"
-        case 1: "1 tune"
-        default: "\(count.formatted()) tunes"
+        case 0: String(localized: "no tunes")
+        case 1: String(localized: "1 tune")
+        default: String(localized: "\(count.formatted()) tunes")
         }
     }
 }

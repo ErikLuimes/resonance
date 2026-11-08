@@ -437,7 +437,7 @@ impl Session {
 
     // ── Transport ─────────────────────────────────────────────────────────
 
-    /// main.rs `play_track`, minus the recently-played / heard / favourites
+    /// main.rs `play_track`, minus the recently-played / heard / favorites
     /// bookkeeping, karaoke, tracker and STIL. Plays row `idx` of the active
     /// list; `play_index` is the entry point for playlist rows.
     ///
@@ -520,7 +520,7 @@ impl Session {
         self.awaiting_play = None;
     }
 
-    /// Honours shuffle and repeat via `Playlist::next` — unlike the HTTP
+    /// Honors shuffle and repeat via `Playlist::next` — unlike the HTTP
     /// remote's `cur + 1` (main.rs:5301).
     pub fn next(&mut self, now: Instant) {
         if let Some(idx) = self.active_mut().next() {

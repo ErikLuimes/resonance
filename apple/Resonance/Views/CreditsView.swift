@@ -59,16 +59,16 @@ struct CreditsView: View {
         dismissWindow(id: Self.windowID)
     }
 
-    /// Credits need a soundtrack: Favourites if nothing's on, or else Surprise Me.
+    /// Credits need a soundtrack: Favorites if nothing's on, or else Surprise Me.
     /// Something paused is left alone, as that was someone's choice.
     private func startMusic() async {
         guard store.nowPlaying == nil || store.state == .stopped else { return }
-        await playlists.loadRows(PlaylistsStore.favouritesID)
-        let favourites = playlists.rows[PlaylistsStore.favouritesID] ?? []
-        if favourites.isEmpty {
+        await playlists.loadRows(PlaylistsStore.favoritesID)
+        let favorites = playlists.rows[PlaylistsStore.favoritesID] ?? []
+        if favorites.isEmpty {
             if library.hasRoot { await library.surpriseMe() }
         } else {
-            library.play(favourites, from: .favourites)
+            library.play(favorites, from: .favorites)
         }
     }
 
@@ -520,7 +520,7 @@ nonisolated enum CreditsScene {
         }
     }
 
-    /// Where each star ends up: on or inside a heart, x across, y up and z towards you. The
+    /// Where each star ends up: on or inside a heart, x across, y up and z toward you. The
     /// same surface as the particle heart on backtostatic.com.
     static let heartPlaces: [V] = {
         func surface(_ x: Double, _ y: Double, _ z: Double) -> Double {
@@ -637,7 +637,7 @@ nonisolated enum CreditsScene {
         let n = Double(star)
         let speed = 0.25 + 1.0 * hash(n * 29.3 + 1)
         let moved = speed * since * since / (since + 0.8)
-        // Dead centre has no way out of its own, so it's given one.
+        // Dead center has no way out of its own, so it's given one.
         let (a, b) = (hash(n * 53.1) * 2 * .pi, hash(n * 11.7 + 2) * .pi)
         let direction = reach > 0.05
             ? [place[0] / reach, place[1] / reach, place[2] / reach]
@@ -745,7 +745,7 @@ nonisolated enum CreditsScene {
         for (i, letter) in timing.line.enumerated() {
             let distance = arrives + (timing.places[i] - readSpeed * seconds - arrives) * (1 + wildness * 0.6)
             guard distance <= 7, distance >= -16 + wildness * 3, let shapes = font[letter] else { continue }
-            // Out of step with their neighbours by a little, never by how far along the line.
+            // Out of step with their neighbors by a little, never by how far along the line.
             let spin = turned(seconds, rate: spinRate, from: timing.lettersStart) + spinning * sin(Double(i) * 1.7) * 0.7
             let (cs, ss) = (cos(spin), sin(spin))
             let base = add(offset, along, distance)

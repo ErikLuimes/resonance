@@ -2,7 +2,7 @@ import Foundation
 import PhosphorCore
 
 /// The Halo's rings: each voice's radius at `samples` angles around the
-/// centre, rebuilt every display frame from its waveform, pulse width, note
+/// center, rebuilt every display frame from its waveform, pulse width, note
 /// and envelope (design/visualizers/reference/Halo.dc.html). The shader
 /// draws them; this decides their shape.
 ///
@@ -41,7 +41,7 @@ nonisolated final class HaloShape {
             let voice = v < voices.count ? voices[v] : nil
             let target = voice?.envLevel ?? 0
             levels[v] += (target - levels[v]) * follow
-            // Higher notes turn faster; neighbours turn opposite ways.
+            // Higher notes turn faster; neighbors turn opposite ways.
             let midi = voice.map { $0.midi > 0 ? $0.midi : 40 } ?? 40
             rotation[v] += dt * (0.12 + midi / 900) * (v % 2 == 0 ? 1 : -1)
 

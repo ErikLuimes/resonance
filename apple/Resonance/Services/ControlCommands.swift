@@ -86,7 +86,7 @@ final class ControlCommands {
         let elapsed: Double
         let duration: Double?
         let hasCollection: Bool
-        let favourite: Bool
+        let favorite: Bool
         /// The list it's playing from.
         let source: String?
     }
@@ -94,7 +94,7 @@ final class ControlCommands {
     struct PlaylistInfo: Encodable {
         let name: String
         let count: Int
-        let isFavourites: Bool
+        let isFavorites: Bool
     }
 
     struct Described: Encodable {
@@ -361,7 +361,7 @@ final class ControlCommands {
             return done()
         case "fav":
             let track = try playing()
-            await playlists.setFavourite(track.path, args.on ?? true)
+            await playlists.setFavorite(track.path, args.on ?? true)
             return answer(Tune(path: track.path, title: track.displayTitle, author: track.author, released: track.released))
         case "show":
             guard let path = args.path else { throw Failure("Which tune?") }
@@ -474,9 +474,9 @@ final class ControlCommands {
 
         // MARK: Playlists
         case "playlist.list":
-            if playlists.favourites == nil { await playlists.loadFavourites() }
-            var lists = [PlaylistInfo(name: "Favourites", count: playlists.favourites?.count ?? 0, isFavourites: true)]
-            lists += playlists.playlists.map { PlaylistInfo(name: $0.name, count: playlists.read($0).count, isFavourites: false) }
+            if playlists.favorites == nil { await playlists.loadFavorites() }
+            var lists = [PlaylistInfo(name: "Favorites", count: playlists.favorites?.count ?? 0, isFavorites: true)]
+            lists += playlists.playlists.map { PlaylistInfo(name: $0.name, count: playlists.read($0).count, isFavorites: false) }
             return answer(lists)
         case "playlist.show":
             return answer(try await tunes(of: try target(args.name)))
@@ -490,7 +490,7 @@ final class ControlCommands {
             guard let name = args.name, !name.isEmpty else { throw Failure("What should it be called?") }
             guard let made = playlists.create(named: name) else { throw Failure("Couldn't make \(name).") }
             if let paths = args.paths { await playlists.add(paths, to: .playlist(made.id)) }
-            return answer(PlaylistInfo(name: made.name, count: args.paths?.count ?? 0, isFavourites: false))
+            return answer(PlaylistInfo(name: made.name, count: args.paths?.count ?? 0, isFavorites: false))
         case "playlist.add":
             let list = try target(args.name)
             await playlists.add(args.paths ?? [], to: list.addTarget)
@@ -501,24 +501,24 @@ final class ControlCommands {
             if let own = list.playlist {
                 playlists.remove(Set(paths), from: own)
             } else {
-                for path in paths { await playlists.setFavourite(path, false) }
+                for path in paths { await playlists.setFavorite(path, false) }
             }
             return done()
         case "playlist.mv":
             let list = try target(args.name)
-            guard let own = list.playlist else { throw Failure("Favourites keeps its own order.") }
+            guard let own = list.playlist else { throw Failure("Favorites keeps its own order.") }
             playlists.place(args.paths ?? [], before: args.before, in: own)
             return done()
         case "playlist.rename":
             let list = try target(args.name)
-            guard let own = list.playlist else { throw Failure("Favourites keeps its name.") }
+            guard let own = list.playlist else { throw Failure("Favorites keeps its name.") }
             guard let to = args.to, playlists.rename(own, to: to) != nil else {
                 throw Failure("That name is empty or taken.")
             }
             return done()
         case "playlist.delete":
             let list = try target(args.name)
-            guard let own = list.playlist else { throw Failure("Favourites can't be deleted.") }
+            guard let own = list.playlist else { throw Failure("Favorites can't be deleted.") }
             playlists.delete(own)
             return done()
         default:
@@ -565,7 +565,7 @@ final class ControlCommands {
             elapsed: player.elapsed,
             duration: player.duration,
             hasCollection: player.hasCollection,
-            favourite: track.map { playlists.isFavourite($0.path) } ?? false,
+            favorite: track.map { playlists.isFavorite($0.path) } ?? false,
             source: player.source?.name
         )
     }
@@ -702,25 +702,25 @@ final class ControlCommands {
                          facts: SmartFacts.tunes(items.count, secs: made.totalSecs), tunes: items.map { Tune($0) })
     }
 
-    /// Favourites or one of your playlists, by name.
+    /// Favorites or one of your playlists, by name.
     struct Target {
         let name: String
-        /// Nil for Favourites.
+        /// Nil for Favorites.
         let playlist: UserPlaylist?
 
         var source: PlaybackSource {
-            playlist.map { .playlist(id: $0.id, name: $0.name) } ?? .favourites
+            playlist.map { .playlist(id: $0.id, name: $0.name) } ?? .favorites
         }
 
         var addTarget: AddTarget {
-            playlist.map { .playlist($0.id) } ?? .favourites
+            playlist.map { .playlist($0.id) } ?? .favorites
         }
     }
 
     private func target(_ name: String?) throws -> Target {
         guard let name, !name.isEmpty else { throw Failure("Which playlist?") }
         if ["favourites", "favorites"].contains(name.lowercased()) {
-            return Target(name: "Favourites", playlist: nil)
+            return Target(name: "Favorites", playlist: nil)
         }
         let matches = playlists.playlists.filter { $0.name.compare(name, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame }
         guard let found = matches.first else { throw Failure("You have no playlist called \(name).") }
@@ -728,7 +728,7 @@ final class ControlCommands {
     }
 
     private func tunes(of list: Target) async throws -> [Tune] {
-        let id = list.playlist?.id ?? PlaylistsStore.favouritesID
+        let id = list.playlist?.id ?? PlaylistsStore.favoritesID
         await playlists.loadRows(id)
         return (playlists.rows[id] ?? []).map { Tune($0.item) }
     }

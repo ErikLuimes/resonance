@@ -42,7 +42,7 @@ list.
 | Python reference | Runs on the full STIL v85 (18,898 entries, ~1 s); all 15 fixtures pass |
 | Swift `STILKit` | Builds on macOS and in Xcode. All fixture tests pass, and its output is **identical to the Python reference for all 18,898 entries** of STIL v85 (about 1 s to parse and enrich everything in a release build) |
 | Fixtures | Generated from a pristine STIL v85 (Latin-1), so accented names are intact |
-| Design | Dark mode artboards; the app derives light mode from system colours |
+| Design | Dark mode artboards; the app derives light mode from system colors |
 
 ## Regenerate the fixtures
 

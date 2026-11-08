@@ -234,7 +234,7 @@ impl Sphere {
             return viz::ink(voice, (total * 4.0) as usize, false);
         }
         // Light builds up softly, so the rim, where the most points overlap, keeps the
-        // voices' colours and doesn't burn out to white.
+        // voices' colors and doesn't burn out to white.
         let soft = (1.0 - (-total * SOFTNESS).exp()) / total;
         // Rounded, so that fewer cells change from frame to frame.
         let channel = |pick: fn(&(f32, f32, f32)) -> f32| {
@@ -440,7 +440,7 @@ mod tests {
     }
 
     #[test]
-    fn colours_add_up_where_voices_meet() {
+    fn colors_add_up_where_voices_meet() {
         let mut sphere = sphere(10, 5);
         sphere.light[0] = [0.5, 0.0, 0.0];
         sphere.light[1] = [0.5, 0.5, 0.0];
@@ -452,7 +452,7 @@ mod tests {
     }
 
     #[test]
-    fn the_brightest_rim_keeps_its_voices_colour() {
+    fn the_brightest_rim_keeps_its_voices_color() {
         let mut sphere = sphere(10, 5);
         sphere.light[0] = [30.0, 0.0, 0.0];
         let Color::Rgb(r, g, b) = sphere.color(0, true) else { panic!() };

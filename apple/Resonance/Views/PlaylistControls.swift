@@ -32,32 +32,32 @@ struct PlayingFrom: View {
     }
 }
 
-/// A heart that makes the tune a favourite, or not.
-struct FavouriteButton: View {
+/// A heart that makes the tune a favorite, or not.
+struct FavoriteButton: View {
     let path: String
 
     @Environment(PlaylistsStore.self) private var playlists
 
     var body: some View {
-        let on = playlists.isFavourite(path)
+        let on = playlists.isFavorite(path)
         Button {
-            Task { await playlists.setFavourite(path, !on) }
+            Task { await playlists.setFavorite(path, !on) }
         } label: {
             Image(systemName: on ? "heart.fill" : "heart")
                 .foregroundStyle(on ? AnyShapeStyle(.pink) : AnyShapeStyle(.secondary))
                 .contentTransition(.symbolEffect(.replace))
         }
         .buttonStyle(.borderless)
-        .help(on ? "Remove from Favourites" : "Add to Favourites")
-        .accessibilityLabel(on ? "Remove from Favourites" : "Add to Favourites")
+        .help(on ? "Remove from Favorites" : "Add to Favorites")
+        .accessibilityLabel(on ? "Remove from Favorites" : "Add to Favorites")
     }
 }
 
-/// Add to…: a popover to add tunes to My Playlist, Favourites or one of
+/// Add to…: a popover to add tunes to My Playlist, Favorites or one of
 /// your playlists, found by typing; a name nobody has yet makes a new one.
 struct AddToButton: View {
     let files: [String]
-    var label = "Add to…"
+    var label = String(localized: "Add to…")
 
     @State private var showing = false
 
@@ -85,11 +85,11 @@ private struct AddToPopover: View {
                 .focused($focused)
                 .onSubmit(submit)
                 .padding(.bottom, 6)
-            if matches("My Playlist") {
-                row("My Playlist", symbol: "music.note.list") { add(.myPlaylist) }
+            if matches(String(localized: "My Playlist")) {
+                row(String(localized: "My Playlist"), symbol: "music.note.list") { add(.myPlaylist) }
             }
-            if matches("Favourites") {
-                row("Favourites", symbol: "heart") { add(.favourites) }
+            if matches(String(localized: "Favorites")) {
+                row(String(localized: "Favorites"), symbol: "heart") { add(.favorites) }
             }
             let shown = playlists.recentlyUsed.filter { matches($0.name) }
             if !shown.isEmpty {
@@ -119,7 +119,7 @@ private struct AddToPopover: View {
 
     private var trimmed: String { query.trimmingCharacters(in: .whitespaces) }
 
-    private var newTitle: String { trimmed.isEmpty ? "New Playlist" : "New Playlist “\(trimmed)”" }
+    private var newTitle: String { trimmed.isEmpty ? String(localized: "New Playlist") : String(localized: "New Playlist “\(trimmed)”") }
 
     private func matches(_ name: String) -> Bool {
         trimmed.isEmpty || name.localizedCaseInsensitiveContains(trimmed)
@@ -172,7 +172,7 @@ private struct AddToRowStyle: ButtonStyle {
 }
 
 /// The Add to submenu for context menus, which can't hold a search field:
-/// My Playlist, Favourites, your playlists (latest first), New Playlist.
+/// My Playlist, Favorites, your playlists (latest first), New Playlist.
 struct AddToMenu: View {
     let files: [String]
 
@@ -181,7 +181,7 @@ struct AddToMenu: View {
     var body: some View {
         Menu("Add to") {
             Button("My Playlist") { add(.myPlaylist) }
-            Button("Favourites") { add(.favourites) }
+            Button("Favorites") { add(.favorites) }
             if !playlists.playlists.isEmpty {
                 Divider()
                 ForEach(playlists.recentlyUsed.prefix(12)) { playlist in
@@ -255,7 +255,7 @@ struct ListBar<Actions: View, Extra: View>: View {
                 .monospacedDigit()
                 .lineLimit(1)
                 .fixedSize()
-            AccentLink("Clear") { sound = [] }
+            AccentLink(String(localized: "Clear")) { sound = [] }
                 .fixedSize()
         }
     }
@@ -290,9 +290,9 @@ struct SoundMenu: View {
 
     private var title: String {
         switch selection.count {
-        case 0: "Sound"
-        case 1: selection.first?.name ?? "Sound"
-        default: "Sound: \(selection.count)"
+        case 0: String(localized: "Sound")
+        case 1: selection.first?.name ?? String(localized: "Sound")
+        default: String(localized: "Sound: \(selection.count)")
         }
     }
 
@@ -327,7 +327,7 @@ struct SoundMenu: View {
 
 /// A list's Play: small, and the same everywhere.
 struct ListPlayButton: View {
-    var title = "Play"
+    var title = String(localized: "Play")
     var isDisabled = false
     let play: () -> Void
 

@@ -1,7 +1,7 @@
 import Foundation
 
 /// Thin wrapper over NSRegularExpression with named groups and UTF-16 safe slicing.
-/// (NSRegularExpression is used instead of Swift Regex so behaviour matches ICU
+/// (NSRegularExpression is used instead of Swift Regex so behavior matches ICU
 /// across macOS versions; patterns are ICU syntax: named groups are (?<name>…).)
 struct Rx: @unchecked Sendable {
     let re: NSRegularExpression

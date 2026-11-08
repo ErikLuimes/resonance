@@ -101,12 +101,12 @@ struct UpdateFailureTests {
         #expect(try message(5000) == "Updating stopped: Why.")
     }
 
-    @Test func noUpdateAndCancellingArentFailures() {
+    @Test func noUpdateAndCancelingArentFailures() {
         for code in [1001, 4007, 4008] {
             #expect(UpdateFailure(error: sparkleError(code), updateVersion: nil, appVersion: "1") == nil)
         }
-        let cancelled = NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled)
-        #expect(UpdateFailure(error: sparkleError(2001, underlying: cancelled), updateVersion: nil, appVersion: "1") == nil)
+        let canceled = NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled)
+        #expect(UpdateFailure(error: sparkleError(2001, underlying: canceled), updateVersion: nil, appVersion: "1") == nil)
     }
 
     @Test func aDownloadsTokenStaysOutOfTheDetails() throws {
@@ -115,7 +115,7 @@ struct UpdateFailureTests {
         #expect(failure.url == "https://release-assets.example.com/a.dmg")
     }
 
-    /// Being offline at the daily check isn't worth a row, and mustn't wipe a
+    /// Being offline at the daily check isn't worth a row, and must not wipe a
     /// real failure. Asking for a check and being told it failed is.
     @Test func aDailyCheckThatsOfflineChangesNothing() {
         let offline = NSError(domain: NSURLErrorDomain, code: NSURLErrorNotConnectedToInternet)

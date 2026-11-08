@@ -86,7 +86,7 @@ nonisolated struct SmartUnderstanding: Hashable, Sendable {
         let tunes = seedTitles.isEmpty ? tuneNames : seedTitles
         if !tunes.isEmpty { parts.append("sounds like \(Self.list(tunes))") }
         if let titleWords { parts.append("with “\(titleWords)” in the title") }
-        if unlikeHeard { parts.append("different to what you've heard before") }
+        if unlikeHeard { parts.append("different from what you've heard before") }
         switch shape {
         case .rising: parts.append("starts calm, ends intense")
         case .falling: parts.append("starts intense, ends calm")
@@ -920,7 +920,7 @@ extension LibraryStore {
         smartSettings = next
     }
 
-    /// Nothing in the sentence was recognised: its whole name as a tune, a word
+    /// Nothing in the sentence was recognized: its whole name as a tune, a word
     /// of it in titles, else a random mix. Whichever it is, it's said.
     private func bestGuess(_ sentence: String) async -> (SmartUnderstanding, SmartSettings.Seed?, String?) {
         let core = player.core

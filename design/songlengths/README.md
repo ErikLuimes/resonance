@@ -33,7 +33,7 @@ Songlengths.md5 (research bench, seed below), 2026-11-06:
 | Loop, note-ons, 2 copies | 41.0% | 51.0% | 26.3% | 8.7% | 14.0% |
 | Loop, note-ons, 3 copies | 53.3% | 62.3% | 8.0% | 8.7% | 21.0% |
 
-Worked out afterwards from the same runs:
+Worked out afterward from the same runs:
 
 | Combination (earliest answer wins) | Within 3 s | Within 10% | Too short | Too long | No answer |
 | --- | --- | --- | --- | --- | --- |
