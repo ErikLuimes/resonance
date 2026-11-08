@@ -380,7 +380,7 @@ private struct FingerprintSettings: View {
     }
 }
 
-/// The play history Resonance shares with Phosphor, and clearing it.
+/// The play history, and clearing it.
 private struct HistorySettings: View {
     @Environment(LibraryStore.self) private var library
     @State private var confirmingClear = false

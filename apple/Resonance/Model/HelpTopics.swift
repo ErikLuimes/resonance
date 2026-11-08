@@ -627,7 +627,7 @@ extension HelpTopic {
                 .link(.settings(.appearance)),
                 .heading("HVSC"),
                 .bullets([
-                    "The HVSC folder: choose another, or use the one Phosphor downloaded.",
+                    "The HVSC folder: choose another.",
                     "The release you have, updates, and downloading the collection again to restore missing or damaged files.",
                     "Sound fingerprints: how far the scan has got, Pause and Resume, Rebuild All, and the published set.",
                 ]),
@@ -666,9 +666,6 @@ extension HelpTopic {
                 .link(.settings(.integrations)),
                 .heading("An assistant can't reach Resonance"),
                 .paragraph("Assistants need the command line tool. Install it, then use **Copy Command** in Settings → Integrations again: it has the tool's full path, because an assistant may not look in the same folders as your terminal."),
-                .heading("Coming from Phosphor"),
-                .paragraph("Resonance is its own app, built on Phosphor's engine, and keeps its own favourites, history, playlists, settings and collection. It doesn't read Phosphor's: to use the same HVSC collection, choose Phosphor's HVSC folder in Settings → HVSC."),
-                .link(.settings(.collection)),
                 .note(title: "Still stuck?",
                       text: "Resonance is in alpha. Report problems on GitHub, from Help → Report a Problem, with what you did and what happened."),
             ],

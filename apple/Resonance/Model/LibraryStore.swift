@@ -177,7 +177,7 @@ final class LibraryStore {
         if Int(heard) != heardCount { heardCount = Int(heard) }
     }
 
-    /// Empty the play history (Phosphor's too: the apps share it).
+    /// Empty the play history.
     func clearRecent() async {
         await core.clearRecentlyPlayed()
         await loadRecent()
