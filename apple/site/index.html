@@ -21,8 +21,8 @@
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <!-- ?v= changes with each site update, so a browser that cached the last
        one fetches the new files instead of mixing old and new. -->
-  <link rel="stylesheet" href="styles.css?v=20261105b">
-  <link rel="modulepreload" href="js/main.js?v=20261104h">
+  <link rel="stylesheet" href="styles.css?v=20261108a">
+  <link rel="modulepreload" href="js/main.js?v=20261108a">
   <script>
     // Sections fade in as main.js reveals them. If it never runs (a failed
     // or stale script), show everything rather than an empty page.
@@ -460,9 +460,12 @@
 
           <div class="integration-panels">
             <div class="integration-panel" role="tabpanel" id="panel-terminal" aria-labelledby="tab-terminal">
-              <figure class="media media-still">
-                <div class="media-soon" aria-hidden="true"><svg class="i"><use href="#i-waveform"/></svg><span>The terminal app</span><small>Screenshot coming soon</small></div>
-                <img src="media/integration-terminal.png" alt="The Resonance terminal app, with playlists, a list of tunes and their fingerprints, and the three voices" loading="lazy">
+              <figure class="media media-still media-carousel" data-carousel aria-roledescription="carousel" aria-label="The terminal app">
+                <div class="media-soon" aria-hidden="true"><svg class="i"><use href="#i-waveform"/></svg><span>The terminal app</span></div>
+                <img src="media/integration-terminal-home.webp" alt="The Resonance terminal app: the library and playlists, Favourites, and the tune playing" loading="lazy">
+                <img src="media/integration-terminal-viz-fire.webp" alt="The terminal app full screen: fire in the three voices' colours, over the tune playing" loading="lazy">
+                <img src="media/integration-terminal-viz-sphere.webp" alt="The terminal app full screen: a turning sphere of points" loading="lazy">
+                <img src="media/integration-terminal-viz-water.webp" alt="The terminal app full screen: water rippling to the music" loading="lazy">
               </figure>
               <p>Run <code>resonance</code> for your playlists, search, Sounds Like and the three voices. Then take the music full screen: fire, Tesla coils, a pool, and a skull that chomps on the hits. Install it from Settings → Integrations.</p>
             </div>
@@ -798,6 +801,6 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
     </div>
   </footer>
 
-  <script type="module" src="js/main.js?v=20261104h"></script>
+  <script type="module" src="js/main.js?v=20261108a"></script>
 </body>
 </html>

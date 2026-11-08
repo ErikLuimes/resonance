@@ -927,6 +927,46 @@ html.js [data-reveal].in { opacity: 1; transform: none; }
   transition: opacity 0.5s var(--ease);
 }
 .media-still.is-ready img { opacity: 1; }
+/* Several screenshots in one frame: one at a time, cross-fading, with dots
+   to pick one (main.js). */
+.media-carousel.is-ready img { opacity: 0; }
+.media-carousel.is-ready img.is-current { opacity: 1; }
+.media-carousel img { transition-duration: 0.9s; }
+.carousel-dots {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: rgba(10, 11, 18, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.carousel-dots button {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.carousel-dots button::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  transition: background 0.2s, transform 0.2s;
+}
+.carousel-dots button:hover::before { background: rgba(255, 255, 255, 0.6); }
+.carousel-dots button[aria-current="true"]::before { background: #fff; transform: scale(1.15); }
+.carousel-dots button:focus-visible { outline: 2px solid var(--v1); outline-offset: 1px; }
 .media.media-still.is-ready .media-sound { display: none; }
 
 @media (max-width: 1080px) {
