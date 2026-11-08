@@ -145,7 +145,7 @@ SHIPPED_FLAGS="$("$APPLE/scripts/feature-flags.sh" conditions "$STAGE")"
 for TEST_FLAGS in "DEBUG${SHIPPED_FLAGS:+ $SHIPPED_FLAGS}" DEBUG; do
     if [ "${TESTED_FLAGS:-}" = "$TEST_FLAGS" ]; then continue; fi
     TESTED_FLAGS="$TEST_FLAGS"
-    echo "Testing with $TEST_FLAGS…"
+    echo "Testing with ${TEST_FLAGS}…"
     xcodebuild test -quiet -project Resonance.xcodeproj -scheme Resonance -configuration Debug \
         -destination 'platform=macOS' -derivedDataPath "$OUT/tests" \
         -clonedSourcePackagesDirPath "$PACKAGES" "SWIFT_ACTIVE_COMPILATION_CONDITIONS=$TEST_FLAGS" CODE_SIGN_IDENTITY=-
