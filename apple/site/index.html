@@ -471,11 +471,13 @@
             </div>
 
             <div class="integration-panel" role="tabpanel" id="panel-assistants" aria-labelledby="tab-assistants" hidden>
-              <figure class="media media-still">
-                <div class="media-soon" aria-hidden="true"><svg class="i"><use href="#i-sparkle"/></svg><span>Claude and other assistants</span><small>Screenshot coming soon</small></div>
-                <img src="media/integration-assistants.png" alt="Asking Claude for something like Commando but darker, and Resonance playing the result" loading="lazy">
+              <figure class="media media-still media-carousel" data-carousel aria-roledescription="carousel" aria-label="Claude and Resonance">
+                <div class="media-soon" aria-hidden="true"><svg class="i"><use href="#i-sparkle"/></svg><span>Claude and other assistants</span></div>
+                <img src="media/integration-claude-question.webp" alt="Asking Claude which composers on HVSC Favorite Top 100 still make music, and Claude asking Resonance for the playlist" loading="lazy">
+                <img src="media/integration-claude-sources.webp" alt="Claude's web searches for the composers, one per name" loading="lazy">
+                <img src="media/integration-claude-answer.webp" alt="Claude's answer: one line per composer still making music, with where they post" loading="lazy">
               </figure>
-              <p>Ask for “something like Commando but darker”. An assistant can search, play, make playlists and start a drift, but it can't delete a playlist. To connect Claude Code, run <code>claude mcp add resonance -- resonance mcp</code>.</p>
+              <p>Ask for “something like Commando but darker”, or who on HVSC Favorite Top 100 still makes music. An assistant can search, play, make playlists, open HVSC's own playlists and start a drift, but it can't delete a playlist. To connect Claude Code, run <code>claude mcp add resonance -- resonance mcp</code>.</p>
             </div>
 
             <div class="integration-panel" role="tabpanel" id="panel-raycast" aria-labelledby="tab-raycast" hidden>
