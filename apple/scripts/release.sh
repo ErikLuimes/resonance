@@ -223,7 +223,10 @@ cp "$OUT/$NAME.dmg" "$FEED/"
 [ -f "$APPCAST" ] && cp "$APPCAST" "$FEED/appcast.xml"
 NOTES="$APPLE/release-notes/$VERSION.md"
 [ -f "$NOTES" ] && cp "$NOTES" "$FEED/$NAME.md"
+# The channel is the stage's name: alpha or beta. A final release has none, which
+# is what Stable takes. Entries already in the feed keep what they have.
 "$SPARKLE_BIN/generate_appcast" "${KEY_ACCOUNT[@]}" --maximum-deltas 0 --maximum-versions 0 --embed-release-notes \
+    ${STAGE:+--channel "${STAGE%%.*}"} \
     --download-url-prefix "${DOWNLOAD_URL_PREFIX:-https://github.com/ErikLuimes/resonance/releases/download/v$VERSION/}" \
     -o "$FEED/appcast.xml" "$FEED"
 # The entry's version is CFBundleShortVersionString, 0.1.0 for every alpha:

@@ -359,9 +359,10 @@ for Release only, so Debug builds don't update themselves.
 Settings also picks an update channel: Stable, Beta or Alpha. It starts on
 the channel of the running build's release stage, until you choose one.
 Stable takes the feed's entries without a `sparkle:channel`, Beta adds
-`beta`, and Alpha adds `alpha` and `beta`. Builds before 0.1.0-alpha.7 only
-read entries without a channel, so a release has to stay untagged until
-testers have this setting. `release.sh` doesn't tag entries yet.
+`beta`, and Alpha adds `alpha` and `beta`. `release.sh` tags each new entry with
+its release stage's channel, from 0.1.0-alpha.8 on. Builds before 0.1.0-alpha.7
+only read entries without a channel, so 0.1.0-alpha.7 stays untagged: it's how
+they reach a build that has the setting.
 
 The signature is what makes unsigned (ad-hoc) releases updatable: Sparkle
 accepts an update that's either EdDSA-signed with the app's key or signed
