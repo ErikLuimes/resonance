@@ -261,7 +261,7 @@ release.
 
 - The fingerprint set: so Sounds Like works without hours of scanning,
   Resonance downloads the published fingerprints the first time it has a
-  mostly unscanned collection (Settings → Collection has a Download button
+  mostly unscanned collection (Settings → Fingerprints has a Download button
   too) and merges them in; the scan fills in the rest. They're keyed by
   MD5, so one set serves every HVSC release. To publish a new one, after a
   finished scan:
@@ -347,11 +347,18 @@ stop launching.
 
 The app updates itself with [Sparkle](https://sparkle-project.org) (a
 Swift package): Check for Updates… in the app menu, and Settings →
-Advanced → Updates. It reads `site/appcast.xml` from the website
+Updates. It reads `site/appcast.xml` from the website
 (`SUFeedURL`, the `SPARKLE_FEED_URL` build setting) and only installs an
 update whose EdDSA signature matches the public key built into the app
 (`SUPublicEDKey`, the `SPARKLE_PUBLIC_ED_KEY` build setting). Both are set
 for Release only, so Debug builds don't update themselves.
+
+Settings also picks an update channel: Stable, Beta or Alpha. It starts on
+the channel of the running build's release stage, until you choose one.
+Stable takes the feed's entries without a `sparkle:channel`, Beta adds
+`beta`, and Alpha adds `alpha` and `beta`. Builds before 0.1.0-alpha.7 only
+read entries without a channel, so a release has to stay untagged until
+testers have this setting. `release.sh` doesn't tag entries yet.
 
 The signature is what makes unsigned (ad-hoc) releases updatable: Sparkle
 accepts an update that's either EdDSA-signed with the app's key or signed

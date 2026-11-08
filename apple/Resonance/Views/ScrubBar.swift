@@ -164,7 +164,7 @@ struct ScrubBar: View {
             }
             Button("Choose Engine…") {
                 explaining = false
-                UserDefaults.standard.set(SettingsTab.playback.rawValue, forKey: Pref.settingsTab)
+                UserDefaults.standard.set(SettingsPage.engine.rawValue, forKey: Pref.settingsTab)
                 openSettings()
             }
             .controlSize(.small)

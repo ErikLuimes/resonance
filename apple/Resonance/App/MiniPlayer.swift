@@ -5,7 +5,7 @@ import SwiftUI
 /// The menu bar player: an item in the menu bar (the app icon's voices,
 /// slashed while nothing plays) that opens `MiniPlayerView` in a panel
 /// below it, from a click, ⌃⌥⌘P in any app, or Window → Mini Player.
-/// Settings → Appearance turns it off.
+/// Settings → General turns it off.
 ///
 /// AppKit rather than SwiftUI's MenuBarExtra: SwiftUI can't open its panel
 /// from code (no API, and it ignores a click made in code), and the

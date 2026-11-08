@@ -27,7 +27,7 @@ enum SidebarItem: Hashable {
     case userPlaylist(String)
 }
 
-/// What Resonance opens on (Settings → Appearance).
+/// What Resonance opens on (Settings → General).
 enum StartPage: String, CaseIterable, Identifiable {
     case myPlaylist, favourites, recentlyPlayed, hvscHome, musicians
 #if CSDB

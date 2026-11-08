@@ -6,7 +6,7 @@ import PhosphorCore
 /// it plays from with what comes next, and the actions: Surprise Me, and
 /// a link that shows the tune in Resonance. Adding to playlists and
 /// sharing stay in the main window. Works with the main window closed; Settings →
-/// Appearance hides it. No accent colour: the panel's glass takes on the
+/// General hides it. No accent colour: the panel's glass takes on the
 /// desktop's colours, and the accent didn't read on it.
 struct MiniPlayerView: View {
     @Environment(PlayerStore.self) private var store

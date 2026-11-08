@@ -97,14 +97,14 @@ struct HelpFingerprintExample: Hashable {
     let mix: [Float]
 }
 
-/// A link in an article: to a tab of Settings, or another topic.
+/// A link in an article: to a page of Settings, or another topic.
 enum HelpLink: Hashable {
-    case settings(SettingsTab)
+    case settings(SettingsPage)
     case topic(HelpTopic.ID)
 
     var title: String {
         switch self {
-        case .settings(let tab): "Open Settings → \(tab.title)"
+        case .settings(let page): "Open Settings → \(page.title)"
         case .topic(let id): HelpTopic.topic(id).title
         }
     }
@@ -115,22 +115,6 @@ private let composerSources = "HVSC and CSDb know"
 #else
 private let composerSources = "HVSC knows"
 #endif
-
-extension SettingsTab {
-    var title: String {
-        switch self {
-        case .playback: "Playback"
-        case .appearance: "Appearance"
-        case .collection: "HVSC"
-#if CSDB
-        case .csdb: "CSDb"
-#endif
-        case .integrations: "Integrations"
-        case .history: "History"
-        case .advanced: "Advanced"
-        }
-    }
-}
 
 extension HelpTopic {
     static let all: [HelpTopic] = [
@@ -146,7 +130,7 @@ extension HelpTopic {
                     "Follow the download on the Home, which the Collection row opens. Elsewhere in the window a pill at the top shows it, with **Cancel**.",
                     "Once it's in, the Home shows the release: what's new, the three sections to browse (Musicians, Games and Demos) and the curated playlists.",
                 ]),
-                .paragraph("Already have HVSC? Choose its folder (the one that holds MUSICIANS, GAMES and DEMOS) in Settings → HVSC."),
+                .paragraph("Already have HVSC? Choose its folder (the one that holds MUSICIANS, GAMES and DEMOS) in Settings → Collection."),
                 .link(.settings(.collection)),
                 .heading("Sound fingerprints"),
                 .paragraph("Sounds Like, the Fingerprint column and the Sound filters need each tune's fingerprint. The first time, Resonance downloads the published fingerprint set (about 42 MB) and audio embeddings (about 11 MB), which cover all of HVSC, and a background scan fills in whatever it doesn't have. A full scan of your own takes a few hours; with the published set it's mostly done in a minute."),
@@ -185,8 +169,8 @@ extension HelpTopic {
                 .heading("Composers who sound alike"),
                 .paragraph("Open a composer in Musicians: their card names the three composers who sound most like them, each a link to their tunes."),
                 .note(title: "Not fingerprinted yet?",
-                      text: "Settings → HVSC shows how far the scan has got, and lets you pause it or download the published set again. The scan runs at low priority and picks up where it left off.",
-                      link: .settings(.collection)),
+                      text: "Settings → Fingerprints shows how far the scan has got, and lets you pause it or download the published set again. The scan runs at low priority and picks up where it left off.",
+                      link: .settings(.fingerprints)),
             ],
             related: [.readingFingerprints, .gettingStarted, .library, .nowPlaying]
         ),
@@ -248,7 +232,7 @@ extension HelpTopic {
                     "**HVSC**: the Collection row opens the Home; **Musicians**, **Games** and **Demos** list the collection's composers and folders, with their tune counts and years.",
                     "**Curated Playlists**: HVSC's own lists, from the Top 100 to the Grand Tour.",
                 ]),
-                .paragraph("Settings → Appearance chooses which of these Resonance opens on."),
+                .paragraph("Settings → General chooses which of these Resonance opens on."),
                 .paragraph("Select a composer to see their card and their tunes: **Add to…** or **Play**, in the row above the list, takes them all, and the player bar's shuffle decides the order. At the top is what \(composerSources) about them: swipe the cards, or use the dots under them, for more. Composers without a folder of their own still get a list of the tunes credited to them. The sections of **Games** and **Demos** have the same header, about their tunes: when they were made, how they sound, and the longest, oldest and newest."),
                 .heading("Search"),
                 .paragraph("Type in the search field at the top of the window, from anywhere. **Search** opens with all of HVSC that matches: the top result beside the first tunes, then composers, games, demos and playlists. The filters at the top narrow it to Tunes, Composers, Games or Demos."),
@@ -290,7 +274,7 @@ extension HelpTopic {
                 .paragraph("In the library, the floating bar plays, pauses and skips, shows the progress through the tune, and has Shuffle, Repeat and the volume. Drag or click the progress bar to scrub. Tunes with more than one song step through them with the arrows next to the progress bar."),
                 .heading("The menu bar player"),
                 .paragraph("Click Resonance's icon in the menu bar, or press **⌃⌥⌘P** in any app, for a small player: the tune and its voices, the heart, the controls with Shuffle and Repeat, the next tunes in the list it plays from (click one to play it), Surprise Me and Add to…. Turn Surprise Me off there and Resonance goes back to the list you were playing."),
-                .paragraph("While it's on, closing the main window keeps the music playing; **Open Resonance** in the player brings the window back. Turn it off in Settings → Appearance."),
+                .paragraph("While it's on, closing the main window keeps the music playing; **Open Resonance** in the player brings the window back. Turn it off in Settings → General."),
                 .heading("Control Center and media keys"),
                 .paragraph("Resonance shows what's playing in Control Center, with the tune's fingerprint sphere as its picture, or its composer's colours before it's scanned, and answers your keyboard's play, next and previous keys. Control Center's position slider and its 15-second skips work too."),
                 .note(title: "Why does the sound stop for a moment when I scrub?",
@@ -375,7 +359,7 @@ extension HelpTopic {
                 .heading("Add to…"),
                 .paragraph("**Add to…** in the inspector, in Now Playing, on a composer's card and in a tune's context menu shows My Playlist, Favourites and your playlists, most recently used first. Type to find one; a name that's not taken makes a new playlist with the tunes in it."),
                 .heading("Where they live"),
-                .paragraph("Your playlists are plain M3U files in Resonance's folder, which other players can open too: Settings, Advanced, shows it in Finder."),
+                .paragraph("Your playlists are plain M3U files in Resonance's folder, which other players can open too: Settings → Storage and Reset shows it in Finder."),
                 .paragraph("To share one, or Favourites or My Playlist, Control-click it in the sidebar and choose **Export…**. Tunes from HVSC are saved with paths relative to the collection, so the file works on any Mac with HVSC. Other players may not find them without your HVSC folder as their base."),
             ],
             related: [.favourites, .dragAndDrop]
@@ -605,7 +589,7 @@ extension HelpTopic {
                     HelpShortcut(keys: $0.binding(in: .normal).label, action: $0.helpPageTitle)
                 }),
                 .heading("Vim and Emacs Keys"),
-                .paragraph("Choose **Vim** or **Emacs** at the top of the panel, with **Tab** there, or in Settings under Appearance. They add keys of their own, such as **j** and **k** or **⌃N** and **⌃P** to move through a list, and the panel shows them. The menus' shortcuts keep working, and text fields keep their keys while you type."),
+                .paragraph("Choose **Vim** or **Emacs** at the top of the panel, with **Tab** there, or in Settings under General. They add keys of their own, such as **j** and **k** or **⌃N** and **⌃P** to move through a list, and the panel shows them. The menus' shortcuts keep working, and text fields keep their keys while you type."),
                 .paragraph("The Playback menu has Repeat and Shuffle Collection besides. Your keyboard's media keys work too."),
             ],
             related: [.nowPlaying, .library]
@@ -613,35 +597,44 @@ extension HelpTopic {
         HelpTopic(
             id: .settings, group: .reference,
             title: "Settings", symbol: "gearshape",
-            summary: "What each tab of Settings does.",
+            summary: "What each page of Settings does.",
             blocks: [
+                .heading("Updates"),
+                .paragraph("Which releases you get (Stable, Beta or Alpha), whether Resonance checks for a new version and installs it by itself, and a way to check now. If an update fails, the reason is at the top, with a button to copy the details for a bug report."),
+                .link(.settings(.updates)),
+                .heading("General"),
+                .paragraph("What Resonance opens on, whether the menu bar player shows, and the Normal, Vim or Emacs keys."),
+                .link(.settings(.general)),
+                .heading("Appearance"),
+                .paragraph("Light, Dark, or Auto to follow your Mac, for Resonance only. Now Playing and Under the Hood stay dark in all three. Below that, the visualizers' theme, your own colours, and whether the theme badge shows."),
+                .link(.settings(.appearance)),
+                .heading("Engine"),
+                .paragraph("Four software emulations, all following each tune's header for PAL or NTSC and the chip model. **reSIDfp**, the default, is the most accurate: libsidplayfp's reference C64 and chip emulation. **SIDLite direct** is a compact chip model, the lightest on the processor. These two can scrub within a tune. **SIDLite** is the same compact chip through Phosphor's original player, and **reSID** the older cycle-by-cycle model, the heaviest; both play in real time only. Changing the engine restarts the tune."),
+                .link(.settings(.engine)),
                 .heading("Playback"),
                 .bullets([
-                    "**Engine**: four software emulations, all following each tune's header for PAL or NTSC and the chip model. **reSIDfp**, the default, is the most accurate: libsidplayfp's reference C64 and chip emulation. **SIDLite direct** is a compact chip model, the lightest on the processor. These two can scrub within a tune. **SIDLite** is the same compact chip through Phosphor's original player, and **reSID** the older cycle-by-cycle model, the heaviest; both play in real time only. Changing the engine restarts the tune.",
                     "**Skip RSID tunes**, and the **default song length** for tunes whose length isn't known (0 plays until silence).",
                     "**Stereo**: play 2SID tunes in mirrored stereo, and widen mono tunes: Subtle, Medium or Wide.",
                 ]),
                 .link(.settings(.playback)),
-                .heading("Appearance"),
-                .paragraph("What Resonance opens on, whether the menu bar player shows, the Normal, Vim or Emacs keys, the visualizers' theme, your own colours, and whether the theme badge shows."),
-                .link(.settings(.appearance)),
-                .heading("HVSC"),
+                .heading("Collection"),
                 .bullets([
                     "The HVSC folder: choose another.",
                     "The release you have, updates, and downloading the collection again to restore missing or damaged files.",
-                    "Sound fingerprints: how far the scan has got, Pause and Resume, Rebuild All, and the published set.",
                 ]),
                 .link(.settings(.collection)),
-                .heading("Integrations"),
-                .paragraph("Install the command line tool and copy the command that connects Claude Code. Below that, what already works without setting up, such as Siri, Spotlight and Quick Look, with links to where macOS keeps their switches."),
-                .link(.settings(.integrations)),
+                .heading("Fingerprints"),
+                .paragraph("How far the scan has got, Pause and Resume, Rebuild All, and the published set."),
+                .link(.settings(.fingerprints)),
                 .heading("History"),
                 .paragraph("Clear Recently Played, or reset the count of SIDs you've heard."),
                 .link(.settings(.history)),
-                .heading("Advanced"),
-                .paragraph("**Updates**: whether Resonance checks for a new version and installs it by itself, and a way to check now."),
+                .heading("Integrations"),
+                .paragraph("Install the command line tool and copy the command that connects Claude Code. Below that, what already works without setting up, such as Siri, Spotlight and Quick Look, with links to where macOS keeps their switches."),
+                .link(.settings(.integrations)),
+                .heading("Storage and Reset"),
                 .paragraph("**Data Folder** shows how much Resonance's folder holds, and opens it in Finder. **Reset** moves the collection Resonance downloaded to the Trash, or resets everything: Resonance's folder goes to the Trash, its settings are forgotten, and it restarts fresh."),
-                .link(.settings(.advanced)),
+                .link(.settings(.storage)),
             ],
             related: [.gettingStarted, .terminal, .troubleshooting]
         ),
@@ -651,12 +644,12 @@ extension HelpTopic {
             summary: "When something doesn't work as it should.",
             blocks: [
                 .heading("Musicians, Games or Demos says it can't read the folder"),
-                .paragraph("The HVSC folder has moved, or isn't the one that holds MUSICIANS, GAMES and DEMOS. Choose the right one in Settings → HVSC."),
+                .paragraph("The HVSC folder has moved, or isn't the one that holds MUSICIANS, GAMES and DEMOS. Choose the right one in Settings → Collection."),
                 .link(.settings(.collection)),
                 .heading("Tunes are missing or won't play"),
-                .paragraph("In Settings → HVSC, **Download Again…** fetches the whole collection and restores missing or damaged files. The tunes already there are kept."),
+                .paragraph("In Settings → Collection, **Download Again…** fetches the whole collection and restores missing or damaged files. The tunes already there are kept."),
                 .heading("Sounds Like says a tune isn't fingerprinted"),
-                .paragraph("The scan hasn't reached it yet. Check Settings → HVSC: is the scan paused? Click **Download** next to Published set to fetch the fingerprints of all of HVSC. If some tunes couldn't be scanned, **Retry** tries them again."),
+                .paragraph("The scan hasn't reached it yet. Check Settings → Fingerprints: is the scan paused? Click **Download** next to Published set to fetch the fingerprints of all of HVSC. If some tunes couldn't be scanned, **Retry** tries them again."),
                 .heading("A tune stops too soon, or plays on and on"),
                 .paragraph("Song lengths come from HVSC's Songlengths database. For tunes it doesn't know, such as ones from outside HVSC, Resonance works the length out in the background by running the tune and listening for it to end or start over; those lengths show with a ~ and can be off. Until then, or if it can't tell, a tune plays for the default song length in Settings → Playback. Some tunes sound different on another engine: try switching between SIDLite, reSIDfp, SIDLite direct and reSID."),
                 .heading("The HVSC download stopped"),

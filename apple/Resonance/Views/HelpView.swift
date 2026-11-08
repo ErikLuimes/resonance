@@ -227,9 +227,9 @@ private struct HelpBlockView: View {
     private func linkButton(_ link: HelpLink) -> some View {
         AccentLink(link.title) {
             switch link {
-            case .settings(let tab):
-                // Settings shows the tab it remembers.
-                UserDefaults.standard.set(tab.rawValue, forKey: Pref.settingsTab)
+            case .settings(let page):
+                // Settings shows the page it remembers.
+                UserDefaults.standard.set(page.rawValue, forKey: Pref.settingsTab)
                 openSettings()
             case .topic(let id):
                 open(id)

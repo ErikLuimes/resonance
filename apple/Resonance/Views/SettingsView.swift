@@ -1,70 +1,201 @@
 import SwiftUI
 import PhosphorCore
 
-/// Settings, one tab per area. The selected tab is remembered.
+/// Settings: a sidebar of focused pages, in groups. The selected page is
+/// remembered. The window is a fixed size and its title never changes, because
+/// a split view whose constraints or toolbar change mid-layout has crashed the
+/// main window: each page's name is in the pane, and long pages scroll.
 struct SettingsView: View {
-    @AppStorage(Pref.settingsTab) private var tab = SettingsTab.playback
+    @AppStorage(Pref.settingsTab) private var page = SettingsPage.updates
+    @Environment(Updater.self) private var updater
 
     var body: some View {
-        TabView(selection: $tab) {
-            Tab("Playback", systemImage: "play.circle", value: .playback) {
-                SettingsPane { PlaybackSettings() }
-            }
-            Tab("Appearance", systemImage: "paintpalette", value: .appearance) {
-                SettingsPane {
-                    StartPageSettings()
-                    MenuBarSettings()
-                    KeyboardSettings()
-                    ThemeSettings()
+        NavigationSplitView {
+            List(selection: Binding(get: { page }, set: { if let next = $0 { page = next } })) {
+                ForEach(SettingsPage.groups) { group in
+                    Section(group.title) {
+                        ForEach(group.pages) { item in
+                            SettingsSidebarRow(
+                                page: item,
+                                isSelected: item == page,
+                                failed: item == .updates && updater.lastFailure != nil
+                            )
+                            .tag(item)
+                        }
+                    }
                 }
             }
-            Tab("HVSC", systemImage: "waveform", value: .collection) {
-                SettingsPane { CollectionSettings() }
+            .navigationSplitViewColumnWidth(200)
+            .toolbar(removing: .sidebarToggle)
+        } detail: {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(page.title)
+                    .font(.title2.weight(.semibold))
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+                Form { pageContent }
+                    .formStyle(.grouped)
             }
+            .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .navigationTitle("Settings")
+        .frame(width: 740, height: 580)
+    }
+
+    @ViewBuilder private var pageContent: some View {
+        switch page {
+        case .updates:
+            UpdateSettings()
+        case .general:
+            StartPageSettings()
+            MenuBarSettings()
+            KeyboardSettings()
+        case .appearance:
+            AppearanceSettings()
+            ThemeSettings()
+        case .engine:
+            EngineSettings()
+        case .playback:
+            PlaybackSettings()
+        case .collection:
+            CollectionSettings()
+        case .fingerprints:
+            FingerprintPage()
+        case .history:
+            HistorySettings()
 #if CSDB
-            Tab("CSDb", systemImage: "antenna.radiowaves.left.and.right", value: .csdb) {
-                SettingsPane { SceneSettings() }
-            }
+        case .csdb:
+            SceneSettings()
 #endif
-            Tab("Integrations", systemImage: "puzzlepiece.extension", value: .integrations) {
-                SettingsPane { IntegrationSettings() }
-            }
-            Tab("History", systemImage: "clock.arrow.circlepath", value: .history) {
-                SettingsPane { HistorySettings() }
-            }
-            Tab("Advanced", systemImage: "gearshape.2", value: .advanced) {
-                SettingsPane { AdvancedSettings() }
-            }
+        case .integrations:
+            IntegrationSettings()
+        case .storage:
+            StorageSettings()
         }
     }
 }
 
-enum SettingsTab: String {
-    case playback, appearance, collection, integrations, history, advanced
+/// A page of Settings. Its raw value is saved, under the key from when these
+/// were tabs: the old tabs that are gone fall back to Updates.
+nonisolated enum SettingsPage: String, CaseIterable, Identifiable {
+    case updates, general, appearance
+    case engine, playback
+    case collection, fingerprints, history
 #if CSDB
     case csdb
 #endif
+    case integrations, storage
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .updates: "Updates"
+        case .general: "General"
+        case .appearance: "Appearance"
+        case .engine: "Engine"
+        case .playback: "Playback"
+        case .collection: "Collection"
+        case .fingerprints: "Fingerprints"
+        case .history: "History"
+#if CSDB
+        case .csdb: "CSDb"
+#endif
+        case .integrations: "Integrations"
+        case .storage: "Storage and Reset"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .updates: "arrow.triangle.2.circlepath"
+        case .general: "gearshape"
+        case .appearance: "circle.lefthalf.filled"
+        case .engine: "waveform"
+        case .playback: "play.circle"
+        case .collection: "folder"
+        case .fingerprints: "touchid"
+        case .history: "clock.arrow.circlepath"
+#if CSDB
+        case .csdb: "antenna.radiowaves.left.and.right"
+#endif
+        case .integrations: "puzzlepiece.extension"
+        case .storage: "internaldrive"
+        }
+    }
+
+    struct Group: Identifiable {
+        let title: String
+        let pages: [SettingsPage]
+        var id: String { title }
+    }
+
+    static var groups: [Group] {
+        var library: [SettingsPage] = [.collection, .fingerprints, .history]
+#if CSDB
+        library.append(.csdb)
+#endif
+        return [
+            Group(title: "Resonance", pages: [.updates, .general, .appearance]),
+            Group(title: "Sound", pages: [.engine, .playback]),
+            Group(title: "Library", pages: library),
+            Group(title: "Your Mac", pages: [.integrations, .storage]),
+        ]
+    }
 }
 
-/// A tab's grouped form, as tall as its content: the window resizes to
-/// each tab.
-private struct SettingsPane<Content: View>: View {
-    @ViewBuilder let content: Content
+/// Light, dark or following the Mac, for this app only.
+nonisolated enum AppAppearance: String, CaseIterable, Identifiable {
+    case light, dark, auto
 
-    /// Wide enough for every tab in the toolbar: past it they go into an
-    /// overflow menu whose items can't be clicked. Debug builds have CSDb's
-    /// too.
-#if CSDB
-    private static var width: CGFloat { 540 }
-#else
-    private static var width: CGFloat { 460 }
-#endif
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .light: "Light"
+        case .dark: "Dark"
+        case .auto: "Auto"
+        }
+    }
+
+    /// Nil follows the system, and keeps following it as it changes.
+    var appearanceName: NSAppearance.Name? {
+        switch self {
+        case .light: .aqua
+        case .dark: .darkAqua
+        case .auto: nil
+        }
+    }
+
+    static func saved(defaults: UserDefaults = .standard) -> AppAppearance {
+        defaults.string(forKey: Pref.appAppearance).flatMap(AppAppearance.init(rawValue:)) ?? .auto
+    }
+
+    /// For every window, panel and dialog of the app at once. Views made to
+    /// stay dark, such as Now Playing, set their own colour scheme.
+    @MainActor func apply() {
+        NSApp.appearance = appearanceName.flatMap(NSAppearance.init(named:))
+    }
+}
+
+/// A page in the sidebar, saying so when the last update failed: that's easy to
+/// miss otherwise, as an automatic update has no dialog of its own. Told it's
+/// selected, because `backgroundProminence` isn't set on these rows.
+private struct SettingsSidebarRow: View {
+    let page: SettingsPage
+    let isSelected: Bool
+    let failed: Bool
 
     var body: some View {
-        Form { content }
-            .formStyle(.grouped)
-            .frame(width: Self.width)
-            .fixedSize(horizontal: false, vertical: true)
+        HStack {
+            Label(page.title, systemImage: page.symbol)
+            Spacer(minLength: 4)
+            if failed {
+                Text("Failed")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(isSelected ? Color.white : Color.red)
+            }
+        }
     }
 }
 
@@ -73,16 +204,6 @@ private struct PlaybackSettings: View {
 
     var body: some View {
         @Bindable var store = store
-        Section {
-            ForEach(Engine.pickerOrder, id: \.self) { engine in
-                EngineRow(engine: engine, isOn: store.engine == engine) { store.engine = engine }
-            }
-        } header: {
-            Text("Engine")
-        } footer: {
-            Text("Changing the engine restarts the current tune.")
-        }
-
         Section {
             Toggle("Skip RSID tunes", isOn: $store.options.skipRsid)
             LabeledContent("Default song length") {
@@ -95,7 +216,7 @@ private struct PlaybackSettings: View {
                 }
             }
         } header: {
-            Text("Playback")
+            Text("Tunes")
         } footer: {
             Text("Resonance works out the length of tunes missing from the Songlengths database by itself, in the background. The default length is used until then, and for tunes it can't work out. 0 means play until silence.")
         }
@@ -114,6 +235,21 @@ private struct PlaybackSettings: View {
             if store.engine.rendersDirectly {
                 Text("Widen mono tunes has no effect on \(store.engine.displayName).")
             }
+        }
+    }
+}
+
+/// The four engines, to pick one.
+private struct EngineSettings: View {
+    @Environment(PlayerStore.self) private var store
+
+    var body: some View {
+        Section {
+            ForEach(Engine.pickerOrder, id: \.self) { engine in
+                EngineRow(engine: engine, isOn: store.engine == engine) { store.engine = engine }
+            }
+        } footer: {
+            Text("Changing the engine restarts the current tune.")
         }
     }
 }
@@ -221,9 +357,21 @@ private struct CollectionSettings: View {
             Text("Downloads the whole collection archive and restores any missing or damaged files. The tunes already there are kept, and so are your fingerprints.")
         }
         .task { await store.loadHvscInfo() }
+    }
+}
 
+/// The scan, once there's a collection to scan.
+private struct FingerprintPage: View {
+    @Environment(PlayerStore.self) private var store
+
+    var body: some View {
         if store.hasCollection {
             FingerprintSettings()
+        } else {
+            Section {
+                Text("Fingerprints come from your collection. Choose or download it under Collection first.")
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }
@@ -338,8 +486,6 @@ private struct FingerprintSettings: View {
                 Text(message)
                     .foregroundStyle(.red)
             }
-        } header: {
-            Text("Sound Fingerprints")
         } footer: {
             Text("Resonance plays every tune silently in the background to learn how it sounds, for the Fingerprint column and Sounds Like. It picks up where it left off, and takes a few hours for all of HVSC. The published set (about 42 MB) has the fingerprints of all of HVSC already; Resonance downloads it the first time, and the scan fills in the rest.")
         }
@@ -429,14 +575,12 @@ private struct HistorySettings: View {
     }
 }
 
-/// Updates, and where Resonance keeps its files.
-private struct AdvancedSettings: View {
+/// Where Resonance keeps its files, and starting over.
+private struct StorageSettings: View {
     @Environment(PlayerStore.self) private var store
     @State private var size: Int64?
 
     var body: some View {
-        UpdateSettings()
-
         Section {
             LabeledContent("Resonance's folder") {
                 HStack {
@@ -471,6 +615,37 @@ private struct CopyCommandButton: View {
             NSPasteboard.general.setString(command, forType: .string)
             copied = true
         }
+        .task(id: copied) {
+            guard copied else { return }
+            try? await Task.sleep(for: .seconds(2))
+            copied = false
+        }
+    }
+}
+
+/// The two-sheet copy icon, with its name as the tooltip. It turns into a
+/// checkmark for a moment after a click, in a fixed frame so the row doesn't
+/// move.
+private struct CopyIconButton: View {
+    let label: String
+    let text: String
+    @State private var copied = false
+
+    var body: some View {
+        Button {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(text, forType: .string)
+            copied = true
+        } label: {
+            Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                .contentTransition(.symbolEffect(.replace))
+                .frame(width: 18, height: 18)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .animation(.default, value: copied)
+        .help(label)
+        .accessibilityLabel(copied ? "Copied" : label)
         .task(id: copied) {
             guard copied else { return }
             try? await Task.sleep(for: .seconds(2))
@@ -791,6 +966,111 @@ private struct MenuBarSettings: View {
     }
 }
 
+/// The mode, chosen from pictures of it, as in System Settings.
+private struct AppearanceSettings: View {
+    @AppStorage(Pref.appAppearance) private var appearance = AppAppearance.auto
+
+    var body: some View {
+        Section {
+            LabeledContent("Appearance") {
+                HStack(alignment: .top, spacing: 14) {
+                    ForEach(AppAppearance.allCases) { mode in
+                        AppearanceChoice(mode: mode, isSelected: appearance == mode) {
+                            appearance = mode
+                        }
+                    }
+                }
+            }
+        }
+        .onChange(of: appearance) { _, mode in mode.apply() }
+    }
+}
+
+private struct AppearanceChoice: View {
+    let mode: AppAppearance
+    let isSelected: Bool
+    let select: () -> Void
+
+    var body: some View {
+        Button(action: select) {
+            VStack(spacing: 5) {
+                AppearanceThumbnail(mode: mode)
+                    .padding(2)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 9)
+                            .strokeBorder(isSelected ? Color.accentColor : .clear, lineWidth: 2.5)
+                    }
+                Text(mode.title)
+                    .font(.callout)
+                    .fontWeight(isSelected ? .semibold : .regular)
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(mode.title)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+    }
+}
+
+/// A small Resonance window with the icon's three bars, on a light or dark
+/// backdrop. Auto is half of each. Its colours are fixed, whatever the app's
+/// mode is, because it pictures the modes.
+private struct AppearanceThumbnail: View {
+    let mode: AppAppearance
+
+    var body: some View {
+        ZStack {
+            scene(dark: mode == .dark)
+            if mode == .auto {
+                scene(dark: true)
+                    .mask {
+                        HStack(spacing: 0) {
+                            Color.clear
+                            Color.black
+                        }
+                    }
+            }
+        }
+        .frame(width: 68, height: 44)
+        .clipShape(.rect(cornerRadius: 7))
+    }
+
+    private func scene(dark: Bool) -> some View {
+        ZStack {
+            LinearGradient(
+                colors: dark
+                    ? [Color(red: 0.12, green: 0.14, blue: 0.32), Color(red: 0.24, green: 0.12, blue: 0.38)]
+                    : [Color(red: 0.72, green: 0.84, blue: 0.96), Color(red: 0.88, green: 0.82, blue: 0.96)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 2) {
+                    ForEach([Color.red, .yellow, .green], id: \.self) { color in
+                        Circle().fill(color).frame(width: 3, height: 3)
+                    }
+                }
+                HStack(alignment: .bottom, spacing: 3) {
+                    bar(.cyan, height: 12)
+                    bar(.purple, height: 17)
+                    bar(.orange, height: 9)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .padding(4)
+            .frame(width: 46, height: 32)
+            .background(dark ? Color(white: 0.13) : .white, in: .rect(cornerRadius: 4))
+        }
+    }
+
+    private func bar(_ color: Color, height: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: 1)
+            .fill(color)
+            .frame(width: 6, height: height)
+    }
+}
+
 private struct ThemeSettings: View {
     @Environment(\.voiceTheme) private var theme
     @AppStorage(Pref.theme) private var themeID = VoiceTheme.resonance.id
@@ -799,7 +1079,7 @@ private struct ThemeSettings: View {
 
     var body: some View {
         Section {
-            Picker("Theme", selection: $themeID) {
+            Picker("Colours", selection: $themeID) {
                 ForEach(VoiceTheme.presets + [VoiceTheme.custom(from: customData)]) { theme in
                     row(theme).tag(theme.id)
                 }
@@ -858,15 +1138,28 @@ private struct ThemeSettings: View {
         .environment(PlayerStore.preview)
         .environment(LibraryStore(player: .preview))
         .environment(FingerprintStore(player: .preview))
+        .environment(Updater())
 }
 
-/// Sparkle's two settings, and a way to check now.
+/// The update channel, Sparkle's two settings, and a way to check now.
 private struct UpdateSettings: View {
     @Environment(Updater.self) private var updater
 
     var body: some View {
         @Bindable var updater = updater
         Section {
+            if let failure = updater.lastFailure {
+                failureRow(failure)
+            }
+            LabeledContent("Update channel") {
+                Picker("Update channel", selection: $updater.channel) {
+                    ForEach(UpdateChannel.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .buttonBorderShape(.capsule)
+                .fixedSize()
+            }
             Toggle("Check for updates automatically", isOn: $updater.checksAutomatically)
             Toggle("Download and install automatically", isOn: $updater.installsAutomatically)
                 .disabled(!updater.checksAutomatically)
@@ -878,14 +1171,39 @@ private struct UpdateSettings: View {
                         .disabled(!updater.canCheckForUpdates)
                 }
             }
-        } header: {
-            Text("Updates")
         } footer: {
-            Text(updater.isAvailable
-                 ? "Resonance checks for a new version once a day. Updates are verified with Resonance's signing key before they're installed, and nothing about your Mac is sent. Automatic updates install when you quit."
-                 : "This build of Resonance doesn't update itself. Releases from the website do.")
+            VStack(alignment: .leading, spacing: 6) {
+                if updater.isAvailable {
+                    Text(updater.channel.summary)
+                }
+                Text(updater.isAvailable
+                     ? "Resonance checks for a new version once a day. Updates are verified with Resonance's signing key before they're installed, and nothing about your Mac is sent. Automatic updates install when you quit."
+                     : "This build of Resonance doesn't update itself. Releases from the website do.")
+            }
         }
         .disabled(!updater.isAvailable)
+    }
+
+    /// Tinted like a destructive button, so it reads as something gone wrong,
+    /// with primary text: red text on the tint is about 3:1, primary over 11:1.
+    /// A box inside the row, because a grouped form on macOS ignores
+    /// `listRowBackground`.
+    private func failureRow(_ failure: UpdateFailure) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("Last update failed")
+                    .fontWeight(.medium)
+                Spacer()
+                CopyIconButton(label: "Copy Details", text: failure.details)
+            }
+            Text(failure.message)
+                .font(.callout)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .foregroundStyle(.primary)
+        .padding(10)
+        .background(Color.red.opacity(0.15), in: .rect(cornerRadius: 8))
     }
 
     private var lastChecked: String {

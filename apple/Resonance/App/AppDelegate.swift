@@ -50,6 +50,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Before any window exists, so none opens in the wrong mode first.
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        guard !Self.isRunningTests else { return }
+        AppAppearance.saved().apply()
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         store.startPolling()
         guard !Self.isRunningTests else { return }
