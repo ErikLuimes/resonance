@@ -15,6 +15,11 @@
 //
 //   RESONANCE_ENTITLEMENTS = Config/Resonance-Links.entitlements
 //   RESONANCE_PROFILE = Resonance Development
+//
+// CSDb's features stay out of every build until its admins have had their say.
+// To work on them on your own Mac, not to ship them, add:
+//
+//   SWIFT_ACTIVE_COMPILATION_CONDITIONS = CSDB
 CODE_SIGN_STYLE = Manual
 CODE_SIGN_IDENTITY = -
 DEVELOPMENT_TEAM =

@@ -1,4 +1,4 @@
-#if CSDB // Debug builds only until CSDb's admins have had their say.
+#if CSDB // Off unless Config/Signing.local.xcconfig turns it on, until CSDb's admins have had their say.
 
 import Foundation
 

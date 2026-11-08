@@ -331,7 +331,10 @@ Debug builds are ad-hoc signed by default, so anyone can build them, and
 `release.sh` takes the team from its certificate. Siri and Shortcuts need a
 team, so to test them from Xcode, sign your Debug builds with a
 `Config/Signing.local.xcconfig`, which git ignores:
-`Config/Signing-Debug.xcconfig` explains.
+`Config/Signing-Debug.xcconfig` explains. The same local file is the only place
+that turns on the `CSDB` compilation flag, so neither releases nor builds from
+source include CSDb's features, while their use is still to be agreed with its
+admins.
 Every build runs in the App Sandbox, with `Config/Resonance.entitlements`;
 `design/sandbox/README.md` explains what that changes. Universal links are the
 one thing that needs a provisioning profile, for
