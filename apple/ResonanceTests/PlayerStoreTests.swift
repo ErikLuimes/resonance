@@ -291,7 +291,7 @@ struct PlayerStoreTests {
     }
 
     @Test func startsCoreWithSavedSettings() {
-        defaults.set("resid", forKey: Pref.engine)
+        defaults.set("sidlite-direct", forKey: Pref.engine)
         defaults.set(0.5, forKey: Pref.volume)
         defaults.set("all", forKey: Pref.repeatMode)
         defaults.set(120, forKey: Pref.defaultSongLength)
@@ -299,7 +299,7 @@ struct PlayerStoreTests {
 
         let (_, config) = makeStore()
 
-        #expect(config.engine == .reSid)
+        #expect(config.engine == .sidLiteDirect)
         #expect(config.volume == 0.5)
         #expect(config.repeat == .all)
         #expect(config.options.defaultSongLengthSecs == 120)
@@ -307,16 +307,22 @@ struct PlayerStoreTests {
         #expect(config.sessionPath == "/tmp/session.m3u")
     }
 
+    @Test func aRetiredEngineLandsOnAWorkingOne() {
+        #expect(Engine(storageValue: "resid") == .reSidFp)
+        #expect(Engine(storageValue: "sidlite") == .sidLiteDirect)
+        #expect(Engine.pickerOrder == [.reSidFp, .sidLiteDirect])
+    }
+
     @Test func settingChangesReachTheCoreAndPersist() {
         let (store, _) = makeStore()
-        store.engine = .reSid
+        store.engine = .sidLiteDirect
         store.shuffle = true
         store.repeatMode = .one
         store.options.defaultSongLengthSecs = 90
         store.volume = 1.7  // clamped
 
-        #expect(fake.calls == ["engine reSid", "shuffle true", "repeat one", "options 90", "volume 1.0"])
-        #expect(defaults.string(forKey: Pref.engine) == "resid")
+        #expect(fake.calls == ["engine sidLiteDirect", "shuffle true", "repeat one", "options 90", "volume 1.0"])
+        #expect(defaults.string(forKey: Pref.engine) == "sidlite-direct")
         #expect(defaults.bool(forKey: Pref.shuffle))
         #expect(defaults.integer(forKey: Pref.defaultSongLength) == 90)
         #expect(store.volume == 1)

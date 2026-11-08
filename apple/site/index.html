@@ -608,12 +608,12 @@ resonance playlist add "Late Night" $(resonance pick --multi)</code></pre>
 
         <div class="sound-grid">
           <article class="vis-card" style="--c: var(--v1)" data-reveal>
-            <h3>Four engines</h3>
-            <p>reSIDfp, libsidplayfp's reference emulation, is the default. SIDLite direct is the lightest; both scrub. Phosphor's SIDLite and reSID are still there.</p>
+            <h3>Two engines</h3>
+            <p>reSIDfp, libsidplayfp's reference emulation, is the default. SIDLite direct is the lightest. Both scrub.</p>
           </article>
           <article class="vis-card" style="--c: var(--v2)" data-reveal>
             <h3>Stereo, your way</h3>
-            <p>Plays 2SID and 3SID tunes, mirrors 2SID tunes into stereo, and widens mono ones: Subtle, Medium or Wide.</p>
+            <p>Plays 2SID and 3SID tunes, and mirrors 2SID tunes into stereo.</p>
           </article>
         </div>
 
@@ -652,7 +652,7 @@ resonance playlist add "Late Night" $(resonance pick --multi)</code></pre>
                 <tbody>
                 <tr><td>Made for</td><td>The Mac, in SwiftUI</td><td>macOS, Windows, Linux, in Iced</td><td>The Mac, in Cocoa</td><td>Windows, Mac, Linux</td><td>Java; also the browser</td></tr>
                 <tr><td>Apple silicon</td><td class="yes">✓</td><td class="yes">✓</td><td>Through a community port</td><td class="yes">✓</td><td>With OpenJDK 21</td></tr>
-                <tr><td>SID emulation</td><td>reSIDfp, SIDLite, reSID</td><td>SIDLite, reSID</td><td>libsidplayfp</td><td>reSIDfp, reSID, resid-fp</td><td>reSID, reSIDfp</td></tr>
+                <tr><td>SID emulation</td><td>reSIDfp, SIDLite</td><td>SIDLite, reSID</td><td>libsidplayfp</td><td>reSIDfp, reSID, resid-fp</td><td>reSID, reSIDfp</td></tr>
                 <tr><td>HVSC download, Songlengths &amp; STIL</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
                 <tr><td>Playlists &amp; favourites</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
                 <tr><td>Sounds Like</td><td class="yes">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
@@ -759,7 +759,7 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
           </details>
           <details>
             <summary>Can it play through a USBSID-Pico or an Ultimate 64?</summary>
-            <p>No. Resonance plays through software emulation: reSIDfp, SIDLite direct, SIDLite or reSID. For real hardware, use <a href="https://sandlbn.github.io/Phosphor/">Phosphor</a>.</p>
+            <p>No. Resonance plays through software emulation: reSIDfp or SIDLite direct. For real hardware, use <a href="https://sandlbn.github.io/Phosphor/">Phosphor</a>.</p>
           </details>
           <details>
             <summary>Which Macs does it run on?</summary>
@@ -775,7 +775,7 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
           </details>
           <details>
             <summary>Why does the sound stop for a moment when I scrub?</summary>
-            <p>A SID tune is a little C64 program, not a recording, so there's nothing to jump to. Resonance runs the tune to the point you chose silently, about sixty times faster than it plays: a second or so per minute of tune on reSIDfp, less on SIDLite direct. The bar shows the engine winding up to it, and the sound comes back when it arrives. The SIDLite and reSID engines play in real time only and can't scrub.</p>
+            <p>A SID tune is a little C64 program, not a recording, so there's nothing to jump to. Resonance runs the tune to the point you chose silently, about sixty times faster than it plays: a second or so per minute of tune on reSIDfp, less on SIDLite direct. The bar shows the engine winding up to it, and the sound comes back when it arrives.</p>
           </details>
         </div>
       </div>

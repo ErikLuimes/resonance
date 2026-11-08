@@ -226,23 +226,13 @@ private struct PlaybackSettings: View {
 
         Section {
             Toggle("Play 2SID tunes in mirrored stereo", isOn: $store.options.forceStereo2sid)
-            Picker("Widen mono tunes", selection: $store.options.pseudoStereo) {
-                Text("Off").tag(PseudoStereo?.none)
-                ForEach(PseudoStereo.allCases, id: \.self) { strength in
-                    Text(strength.displayName).tag(Optional(strength))
-                }
-            }
         } header: {
             Text("Stereo")
-        } footer: {
-            if store.engine.rendersDirectly {
-                Text("Widen mono tunes has no effect on \(store.engine.displayName).")
-            }
         }
     }
 }
 
-/// The four engines, to pick one.
+/// The engines, to pick one.
 private struct EngineSettings: View {
     @Environment(PlayerStore.self) private var store
 

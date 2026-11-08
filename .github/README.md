@@ -101,14 +101,11 @@ is played.
 - **Scrub through a tune.** Something SID players almost never do: a SID tune is a small C64
   program, not a recording, so there's nothing to jump to. Resonance runs the tune there
   instead, silently, at about sixty times its speed, and the bar shows the engine winding up
-  to the point you chose. Drag, click, or use Control Center's slider. On reSIDfp and SIDLite
-  direct.
-- **Four engines.** reSIDfp, libsidplayfp's reference emulation, is the default. SIDLite direct
-  is the same compact chip model as SIDLite, the lightest of the four; Phosphor's SIDLite and
-  reSID are still there. All four follow each tune's header for PAL or NTSC and the chip
-  model. Switch any time.
-- **Stereo, your way.** 2SID and 3SID tunes, mirrored stereo for 2SID, and three widths of
-  pseudo-stereo for mono tunes.
+  to the point you chose. Drag, click, or use Control Center's slider.
+- **Two engines.** reSIDfp, libsidplayfp's reference emulation, is the default. SIDLite direct
+  is a compact chip model, the lighter of the two. Both follow each tune's header for PAL or
+  NTSC and the chip model. Switch any time.
+- **Stereo.** 2SID and 3SID tunes, with mirrored stereo for 2SID.
 - **Song lengths and subtunes.** The HVSC Songlengths database moves on at the right moment,
   and subtunes are a click away (<kbd>⌥</kbd><kbd>⌘</kbd><kbd>←</kbd> / <kbd>→</kbd>).
 

@@ -90,7 +90,9 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
     the visualizers get the real thing instead of `viz.rs`'s shadow reSID.
     The driver swaps player threads when switching to or from it. Pseudo
     stereo (Widen mono tunes) isn't implemented on it. reSIDfp is the
-    default engine; Settings → Playback lists all four.
+    default engine; Settings lists it and SIDLite direct. The older SIDLite
+    and reSID engines are retired from Settings, and their code goes in the
+    next alpha.
   - `build.rs` — reads upstream's version from the root `Cargo.toml`, so
     `phosphor_version()` (shown in About Resonance) follows upstream merges.
 - **`residfp-sys/`** — libsidplayfp 3.1.2 (with its SIDLite chip) and

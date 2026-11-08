@@ -72,8 +72,9 @@ nonisolated extension PlaybackOptions {
 nonisolated extension Engine {
     init?(storageValue: String?) {
         switch storageValue {
-        case "sidlite": self = .sidLite
-        case "resid": self = .reSid
+        // Retired from Settings: a saved one lands on its nearest working engine.
+        case "sidlite": self = .sidLiteDirect
+        case "resid": self = .reSidFp
         case "residfp": self = .reSidFp
         case "sidlite-direct": self = .sidLiteDirect
         default: return nil
@@ -108,18 +109,13 @@ nonisolated extension Engine {
         }
     }
 
-    /// Whether the engine renders straight into the audio output (the
-    /// libsidplayfp player), where Phosphor's pseudo-stereo doesn't apply.
-    var rendersDirectly: Bool {
-        self == .reSidFp || self == .sidLiteDirect
-    }
-
     /// The engine a fresh install plays on, and the one Settings recommends.
     static let recommended = Engine.reSidFp
 
     /// The engines as Settings lists them: the recommended one first, then
-    /// the light one, then the two older ones.
-    static let pickerOrder: [Engine] = [.reSidFp, .sidLiteDirect, .sidLite, .reSid]
+    /// the light one. `.sidLite` and `.reSid` are retired, with their code
+    /// going in the next alpha.
+    static let pickerOrder: [Engine] = [.reSidFp, .sidLiteDirect]
 }
 
 nonisolated extension Repeat {

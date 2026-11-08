@@ -77,11 +77,12 @@ struct NowPlayingBar: View {
 
     /// Beside Now Playing, until the bar gets narrow; View › Under the Hood stays.
     private var underTheHood: some View {
-        Button("Under the Hood", systemImage: "cpu") { store.toggleUnderTheHood() }
+        Button("Under the Hood", systemImage: "memorychip") { store.toggleUnderTheHood() }
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .font(.title3.weight(.semibold))
             .foregroundStyle(store.isShowingUnderTheHood ? Color.accentColor : Color.primary)
+            .symbolEffect(.breathe, isActive: store.isPlaying)
             .help("Show the tracker, registers, sweeps and pitch trail")
     }
 
@@ -89,7 +90,7 @@ struct NowPlayingBar: View {
     /// Never drops out as the bar narrows: it's one of the ways into Now
     /// Playing, along with the track title and View › Now Playing.
     private var nowPlaying: some View {
-        Button("Now Playing", systemImage: "arrow.up.left.and.arrow.down.right") { store.toggleNowPlaying() }
+        Button("Now Playing", systemImage: "rectangle.expand.diagonal") { store.toggleNowPlaying() }
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .font(.title3.weight(.semibold))
