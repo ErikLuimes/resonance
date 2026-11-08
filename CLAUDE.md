@@ -27,6 +27,8 @@ Smart playlists' reasoning and checks: design/smart-playlists/README.md; change 
 
 Amiga mods (the 2.0 plan): design/mods/README.md.
 
+Monitor easter egg (the 1084S on the About page): design/crt-monitor/README.md, with the three.js mockup beside it.
+
 Credits page, in the app and the terminal app: design/credits/README.md, with the approved mockups beside it.
 
 Feature flags (what's in which build): design/feature-flags/README.md. Update channels never decide this.

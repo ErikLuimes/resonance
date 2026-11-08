@@ -33,6 +33,9 @@ enum AppKeys {
         // panel. Everything else belongs to the main window, and not to a
         // sheet over it, which is a window of its own.
         guard isMainWindow(event.window) else {
+            if isMonitorWindow(event.window), MonitorModel.shared.power != .off {
+                return handleInMonitor(event, stroke, store)
+            }
             return stroke == KeyStroke(KeyStroke.space) && SpaceKey.handle(store: store, responder: responder)
         }
         if store.isShowingKeyHelp {
@@ -92,6 +95,28 @@ enum AppKeys {
             if event.isARepeat, !action.repeats { return true }
             activate(action)
             return true
+        }
+    }
+
+    /// About Resonance while its monitor is on: the playback keys as in the
+    /// main window, the list keys on the monitor's own list, and any key skips
+    /// the boot. Esc is left alone, and the menus' shortcuts work as everywhere.
+    private static func handleInMonitor(_ event: NSEvent, _ stroke: KeyStroke, _ store: PlayerStore) -> Bool {
+        let monitor = MonitorModel.shared
+        if stroke == KeyStroke(KeyStroke.escape) { return false }
+        if monitor.mode == .boot {
+            if !event.isARepeat { monitor.skipBoot() }
+            return true
+        }
+        switch matcher.feed(stroke, in: .current, at: event.timestamp) {
+        case .none: return false
+        case .pending: return true
+        case .action(let action):
+            if action == .playPause { return SpaceKey.handle(store: store, responder: event.window?.firstResponder) }
+            if event.isARepeat, !action.repeats { return true }
+            if action.actsOnList { return monitor.handle(action, store: store) }
+            guard action.binding(in: .current).handler == .monitor, action != .close else { return false }
+            return perform(action, store: store, window: nil)
         }
     }
 
@@ -181,6 +206,11 @@ enum AppKeys {
     /// As Window → Size for Recording finds it.
     private static func isMainWindow(_ window: NSWindow?) -> Bool {
         window?.identifier?.rawValue.hasPrefix("main") == true
+    }
+
+    /// About Resonance, where the monitor is.
+    private static func isMonitorWindow(_ window: NSWindow?) -> Bool {
+        window?.identifier?.rawValue.hasPrefix(AboutView.windowID) == true
     }
 }
 

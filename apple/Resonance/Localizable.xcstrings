@@ -576,6 +576,9 @@
     "30 Min" : {
 
     },
+    "A Commodore 1084S monitor" : {
+
+    },
     "A SID tune is a little C64 program, so there's nothing to jump to: to reach a point, Resonance runs the tune there silently at full speed, about a second per minute of tune on reSIDfp and faster on SIDLite direct. The bar shows the new position right away; the sound follows." : {
 
     },
@@ -2549,6 +2552,9 @@
 
     },
     "Plays the tunes that sound most like the one playing." : {
+
+    },
+    "Power" : {
 
     },
     "Press **?** in the main window to see every shortcut on a panel. A key still works with the panel open, so you can try one. Move through the rows with the arrow keys, press **Return** to run one, and press **Esc** to close it." : {

@@ -34,10 +34,14 @@ struct ResonanceApp: App {
 
         Window("About Resonance", id: AboutView.windowID) {
             AboutView()
+                // The monitor in it plays from the store.
+                .environment(appDelegate.store)
                 .windowMinimizeBehavior(.disabled)
         }
         .windowStyle(.hiddenTitleBar)
-        .windowResizability(.contentSize)
+        // Its content's size at rest; the monitor grows it itself, and the
+        // view takes away the user's resizing.
+        .windowResizability(.contentMinSize)
         .restorationBehavior(.disabled)
         .defaultPosition(.center)
         // Opened from the app menu only, not listed in the Window menu.
