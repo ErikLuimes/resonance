@@ -81,7 +81,7 @@ open = "5"
 #             `sevenz-rust` (pure-Rust LZMA/LZMA2 decoder, no C deps).
 # We dispatch by magic bytes at extract time; the URL suffix is not
 # consulted (mirrors sometimes serve one via a redirect from the other).
-zip = { version = "2", default-features = false, features = ["deflate"] }
+zip = { version = "9", default-features = false, features = ["deflate"] }
 # `sevenz-rust2` is the maintained fork of the abandoned `sevenz-rust`
 # (last release 0.6.1, ~2023). The fork adds PPMD support (method
 # `0x030401`), which brona.dk's HVSC 7z archives use.
