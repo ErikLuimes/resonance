@@ -10,11 +10,11 @@ it isn't running, it starts in the background.
 | Sounds Like This | Tunes that sound like the one playing |
 | Describe Sound | A list from words, such as "fast arpeggios from 1987" |
 | Now Playing | The tune playing and how it sounds, with its controls |
-| Playlists | Open and play Favourites and your playlists |
+| Playlists | Open and play Favorites and your playlists |
 | Recently Played | Go back to a tune you played |
 | Play or Pause, Next Tune, Previous Tune | Control playback without opening a window |
 | Surprise Me | Play something from the collection you may not know |
-| Favourite Tune | Add the tune playing to Favourites, or take it out |
+| Favorite Tune | Add the tune playing to Favorites, or take it out |
 
 Give the ones you use most a hotkey or an alias in Raycast's settings. Search Tunes and
 Describe Sound take what you type after their alias, as in `rs commando`.
@@ -28,19 +28,3 @@ With the sound pane closed, each row shows the tune's fingerprint: nine bars, al
 the same order, so tunes that sound alike look alike down the list. They are notes,
 arpeggios, vibrato, filter, ring modulation, hard sync, digi samples, noise and pulse
 width.
-
-## How it talks to the app
-
-It uses the same socket as the `resonance` command line tool (see
-[../cli/README.md](../cli/README.md)), so the command line tool doesn't need to be
-installed.
-
-## Working on it
-
-```sh
-npm install
-npm run dev     # Loads it into Raycast, reloading on changes
-npm test        # The socket client and formatting, against a stand-in for the app
-npm run lint
-npm run build
-```

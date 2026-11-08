@@ -534,7 +534,7 @@ extension HelpTopic {
                     "**Describe Sound**: a list from words, such as “fast arpeggios from 1987”.",
                     "**Now Playing**: the tune playing and how it sounds, with its controls.",
                     "**Playlists** and **Recently Played**: open and play Favourites and your playlists, or go back to a tune.",
-                    "**Play or Pause**, **Next Tune**, **Previous Tune**, **Surprise Me** and **Favourite Tune** do their work without opening a window.",
+                    "**Play or Pause**, **Next Tune**, **Previous Tune**, **Surprise Me** and **Favorite Tune** do their work without opening a window.",
                 ]),
                 .paragraph("Give the ones you use most a hotkey or an alias in Raycast's settings. Search Tunes and Describe Sound take what you type after their alias."),
                 .heading("In a list of tunes"),

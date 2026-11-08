@@ -4,7 +4,7 @@
   "title": "Resonance",
   "description": "Search, play and discover Commodore 64 SID music in Resonance, by title, composer, mood or how a tune sounds.",
   "icon": "icon.png",
-  "author": "erikluimes",
+  "author": "ErikLuimes",
   "license": "MIT",
   "platforms": [
     "macOS"
@@ -75,7 +75,7 @@
     {
       "name": "playlists",
       "title": "Playlists",
-      "description": "Open and play Favourites and your playlists.",
+      "description": "Open and play Favorites and your playlists.",
       "keywords": [
         "favorites",
         "favourites"
@@ -128,11 +128,11 @@
       "mode": "no-view"
     },
     {
-      "name": "favourite-tune",
-      "title": "Favourite Tune",
-      "description": "Add the tune playing to Favourites, or take it out.",
+      "name": "favorite-tune",
+      "title": "Favorite Tune",
+      "description": "Add the tune playing to Favorites, or take it out.",
       "keywords": [
-        "favorite",
+        "favourite",
         "like",
         "love"
       ],
@@ -144,7 +144,8 @@
     "dev": "ray develop",
     "lint": "ray lint",
     "fix-lint": "ray lint --fix",
-    "test": "node --test tests/*.test.ts"
+    "test": "node --test tests/*.test.ts",
+    "publish": "npx @raycast/api@latest publish"
   },
   "dependencies": {
     "@raycast/api": "^2.11.1",

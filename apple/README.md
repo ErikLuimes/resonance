@@ -290,6 +290,13 @@ release.
   `ictool Resonance/AppIcon.icon --export-image --output-file icon.png
   --platform macOS --rendition Default --width 512 --height 512 --scale 1`
   (`ictool` is in `Icon Composer.app/Contents/Executables`).
+- The Raycast extension is in `raycast/`. It uses the same socket as the
+  `resonance` command line tool (see `cli/README.md`). Its README appears in the
+  Raycast Store, so working notes stay here. Run these in that folder:
+  `npm install`, `npm run dev` (loads it into Raycast, reloading on changes),
+  `npm test` (the socket client and formatting, against a stand-in for the app),
+  `npm run lint` and `npm run build`. `npm run publish` opens the store pull
+  request.
 
 ## Releases
 

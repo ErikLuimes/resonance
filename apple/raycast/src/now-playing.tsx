@@ -59,7 +59,7 @@ export default function Command() {
             />
             {now.songs > 1 ? <Detail.Metadata.Label title="Subtune" text={`${now.song} of ${now.songs}`} /> : null}
             {data.source ? <Detail.Metadata.Label title="Playing From" text={data.source} /> : null}
-            {data.favourite ? <Detail.Metadata.Label title="In Favourites" text="Yes" /> : null}
+            {data.favourite ? <Detail.Metadata.Label title="In Favorites" text="Yes" /> : null}
             {described?.tags.length ? (
               <Detail.Metadata.TagList title="Sound">
                 {described.tags.map((tag) => (
@@ -110,7 +110,7 @@ export default function Command() {
                 onAction={() => closeWith(`Drifting from ${tune.title}`, () => startDrift(tune.path))}
               />
               <Action
-                title={data?.favourite ? "Remove from Favourites" : "Add to Favourites"}
+                title={data?.favourite ? "Remove from Favorites" : "Add to Favorites"}
                 icon={data?.favourite ? Icon.StarDisabled : Icon.Star}
                 shortcut={{ modifiers: ["cmd", "shift"], key: "b" }}
                 onAction={() =>
