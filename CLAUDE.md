@@ -3,7 +3,7 @@
 - Commit only when asked. Erik does all pushing, tagging, releasing and PR merging; `.claude/settings.json` blocks agents from these, along with `publish.sh`, `release.sh` and edits to `appcast.xml`.
 - Work on `main` in the main checkout unless asked otherwise. A session running alongside another one gets its own worktree, so they don't overwrite each other.
 - Before calling a change done, run `apple/scripts/check.sh` (`--rust` for Rust-only changes). Report failures as they are.
-- New work goes in `apple/`. Don't change the upstream Phosphor files, such as `src/` and the root `Cargo.toml`.
+- New work goes in `apple/`. Resonance owns all the Rust now and doesn't plan to take Phosphor's updates, so `src/` and the root `Cargo.toml` can change, but keep changes to `src/` as small as possible.
 - New screens start with a mockup, and Erik click-tests them; say what hasn't been click-tested. Keep the toolbar static and don't use `HSplitView`: both have caused SwiftUI layout-loop crashes.
 - Measure or derive sync and timing values. Don't ask Erik to tune them by ear.
 - Visualizers are additive: add new ones as pages of the card, never replace or delete one.
