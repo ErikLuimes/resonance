@@ -250,7 +250,7 @@ extension HelpTopic {
                 .heading("Tune lists"),
                 .bullets([
                     "Double-click a tune to play it; the list plays on from there.",
-                    "Click a column header to sort. Control-click the header to choose which columns show.",
+                    "Click a column header to sort, and **Back to Original Order** above the list to undo it. Control-click the header to choose which columns show.",
                     "Control-click a tune to play it, add it to a playlist, find similar tunes or show it in Finder.",
                 ]),
                 .heading("The inspector"),
@@ -353,7 +353,8 @@ extension HelpTopic {
                 .bullets([
                     "Click **+** next to Playlists in the sidebar to make one, and type its name.",
                     "Control-click a playlist in the sidebar to play, rename, duplicate, export or delete it, or show its file in Finder. A deleted playlist goes to the Trash; its tunes stay where they are.",
-                    "Drag tunes up and down in a playlist to reorder them. That works while the list is in its own order: not sorted by a column or filtered.",
+                    "The **#** column shows each tune's place in the playlist.",
+                    "Drag tunes up and down in a playlist to reorder them. That works while the list is in its own order: not sorted by a column or filtered. **Back to Original Order**, above a sorted list, returns to it.",
                     "To take a tune out, Control-click it and choose **Remove from Playlist**.",
                 ]),
                 .heading("Add to…"),
@@ -659,6 +660,9 @@ extension HelpTopic {
                 .link(.settings(.integrations)),
                 .heading("An assistant can't reach Resonance"),
                 .paragraph("Assistants need the command line tool. Install it, then use **Copy Command** in Settings → Integrations again: it has the tool's full path, because an assistant may not look in the same folders as your terminal."),
+                .heading("An update failed"),
+                .paragraph("Settings → Updates gives the reason at the top, and **Copy Details** copies what a bug report needs. An update that didn't install shows there the next time Resonance opens."),
+                .link(.settings(.updates)),
                 .note(title: "Still stuck?",
                       text: "Resonance is in alpha. Report problems on GitHub, from Help → Report a Problem, with what you did and what happened."),
             ],
