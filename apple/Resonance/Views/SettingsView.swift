@@ -459,6 +459,26 @@ private struct AdvancedSettings: View {
     }
 }
 
+/// Puts a command on the clipboard and says so for a moment.
+private struct CopyCommandButton: View {
+    var title = "Copy Command"
+    let command: String
+    @State private var copied = false
+
+    var body: some View {
+        Button(copied ? "Copied" : title) {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(command, forType: .string)
+            copied = true
+        }
+        .task(id: copied) {
+            guard copied else { return }
+            try? await Task.sleep(for: .seconds(2))
+            copied = false
+        }
+    }
+}
+
 /// What reaches Resonance from outside its window: first what needs setting
 /// up, then what already works, with a link where macOS owns the switch.
 private struct IntegrationSettings: View {
@@ -467,15 +487,17 @@ private struct IntegrationSettings: View {
     private static let raycastExtension: URL? = nil
 
     @State private var installed = CommandLineTool.installed()
+    @State private var shadowedBy: URL?
     @State private var error: String?
-    @State private var copied = false
 
     var body: some View {
         Section {
             LabeledContent {
                 Button(installed == nil ? "Install" : "Install Again") {
                     do {
-                        installed = try CommandLineTool.install()
+                        let link = try CommandLineTool.install()
+                        installed = link
+                        shadowedBy = CommandLineTool.shadowedBy(link)
                         error = nil
                     } catch {
                         self.error = CommandLineTool.message(for: error)
@@ -489,28 +511,28 @@ private struct IntegrationSettings: View {
                     Text("The terminal app, and commands for scripts")
                 }
             }
+            .onAppear { shadowedBy = installed.flatMap { CommandLineTool.shadowedBy($0) } }
             if let error {
                 Text(error)
                     .foregroundStyle(.red)
             }
-            if let installed, !CommandLineTool.isOnDefaultPath(installed.deletingLastPathComponent()) {
-                Text("Add \(installed.deletingLastPathComponent().path) to your PATH to use it.")
+            if let shadowedBy {
+                Text("Your terminal may run \(shadowedBy.path) instead, a different program with the same name. Use the full path to be sure.")
                     .foregroundStyle(.secondary)
             }
-            LabeledContent {
-                Button(copied ? "Copied" : "Copy Command") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(CommandLineTool.assistantCommand(installedAt: installed), forType: .string)
-                    copied = true
+            if let folder = installed?.deletingLastPathComponent(), !CommandLineTool.isOnDefaultPath(folder) {
+                LabeledContent {
+                    CopyCommandButton(title: "Copy Line", command: CommandLineTool.pathCommand())
+                } label: {
+                    Text("Add \(folder.path) to your PATH")
+                    Text("Copies the line for your shell. Run it in a terminal, then open a new window. Running it again changes nothing.")
                 }
+            }
+            LabeledContent {
+                CopyCommandButton(command: CommandLineTool.assistantCommand(installedAt: installed))
             } label: {
                 Text("Claude and other assistants")
                 Text("Copies the command that connects Claude Code")
-            }
-            .task(id: copied) {
-                guard copied else { return }
-                try? await Task.sleep(for: .seconds(2))
-                copied = false
             }
             if let raycast = Self.raycastExtension {
                 LabeledContent {

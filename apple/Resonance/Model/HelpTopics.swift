@@ -662,7 +662,7 @@ extension HelpTopic {
                 .heading("The HVSC download stopped"),
                 .paragraph("Click **Retry** in the message at the top of the window. A download that was cancelled starts over from Download next to Collection."),
                 .heading("The terminal says it can't find resonance"),
-                .paragraph("Install it from Settings → Integrations. If it's in ~/.local/bin, Settings says to add that folder to your PATH, and a new terminal window then finds it. If Settings says something else is already there, another program has the name **resonance** in that folder."),
+                .paragraph("Install it from Settings → Integrations. If it's in ~/.local/bin, Settings has a line to copy that adds the folder to your PATH, and a new terminal window then finds it. If another program already has the name **resonance** in a folder, the tool goes in the next one. Settings tells you if your terminal may still run the other program, or if no folder is free."),
                 .link(.settings(.integrations)),
                 .heading("An assistant can't reach Resonance"),
                 .paragraph("Assistants need the command line tool. Install it, then use **Copy Command** in Settings → Integrations again: it has the tool's full path, because an assistant may not look in the same folders as your terminal."),
