@@ -72,18 +72,51 @@ struct AboutView: View {
         .onChange(of: awake) { _, on in
             if on { grow() } else { shrinkBack() }
         }
-        // Off whenever About opens, and off when it closes. About's window
-        // can outlive its view's appearance, so the window's own closing
-        // counts too.
-        .onAppear { model.powerOff(animated: false); grown = false; model.busy = false; window?.styleMask.remove(.resizable) }
-        .onDisappear { model.powerOff(animated: false); grown = false; model.busy = false }
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { note in
-            if (note.object as? NSWindow)?.identifier?.rawValue.hasPrefix(Self.windowID) == true {
-                model.powerOff(animated: false)
-                grown = false
-                model.busy = false
+        .onChange(of: grown, initial: true) { _, isGrown in model.hostGrown = isGrown }
+        // The model found About had been away: About goes back to rest too.
+        .onChange(of: model.resets) { _, _ in if grown { settle() } }
+        // Off whenever About opens, and off when it goes. About's window can
+        // outlive its view's appearance and come back without a new one, so
+        // the window's own closing counts, and so does its going out of
+        // sight, which is what closing looks like when the window is kept.
+        .onAppear {
+            reset()
+            // A new instance: the window at its resting frame, whatever size it was left at.
+            if let window, let rest = AboutSession.shared.restFrame, window.frame != rest {
+                window.setFrame(rest, display: false)
             }
+            window?.styleMask.remove(.resizable)
         }
+        .onDisappear { reset() }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { note in
+            if isAbout(note.object) { reset() }
+        }
+        // Out of sight, it starts over: off, nothing running, About at rest.
+        // (Only out of sight: a window's occlusion is re-reported as it
+        // resizes, and the grow must not switch the monitor off.)
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeOcclusionStateNotification)) { note in
+            if let window = note.object as? NSWindow, isAbout(window), !window.occlusionState.contains(.visible) { reset() }
+        }
+    }
+
+    private func isAbout(_ object: Any?) -> Bool {
+        (object as? NSWindow)?.identifier?.rawValue.hasPrefix(Self.windowID) == true
+    }
+
+    /// The monitor off and About at rest, at once: no animation, the
+    /// window straight back to its own frame if it had grown.
+    private func reset() {
+        model.startOver()
+        settle()
+    }
+
+    /// About's window straight back to its own frame, the layout at rest.
+    private func settle() {
+        if grown, let window, let rest = offFrame ?? AboutSession.shared.restFrame {
+            animation += 1
+            window.setFrame(rest, display: false)
+        }
+        grown = false
     }
 
     private var aboutText: some View {
@@ -145,8 +178,10 @@ struct AboutView: View {
     /// follows its size as it goes, so the monitor grows with it.
     private func grow() {
         grown = true
+        model.hostGrown = true
         guard let window else { return }
         offFrame = window.frame
+        AboutSession.shared.restFrame = window.frame
         let screen = (window.screen ?? NSScreen.main)?.visibleFrame ?? window.frame
         let height = (screen.height * 0.75).rounded()
         let width = min((height * 1.1).rounded(), (screen.width * 0.9).rounded())
@@ -159,6 +194,7 @@ struct AboutView: View {
     private func shrinkBack() {
         guard grown else { return }
         guard let window, let offFrame else { grown = false; return }
+        guard window.isVisible else { reset(); return }
         animate(window, to: offFrame, duration: 0.5) { grown = false }
     }
 
@@ -166,14 +202,15 @@ struct AboutView: View {
     private func animate(_ window: NSWindow, to frame: NSRect, duration: Double, then done: (() -> Void)? = nil) {
         animation += 1
         let mine = animation
-        model.busy = true
+        let seconds = reduceMotion ? 0 : duration
+        model.busyUntil = CACurrentMediaTime() + seconds + 0.2
         NSAnimationContext.runAnimationGroup({ context in
-            context.duration = reduceMotion ? 0 : duration
+            context.duration = seconds
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             window.animator().setFrame(frame, display: true)
         }, completionHandler: {
             guard mine == animation else { return }
-            model.busy = false
+            model.busyUntil = 0
             done?()
         })
     }
@@ -199,13 +236,39 @@ struct AboutCommands: Commands {
         @Environment(\.openWindow) private var openWindow
 
         var body: some View {
-            Button("About Resonance") { openWindow(id: AboutView.windowID) }
+            Button("About Resonance") { AboutSession.shared.open(with: openWindow) }
         }
     }
 }
 
 extension AboutView {
     static let windowID = "about"
+}
+
+/// Each opening of About is a new instance: `generation` keys About's view
+/// tree, so SwiftUI builds it afresh (a new renderer, fresh state) when the
+/// menu opens the window, whether or not macOS kept the old window around.
+/// `restFrame` is the window's frame at rest, to put back before it shows.
+@MainActor @Observable
+final class AboutSession {
+    static let shared = AboutSession()
+    var generation = 0
+    var restFrame: NSRect?
+
+    /// A new instance, then the window.
+    func open(with openWindow: OpenWindowAction) {
+        MonitorModel.shared.startOver()
+        generation += 1
+        openWindow(id: AboutView.windowID)
+    }
+}
+
+/// About's window content: a new AboutView per opening.
+struct AboutHost: View {
+    var body: some View {
+        AboutView()
+            .id(AboutSession.shared.generation)
+    }
 }
 
 /// The licenses of the open-source code built into the app, from

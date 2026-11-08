@@ -5,17 +5,17 @@
 <title>Resonance 64</title>
 <style>
 html,body{margin:0;height:100%;background:#09090b;overflow:hidden;font:13px -apple-system,system-ui,sans-serif;color:#8a8a90}
-#stage{position:fixed;inset:0;margin:auto;width:min(100vw,133.333vh);aspect-ratio:4/3}
+#stage{position:fixed;inset:0;margin:auto;width:min(100vw,120vh);aspect-ratio:6/5}
 #case{position:absolute;inset:0;width:100%;height:100%;display:block;user-select:none;-webkit-user-drag:none}
 #gl{position:absolute;inset:0;width:100%;height:100%;display:block}
-#power{position:absolute;left:70.2%;top:76.4%;width:5.4%;height:8.4%;background:none;border:0;cursor:pointer;padding:0;border-radius:8px}
+#power{position:absolute;left:80.4%;top:77%;width:5.8%;height:6.5%;background:none;border:0;cursor:pointer;padding:0;border-radius:8px}
 #power:focus-visible{outline:2px solid #6ea0ff}
-#led{position:absolute;left:72.5%;top:78.35%;width:.7%;aspect-ratio:1;border-radius:50%;background:#4d6a5e;transition:background .06s,box-shadow .12s;pointer-events:none}
+#led{position:absolute;left:57.1%;top:78.6%;width:1.33%;aspect-ratio:32/14;border-radius:1vmin;background:transparent;transition:background .06s,box-shadow .12s;pointer-events:none}
 #led.on{background:#5cff80;box-shadow:0 0 .35vmin .08vmin #5cff80,0 0 1.1vmin .25vmin rgba(92,255,128,.5)}
 #hint{position:fixed;left:0;right:0;bottom:8px;text-align:center;opacity:.55;pointer-events:none}
 </style>
 <div id="stage">
-  <img id="case" src="1084s.png" alt="Commodore 1084S monitor" draggable="false">
+  <img id="case" src="monitor-1702.png" alt="Commodore 1702 monitor" draggable="false">
   <canvas id="gl"></canvas>
   <div id="led"></div>
   <button id="power" aria-label="Power" title="Power"></button>
@@ -205,9 +205,9 @@ addEventListener('keydown',e=>{
 // the beam's scanlines, the tube's curvature, halation and the room's
 // reflection when on. Power on and off are animated with the scale and
 // brightness uniforms.
-const PW=1200,PH=900;                  // photo coordinates
-const GX0=240,GX1=895,GY0=145,GY1=632; // the glass, drawn 12% out into the photo's recess (the photo's own is 278–863 × 178–632)
-const M=28;                            // margin around the glass for the light spill
+const PW=2400,PH=2000;                 // render coordinates
+const GX0=546,GX1=1854,GY0=384,GY1=1342; // the glass of the rendered 1702
+const M=60;                            // margin around the glass for the light spill
 const HALF=new THREE.Vector2((GX1-GX0)/2,(GY1-GY0)/2), QUAD=new THREE.Vector2(GX1-GX0+2*M,GY1-GY0+2*M);
 
 const canvas=document.getElementById('gl'), stage=document.getElementById('stage');
@@ -248,7 +248,7 @@ vec3 lineSample(float u,float v,float lod){
 void main(){
   vec2 pos=(vUv-0.5)*uQuad;
   vec2 p=pos/uHalf;
-  float sd=sdBox(pos,uHalf,30.0);
+  float sd=sdBox(pos,uHalf,80.0);
   float aa=1.0/uPx;
   float inGlass=1.0-smoothstep(-aa,aa,sd);
 
@@ -321,7 +321,7 @@ void main(){
 
   // Light spilling onto the bezel around the glass.
   vec3 avg=frameAt(vec2(0.5),8.0)*uBright*(uCollapse>0.5?0.15:1.0);
-  float spill=0.5*dot(avg,vec3(0.299,0.587,0.114))*exp(-max(sd,0.0)/12.0);
+  float spill=0.5*dot(avg,vec3(0.299,0.587,0.114))*exp(-max(sd,0.0)/30.0);
   float alpha=max(inGlass,min(spill,1.0));
   color=mix(avg,color,inGlass);
   outColor=vec4(color*alpha,alpha);

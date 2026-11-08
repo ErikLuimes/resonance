@@ -1,7 +1,7 @@
 #include <metal_stdlib>
 using namespace metal;
 
-// The 1084S's tube (MonitorView.swift), over the glass of the case photo.
+// The 1702's tube (MonitorView.swift), over the glass of the rendered case.
 // One quad, this fragment function; the picture is the 384×272 frame
 // MonitorScreen draws, as a mipmapped texture. Measurements and reasons in
 // design/crt-monitor/README.md; the shader is the mockup's, line for line.
@@ -18,6 +18,7 @@ struct MonitorUniforms {
     float ambient;      // how much of the room shows in the glass, 1 when off
     float seed;         // changes every frame, for the noise
     float collapse;     // 1 while the picture is a line or a dot
+    float cornerRadius; // the glass's corners, in photo pixels
 };
 
 struct MonitorVertex {
@@ -69,7 +70,7 @@ fragment float4 monitorFragment(MonitorVertex in [[stage_in]],
                                 texture2d<float> frame [[texture(0)]]) {
     float2 pos = (in.uv - 0.5) * U.quad;
     float2 p = pos / U.glassHalf;
-    float sd = sdBox(pos, U.glassHalf, 30.0);
+    float sd = sdBox(pos, U.glassHalf, U.cornerRadius);
     float aa = 1.0 / U.px;
     float inGlass = 1.0 - smoothstep(-aa, aa, sd);
 
@@ -145,7 +146,7 @@ fragment float4 monitorFragment(MonitorVertex in [[stage_in]],
 
     // Light spilling onto the bezel around the glass.
     float3 avg = frameAt(frame, float2(0.5), 8.0) * U.bright * (U.collapse > 0.5 ? 0.15 : 1.0);
-    float spill = 0.5 * dot(avg, float3(0.299, 0.587, 0.114)) * exp(-max(sd, 0.0) / 12.0);
+    float spill = 0.5 * dot(avg, float3(0.299, 0.587, 0.114)) * exp(-max(sd, 0.0) / 30.0);
     float alpha = max(inGlass, min(spill, 1.0));
     color = mix(avg, color, inGlass);
     return float4(color * alpha, alpha);

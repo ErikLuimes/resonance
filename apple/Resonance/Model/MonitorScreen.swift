@@ -167,8 +167,20 @@ final class MonitorModel {
 
     var isOn: Bool { power == .on }
 
-    /// About is animating its window: the power button waits.
-    @ObservationIgnored var busy = false
+    /// About is animating its window until then: the power button waits. A
+    /// deadline rather than a flag, so a window animation that never
+    /// reports its end (About closed under it) can't lock the button.
+    @ObservationIgnored var busyUntil: Double = 0
+    var busy: Bool { CACurrentMediaTime() < busyUntil }
+    /// About has grown for the monitor. At its small size the monitor can
+    /// only be off: `tick` switches it off if it isn't.
+    @ObservationIgnored var hostGrown = false
+    /// Counts the clean starts: the renderer draws only while About is on
+    /// screen, so a gap in its drawing means About was closed, and the
+    /// monitor starts over, whatever SwiftUI did with the window. About
+    /// watches this and puts its window back.
+    private(set) var resets = 0
+    @ObservationIgnored private var lastDraw = 0.0
 
     /// The power button: on from off, off from on. Nothing while the picture
     /// is still collapsing or About's window is on the move: pressing in
@@ -188,6 +200,20 @@ final class MonitorModel {
         power = .on
         onAt = CACurrentMediaTime()
         boot()
+    }
+
+    /// Off, nothing running, nothing on the screen, the list from the top,
+    /// as a monitor just unpacked. About calls it whenever its window goes,
+    /// and `tick` when it finds About was gone.
+    func startOver() {
+        powerOff(animated: false)
+        frame.clear()
+        cursor = nil
+        peaks = [0, 0, 0]
+        selected = 0
+        hostGrown = false
+        busyUntil = 0
+        resets += 1
     }
 
     /// Starts the collapse. `now: false` is the window closing: off at once.
@@ -300,6 +326,14 @@ final class MonitorModel {
     /// the tube is doing. Called once per display frame by the renderer.
     func tick(store: PlayerStore?) -> MonitorPicture {
         let now = CACurrentMediaTime()
+        // A gap in the drawing: About was away. Everything starts over.
+        if lastDraw > 0, now - lastDraw > 0.5, power != .off || mode != .off {
+            startOver()
+        }
+        lastDraw = now
+        // Small means off. About grows within a frame of the power press;
+        // half a second of grace covers that, and nothing else.
+        if !hostGrown, power != .off, now - onAt > 0.5 { powerOff(animated: false) }
         let dt = lastTick == 0 ? 0 : min(0.1, now - lastTick)
         lastTick = now
         if mode == .boot {

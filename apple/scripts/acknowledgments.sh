@@ -95,6 +95,13 @@ functions following the work of Inigo Quilez (https://iquilezles.org/articles/).
 
 The credits are a tribute to the demoscene, in the style of Crystal Dream II by
 Triton (1993). Nothing from the demo is in Resonance. We forgive the PC.
+
+The monitor in About Resonance is a Commodore 1702 from "Commodore 64 ||
+Computer (Full Pack)" by dark_igorek (https://skfb.ly/oUKFx), CC BY 4.0
+(https://creativecommons.org/licenses/by/4.0/), rendered as a still picture.
+The model came to us through C64 READY. (https://c64ready.com), whose own
+Retro Vibes scene showed what it could do. The picture on the screen is
+Resonance's.
 """)
     for text, crates in sorted(groups.values(), key=lambda g: g[1][0].lower()):
         f.write("\n%s\n\n%s\n\n%s\n" % (rule, "\n".join(crates), text))

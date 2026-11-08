@@ -1,7 +1,7 @@
 import MetalKit
 import SwiftUI
 
-/// A Commodore 1084S in About Resonance, switched off, until you press its
+/// A Commodore 1702 in About Resonance, switched off, until you press its
 /// power button: then it warms up, a C64 boots and runs the player, live,
 /// answering the app's own keys while About is in front. The case is a photo;
 /// the glass is Shaders/Monitor.metal over it, and the picture on it is
@@ -14,17 +14,21 @@ struct MonitorCase: View {
     var live: Bool
     var onPower: (() -> Void)?
 
-    /// The photo's geometry, in its own pixels (design/crt-monitor/README.md).
-    /// The glass is drawn 12% larger than the photo's, out into the dark
-    /// recess around it, so the picture gets the room the small case allows.
-    static let photo = CGSize(width: 1200, height: 900)
+    /// The render's geometry, in its own pixels (design/crt-monitor/README.md):
+    /// a Commodore 1702 from dark_igorek's CC BY 4.0 model, rendered straight
+    /// on in Blender by design/crt-monitor/blender/render.py.
+    static let photo = CGSize(width: 2400, height: 2000)
     static var aspect: CGFloat { photo.height / photo.width }
-    static let glass = CGRect(x: 240, y: 145, width: 655, height: 487)
-    static let margin: CGFloat = 28
-    static let led = CGRect(x: 870, y: 705, width: 8, height: 8)
-    static let powerZone = CGRect(x: 843, y: 688, width: 64, height: 76)
-    /// The sticker on the bezel, top left, a corner over the glass.
-    static let sticker = CGRect(x: 190, y: 98, width: 100, height: 100)
+    /// The glass as it shows, inside the black bezel.
+    static let glass = CGRect(x: 546, y: 384, width: 1308, height: 958)
+    static let glassCornerRadius: CGFloat = 80
+    static let margin: CGFloat = 60
+    /// The power light on the badge strip, a small bar; the render shows it unlit.
+    static let led = CGRect(x: 1371, y: 1572, width: 32, height: 14)
+    /// The brown POWER rocker at the right of the panel, with its label.
+    static let powerZone = CGRect(x: 1930, y: 1540, width: 140, height: 130)
+    /// The sticker on the black bezel, top left, a corner over the glass.
+    static let sticker = CGRect(x: 330, y: 150, width: 260, height: 260)
 
     private var model: MonitorModel { MonitorModel.shared }
 
@@ -33,7 +37,7 @@ struct MonitorCase: View {
             let k = geometry.size.width / Self.photo.width
             let quad = Self.glass.insetBy(dx: -Self.margin, dy: -Self.margin)
             ZStack(alignment: .topLeading) {
-                Image(.monitor1084S)
+                Image(.monitor1702)
                     .resizable()
                     .interpolation(.high)
                     .frame(width: geometry.size.width, height: geometry.size.height)
@@ -42,7 +46,7 @@ struct MonitorCase: View {
                         .frame(width: quad.width * k, height: quad.height * k)
                         .offset(x: quad.minX * k, y: quad.minY * k)
                 } else {
-                    RoundedRectangle(cornerRadius: 30 * k, style: .continuous)
+                    RoundedRectangle(cornerRadius: Self.glassCornerRadius * k, style: .continuous)
                         .fill(LinearGradient(colors: [Color(white: 0.17), Color(white: 0.26)], startPoint: .top, endPoint: .bottom))
                         .frame(width: Self.glass.width * k, height: Self.glass.height * k)
                         .offset(x: Self.glass.minX * k, y: Self.glass.minY * k)
@@ -50,11 +54,14 @@ struct MonitorCase: View {
                 IconSticker(size: Self.sticker.width * k)
                     .offset(x: Self.sticker.minX * k, y: Self.sticker.minY * k)
                     .allowsHitTesting(false)
-                Circle()
-                    .fill(model.isOn ? Color(red: 0.36, green: 1, blue: 0.5) : Color(red: 0.3, green: 0.42, blue: 0.37))
-                    .shadow(color: model.isOn ? Color(red: 0.36, green: 1, blue: 0.5).opacity(0.9) : .clear, radius: 3 * k)
+                // The power light: the render has it unlit; lit, it's drawn over it.
+                Capsule()
+                    .fill(Color(red: 0.45, green: 1, blue: 0.55))
+                    .shadow(color: Color(red: 0.36, green: 1, blue: 0.5).opacity(0.9), radius: 6 * k)
+                    .shadow(color: Color(red: 0.36, green: 1, blue: 0.5).opacity(0.5), radius: 16 * k)
                     .frame(width: Self.led.width * k, height: Self.led.height * k)
                     .offset(x: Self.led.minX * k, y: Self.led.minY * k)
+                    .opacity(model.isOn ? 1 : 0)
                     .allowsHitTesting(false)
                 Button {
                     if let onPower { onPower() } else { model.pressPower(store: store) }
@@ -235,6 +242,7 @@ private struct MonitorUniforms {
     var ambient: Float
     var seed: Float
     var collapse: Float
+    var cornerRadius: Float
 }
 
 /// Draws the tube into an MTKView, once per display frame: the frame's
@@ -324,7 +332,8 @@ final class MonitorRenderer: NSObject, MTKViewDelegate {
             px: Float(size.width / quad.width),
             time: Float(CACurrentMediaTime().truncatingRemainder(dividingBy: 1000)),
             bright: picture.bright, focus: picture.focus, wobble: picture.wobble,
-            ambient: picture.ambient, seed: Float(frames % 1000), collapse: picture.collapse)
+            ambient: picture.ambient, seed: Float(frames % 1000), collapse: picture.collapse,
+            cornerRadius: Float(MonitorCase.glassCornerRadius))
 
         guard let encoder = commands.makeRenderCommandEncoder(descriptor: pass) else { return }
         encoder.setRenderPipelineState(pipeline)

@@ -33,7 +33,7 @@ struct ResonanceApp: App {
         }
 
         Window("About Resonance", id: AboutView.windowID) {
-            AboutView()
+            AboutHost()
                 // The monitor in it plays from the store.
                 .environment(appDelegate.store)
                 .windowMinimizeBehavior(.disabled)
