@@ -1,0 +1,5 @@
+# What each feature in Resonance/Model/FeatureFlags.swift must not leave in a
+# build it's excluded from: feature, tier and a grep -E pattern, separated by tabs.
+# It lives here rather than in Swift because the list would otherwise put these
+# strings into every build.
+csdb	restricted	csdb\.dk|wikipedia\.org|wikimedia\.org

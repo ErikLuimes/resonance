@@ -63,6 +63,8 @@ STAGE="$(xcodebuild -project Resonance.xcodeproj -scheme Resonance -configuratio
     | awk '$1 == "RELEASE_STAGE" { print $3; exit }')"
 # "0.1.0-alpha.1" with a release stage (RELEASE_STAGE), "0.1.0" without.
 VERSION="$VERSION${STAGE:+-$STAGE}"
+# Stops here on a stage that isn't alpha, beta or final.
+"$APPLE/scripts/feature-flags.sh" conditions "$STAGE" >/dev/null
 BUILD="$(xcodebuild -project Resonance.xcodeproj -scheme Resonance -configuration Release -showBuildSettings 2>/dev/null \
     | awk '$1 == "CURRENT_PROJECT_VERSION" { print $3; exit }')"
 PROJECT_KEY="$(xcodebuild -project Resonance.xcodeproj -scheme Resonance -configuration Release -showBuildSettings 2>/dev/null \
@@ -134,24 +136,28 @@ else
     NAME="Resonance-$VERSION-unsigned"
 fi
 
-# Releases leave CSDb out (the CSDB flag is Debug's) until its admins have had
-# their say. Debug work can't break that build unnoticed: the tests run without
-# the flag here, and the archive is checked for the addresses below.
-echo "Testing without CSDb…"
-xcodebuild test -quiet -project Resonance.xcodeproj -scheme Resonance -configuration Debug \
-    -destination 'platform=macOS' -derivedDataPath "$OUT/no-csdb" \
-    -clonedSourcePackagesDirPath "$PACKAGES" SWIFT_ACTIVE_COMPILATION_CONDITIONS=DEBUG CODE_SIGN_IDENTITY=-
+# Feature flags (design/feature-flags/README.md). The release stage alone decides
+# what's compiled in, set here so a Mac's own Signing.local.xcconfig can't add
+# anything. The tests run as this build will, and as a beta or final build would,
+# so work with a flag on can't break a build without it unnoticed.
+SHIPPED_FLAGS="$("$APPLE/scripts/feature-flags.sh" conditions "$STAGE")"
+"$APPLE/scripts/feature-flags.sh" lint
+for TEST_FLAGS in "DEBUG${SHIPPED_FLAGS:+ $SHIPPED_FLAGS}" DEBUG; do
+    if [ "${TESTED_FLAGS:-}" = "$TEST_FLAGS" ]; then continue; fi
+    TESTED_FLAGS="$TEST_FLAGS"
+    echo "Testing with $TEST_FLAGS…"
+    xcodebuild test -quiet -project Resonance.xcodeproj -scheme Resonance -configuration Debug \
+        -destination 'platform=macOS' -derivedDataPath "$OUT/tests" \
+        -clonedSourcePackagesDirPath "$PACKAGES" "SWIFT_ACTIVE_COMPILATION_CONDITIONS=$TEST_FLAGS" CODE_SIGN_IDENTITY=-
+done
 
 echo "Archiving (the Rust core builds in release mode; this takes a few minutes)…"
 xcodebuild archive -quiet -project Resonance.xcodeproj -scheme Resonance -configuration Release \
     -destination 'generic/platform=macOS' -archivePath "$OUT/Resonance.xcarchive" \
-    -clonedSourcePackagesDirPath "$PACKAGES" "${SIGNING[@]}" "${UPDATES[@]}"
+    -clonedSourcePackagesDirPath "$PACKAGES" "SWIFT_ACTIVE_COMPILATION_CONDITIONS=$SHIPPED_FLAGS" \
+    "${SIGNING[@]}" "${UPDATES[@]}"
 
-if strings "$OUT/Resonance.xcarchive/Products/Applications/Resonance.app/Contents/MacOS/Resonance" \
-    | grep -qE 'csdb\.dk|wikipedia\.org|wikimedia\.org'; then
-    echo "error: CSDb or Wikimedia addresses in a release build" >&2
-    exit 1
-fi
+"$APPLE/scripts/feature-flags.sh" check "$OUT/Resonance.xcarchive/Products/Applications/Resonance.app" "$STAGE"
 
 if [ -n "$IDENTITY" ]; then
     cat > "$OUT/ExportOptions.plist" <<EOF

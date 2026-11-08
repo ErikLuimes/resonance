@@ -20,6 +20,8 @@ case "${1:-}" in
     *) echo "usage: apple/scripts/check.sh [--rust]" >&2; exit 2 ;;
 esac
 
+scripts/feature-flags.sh lint
+
 echo "Rust tests…"
 cargo test -p phosphor-apple
 

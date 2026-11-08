@@ -35,7 +35,8 @@ struct UpdaterTests {
         #expect(UpdateChannel.forReleaseStage("alpha.7") == .alpha)
         #expect(UpdateChannel.forReleaseStage("beta.2") == .beta)
         #expect(UpdateChannel.forReleaseStage("") == .stable)
-        #expect(UpdateChannel.forReleaseStage("rc.1") == .stable)
+        // release.sh refuses any other stage; this is only the fallback.
+        #expect(UpdateChannel.forReleaseStage("nightly.1") == .stable)
     }
 
     @Test func aChosenChannelBeatsTheBuilds() throws {
