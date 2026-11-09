@@ -51,6 +51,17 @@ pub fn app_link(link: &Link, tune: Option<&Tune>) -> String {
     url
 }
 
+/// The tune on DeepSID, which plays HVSC in the browser:
+/// `https://deepsid.chordian.net/?file=/MUSICIANS/…&subtune=2`. DeepSID
+/// counts subtunes from 1, as links do; the start song is left out.
+pub fn deepsid_link(link: &Link, tune: &Tune) -> String {
+    let mut url = format!("https://deepsid.chordian.net/?file={}", encode(&tune.path));
+    if link.subtune != 0 && link.subtune != link.start {
+        url.push_str(&format!("&subtune={}", link.subtune));
+    }
+    url
+}
+
 pub fn tune_page(site: &Site, link: &Link, tune: &Tune) -> String {
     let title = format!("{} — {}", tune.title_name(), tune.author_name());
     let mut facts: Vec<String> = vec![tune.released.trim().to_string()];
@@ -82,10 +93,12 @@ pub fn tune_page(site: &Site, link: &Link, tune: &Tune) -> String {
   <a class="button primary" href="{}">Open in Resonance</a>
   <a class="button" href="{}">Download Resonance</a>
 </div>
-<p class="note">Resonance plays the tune from your own copy of HVSC, the High Voltage SID Collection. It finds it even if your collection is an older release, and offers the update when it's missing.</p>"#,
+<p class="note">Resonance plays the tune from your own copy of HVSC, the High Voltage SID Collection. It finds it even if your collection is an older release, and offers the update when it's missing.</p>
+<p class="note">Not on a Mac? <a href="{}">Listen on DeepSID</a>, in your browser.</p>"#,
             escape(&tune.path),
             escape(&app_link(link, Some(tune))),
             escape(site.download),
+            escape(&deepsid_link(link, tune)),
         ),
     )
 }
@@ -266,6 +279,8 @@ fn page(title: &str, description: &str, url: &str, image: &str, body: &str) -> S
   .button {{ display: inline-block; padding: 10px 20px; border-radius: 999px; color: var(--text); text-decoration: none; border: 1px solid #3a3f4c; font-weight: 600; }}
   .button.primary {{ background: var(--accent); border-color: var(--accent); color: #0b0d12; }}
   .note {{ color: var(--muted); font-size: 15px; }}
+  .note a {{ color: var(--accent); text-decoration: none; }}
+  .note a:hover {{ text-decoration: underline; }}
 </style>
 </head>
 <body>
@@ -319,6 +334,15 @@ mod tests {
         assert!(html.contains(
             "resonance://tune/0123456789abcdef0123456789abcdef?s=1&amp;v=85&amp;p=/MUSICIANS/H/Hubbard_Rob/Commando%20%26%20Co.sid&amp;t=Commando&amp;a=Rob%20Hubbard"
         ));
+    }
+
+    #[test]
+    fn the_page_links_to_deepsid() {
+        let link = Link { key: "x", code: "x", subtune: 1, start: 1, hvsc: None };
+        let html = tune_page(&SITE, &link, &tune());
+        assert!(html.contains(r#"href="https://deepsid.chordian.net/?file=/MUSICIANS/H/Hubbard_Rob/Commando%20%26%20Co.sid">"#), "the start song left out");
+        let other = tune_page(&SITE, &Link { subtune: 2, ..link }, &tune());
+        assert!(other.contains("Commando%20%26%20Co.sid&amp;subtune=2\""));
     }
 
     #[test]

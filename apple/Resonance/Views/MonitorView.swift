@@ -270,7 +270,7 @@ final class MonitorRenderer: NSObject, MTKViewDelegate {
             let descriptor = MTLTextureDescriptor.texture2DDescriptor(
                 pixelFormat: .bgra8Unorm, width: C64Frame.width, height: C64Frame.height, mipmapped: true)
             descriptor.usage = .shaderRead
-            descriptor.storageMode = .managed
+            descriptor.storageMode = .shared
             return device.makeTexture(descriptor: descriptor)
         }
         super.init()

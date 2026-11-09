@@ -93,7 +93,7 @@ nonisolated struct Teaser: Equatable {
 
     var text: Text {
         guard isQuote else { return Text(sentence) }
-        return Text("\u{201C}\(sentence)\u{201D}").font(.system(.body, design: .serif).italic())
-            + Text(by.map { " \u{2014} \($0)" } ?? "")
+        let quote = Text("\u{201C}\(sentence)\u{201D}").font(.system(.body, design: .serif).italic())
+        return Text("\(quote)\(by.map { " \u{2014} \($0)" } ?? "")")
     }
 }

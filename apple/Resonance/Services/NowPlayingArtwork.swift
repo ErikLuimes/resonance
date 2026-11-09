@@ -22,7 +22,7 @@ enum NowPlayingArtwork {
     /// macOS asks for the image off the main thread: nothing here may be
     /// main-actor-isolated, which `@Sendable` sees to, as for remote commands.
     static func artwork(_ image: NSImage) -> MPMediaItemArtwork {
-        nonisolated(unsafe) let image = image
+        let image = image
         return MPMediaItemArtwork(boundsSize: image.size) { @Sendable _ in image }
     }
 

@@ -146,8 +146,7 @@ struct AboutView: View {
             VStack(spacing: 3) {
                 // The link as literal markdown: an interpolated link
                 // isn't parsed.
-                (Text("Built on ") + Text("[Phosphor](https://github.com/sandlbn/Phosphor)")
-                    + Text(" \(phosphorVersion()) by Marcin Spoczynski."))
+                Text("Built on [Phosphor](https://github.com/sandlbn/Phosphor) \\((phosphorVersion())) by Marcin Spoczynski.")
                     .tint(.accentColor)
                 Text("SID emulation by reSIDfp, SIDLite and reSID.")
             }
@@ -207,7 +206,12 @@ struct AboutView: View {
     }
 
     /// Moves the window, with the power button locked until it's there.
-    private func animate(_ window: NSWindow, to frame: NSRect, duration: Double, then done: (() -> Void)? = nil) {
+    private func animate(
+        _ window: NSWindow,
+        to frame: NSRect,
+        duration: Double,
+        then done: (@MainActor @Sendable () -> Void)? = nil
+    ) {
         animation += 1
         let mine = animation
         let seconds = reduceMotion ? 0 : duration
@@ -217,9 +221,11 @@ struct AboutView: View {
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             window.animator().setFrame(frame, display: true)
         }, completionHandler: {
-            guard mine == animation else { return }
-            model.busyUntil = 0
-            done?()
+            Task { @MainActor in
+                guard mine == animation else { return }
+                model.busyUntil = 0
+                done?()
+            }
         })
     }
 

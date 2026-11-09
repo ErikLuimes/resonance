@@ -87,7 +87,7 @@ private struct TuneDragPreview: View {
     var body: some View {
         Label {
             if tunes.count == 1, let tune = tunes.first {
-                Text(tune.title).fontWeight(.semibold) + Text("  \(tune.author)").foregroundStyle(.secondary)
+                Text("\(Text(tune.title).fontWeight(.semibold))  \(Text(tune.author).foregroundStyle(.secondary))")
             } else {
                 Text("\(tunes.count) tunes").fontWeight(.semibold)
             }

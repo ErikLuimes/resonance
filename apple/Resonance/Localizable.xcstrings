@@ -7,16 +7,13 @@
     " " : {
 
     },
-    "  %@" : {
-
-    },
-    " %@ by Marcin Spoczynski." : {
-
-    },
-    " Choose your HVSC folder in Settings, then try again." : {
+    " · playing" : {
 
     },
     " at %@" : {
+
+    },
+    " Choose your HVSC folder in Settings, then try again." : {
 
     },
     " from %@" : {
@@ -28,10 +25,178 @@
     " of %lld parts" : {
 
     },
-    " · playing" : {
+    "—" : {
 
     },
-    " — %@" : {
+    ", follows v%@" : {
+
+    },
+    ", music by %@" : {
+
+    },
+    ", released %@" : {
+
+    },
+    ", with " : {
+
+    },
+    "…" : {
+
+    },
+    "“%@”" : {
+
+    },
+    "“Drift from this tune in Resonance”" : {
+
+    },
+    "“Favorite this tune in Resonance”" : {
+
+    },
+    "“Play Favorites in Resonance”, or the name of one of your playlists" : {
+
+    },
+    "“Play something like this in Resonance”" : {
+
+    },
+    "“Surprise me in Resonance”" : {
+
+    },
+    "**Add to…** in the inspector, in Now Playing, on a composer's card and in a tune's context menu shows My Playlist, Favorites and your playlists, most recently used first. Type to find one; a name that's not taken makes a new playlist with the tunes in it." : {
+
+    },
+    "**Bars**: each voice's level, with peak hold." : {
+
+    },
+    "**Color**: here the colors mean something different than they do on the barcode. Each point takes one of the chip's waveforms, in proportion to how much the tune uses it: green for triangle, violet for saw, cyan for pulse and orange for noise. The hover card's Waveform Mix bar shows the same shares in numbers." : {
+
+    },
+    "**Curated Playlists**: HVSC's own lists, from the Top 100 to the Grand Tour." : {
+
+    },
+    "**Data Folder** shows how much Resonance's folder holds, and opens it in Finder. **Reset** moves the collection Resonance downloaded to the Trash, or resets everything: Resonance's folder goes to the Trash, its settings are forgotten, and it restarts fresh." : {
+
+    },
+    "**Describe Sound**: a list from words, such as “fast arpeggios from 1987”." : {
+
+    },
+    "**Envelope**: each voice's attack, decay, sustain and release as it plays." : {
+
+    },
+    "**f**: fire, where each voice feeds its own part of the flames and hits throw sparks." : {
+
+    },
+    "**Halo**: a glowing ring per voice that swells with its envelope and wobbles with its waveform's harmonics." : {
+
+    },
+    "**HVSC**: the Collection row opens the Home; **Musicians**, **Games** and **Demos** list the collection's composers and folders, with their tune counts and years." : {
+
+    },
+    "**Never Heard**: the tunes you haven't played, shuffled." : {
+
+    },
+    "**New to Me**: tunes different from what you've heard before. It needs a little history first." : {
+
+    },
+    "**Now Playing**: the tune playing and how it sounds, with its controls." : {
+
+    },
+    "**o**: the app's Particles sphere." : {
+
+    },
+    "**Open in Resonance** on that page opens the tune in the app, where you can play it or show it in the library." : {
+
+    },
+    "**Particles**: 24,000 points on a turning sphere, a third per voice, rippling with its envelope and sending a wave across on every new note." : {
+
+    },
+    "**Pitch Trail**: where each voice's pitch has been." : {
+
+    },
+    "**Play or Pause**, **Next Tune**, **Previous Tune**, **Surprise Me** and **Favorite Tune** do their work without opening a window." : {
+
+    },
+    "**playlist add**, **new** and **rm** read paths from a pipe." : {
+
+    },
+    "**Playlists** and **Recently Played**: open and play Favorites and your playlists, or go back to a tune." : {
+
+    },
+    "**Playlists**: Favorites, My Playlist and your own playlists." : {
+
+    },
+    "**Radial**: a ring of spectrum bars per voice, the rings turning opposite ways." : {
+
+    },
+    "**Recently Played**: the last 100 different tunes you played." : {
+
+    },
+    "**Registers**: every byte the player writes, lighting up as it changes, with the control bits spelled out." : {
+
+    },
+    "**resonance pick** opens a small list to choose from and prints the paths, for use inside other commands." : {
+
+    },
+    "**Return** plays from that tune on. **⌘L** shows what sounds like it, **⌘D** shows or hides how it sounds, and **⌘K** has the rest: Sound Drift, Add to Playlist and Show in Resonance. With the sound pane closed, each row shows the tune's fingerprint." : {
+
+    },
+    "**s**: a skull in ASCII, whose eyes glow with the voices and whose jaw chomps on the hits." : {
+
+    },
+    "**Save** keeps the tunes as one of your playlists. It stays as it is then, and **Refresh** makes a new pick." : {
+
+    },
+    "**Scope**: each voice's waveform, with the note and waveform it's playing." : {
+
+    },
+    "**Search Tunes**: find tunes by title or composer, and see how each one sounds." : {
+
+    },
+    "**Search**: everything in HVSC that matches what you type." : {
+
+    },
+    "**Shape**: each trait has its own direction, the same for every tune, and the ball bulges that way as far as the trait is strong. A tall bar is a long spike, and a tune with few traits stays nearly round. Tunes with similar bars get similar shapes." : {
+
+    },
+    "**Share…**, next to Add to… in Now Playing, the inspector and the menu bar player, makes a short link to a tune: Copy Link, Messages, Mail, or **More…** for any other app. **Share** in a tune's context menu does the same from a list. A subtune stays that subtune." : {
+
+    },
+    "**Similar to a Tune**: the closest tunes to what's playing, or one you pick. Its **Match** menu goes through the closest 50, 200 or 1,000, and **Other Versions** also adds tunes with the same name." : {
+
+    },
+    "**Skip RSID tunes**, and the **default song length** for tunes whose length isn't known (0 plays until silence)." : {
+
+    },
+    "**Slow to Intense**: calm tunes that build toward the end." : {
+
+    },
+    "**Smart Playlist** in the sidebar makes a list from how tunes sound, how long they are and what you've played. Everything happens on your Mac." : {
+
+    },
+    "**Sound Map**: every note becomes a point in 3D, placed by its timbre, so the tune draws its own map as it plays." : {
+
+    },
+    "**Sounds Like This**: tunes that sound like the one playing." : {
+
+    },
+    "**Stereo**: play 2SID tunes in mirrored stereo." : {
+
+    },
+    "**Sweeps**: pulse width, the filter and the gates over the last few seconds." : {
+
+    },
+    "**t**: Tesla coils, where each voice's pitch sets how high its lightning strikes." : {
+
+    },
+    "**Tracker**: the tune as a tracker would show it, with what's coming below the row you're hearing. A SID file holds code, not patterns, so this is rebuilt from what its player writes to the chip. An instrument here is a waveform and envelope, not necessarily one the composer had in mind, and some tunes have no steady beat to find." : {
+
+    },
+    "**Turning**: it turns so you can see every side. The speed means nothing, and neither does the size: every sphere is scaled to fit its frame, so compare shapes, not sizes." : {
+
+    },
+    "**u** slides up a tracker over the list: what the player writes to the chip, rebuilt by running the tune once, with the row being heard in the middle. **↑** and **↓** look around, **f** follows the music again, and **Esc** closes it. **Tab** steps on to Registers, Sweeps and Pitch, which show every SID of a tune with more than one where there's room. In the tracker, or when there isn't room, **1**, **2** and **3** switch between them." : {
+
+    },
+    "**w**: a pool, where each new note drops in: low notes make wide ripples, high notes tight ones." : {
 
     },
     "#" : {
@@ -66,19 +231,6 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ %2$lld%%"
-          }
-        }
-      }
-    },
-    "%@ Is Ready" : {
-
-    },
-    "%@ MB of %@ MB" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ MB of %2$@ MB"
           }
         }
       }
@@ -174,12 +326,25 @@
     "%@ has no tunes in it." : {
 
     },
+    "%@ Is Ready" : {
+
+    },
     "%@ matches among %@ tunes" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ matches among %2$@ tunes"
+          }
+        }
+      }
+    },
+    "%@ MB of %@ MB" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ MB of %2$@ MB"
           }
         }
       }
@@ -318,10 +483,19 @@
         }
       }
     },
-    "%lld" : {
-
+    "%@%@" : {
+      "comment" : "A dash and a space.",
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@%2$@"
+          }
+        }
+      }
     },
-    "%lld SIDs" : {
+    "%lld" : {
 
     },
     "%lld disks" : {
@@ -346,13 +520,13 @@
     "%lld playlists" : {
 
     },
+    "%lld SIDs" : {
+
+    },
     "%lld subtunes" : {
 
     },
     "%lld tunes" : {
-
-    },
-    "%lld%% alike" : {
 
     },
     "%lld/%lld" : {
@@ -365,10 +539,10 @@
         }
       }
     },
-    "%u" : {
+    "%lld%% alike" : {
 
     },
-    "%u Min" : {
+    "%u" : {
 
     },
     "%u files" : {
@@ -387,166 +561,22 @@
     "%u images" : {
 
     },
+    "%u Min" : {
+
+    },
     "%u tunes" : {
 
     },
-    "**Add to…** in the inspector, in Now Playing, on a composer's card and in a tune's context menu shows My Playlist, Favorites and your playlists, most recently used first. Type to find one; a name that's not taken makes a new playlist with the tunes in it." : {
-
-    },
-    "**Bars**: each voice's level, with peak hold." : {
-
-    },
-    "**Color**: here the colors mean something different than they do on the barcode. Each point takes one of the chip's waveforms, in proportion to how much the tune uses it: green for triangle, violet for saw, cyan for pulse and orange for noise. The hover card's Waveform Mix bar shows the same shares in numbers." : {
-
-    },
-    "**Curated Playlists**: HVSC's own lists, from the Top 100 to the Grand Tour." : {
-
-    },
-    "**Data Folder** shows how much Resonance's folder holds, and opens it in Finder. **Reset** moves the collection Resonance downloaded to the Trash, or resets everything: Resonance's folder goes to the Trash, its settings are forgotten, and it restarts fresh." : {
-
-    },
-    "**Describe Sound**: a list from words, such as “fast arpeggios from 1987”." : {
-
-    },
-    "**Envelope**: each voice's attack, decay, sustain and release as it plays." : {
-
-    },
-    "**HVSC**: the Collection row opens the Home; **Musicians**, **Games** and **Demos** list the collection's composers and folders, with their tune counts and years." : {
-
-    },
-    "**Halo**: a glowing ring per voice that swells with its envelope and wobbles with its waveform's harmonics." : {
-
-    },
-    "**Never Heard**: the tunes you haven't played, shuffled." : {
-
-    },
-    "**New to Me**: tunes different from what you've heard before. It needs a little history first." : {
-
-    },
-    "**Now Playing**: the tune playing and how it sounds, with its controls." : {
-
-    },
-    "**Open in Resonance** on that page opens the tune in the app, where you can play it or show it in the library." : {
-
-    },
-    "**Particles**: 24,000 points on a turning sphere, a third per voice, rippling with its envelope and sending a wave across on every new note." : {
-
-    },
-    "**Pitch Trail**: where each voice's pitch has been." : {
-
-    },
-    "**Play or Pause**, **Next Tune**, **Previous Tune**, **Surprise Me** and **Favorite Tune** do their work without opening a window." : {
-
-    },
-    "**Playlists** and **Recently Played**: open and play Favorites and your playlists, or go back to a tune." : {
-
-    },
-    "**Playlists**: Favorites, My Playlist and your own playlists." : {
-
-    },
-    "**Radial**: a ring of spectrum bars per voice, the rings turning opposite ways." : {
-
-    },
-    "**Recently Played**: the last 100 different tunes you played." : {
-
-    },
-    "**Registers**: every byte the player writes, lighting up as it changes, with the control bits spelled out." : {
-
-    },
-    "**Return** plays from that tune on. **⌘L** shows what sounds like it, **⌘D** shows or hides how it sounds, and **⌘K** has the rest: Sound Drift, Add to Playlist and Show in Resonance. With the sound pane closed, each row shows the tune's fingerprint." : {
-
-    },
-    "**Save** keeps the tunes as one of your playlists. It stays as it is then, and **Refresh** makes a new pick." : {
-
-    },
-    "**Scope**: each voice's waveform, with the note and waveform it's playing." : {
-
-    },
-    "**Search Tunes**: find tunes by title or composer, and see how each one sounds." : {
-
-    },
-    "**Search**: everything in HVSC that matches what you type." : {
-
-    },
-    "**Shape**: each trait has its own direction, the same for every tune, and the ball bulges that way as far as the trait is strong. A tall bar is a long spike, and a tune with few traits stays nearly round. Tunes with similar bars get similar shapes." : {
-
-    },
-    "**Share…**, next to Add to… in Now Playing, the inspector and the menu bar player, makes a short link to a tune: Copy Link, Messages, Mail, or **More…** for any other app. **Share** in a tune's context menu does the same from a list. A subtune stays that subtune." : {
-
-    },
-    "**Similar to a Tune**: the closest tunes to what's playing, or one you pick. Its **Match** menu goes through the closest 50, 200 or 1,000, and **Other Versions** also adds tunes with the same name." : {
-
-    },
-    "**Skip RSID tunes**, and the **default song length** for tunes whose length isn't known (0 plays until silence)." : {
-
-    },
-    "**Slow to Intense**: calm tunes that build toward the end." : {
-
-    },
-    "**Smart Playlist** in the sidebar makes a list from how tunes sound, how long they are and what you've played. Everything happens on your Mac." : {
-
-    },
-    "**Sound Map**: every note becomes a point in 3D, placed by its timbre, so the tune draws its own map as it plays." : {
-
-    },
-    "**Sounds Like This**: tunes that sound like the one playing." : {
-
-    },
-    "**Stereo**: play 2SID tunes in mirrored stereo." : {
-
-    },
-    "**Sweeps**: pulse width, the filter and the gates over the last few seconds." : {
-
-    },
-    "**Tracker**: the tune as a tracker would show it, with what's coming below the row you're hearing. A SID file holds code, not patterns, so this is rebuilt from what its player writes to the chip. An instrument here is a waveform and envelope, not necessarily one the composer had in mind, and some tunes have no steady beat to find." : {
-
-    },
-    "**Turning**: it turns so you can see every side. The speed means nothing, and neither does the size: every sphere is scaled to fit its frame, so compare shapes, not sizes." : {
-
-    },
-    "**f**: fire, where each voice feeds its own part of the flames and hits throw sparks." : {
-
-    },
-    "**o**: the app's Particles sphere." : {
-
-    },
-    "**playlist add**, **new** and **rm** read paths from a pipe." : {
-
-    },
-    "**resonance pick** opens a small list to choose from and prints the paths, for use inside other commands." : {
-
-    },
-    "**s**: a skull in ASCII, whose eyes glow with the voices and whose jaw chomps on the hits." : {
-
-    },
-    "**t**: Tesla coils, where each voice's pitch sets how high its lightning strikes." : {
-
-    },
-    "**u** slides up a tracker over the list: what the player writes to the chip, rebuilt by running the tune once, with the row being heard in the middle. **↑** and **↓** look around, **f** follows the music again, and **Esc** closes it. **Tab** steps on to Registers, Sweeps and Pitch, which show every SID of a tune with more than one where there's room. In the tracker, or when there isn't room, **1**, **2** and **3** switch between them." : {
-
-    },
-    "**w**: a pool, where each new note drops in: low notes make wide ripples, high notes tight ones." : {
+    "© 2026 Erik Luimes. MIT license; distributed under the GNU GPL, version 3." : {
 
     },
     "+%@" : {
 
     },
-    ", follows v%@" : {
-
-    },
-    ", music by %@" : {
-
-    },
-    ", released %@" : {
-
-    },
-    ", with " : {
+    "−%@" : {
 
     },
     "0" : {
-
-    },
-    "1 Hour" : {
 
     },
     "1 composer" : {
@@ -559,6 +589,9 @@
 
     },
     "1 game tune" : {
+
+    },
+    "1 Hour" : {
 
     },
     "1 image" : {
@@ -574,9 +607,6 @@
 
     },
     "30 Min" : {
-
-    },
-    "A SID tune is a little C64 program, so there's nothing to jump to: to reach a point, Resonance runs the tune there silently at full speed, about a second per minute of tune on reSIDfp and faster on SIDLite direct. The bar shows the new position right away; the sound follows." : {
 
     },
     "A complete archive of the C64 era's SID music, kept alive by a volunteer crew of SID archeologists." : {
@@ -600,6 +630,9 @@
     "A shared tune" : {
 
     },
+    "A SID tune is a little C64 program, so there's nothing to jump to: to reach a point, Resonance runs the tune there silently at full speed, about a second per minute of tune on reSIDfp and faster on SIDLite direct. The bar shows the new position right away; the sound follows." : {
+
+    },
     "A tune by %@" : {
 
     },
@@ -621,19 +654,19 @@
     "About 81 MB to download and 460 MB on disk. It keeps going in the background." : {
 
     },
-    "About Resonance" : {
-
-    },
-    "About This Tune" : {
-
-    },
     "About a minute" : {
 
     },
     "About an hour" : {
 
     },
+    "About Resonance" : {
+
+    },
     "About the Project" : {
+
+    },
+    "About This Tune" : {
 
     },
     "Abyss" : {
@@ -672,10 +705,10 @@
     "Add to" : {
 
     },
-    "Add to Favorites" : {
+    "Add to a playlist" : {
 
     },
-    "Add to a playlist" : {
+    "Add to Favorites" : {
 
     },
     "Add to…" : {
@@ -702,13 +735,16 @@
     "All of HVSC, shuffled" : {
 
     },
+    "all rated %@" : {
+
+    },
     "Alpha" : {
 
     },
-    "Already On" : {
+    "Already have HVSC? Choose its folder (the one that holds MUSICIANS, GAMES and DEMOS) in Settings → Collection." : {
 
     },
-    "Already have HVSC? Choose its folder (the one that holds MUSICIANS, GAMES and DEMOS) in Settings → Collection." : {
+    "Already On" : {
 
     },
     "Also known as" : {
@@ -738,13 +774,16 @@
     "Arcade Cover" : {
 
     },
+    "arpeggios" : {
+
+    },
     "Arpeggios" : {
 
     },
-    "Ask Siri, build your own shortcuts, and find tunes from anywhere." : {
+    "Ask an assistant for what you'd like to hear." : {
 
     },
-    "Ask an assistant for what you'd like to hear." : {
+    "Ask Siri, build your own shortcuts, and find tunes from anywhere." : {
 
     },
     "Assistants need the command line tool. Install it, then use **Copy Command** in Settings → Integrations again: it has the tool's full path, because an assistant may not look in the same folders as your terminal." : {
@@ -790,9 +829,6 @@
     "Beta" : {
 
     },
-    "Big tunes." : {
-
-    },
     "Bootable in any C64 emulator. Their tunes are also in the collection." : {
 
     },
@@ -808,7 +844,7 @@
     "Browse HVSC by composer, game or demo, and find any tune by typing." : {
 
     },
-    "Built on " : {
+    "Built on [Phosphor](https://github.com/sandlbn/Phosphor) \\((phosphorVersion())) by Marcin Spoczynski." : {
 
     },
     "By %@" : {
@@ -824,25 +860,10 @@
         }
       }
     },
+    "by composers with fewer than three tunes in HVSC" : {
+
+    },
     "C64 Disk Images" : {
-
-    },
-    "CSDb" : {
-
-    },
-    "CSDb doesn't list one scener by this name." : {
-
-    },
-    "CSDb events" : {
-
-    },
-    "CSDb is switched off, so Resonance opens on the HVSC Home instead." : {
-
-    },
-    "CSDb isn't reachable: %@" : {
-
-    },
-    "CSDb offline · " : {
 
     },
     "Can't Read %@" : {
@@ -870,16 +891,16 @@
     "Check Again" : {
 
     },
-    "Check Now" : {
+    "Check for Update" : {
 
     },
-    "Check for Update" : {
+    "Check for updates automatically" : {
 
     },
     "Check for Updates…" : {
 
     },
-    "Check for updates automatically" : {
+    "Check Now" : {
 
     },
     "Checking…" : {
@@ -894,9 +915,6 @@
     "Choose **Vim** or **Emacs** at the top of the panel, with **Tab** there, or in Settings under General. They add keys of their own, such as **j** and **k** or **⌃N** and **⌃P** to move through a list, and the panel shows them. The menus' shortcuts keep working, and text fields keep their keys while you type." : {
 
     },
-    "Choose Engine…" : {
-
-    },
     "Choose a Folder You Already Have" : {
 
     },
@@ -907,6 +925,9 @@
 
     },
     "Choose an Author" : {
+
+    },
+    "Choose Engine…" : {
 
     },
     "Choose the voices' colors in Settings → Appearance: Resonance, C64, Noir, Ember, Abyss, Phosphor, Grayscale, or your own three colors and background. The theme badge, a small strip in the theme's colors, sits on the inspector's visualizer card; you can hide it there too." : {
@@ -954,13 +975,13 @@
     "Click **Retry** in the message at the top of the window. A download that was canceled starts over from Download next to Collection." : {
 
     },
-    "Click Resonance's icon in the menu bar, or press **⌃⌥⌘P** in any app, for a small player: the tune and its voices, the heart, the controls with Shuffle and Repeat, the next tunes in the list it plays from (click one to play it), Surprise Me and Add to…. Turn Surprise Me off there and Resonance goes back to the list you were playing." : {
-
-    },
     "Click a column header to sort, and **Back to Original Order** above the list to undo it. Control-click the header to choose which columns show." : {
 
     },
     "Click a match to show it in the library, or click **Play These** to play them all, most alike first." : {
+
+    },
+    "Click Resonance's icon in the menu bar, or press **⌃⌥⌘P** in any app, for a small player: the tune and its voices, the heart, the controls with Shuffle and Repeat, the next tunes in the list it plays from (click one to play it), Surprise Me and Add to…. Turn Surprise Me off there and Resonance goes back to the list you were playing." : {
 
     },
     "Click the heart in the inspector or Now Playing to make a tune a favorite, and again to undo it. Favorites keep the order you hearted them in." : {
@@ -975,13 +996,13 @@
     "Close" : {
 
     },
+    "Close it with the close button at the top, press **Esc**, or press **⇧⌘F** again." : {
+
+    },
     "Close Now Playing" : {
 
     },
     "Close Now Playing (Esc)" : {
-
-    },
-    "Close it with the close button at the top, press **Esc**, or press **⇧⌘F** again." : {
 
     },
     "Close the Panel, or What's Open" : {
@@ -1029,6 +1050,9 @@
     "Composer, " : {
 
     },
+    "composers" : {
+
+    },
     "Composers" : {
 
     },
@@ -1050,9 +1074,6 @@
     "Control Center and media keys" : {
 
     },
-    "Control-click Resonance's Dock icon for the tune playing, to play, pause or skip, and for **Play Something Like This**, **Drift From This Tune** and **Surprise Me**." : {
-
-    },
     "Control-click a playlist in the sidebar to play, rename, duplicate, export or delete it, or show its file in Finder. A deleted playlist goes to the Trash; its tunes stay where they are." : {
 
     },
@@ -1063,6 +1084,9 @@
 
     },
     "Control-click for the tune and its controls" : {
+
+    },
+    "Control-click Resonance's Dock icon for the tune playing, to play, pause or skip, and for **Play Something Like This**, **Drift From This Tune** and **Surprise Me**." : {
 
     },
     "Copied" : {
@@ -1084,9 +1108,6 @@
 
     },
     "Copy Link" : {
-
-    },
-    "Couldn't Make the List" : {
 
     },
     "Couldn't check for updates: %@" : {
@@ -1128,6 +1149,9 @@
         }
       }
     },
+    "Couldn't Make the List" : {
+
+    },
     "Couldn't move it to the Trash: %@" : {
 
     },
@@ -1153,6 +1177,9 @@
     "Covers" : {
 
     },
+    "credit fixes" : {
+
+    },
     "Crediting %@" : {
 
     },
@@ -1162,13 +1189,31 @@
     "Credits. Press Escape to close." : {
 
     },
+    "CSDb" : {
+
+    },
+    "CSDb doesn't list one scener by this name." : {
+
+    },
+    "CSDb events" : {
+
+    },
+    "CSDb is switched off, so Resonance opens on the HVSC Home instead." : {
+
+    },
+    "CSDb isn't reachable: %@" : {
+
+    },
+    "CSDb offline · " : {
+
+    },
+    "Curated playlist" : {
+
+    },
     "Curated Playlist" : {
 
     },
     "Curated Playlists" : {
-
-    },
-    "Curated playlist" : {
 
     },
     "Custom" : {
@@ -1202,6 +1247,9 @@
 
     },
     "Delete…" : {
+
+    },
+    "demos" : {
 
     },
     "Demos" : {
@@ -1240,13 +1288,13 @@
     "Dock icon" : {
 
     },
+    "Double-click a tune to play it; the list plays on from there." : {
+
+    },
     "Double-click a tune to play it." : {
 
     },
     "Double-click a tune to play it. Its details and STIL commentary appear here." : {
-
-    },
-    "Double-click a tune to play it; the list plays on from there." : {
 
     },
     "Double-click any tune in a list to play it." : {
@@ -1258,6 +1306,9 @@
     "Download Again…" : {
 
     },
+    "Download and install automatically" : {
+
+    },
     "Download Collection…" : {
 
     },
@@ -1265,9 +1316,6 @@
 
     },
     "Download HVSC again?" : {
-
-    },
-    "Download and install automatically" : {
 
     },
     "Download it first, then say what you'd like to hear." : {
@@ -1288,10 +1336,10 @@
     "Downloading %@…" : {
 
     },
-    "Downloading the Collection" : {
+    "Downloading the collection" : {
 
     },
-    "Downloading the collection" : {
+    "Downloading the Collection" : {
 
     },
     "Downloading the collection happens in the app." : {
@@ -1339,6 +1387,9 @@
     "Drifting from %@" : {
 
     },
+    "Drop an M3U playlist on the app's icon, or use **Open With** in Finder, to make a new playlist. It's shown, not played. SID files opened this way play in My Playlist." : {
+
+    },
     "Drop SID files, folders or M3U playlists from Finder onto the window to add them to My Playlist." : {
 
     },
@@ -1346,9 +1397,6 @@
 
     },
     "Drop SID files, folders or M3U playlists onto the window, or press **⌘O**. They go into My Playlist." : {
-
-    },
-    "Drop an M3U playlist on the app's icon, or use **Open With** in Finder, to make a new playlist. It's shown, not played. SID files opened this way play in My Playlist." : {
 
     },
     "Drop them on **Playlists** or an empty part of the sidebar to make a new playlist. A playlist or a folder is named after its file, and the file itself stays as it is." : {
@@ -1396,13 +1444,13 @@
     "Esc" : {
 
     },
+    "Every barcode has the same nine bars in the same order, so tunes that share a sound share a pattern down the column. The taller and stronger a bar, the more of that trait. A trait the tune doesn't use leaves a small stub." : {
+
+    },
     "Every C64 SID tune, archived since 1996" : {
 
     },
     "Every Playback command has a key." : {
-
-    },
-    "Every barcode has the same nine bars in the same order, so tunes that share a sound share a pattern down the column. The taller and stronger a bar, the more of that trait. A trait the tune doesn't use leaves a small stub." : {
 
     },
     "Every tune has the same nine-bar barcode as in the app. In Sounds Like, the tune being compared sits over the column, so you can see why each one matched. A row of dots means no fingerprint yet." : {
@@ -1429,13 +1477,13 @@
     "Extracting the collection: %@" : {
 
     },
-    "FILTER" : {
-
-    },
     "Facts: “from 1985 and 1986”, “the eighties”, “game music”, “never heard”, “longer than 3 minutes”, “for 2 hours”, “until 9 PM”." : {
 
     },
     "Failed" : {
+
+    },
+    "fast arpeggios" : {
 
     },
     "Fast arpeggios and noise drums, mostly pulse" : {
@@ -1469,6 +1517,12 @@
     "Filter" : {
 
     },
+    "FILTER" : {
+
+    },
+    "filter sweeps" : {
+
+    },
     "Filter sweeps" : {
 
     },
@@ -1478,19 +1532,19 @@
     "Filtered sync leads, mostly saw" : {
 
     },
-    "Find Similar" : {
-
-    },
-    "Find What Sounds Alike" : {
-
-    },
     "Find a playlist" : {
+
+    },
+    "Find Similar" : {
 
     },
     "Find the tunes in HVSC that sound most like the one you love." : {
 
     },
     "Find tunes by title or composer, by words for a mood or style, and by how they sound." : {
+
+    },
+    "Find What Sounds Alike" : {
 
     },
     "Finding tunes" : {
@@ -1526,10 +1580,13 @@
     "Fire: red, orange and gold" : {
 
     },
-    "Follow the Scene" : {
+    "fixed and better rips" : {
 
     },
     "Follow the download on the Home, which the Collection row opens. Elsewhere in the window a pill at the top shows it, with **Cancel**." : {
+
+    },
+    "Follow the Scene" : {
 
     },
     "For another assistant that speaks the protocol, give it the tool's full path, with **mcp** after it, as the command to run." : {
@@ -1566,6 +1623,9 @@
     "From" : {
 
     },
+    "from %@" : {
+
+    },
     "From %@" : {
 
     },
@@ -1576,6 +1636,9 @@
 
     },
     "From the SID Tune Information List" : {
+
+    },
+    "games" : {
 
     },
     "Games" : {
@@ -1590,13 +1653,13 @@
     "Get Extension" : {
 
     },
+    "Get the collection" : {
+
+    },
     "Get the Collection" : {
 
     },
     "Get the High Voltage SID Collection, and start listening." : {
-
-    },
-    "Get the collection" : {
 
     },
     "Getting Started" : {
@@ -1612,37 +1675,6 @@
 
     },
     "Groups" : {
-
-    },
-    "HVSC" : {
-
-    },
-    "HVSC %@" : {
-
-    },
-    "HVSC %@, released %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "HVSC %1$@, released %2$@"
-          }
-        }
-      }
-    },
-    "HVSC Home" : {
-
-    },
-    "HVSC Note" : {
-
-    },
-    "HVSC and CSDb know" : {
-
-    },
-    "HVSC in Resonance's folder · %@" : {
-
-    },
-    "HVSC notes" : {
 
     },
     "Halo" : {
@@ -1672,13 +1704,13 @@
     "Hide Now Playing" : {
 
     },
+    "Hide the inspector" : {
+
+    },
     "Hide Under the Hood" : {
 
     },
     "Hide Volume" : {
-
-    },
-    "Hide the inspector" : {
 
     },
     "High Voltage SID Collection" : {
@@ -1723,7 +1755,38 @@
     "How much of the tune plays samples through the chip, such as speech or sampled drums. Full at a third of the time." : {
 
     },
-    "INSTRUMENTS" : {
+    "HVSC" : {
+
+    },
+    "HVSC %@" : {
+
+    },
+    "HVSC %@, released %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "HVSC %1$@, released %2$@"
+          }
+        }
+      }
+    },
+    "HVSC and CSDb know" : {
+
+    },
+    "HVSC Home" : {
+
+    },
+    "HVSC in Resonance's folder · %@" : {
+
+    },
+    "HVSC Note" : {
+
+    },
+    "HVSC notes" : {
+
+    },
+    "hvsc.c64.org" : {
 
     },
     "If Resonance is in the background when a download or a long scan ends, or a download fails, it sends a notification. Clicking a download's opens the HVSC Home, and a failed one also offers Retry. Resonance asks for permission the first time; change your mind in System Settings → Notifications." : {
@@ -1732,28 +1795,16 @@
     "If your collection is older and doesn't have it, Resonance offers the HVSC update. With no collection yet, it offers the download. The download continues if you close the sheet; open the link again when it's done." : {
 
     },
-    "In Finder, select a SID file and press Space to see its title, composer, release and subtunes." : {
-
-    },
-    "In HVSC" : {
-
-    },
-    "In Now Playing" : {
-
-    },
-    "In Settings → Collection, **Download Again…** fetches the whole collection and restores missing or damaged files. The tunes already there are kept." : {
-
-    },
-    "In Their Words" : {
-
-    },
-    "In Your Lists" : {
-
-    },
     "In a list of tunes" : {
 
     },
     "In any tune list" : {
+
+    },
+    "In Finder, select a SID file and press Space to see its title, composer, release and subtunes." : {
+
+    },
+    "In HVSC" : {
 
     },
     "In memory of %@. %@" : {
@@ -1766,6 +1817,12 @@
         }
       }
     },
+    "In Now Playing" : {
+
+    },
+    "In Settings → Collection, **Download Again…** fetches the whole collection and restores missing or damaged files. The tunes already there are kept." : {
+
+    },
     "In the background" : {
 
     },
@@ -1776,6 +1833,12 @@
 
     },
     "In the sidebar, under HVSC, click **Download** next to **Collection**. Resonance fetches the newest HVSC release from an HVSC mirror and unpacks it into its own folder." : {
+
+    },
+    "In Their Words" : {
+
+    },
+    "In Your Lists" : {
 
     },
     "In your own scripts" : {
@@ -1815,6 +1878,9 @@
 
     },
     "Installs into the collection folder — change it in Settings…" : {
+
+    },
+    "INSTRUMENTS" : {
 
     },
     "Integrations" : {
@@ -1928,19 +1994,22 @@
     "Loose" : {
 
     },
+    "macOS owns these switches, so Resonance links to them." : {
+
+    },
     "Made with %@" : {
 
     },
     "Mail" : {
 
     },
+    "Make a new pick, or a new order, with the same words" : {
+
+    },
     "Make a Playlist" : {
 
     },
     "Make a Playlist Like This" : {
-
-    },
-    "Make a new pick, or a new order, with the same words" : {
 
     },
     "Make playlists, play them, and add tunes to them or take tunes out. It can't delete a playlist." : {
@@ -2001,9 +2070,6 @@
     "Move Down" : {
 
     },
-    "Move Up" : {
-
-    },
     "Move the downloaded collection to the Trash?" : {
 
     },
@@ -2014,6 +2080,9 @@
 
     },
     "Move to Trash…" : {
+
+    },
+    "Move Up" : {
 
     },
     "Moves HVSC in Resonance's folder (%@) to the Trash, stopping a download into it first. You can download it again from the Home." : {
@@ -2071,13 +2140,16 @@
     "New" : {
 
     },
+    "New features a little early, and finished releases too. Expect some rough edges." : {
+
+    },
     "New Playlist" : {
 
     },
     "New Playlist “%@”" : {
 
     },
-    "New features a little early, and finished releases too. Expect some rough edges." : {
+    "new SIDs added" : {
 
     },
     "New to Me" : {
@@ -2122,31 +2194,16 @@
     "Next: a random tune. Shuffle Collection plays all of HVSC in a random order." : {
 
     },
-    "No Downloads Yet" : {
-
-    },
-    "No Favorites Yet" : {
-
-    },
-    "No SID on CSDb" : {
-
-    },
-    "No SID on CSDb. Click to open its page" : {
-
-    },
-    "No Tunes" : {
-
-    },
-    "No Tunes Fit" : {
-
-    },
-    "No Tunes Found" : {
-
-    },
     "No collection on this Mac yet" : {
 
     },
+    "No Downloads Yet" : {
+
+    },
     "No exact year" : {
+
+    },
+    "No Favorites Yet" : {
 
     },
     "No fingerprint" : {
@@ -2171,6 +2228,12 @@
         }
       }
     },
+    "No SID on CSDb" : {
+
+    },
+    "No SID on CSDb. Click to open its page" : {
+
+    },
     "No steady beat found, so the rows are only a ruler." : {
 
     },
@@ -2183,10 +2246,25 @@
     "No tune's name starts with %@." : {
 
     },
+    "no tunes" : {
+
+    },
+    "No Tunes" : {
+
+    },
+    "No Tunes Fit" : {
+
+    },
+    "No Tunes Found" : {
+
+    },
     "Noir" : {
 
     },
     "Noise" : {
+
+    },
+    "noise drums" : {
 
     },
     "Noise drums" : {
@@ -2201,16 +2279,10 @@
     "Normal" : {
 
     },
-    "Not Now" : {
-
-    },
-    "Not Playing" : {
-
-    },
-    "Not Scanned Yet" : {
-
-    },
     "Not fingerprinted yet" : {
+
+    },
+    "Not fingerprinted yet?" : {
 
     },
     "Not fingerprinted yet. %@ of %@ tunes are done." : {
@@ -2223,10 +2295,16 @@
         }
       }
     },
-    "Not fingerprinted yet?" : {
+    "Not in use" : {
 
     },
-    "Not in use" : {
+    "Not Now" : {
+
+    },
+    "Not Playing" : {
+
+    },
+    "Not Scanned Yet" : {
 
     },
     "Not set" : {
@@ -2236,9 +2314,6 @@
 
     },
     "Notes" : {
-
-    },
-    "Nothing Played Yet" : {
 
     },
     "Nothing else has been fingerprinted yet." : {
@@ -2253,6 +2328,9 @@
     "Nothing new" : {
 
     },
+    "Nothing Played Yet" : {
+
+    },
     "Nothing playing" : {
 
     },
@@ -2262,10 +2340,10 @@
     "Notifications" : {
 
     },
-    "Now Playing" : {
+    "Now playing" : {
 
     },
-    "Now playing" : {
+    "Now Playing" : {
 
     },
     "Of the %@ with a fingerprint." : {
@@ -2316,7 +2394,16 @@
     "Open %@" : {
 
     },
+    "Open a composer from the results and **Back to Results** returns to them. Clear the search field to go back to where you were." : {
+
+    },
+    "Open a composer in Musicians: their card names the three composers who sound most like them, each a link to their tunes." : {
+
+    },
     "Open CSDb" : {
+
+    },
+    "Open on CSDb" : {
 
     },
     "Open Resonance" : {
@@ -2338,15 +2425,6 @@
 
     },
     "Open Shortcuts" : {
-
-    },
-    "Open a composer from the results and **Back to Results** returns to them. Clear the search field to go back to where you were." : {
-
-    },
-    "Open a composer in Musicians: their card names the three composers who sound most like them, each a link to their tunes." : {
-
-    },
-    "Open on CSDb" : {
 
     },
     "Open the photo's page on Wikimedia Commons" : {
@@ -2374,12 +2452,6 @@
 
     },
     "PAL and NTSC" : {
-
-    },
-    "PULSE  none" : {
-
-    },
-    "PULSE WIDTH  no voice on a pulse wave now" : {
 
     },
     "Particle sphere visualizer" : {
@@ -2439,31 +2511,19 @@
     "Play" : {
 
     },
-    "Play ${playlist}" : {
+    "Play %@" : {
 
     },
-    "Play %@" : {
+    "Play ${playlist}" : {
 
     },
     "Play 2SID tunes in mirrored stereo" : {
 
     },
-    "Play Again" : {
-
-    },
-    "Play Playlist" : {
-
-    },
-    "Play Selected" : {
-
-    },
-    "Play Something Like This" : {
-
-    },
-    "Play These" : {
-
-    },
     "Play a tune. The inspector's **Sounds Like** card shows its fingerprint as a sphere, its sound in a sentence, and the closest tunes, each with how alike it is as a percentage." : {
+
+    },
+    "Play Again" : {
 
     },
     "Play every tune in HVSC in a random order" : {
@@ -2475,7 +2535,19 @@
     "Play or Pause (not while typing)" : {
 
     },
+    "Play Playlist" : {
+
+    },
     "Play random tunes from all of HVSC" : {
+
+    },
+    "Play Selected" : {
+
+    },
+    "Play Something Like This" : {
+
+    },
+    "Play These" : {
 
     },
     "Play these tunes, most alike first" : {
@@ -2557,19 +2629,19 @@
     "Press **?** there for its keys. It fits the window: from 110 columns, a panel beside the list says how the tune under the cursor sounds and what it sounds like, and from 120 columns by 38 rows you get the large header. It looks best in a terminal with millions of colors, such as iTerm2, Ghostty or Kitty." : {
 
     },
-    "Press **Space** in My Playlist to play or pause." : {
+    "Press **⇧⌘F**, or click the tune's title or the button at the right end of the bar at the bottom of the window, and Now Playing slides up over the library: the tune, its composer, where it's playing from, and a large visualizer driven by the SID chip's own registers." : {
+
+    },
+    "Press **⇧⌘R** for **Surprise Me**: a radio of random tunes from all of HVSC." : {
 
     },
     "Press **c** outside the music, or run **resonance credits**. They close by themselves, or with **Esc**." : {
 
     },
+    "Press **Space** in My Playlist to play or pause." : {
+
+    },
     "Press **v** for the music, laid out like Now Playing in the app. The picker and the keys disappear after three seconds without a key press. **v** steps through the views, or go straight to one:" : {
-
-    },
-    "Press **⇧⌘F**, or click the tune's title or the button at the right end of the bar at the bottom of the window, and Now Playing slides up over the library: the tune, its composer, where it's playing from, and a large visualizer driven by the SID chip's own registers." : {
-
-    },
-    "Press **⇧⌘R** for **Surprise Me**: a radio of random tunes from all of HVSC." : {
 
     },
     "Press Play on a release in Scene Pulse. Tunes that aren't in your HVSC collection are kept here." : {
@@ -2608,10 +2680,19 @@
     "Pulse" : {
 
     },
+    "PULSE  none" : {
+
+    },
+    "pulse bass" : {
+
+    },
     "Pulse bass" : {
 
     },
     "Pulse width" : {
+
+    },
+    "PULSE WIDTH  no voice on a pulse wave now" : {
 
     },
     "Puts the cursor in the search field." : {
@@ -2626,22 +2707,19 @@
     "Quiet" : {
 
     },
-    "READY." : {
-
-    },
-    "ROW" : {
-
-    },
     "Radial" : {
 
     },
     "Radial spectrum visualizer" : {
 
     },
+    "Random tunes from all of HVSC" : {
+
+    },
     "Random tunes from HVSC" : {
 
     },
-    "Random tunes from all of HVSC" : {
+    "rating, votes" : {
 
     },
     "Raycast" : {
@@ -2659,16 +2737,19 @@
     "Reading the collection…" : {
 
     },
+    "READY." : {
+
+    },
     "Real name: %@" : {
 
     },
     "Rebuild" : {
 
     },
-    "Rebuild All…" : {
+    "Rebuild all fingerprints?" : {
 
     },
-    "Rebuild all fingerprints?" : {
+    "Rebuild All…" : {
 
     },
     "Rebuilding the tune from what its player writes…" : {
@@ -2677,10 +2758,10 @@
     "Rebuilt from what the player writes to the chip, as SID files hold code, not patterns." : {
 
     },
-    "Recently Played" : {
+    "Recently played" : {
 
     },
-    "Recently played" : {
+    "Recently Played" : {
 
     },
     "Recommended" : {
@@ -2707,16 +2788,6 @@
     "Released %@" : {
 
     },
-    "Released %@ by %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Released %1$@ by %2$@"
-          }
-        }
-      }
-    },
     "Released %@ · %@" : {
       "localizations" : {
         "en" : {
@@ -2727,10 +2798,20 @@
         }
       }
     },
-    "Released Most By" : {
-
+    "Released %@ by %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Released %1$@ by %2$@"
+          }
+        }
+      }
     },
     "Released by %@" : {
+
+    },
+    "Released Most By" : {
 
     },
     "Remix of" : {
@@ -2745,13 +2826,13 @@
     "Remove Download" : {
 
     },
-    "Remove This Download?" : {
-
-    },
     "Remove from Favorites" : {
 
     },
     "Remove from Playlist" : {
+
+    },
+    "Remove This Download?" : {
 
     },
     "Removes every tune from Recently Played." : {
@@ -2778,6 +2859,9 @@
     "Reset" : {
 
     },
+    "Reset heard tunes?" : {
+
+    },
     "Reset Resonance" : {
 
     },
@@ -2785,9 +2869,6 @@
 
     },
     "Reset Resonance…" : {
-
-    },
-    "Reset heard tunes?" : {
 
     },
     "Reset…" : {
@@ -2806,12 +2887,6 @@
         }
       }
     },
-    "Resonance Help" : {
-
-    },
-    "Resonance Website" : {
-
-    },
     "Resonance checks for a new version once a day. Updates are verified with Resonance's signing key before they're installed, and nothing about your Mac is sent. Automatic updates install when you quit." : {
 
     },
@@ -2828,6 +2903,9 @@
 
     },
     "Resonance hasn't scanned these tunes yet." : {
+
+    },
+    "Resonance Help" : {
 
     },
     "Resonance is in alpha. Report problems on GitHub, from Help → Report a Problem, with what you did and what happened." : {
@@ -2860,6 +2938,9 @@
     "Resonance shows what's playing in Control Center, with the tune's fingerprint sphere as its picture, or its composer's colors before it's scanned, and answers your keyboard's play, next and previous keys. Control Center's position slider and its 15-second skips work too." : {
 
     },
+    "Resonance Website" : {
+
+    },
     "Resonance would contact csdb.dk, a site we don't run: to fetch the news, look up composers you open, and download CSDb tunes you play. If you say no, it never does. You can change this in Settings." : {
 
     },
@@ -2887,37 +2968,19 @@
     "Ring mod" : {
 
     },
+    "ring modulation" : {
+
+    },
+    "ROW" : {
+
+    },
     "Run **resonance** in a terminal for the terminal app, or **resonance --help** for its commands. Assistants need the tool. They can search, play and make playlists, but can't delete one." : {
 
     },
-    "SID %lld" : {
-
-    },
-    "SID File Format" : {
-
-    },
-    "SID Monitor (Debug)" : {
-
-    },
-    "SID emulation by reSIDfp, SIDLite and reSID." : {
-
-    },
-    "SIDLite direct" : {
-
-    },
-    "SIDs" : {
-
-    },
-    "SOUNDS SIMILAR" : {
-
-    },
-    "STIL" : {
-
-    },
-    "STIL notes" : {
-
-    },
     "Same as" : {
+
+    },
+    "sampled sounds" : {
 
     },
     "Save" : {
@@ -2929,10 +2992,10 @@
     "Saw" : {
 
     },
-    "Say What You'd Like to Hear" : {
+    "Say what you'd like to hear" : {
 
     },
-    "Say what you'd like to hear" : {
+    "Say What You'd Like to Hear" : {
 
     },
     "Scanning" : {
@@ -2956,28 +3019,31 @@
     "Search" : {
 
     },
+    "Search “%@”" : {
+
+    },
     "Search CSDb" : {
 
     },
     "Search Failed" : {
 
     },
-    "Search HVSC" : {
-
-    },
     "Search Help" : {
 
     },
-    "Search tunes, composers and games" : {
+    "Search HVSC" : {
 
     },
-    "Search “%@”" : {
+    "Search tunes, composers and games" : {
 
     },
     "Search, play and discover from Raycast, without opening a window." : {
 
     },
     "Searching…" : {
+
+    },
+    "seconds" : {
 
     },
     "Seconds" : {
@@ -3031,10 +3097,7 @@
     "Share of tunes. The tick marks all of HVSC." : {
 
     },
-    "Shared Link" : {
-
-    },
-    "Shared Tune" : {
+    "Share…" : {
 
     },
     "Shared from HVSC" : {
@@ -3043,7 +3106,10 @@
     "Shared from HVSC %@" : {
 
     },
-    "Share…" : {
+    "Shared Link" : {
+
+    },
+    "Shared Tune" : {
 
     },
     "Sharing a Tune" : {
@@ -3070,21 +3136,6 @@
     "Show All Tunes" : {
 
     },
-    "Show CSDb trivia about composers" : {
-
-    },
-    "Show Fewer" : {
-
-    },
-    "Show Less" : {
-
-    },
-    "Show Now Playing" : {
-
-    },
-    "Show Under the Hood" : {
-
-    },
     "Show all tunes by %@" : {
 
     },
@@ -3092,6 +3143,12 @@
 
     },
     "Show composer photos from Wikimedia Commons" : {
+
+    },
+    "Show CSDb trivia about composers" : {
+
+    },
+    "Show Fewer" : {
 
     },
     "Show in Finder" : {
@@ -3109,6 +3166,12 @@
     "Show in the library" : {
 
     },
+    "Show Less" : {
+
+    },
+    "Show Now Playing" : {
+
+    },
     "Show only tunes with these sounds" : {
 
     },
@@ -3118,13 +3181,13 @@
     "Show the C64 scene from CSDb" : {
 
     },
-    "Show the Scene" : {
-
-    },
     "Show the inspector" : {
 
     },
     "Show the player in the menu bar" : {
+
+    },
+    "Show the Scene" : {
 
     },
     "Show the tracker, registers, sweeps and pitch trail" : {
@@ -3134,6 +3197,9 @@
 
     },
     "Show theme badge" : {
+
+    },
+    "Show Under the Hood" : {
 
     },
     "Shows or hides this panel." : {
@@ -3154,10 +3220,28 @@
     "Shuffled · %@" : {
 
     },
+    "SID %lld" : {
+
+    },
+    "SID emulation by reSIDfp, SIDLite and reSID." : {
+
+    },
+    "SID File Format" : {
+
+    },
+    "SIDLite direct" : {
+
+    },
+    "SIDs" : {
+
+    },
     "Silent in the part that was scanned." : {
 
     },
     "Similar to a Tune" : {
+
+    },
+    "since May 1996" : {
 
     },
     "Siri" : {
@@ -3167,9 +3251,6 @@
 
     },
     "Siri and Spotlight" : {
-
-    },
-    "Size for Recording (1440 × 900)" : {
 
     },
     "Skip RSID tunes" : {
@@ -3185,6 +3266,9 @@
 
     },
     "Slides up the tracker, registers, sweeps and pitch trail, or away again." : {
+
+    },
+    "slow to intense" : {
 
     },
     "Slow to Intense" : {
@@ -3238,6 +3322,9 @@
         }
       }
     },
+    "song lengths" : {
+
+    },
     "Song lengths come from HVSC's Songlengths database. For tunes it doesn't know, such as ones from outside HVSC, Resonance figures out the length in the background by running the tune and listening for it to end or start over; those lengths show with a ~ and can be off. Until then, or if it can't tell, a tune plays for the default song length in Settings → Playback. Some tunes sound different on another engine: try switching between reSIDfp and SIDLite direct." : {
 
     },
@@ -3259,9 +3346,6 @@
     "Sound Drift" : {
 
     },
-    "Sound Map" : {
-
-    },
     "Sound fingerprint" : {
 
     },
@@ -3271,13 +3355,28 @@
     "Sound fingerprints" : {
 
     },
+    "Sound Map" : {
+
+    },
     "Sound map visualizer" : {
 
     },
     "Sound: %lld" : {
 
     },
+    "Sounds and chips: “arpeggio-heavy”, “filtered”, “strong bass”, “6581”, “8580”, “dual SID”." : {
+
+    },
+    "Sounds like" : {
+
+    },
     "Sounds Like" : {
+
+    },
+    "Sounds like %@" : {
+
+    },
+    "Sounds like Comic Bakery by Martin Galway" : {
 
     },
     "Sounds Like Is Ready" : {
@@ -3292,16 +3391,7 @@
     "Sounds Like, the Fingerprint column and the Sound filters need each tune's fingerprint. The first time, Resonance downloads the published fingerprint set (about 42 MB) and audio embeddings (about 11 MB), which cover all of HVSC, and a background scan fills in whatever it doesn't have. A full scan of your own takes a few hours; with the published set it's mostly done in a minute." : {
 
     },
-    "Sounds and chips: “arpeggio-heavy”, “filtered”, “strong bass”, “6581”, “8580”, “dual SID”." : {
-
-    },
-    "Sounds like" : {
-
-    },
-    "Sounds like %@" : {
-
-    },
-    "Sounds like Comic Bakery by Martin Galway" : {
+    "SOUNDS SIMILAR" : {
 
     },
     "Source Code" : {
@@ -3325,22 +3415,22 @@
     "Start" : {
 
     },
-    "Start Here" : {
-
-    },
-    "Start Listening" : {
-
-    },
-    "Start Resonance fresh" : {
-
-    },
     "Start from a tune you love and Resonance finds others that sound like it, by any composer. It compares how they sound and how they drive the SID chip." : {
+
+    },
+    "Start Here" : {
 
     },
     "Start listening" : {
 
     },
+    "Start Listening" : {
+
+    },
     "Start page" : {
+
+    },
+    "Start Resonance fresh" : {
 
     },
     "Start with a suggestion" : {
@@ -3364,6 +3454,12 @@
     "Stereo" : {
 
     },
+    "STIL" : {
+
+    },
+    "STIL notes" : {
+
+    },
     "Still stuck?" : {
 
     },
@@ -3377,6 +3473,9 @@
 
     },
     "Subtle" : {
+
+    },
+    "subtune %lld" : {
 
     },
     "Subtune %u" : {
@@ -3394,16 +3493,13 @@
     "Sync" : {
 
     },
+    "sync leads" : {
+
+    },
     "Sync leads" : {
 
     },
     "System Settings" : {
-
-    },
-    "The %@ engine can't scrub. Click for why." : {
-
-    },
-    "The %@ engine plays a tune in real time only, so there's nothing to jump to. The reSIDfp and SIDLite direct engines run the tune to the point you choose." : {
 
     },
     "The **#** column shows each tune's place in the playlist." : {
@@ -3418,55 +3514,10 @@
     "The **Sound** chips above a list keep only the tunes that have all the sounds you pick: Arpeggios, Filter sweeps, Noise drums, Ring mod, Sync leads and Digi samples." : {
 
     },
-    "The C64 scene still releases music. CSDb is its database. Turn this on for Scene Pulse, with new releases and parties, and for composers' groups and credits." : {
+    "The %@ engine can't scrub. Click for why." : {
 
     },
-    "The Describe row in the sidebar makes a Smart Playlist from a sentence, or from New to Me, Never Heard, Similar to a Tune and Slow to Intense. It reads sentences just as the app does, and the app's Smart Playlist pane follows along. **Return** plays from a tune, **/** changes the sentence, **n** saves the list as a playlist and **Esc** starts over." : {
-
-    },
-    "The Dock menu" : {
-
-    },
-    "The Download Stopped" : {
-
-    },
-    "The HVSC Download Stopped" : {
-
-    },
-    "The HVSC download stopped" : {
-
-    },
-    "The HVSC folder has moved, or isn't the one that holds MUSICIANS, GAMES and DEMOS. Choose the right one in Settings → Collection." : {
-
-    },
-    "The HVSC folder: choose another." : {
-
-    },
-    "The Help menu brings back the welcome steps with **Welcome to Resonance**. It also has **Keyboard Shortcuts** and the **Credits**, with a nod to the demoscene." : {
-
-    },
-    "The High Voltage SID Collection holds more than 60,000 tunes, organized by composer and documented by volunteers since 1996." : {
-
-    },
-    "The High Voltage SID Collection — every well-kept C64 SID in one complete, documented archive. Download it to browse by composer, search, and play." : {
-
-    },
-    "The Playback menu also has Repeat and Shuffle Collection. Your keyboard's media keys work too." : {
-
-    },
-    "The SID chip has three voices, and every visualizer shows all three, each in its own color. They're drawn from the chip's registers as the tune plays, so what you see is what the chip is doing." : {
-
-    },
-    "The SID, played and seen" : {
-
-    },
-    "The SID, played and seen." : {
-
-    },
-    "The Shortcuts app has these actions too, and **Play or Pause** and **Next Track**, for your own shortcuts and automations." : {
-
-    },
-    "The Terminal App" : {
+    "The %@ engine plays a tune in real time only, so there's nothing to jump to. The reSIDfp and SIDLite direct engines run the tune to the point you choose." : {
 
     },
     "The acknowledgments are missing from this build." : {
@@ -3479,6 +3530,9 @@
 
     },
     "The barcode and the sphere show only part of what Sounds Like compares: 41 measurements of how a tune drives the chip, and an embedding of its sound. Two tunes can look alike and still not be close matches, or the other way around. The percentage on a match is the better guide." : {
+
+    },
+    "The C64 scene still releases music. CSDb is its database. Turn this on for Scene Pulse, with new releases and parties, and for composers' groups and credits." : {
 
     },
     "The card at the top of the inspector has three pages. Swipe between them on a trackpad, or click the dots along its bottom edge; Resonance remembers the last one." : {
@@ -3505,7 +3559,16 @@
     "The dark side: saber red" : {
 
     },
+    "The Describe row in the sidebar makes a Smart Playlist from a sentence, or from New to Me, Never Heard, Similar to a Tune and Slow to Intense. It reads sentences just as the app does, and the app's Smart Playlist pane follows along. **Return** plays from a tune, **/** changes the sentence, **n** saves the list as a playlist and **Esc** starts over." : {
+
+    },
+    "The Dock menu" : {
+
+    },
     "The download continues if you close this; open the link again when it's done." : {
+
+    },
+    "The Download Stopped" : {
 
     },
     "The download stopped: %@" : {
@@ -3529,6 +3592,27 @@
     "The folder that holds MUSICIANS, GAMES and DEMOS. With nothing in it yet, download the collection into it — by default Resonance's own folder." : {
 
     },
+    "The Help menu brings back the welcome steps with **Welcome to Resonance**. It also has **Keyboard Shortcuts** and the **Credits**, with a nod to the demoscene." : {
+
+    },
+    "The High Voltage SID Collection — every well-kept C64 SID in one complete, documented archive. Download it to browse by composer, search, and play." : {
+
+    },
+    "The High Voltage SID Collection holds more than 60,000 tunes, organized by composer and documented by volunteers since 1996." : {
+
+    },
+    "The HVSC download stopped" : {
+
+    },
+    "The HVSC Download Stopped" : {
+
+    },
+    "The HVSC folder has moved, or isn't the one that holds MUSICIANS, GAMES and DEMOS. Choose the right one in Settings → Collection." : {
+
+    },
+    "The HVSC folder: choose another." : {
+
+    },
     "The inspector" : {
 
     },
@@ -3550,6 +3634,9 @@
     "The newest builds, as soon as they're ready, plus betas and finished releases. Things may break or change." : {
 
     },
+    "The Playback menu also has Repeat and Shuffle Collection. Your keyboard's media keys work too." : {
+
+    },
     "The playlist moves to the Trash. Its tunes stay where they are." : {
 
     },
@@ -3560,6 +3647,18 @@
 
     },
     "The scan hasn't reached it yet. Check Settings → Fingerprints: is the scan paused? Click **Download** next to Published set to fetch the fingerprints of all of HVSC. If some tunes couldn't be scanned, **Retry** tries them again." : {
+
+    },
+    "The Shortcuts app has these actions too, and **Play or Pause** and **Next Track**, for your own shortcuts and automations." : {
+
+    },
+    "The SID chip has three voices, and every visualizer shows all three, each in its own color. They're drawn from the chip's registers as the tune plays, so what you see is what the chip is doing." : {
+
+    },
+    "The SID, played and seen" : {
+
+    },
+    "The SID, played and seen." : {
 
     },
     "The sidebar" : {
@@ -3574,6 +3673,9 @@
     "The sphere draws the same nine traits in 3D, from a ball of 700 points." : {
 
     },
+    "The Terminal App" : {
+
+    },
     "The terminal app, and commands for scripts" : {
 
     },
@@ -3584,6 +3686,9 @@
 
     },
     "The two lists that are always there." : {
+
+    },
+    "the update" : {
 
     },
     "The whole collection as one archive, into Resonance's folder." : {
@@ -3632,6 +3737,9 @@
     "This tune isn't in HVSC's song lengths. Resonance figured out this length by running the tune, so it may be off." : {
 
     },
+    "This tune isn't in your collection, and there's no newer HVSC release to get it from." : {
+
+    },
     "This tune isn't in your HVSC %@. HVSC %lld should have it." : {
       "localizations" : {
         "en" : {
@@ -3641,9 +3749,6 @@
           }
         }
       }
-    },
-    "This tune isn't in your collection, and there's no newer HVSC release to get it from." : {
-
     },
     "Title" : {
 
@@ -3663,13 +3768,13 @@
     "To take a tune out, Control-click it and choose **Remove from Playlist**." : {
 
     },
+    "Top of List" : {
+
+    },
     "Top Rated" : {
 
     },
     "Top Result" : {
-
-    },
-    "Top of List" : {
 
     },
     "Tracker" : {
@@ -3684,16 +3789,16 @@
     "Troubleshooting" : {
 
     },
-    "Try Again" : {
+    "Try “%@”" : {
 
     },
-    "Try Never Heard" : {
+    "Try Again" : {
 
     },
     "Try asking for a little less." : {
 
     },
-    "Try “%@”" : {
+    "Try Never Heard" : {
 
     },
     "Tune by %@, %@" : {
@@ -3715,6 +3820,9 @@
     "Tune name" : {
 
     },
+    "tunes" : {
+
+    },
     "Tunes" : {
 
     },
@@ -3733,6 +3841,9 @@
           }
         }
       }
+    },
+    "tunes re-filed" : {
+
     },
     "Tunes you play show up here, newest first." : {
 
@@ -3764,10 +3875,10 @@
     "Under a minute" : {
 
     },
-    "Under the Hood" : {
+    "Under the hood" : {
 
     },
-    "Under the hood" : {
+    "Under the Hood" : {
 
     },
     "Unknown" : {
@@ -3819,6 +3930,9 @@
     "Update to v%u" : {
 
     },
+    "updated %@" : {
+
+    },
     "Updates" : {
 
     },
@@ -3834,6 +3948,9 @@
           }
         }
       }
+    },
+    "v%@" : {
+
     },
     "V%lld %@" : {
       "localizations" : {
@@ -3854,6 +3971,9 @@
     "Very Close" : {
 
     },
+    "vibrato" : {
+
+    },
     "Vibrato" : {
 
     },
@@ -3866,13 +3986,13 @@
     "Vim" : {
 
     },
-    "Vim and Emacs Keys" : {
-
-    },
     "Vim and Emacs add their keys for moving through lists and playing tunes, except while you're typing. The menus' shortcuts keep working. Press ? in the main window to see them all." : {
 
     },
     "Vim and Emacs keys" : {
+
+    },
+    "Vim and Emacs Keys" : {
 
     },
     "Visualizer" : {
@@ -3917,16 +4037,16 @@
     "Welcome to Resonance" : {
 
     },
-    "What Resonance opens on, whether the menu bar player shows, and the Normal, Vim or Emacs keys." : {
-
-    },
-    "What Resonance shows when it opens." : {
-
-    },
     "What each page of Settings does." : {
 
     },
     "What it can do" : {
+
+    },
+    "What Resonance opens on, whether the menu bar player shows, and the Normal, Vim or Emacs keys." : {
+
+    },
+    "What Resonance shows when it opens." : {
 
     },
     "What sounds like this?" : {
@@ -3983,6 +4103,9 @@
     "Wide" : {
 
     },
+    "with %@" : {
+
+    },
     "With a command after it, **resonance** does that one thing and returns. Run **resonance --help** for all of them." : {
 
     },
@@ -4017,12 +4140,6 @@
         }
       }
     },
-    "Your Mac" : {
-
-    },
-    "Your Music" : {
-
-    },
     "Your collection has another version of this file; it may sound a little different." : {
 
     },
@@ -4030,6 +4147,12 @@
 
     },
     "Your library, Sounds Like and the music, in a terminal window." : {
+
+    },
+    "Your Mac" : {
+
+    },
+    "Your Music" : {
 
     },
     "Your own colors" : {
@@ -4050,141 +4173,9 @@
     "Your words, your Mac. Nothing leaves it." : {
 
     },
-    "[Phosphor](https://github.com/sandlbn/Phosphor)" : {
-
-    },
-    "all rated %@" : {
-
-    },
-    "arpeggios" : {
-
-    },
-    "by composers with fewer than three tunes in HVSC" : {
-
-    },
-    "composers" : {
-
-    },
-    "credit fixes" : {
-
-    },
-    "demos" : {
-
-    },
-    "fast arpeggios" : {
-
-    },
-    "filter sweeps" : {
-
-    },
-    "fixed and better rips" : {
-
-    },
-    "from %@" : {
-
-    },
-    "games" : {
-
-    },
-    "hvsc.c64.org" : {
-
-    },
-    "macOS owns these switches, so Resonance links to them." : {
-
-    },
-    "new SIDs added" : {
-
-    },
-    "no tunes" : {
-
-    },
-    "noise drums" : {
-
-    },
-    "pulse bass" : {
-
-    },
-    "rating, votes" : {
-
-    },
-    "ring modulation" : {
-
-    },
-    "sampled sounds" : {
-
-    },
-    "seconds" : {
-
-    },
-    "since May 1996" : {
-
-    },
-    "slow to intense" : {
-
-    },
-    "song lengths" : {
-
-    },
-    "subtune %lld" : {
-
-    },
-    "sync leads" : {
-
-    },
-    "the update" : {
-
-    },
-    "tunes" : {
-
-    },
-    "tunes re-filed" : {
-
-    },
-    "updated %@" : {
-
-    },
-    "v%@" : {
-
-    },
-    "vibrato" : {
-
-    },
-    "with %@" : {
-
-    },
     "zsh and Oh My Zsh" : {
-
-    },
-    "© 2026 Erik Luimes. MIT license; distributed under the GNU GPL, version 3." : {
-
-    },
-    "—" : {
-
-    },
-    "“%@”" : {
-
-    },
-    "“Drift from this tune in Resonance”" : {
-
-    },
-    "“Favorite this tune in Resonance”" : {
-
-    },
-    "“Play Favorites in Resonance”, or the name of one of your playlists" : {
-
-    },
-    "“Play something like this in Resonance”" : {
-
-    },
-    "“Surprise me in Resonance”" : {
-
-    },
-    "…" : {
-
-    },
-    "−%@" : {
 
     }
   },
-  "version" : "1.0"
+  "version" : "1.1"
 }

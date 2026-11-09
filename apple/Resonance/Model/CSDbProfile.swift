@@ -444,14 +444,14 @@ extension CSDbStore {
         if let entry = saved[key] {
             let age = Date().timeIntervalSince(entry.fetched)
             if age < (entry.profile == nil ? Self.missLifetime : Self.foundLifetime) {
-                profiles[key] = entry.profile.map(CSDbLookup.found) ?? .none
+                profiles[key] = entry.profile.map(CSDbLookup.found) ?? CSDbLookup.none
                 return
             }
         }
         profiles[key] = .loading
         do {
             let profile = try await fetchProfile(names)
-            profiles[key] = profile.map(CSDbLookup.found) ?? .none
+            profiles[key] = profile.map(CSDbLookup.found) ?? CSDbLookup.none
             saved[key] = SavedProfile(fetched: Date(), profile: profile)
             Self.write(saved)
         } catch {

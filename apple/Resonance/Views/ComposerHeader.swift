@@ -160,7 +160,7 @@ struct ComposerHeader: View {
         // Whose tune their newest credit is, and whether it's in HVSC, before
         // anyone presses Play.
         .task(id: profile?.latestMusic?.id) {
-            if let id = profile?.latestMusic?.id { try? await csdb.files(ofRelease: id) }
+            if let id = profile?.latestMusic?.id { _ = try? await csdb.files(ofRelease: id) }
         }
 #endif
     }

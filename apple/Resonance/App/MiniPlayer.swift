@@ -91,7 +91,7 @@ final class MiniPlayer: NSObject, NSWindowDelegate {
     private func followPlayback() {
         withObservationTracking {
             item?.button?.image = store.isPlaying ? MenuBarIcon.playing : MenuBarIcon.notPlaying
-        } onChange: {
+        } onChange: { [weak self] in
             Task { @MainActor [weak self] in self?.followPlayback() }
         }
     }

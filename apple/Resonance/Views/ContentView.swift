@@ -425,7 +425,7 @@ struct ContentView: View {
                 // A heading doesn't pass drops on to the list's own handler
                 // below, so it takes them itself.
                 .contentShape(.rect)
-                .dropDestination(for: URL.self) { urls, _ in importAsNew(urls) }
+                .dropDestination(for: URL.self) { urls, _ in return importAsNew(urls) }
             }
             Section("HVSC") {
                 HvscCollectionRow(isSelected: sidebarSelection == .hvscHome)
