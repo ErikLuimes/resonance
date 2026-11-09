@@ -87,11 +87,15 @@ extension View {
     /// wants, again whenever that changes, and each time the window is laid
     /// out again. The crash of 2026-11-09 (the window at 1440 × 464, during
     /// a drag) was 645 of those rounds in one frame, until AppKit ended the
-    /// app. Which content kept changing its answer wasn't found: resizing a
-    /// hidden window and moving its dividers didn't reproduce it. Pinned, a
-    /// column answers once and no content can change that. The window's own
-    /// minimum (`ContentView.minWidth`, `minHeight`) keeps the content from
-    /// being squeezed instead.
+    /// app. What kept changing the answer wasn't found: resizing a hidden
+    /// window and moving its dividers didn't reproduce it. Pinned, no
+    /// content can change a column's answer. The columns still send new
+    /// ones while the window is resized by hand (seen in Instruments, from
+    /// these columns and the level above them), so this narrows the loop's
+    /// causes, it doesn't rule the loop out: 103 seconds of hard resizing
+    /// stayed under 35 ms a frame. The window's own minimum
+    /// (`ContentView.minWidth`, `minHeight`) keeps the content from being
+    /// squeezed instead.
     func fillsColumn() -> some View {
         frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .top)
     }
