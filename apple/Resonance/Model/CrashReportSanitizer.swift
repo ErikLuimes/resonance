@@ -21,6 +21,7 @@ nonisolated enum CrashReportSanitizer {
         "hostname",
         "installationid",
         "lastdeallocatedobject",
+        "machine",
         "notableaddresses",
         "parentprocessid",
         "processid",

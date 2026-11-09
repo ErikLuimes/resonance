@@ -42,14 +42,8 @@ body:
     attributes:
       label: Tune
       description: If it's about one tune, its path in HVSC, for example "MUSICIANS/H/Hubbard_Rob/Commando.sid".
-  - type: textarea
+  - type: upload
     id: crash_report
     attributes:
       label: Crash report
-      description: Paste the sanitized crash report copied from Resonance. It will be formatted as JSON automatically.
-      render: json
-  - type: textarea
-    id: extra
-    attributes:
-      label: Anything else
-      description: Screenshots, a screen recording, or any other context help a lot.
+      description: Upload the sanitized JSON crash report saved by Resonance.

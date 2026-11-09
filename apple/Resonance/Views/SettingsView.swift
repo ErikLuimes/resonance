@@ -685,7 +685,17 @@ private struct CrashSettings: View {
     }
 
     private func reportOnGitHub(_ reportID: Int64) {
-        copyReport(reportID)
+        guard let report = reportText(reportID) else { return }
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [.json]
+        savePanel.canCreateDirectories = true
+        savePanel.nameFieldStringValue = "Resonance-crash-\(reportID).json"
+        savePanel.title = String(localized: "Save Sanitized Crash Report")
+        savePanel.prompt = String(localized: "Save")
+        guard savePanel.runModal() == .OK,
+              let destination = savePanel.url,
+              (try? report.write(to: destination, atomically: true, encoding: .utf8)) != nil else { return }
+
         let unknown = String(localized: "Unknown")
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? unknown
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? unknown
