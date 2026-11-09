@@ -1,11 +1,12 @@
 import { Action, ActionPanel, Detail, Icon, Keyboard } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
-import { useEffect } from "react";
 import { SoundsLikeList } from "./components/SoundsLikeList";
 import { AddToPlaylist } from "./components/TuneActions";
 import { soundMarkdown, soundOrNothing } from "./components/TuneDetail";
-import { closeWith, quietly } from "./components/run";
-import { call, prints, setFavorite, showInApp, startDrift, status, type Tune } from "./lib/client";
+import { closeWith, quietly, runCommand } from "./components/run";
+import { useStatus } from "./components/useStatus";
+import { prints, setFavorite, showInApp, startDrift, type Tune } from "./lib/client";
+import { nextTune, previousTune, surpriseMe, togglePlayback } from "./lib/controls";
 import { clock, spokenName } from "./lib/format";
 
 async function fingerprint(path?: string) {
@@ -15,26 +16,13 @@ async function fingerprint(path?: string) {
 }
 
 export default function Command() {
-  const { data, error, isLoading, revalidate } = useCachedPromise(status, [], {
-    keepPreviousData: true,
-    onError: () => undefined,
-  });
+  // The elapsed time, and the tune when it moves on by itself.
+  const { data, error, isLoading, revalidate } = useStatus();
   const now = data?.now ?? null;
   const path = now?.path;
   const { data: described } = useCachedPromise(soundOrNothing, [path ?? ""], { execute: path != null });
   const { data: traits } = useCachedPromise(fingerprint, [path]);
 
-  // The elapsed time, and the tune when it moves on by itself.
-  useEffect(() => {
-    const timer = setInterval(revalidate, 1000);
-    return () => clearInterval(timer);
-  }, [revalidate]);
-
-  const send = (cmd: string) => () =>
-    quietly(async () => {
-      await call(cmd);
-      revalidate();
-    });
   const tune: Tune | null = now && { path: now.path, title: now.title, author: now.author, released: now.released };
   const stillLoading = isLoading && !data;
 
@@ -77,22 +65,22 @@ export default function Command() {
               <Action
                 title={data?.state === "playing" ? "Pause" : "Play"}
                 icon={data?.state === "playing" ? Icon.Pause : Icon.Play}
-                onAction={send("toggle")}
+                onAction={() => runCommand(togglePlayback)}
               />
             ) : (
-              <Action title="Surprise Me" icon={Icon.Stars} onAction={send("surprise")} />
+              <Action title="Surprise Me" icon={Icon.Stars} onAction={() => runCommand(surpriseMe)} />
             )}
             <Action
               title="Next Tune"
               icon={Icon.Forward}
               shortcut={{ modifiers: ["cmd"], key: "arrowRight" }}
-              onAction={send("next")}
+              onAction={() => runCommand(nextTune)}
             />
             <Action
               title="Previous Tune"
               icon={Icon.Rewind}
               shortcut={{ modifiers: ["cmd"], key: "arrowLeft" }}
-              onAction={send("prev")}
+              onAction={() => runCommand(previousTune)}
             />
           </ActionPanel.Section>
           {tune ? (

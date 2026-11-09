@@ -4,7 +4,8 @@ import { createServer, type Server } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, beforeEach, test } from "node:test";
-import { afterSkip, call, playTunes, search, status } from "../src/lib/client.ts";
+import { afterSkip, call, playTunes, search, status, statusIfRunning } from "../src/lib/client.ts";
+import { nextTune, togglePlayback } from "../src/lib/controls.ts";
 
 // A stand-in for the app. Each test says how it answers.
 const folder = mkdtempSync(join(tmpdir(), "resonance-raycast-"));
@@ -51,6 +52,48 @@ test("sends the command and its arguments and returns the result", async () => {
   assert.equal(found[0].title, "Commando");
   assert.equal(requests[0].cmd, "search");
   assert.deepEqual(requests[0].args, { text: "commando", limit: 5 });
+});
+
+test("polling asks the running app for its status", async () => {
+  answer = () => ok({ state: "paused", elapsed: 3 });
+  assert.equal((await statusIfRunning())?.state, "paused");
+  assert.equal(requests[0].cmd, "status");
+});
+
+test("polling gets nothing when the app isn't running, rather than an error or a launch", async () => {
+  process.env.RESONANCE_SOCKET = join(folder, "nobody-here.sock");
+  try {
+    assert.equal(await statusIfRunning(), null);
+  } finally {
+    process.env.RESONANCE_SOCKET = socketPath;
+  }
+});
+
+test("Play or Pause says what it did", async () => {
+  const now = { path: "/a.sid", title: "Commando", author: "Rob Hubbard" };
+  answer = () => ok({ state: "paused", now });
+  assert.equal(await togglePlayback(), "Paused Commando");
+  assert.deepEqual(
+    requests.map((request) => request.cmd),
+    ["toggle", "status"],
+  );
+  answer = () => ok({ state: "playing", now });
+  assert.equal(await togglePlayback(), "Playing Commando");
+  answer = () => ok({ state: "stopped" });
+  assert.equal(await togglePlayback(), "Nothing to play");
+});
+
+test("a skip waits for the new tune and names it", async () => {
+  let skipped = false;
+  answer = (request) => {
+    if (request.cmd === "next") skipped = true;
+    const now = skipped
+      ? { path: "/b.sid", title: "Delta", author: "Rob Hubbard" }
+      : { path: "/a.sid", title: "Commando", author: "Rob Hubbard" };
+    return ok({ state: "playing", now });
+  };
+  assert.equal(await nextTune(), "Delta by Rob Hubbard");
+  assert.equal(requests[1].cmd, "next");
 });
 
 test("leaves out what isn't given, so the app uses its defaults", async () => {

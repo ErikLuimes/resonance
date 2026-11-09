@@ -78,6 +78,25 @@ enum StartPage: String, CaseIterable, Identifiable {
     }
 }
 
+extension View {
+    /// For the outside of each of the window's columns (sidebar, middle,
+    /// inspector): the column takes the room the split view gives it, and
+    /// asks for none itself.
+    ///
+    /// Each column tells the split view the least and most room its content
+    /// wants, again whenever that changes, and each time the window is laid
+    /// out again. The crash of 2026-11-09 (the window at 1440 × 464, during
+    /// a drag) was 645 of those rounds in one frame, until AppKit ended the
+    /// app. Which content kept changing its answer wasn't found: resizing a
+    /// hidden window and moving its dividers didn't reproduce it. Pinned, a
+    /// column answers once and no content can change that. The window's own
+    /// minimum (`ContentView.minWidth`, `minHeight`) keeps the content from
+    /// being squeezed instead.
+    func fillsColumn() -> some View {
+        frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .top)
+    }
+}
+
 extension EnvironmentValues {
     /// Search is over this section: it's kept, but must not animate, fetch or
     /// react to a pointer it can't be seen under. Clicks are already stopped,
@@ -183,8 +202,9 @@ struct ContentView: View {
         .animation(Self.nowPlayingSlide, value: store.isShowingNowPlaying)
         // A constant for the window, not a minimum inside the split view,
         // which made AppKit re-run layout until it aborted (see
-        // NowPlayingBar). Only the inspector button changes it.
-        .frame(minWidth: Self.minWidth(inspector: showInspector))
+        // NowPlayingBar and `fillsColumn`). Only the inspector button
+        // changes it.
+        .frame(minWidth: Self.minWidth(inspector: showInspector), minHeight: Self.minHeight)
     }
 
     /// Narrowest the window gets: the sidebar and inspector at the widths they
@@ -195,10 +215,17 @@ struct ContentView: View {
         190 + 600 + (inspector ? 300 : 0)
     }
 
+    /// Shortest the window's content gets, under the title bar. The same as
+    /// before the columns were pinned (see `fillsColumn`), when they set it:
+    /// 384 measured, with the title bar's 52. The tallest content, search
+    /// results over the bar, needs 233.
+    static let minHeight: CGFloat = 332
+
     private var libraryMode: some View {
         @Bindable var store = store
         return NavigationSplitView {
             sidebar
+                .fillsColumn()
                 .navigationSplitViewColumnWidth(min: 160, ideal: 190, max: 260)
         } detail: {
             detail
@@ -516,10 +543,11 @@ struct ContentView: View {
                 // other panes, and an update, get the pill instead.
                 StatusBanner(showsSync: section != .hvscHome || store.hvscInfo != nil)
             }
+            .fillsColumn()
             .inspector(isPresented: $showInspector) {
                 NowPlayingInspector()
+                    .fillsColumn()
                     .inspectorColumnWidth(min: 260, ideal: 300, max: 400)
-
             }
     }
 

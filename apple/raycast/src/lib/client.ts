@@ -116,7 +116,10 @@ function exchange(socket: Socket, request: string): Promise<string> {
 
 /** Ask, and get the answer's `result`. Throws with the app's own words if it says no. */
 export async function call<T = unknown>(cmd: string, args: Record<string, unknown> = {}): Promise<T> {
-  const socket = await connectToApp();
+  return ask<T>(await connectToApp(), cmd, args);
+}
+
+async function ask<T>(socket: Socket, cmd: string, args: Record<string, unknown>): Promise<T> {
   try {
     const line = await exchange(socket, JSON.stringify({ id: 1, cmd, args }) + "\n");
     let answer: { ok?: boolean; result?: T; error?: string };
@@ -133,6 +136,12 @@ export async function call<T = unknown>(cmd: string, args: Record<string, unknow
 }
 
 export const status = () => call<Status>("status");
+
+/** The status if the app is running, or null. For polling: it never starts the app, so it can be quit. */
+export async function statusIfRunning(): Promise<Status | null> {
+  const socket = await tryConnect();
+  return socket && ask<Status>(socket, "status", {});
+}
 export const search = (text: string, limit = 50) => call<Tune[]>("search", { text, limit });
 export const like = (path?: string, limit = 30) => call<Tune[]>("like", { path, limit });
 export const describe = (text: string) => call<Described>("describe", { text, play: false });

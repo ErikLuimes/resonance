@@ -6,6 +6,8 @@
     "types": ["node"],
     "module": "commonjs",
     "target": "ES2023",
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
     "strict": true,
     "isolatedModules": true,
     "esModuleInterop": true,

@@ -2,11 +2,12 @@ import { Action, ActionPanel, Icon, List } from "@raycast/api";
 import { useCachedPromise, useCachedState } from "@raycast/utils";
 import type { ComponentProps, ReactNode } from "react";
 import { useMemo, useState } from "react";
-import { playTunes, prints, type Tune } from "../lib/client";
+import { call, playTunes, prints, type Tune } from "../lib/client";
 import { barcode, byline, percent, spokenName } from "../lib/format";
 import { TuneActions } from "./TuneActions";
 import { closeWith } from "./run";
 import { TuneDetail } from "./TuneDetail";
+import { usePlaying } from "./usePlaying";
 
 type TuneListProps = {
   tunes: Tune[];
@@ -34,6 +35,7 @@ export function TuneList(props: TuneListProps) {
   const { navigationTitle, searchBarPlaceholder, searchText, onSearchTextChange, throttle, filtering } = props;
   const [showingDetail, setShowingDetail] = useCachedState(`detail-${detailKey}`, detailByDefault);
   const [selected, setSelected] = useState<string | null>(null);
+  const playing = usePlaying();
 
   const paths = useMemo(() => tunes.map((tune) => tune.path), [tunes]);
   const { data: found } = useCachedPromise(fingerprints, [paths], { keepPreviousData: true });
@@ -71,11 +73,24 @@ export function TuneList(props: TuneListProps) {
         actions={
           <ActionPanel>
             <ActionPanel.Section>
-              <Action
-                title="Play"
-                icon={Icon.Play}
-                onAction={() => closeWith(`Playing ${byline(tune.title, tune.author)}`, start)}
-              />
+              {playing?.path === tune.path ? (
+                <Action
+                  title={playing.state === "playing" ? "Pause" : "Play"}
+                  icon={playing.state === "playing" ? Icon.Pause : Icon.Play}
+                  onAction={() =>
+                    closeWith(
+                      `${playing.state === "playing" ? "Paused" : "Playing"} ${byline(tune.title, tune.author)}`,
+                      () => call("toggle"),
+                    )
+                  }
+                />
+              ) : (
+                <Action
+                  title="Play"
+                  icon={Icon.Play}
+                  onAction={() => closeWith(`Playing ${byline(tune.title, tune.author)}`, start)}
+                />
+              )}
               <Action
                 title={showingDetail ? "Hide Sound" : "Show Sound"}
                 icon={Icon.Sidebar}
