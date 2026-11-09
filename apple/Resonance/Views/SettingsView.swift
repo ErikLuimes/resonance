@@ -690,11 +690,6 @@ private struct CrashSettings: View {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? unknown
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? unknown
         let macOSVersion = ProcessInfo.processInfo.operatingSystemVersionString
-        let extra = String(localized: """
-        Local crash report #\(reportID) was copied to the clipboard in sanitized form.
-
-        Please review it, then paste it here.
-        """)
         var components = URLComponents(string: "https://github.com/ErikLuimes/resonance/issues/new")
         components?.queryItems = [
             URLQueryItem(name: "template", value: "bug-report.yml"),
@@ -702,7 +697,6 @@ private struct CrashSettings: View {
             URLQueryItem(name: "what", value: String(localized: "Resonance quit unexpectedly.")),
             URLQueryItem(name: "version", value: "\(version) (\(build))"),
             URLQueryItem(name: "macos", value: macOSVersion),
-            URLQueryItem(name: "extra", value: extra),
         ]
         if let url = components?.url { NSWorkspace.shared.open(url) }
     }
