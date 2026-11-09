@@ -1,5 +1,6 @@
 import AppIntents
 import AppKit
+import KSCrashRecording
 
 /// Owns the player for the app's lifetime, so files opened from Finder
 /// before the window exists still reach it.
@@ -22,6 +23,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var promptStatus: PromptStatus?
 
     override init() {
+        if !Self.isRunningTests {
+            // KSCrash only writes reports locally. Nothing leaves the Mac until
+            // the user explicitly copies or reports one from Settings.
+            try? KSCrash.shared.install(with: KSCrashConfiguration())
+        }
         // Before anything below reads a path: the folders and files chosen
         // outside the sandbox, open again.
         if !Self.isRunningTests {

@@ -1,5 +1,6 @@
 import SwiftUI
 import PhosphorCore
+import KSCrashRecording
 
 /// Settings: a sidebar of focused pages, in groups. The selected page is
 /// remembered. The window is a fixed size and its title never changes, because
@@ -72,6 +73,8 @@ struct SettingsView: View {
 #endif
         case .integrations:
             IntegrationSettings()
+        case .crashes:
+            CrashSettings()
         case .storage:
             StorageSettings()
         }
@@ -87,7 +90,7 @@ nonisolated enum SettingsPage: String, CaseIterable, Identifiable {
 #if CSDB
     case csdb
 #endif
-    case integrations, storage
+    case integrations, crashes, storage
 
     var id: Self { self }
 
@@ -105,6 +108,7 @@ nonisolated enum SettingsPage: String, CaseIterable, Identifiable {
         case .csdb: "CSDb"
 #endif
         case .integrations: String(localized: "Integrations")
+        case .crashes: String(localized: "Crashes")
         case .storage: String(localized: "Storage and Reset")
         }
     }
@@ -123,6 +127,7 @@ nonisolated enum SettingsPage: String, CaseIterable, Identifiable {
         case .csdb: "antenna.radiowaves.left.and.right"
 #endif
         case .integrations: "puzzlepiece.extension"
+        case .crashes: "waveform.path.ecg"
         case .storage: "internaldrive"
         }
     }
@@ -142,7 +147,7 @@ nonisolated enum SettingsPage: String, CaseIterable, Identifiable {
             Group(title: "Resonance", pages: [.updates, .general, .appearance]),
             Group(title: String(localized: "Sound"), pages: [.engine, .playback]),
             Group(title: String(localized: "Library"), pages: library),
-            Group(title: String(localized: "Your Mac"), pages: [.integrations, .storage]),
+            Group(title: String(localized: "Your Mac"), pages: [.integrations, .crashes, .storage]),
         ]
     }
 }
@@ -593,6 +598,166 @@ private struct StorageSettings: View {
         }
 
         ResetSettings()
+    }
+}
+
+/// Crash reports stay on this Mac until the user chooses what to do with them.
+private struct CrashSettings: View {
+    @State private var reportIDs: [Int64] = []
+    @State private var confirmingClear = false
+    @State private var copiedReportID: Int64?
+
+    var body: some View {
+        Group {
+            if reportIDs.isEmpty {
+                Section {
+                    VStack(spacing: 10) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 38, weight: .light))
+                            .foregroundStyle(.green)
+                            .accessibilityHidden(true)
+                        Text("All clear")
+                            .font(.headline)
+                        Text("Resonance hasn't recorded any crashes.")
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 150)
+                    .multilineTextAlignment(.center)
+                    .accessibilityElement(children: .combine)
+                }
+            } else {
+                Section {
+                    ForEach(reportIDs, id: \.self) { reportID in
+                        CrashReportRow(
+                            reportID: reportID,
+                            copied: copiedReportID == reportID,
+                            copy: { copyReport(reportID) },
+                            report: { reportOnGitHub(reportID) },
+                            delete: { deleteReport(reportID) }
+                        )
+                    }
+                } header: {
+                    Text("Saved Reports")
+                } footer: {
+                    Text("Crash reports stay on this Mac. Review them before sharing: reports can contain technical details such as file paths and system information, and GitHub issues are public.")
+                }
+
+                Section {
+                    Button("Delete All Reports…", role: .destructive) {
+                        confirmingClear = true
+                    }
+                }
+            }
+#if DEBUG
+            Section {
+                Button("Create Test Crash Report") {
+                    createTestReport()
+                }
+            } footer: {
+                Text("Records a synthetic crash report without closing Resonance. This control only appears in development builds.")
+            }
+#endif
+        }
+        .task { reload() }
+        .confirmationDialog("Delete all crash reports?", isPresented: $confirmingClear) {
+            Button("Delete All", role: .destructive) {
+                KSCrash.shared.reportStore?.deleteAllReports()
+                reload()
+            }
+        } message: {
+            Text("This can't be undone.")
+        }
+    }
+
+    private func reload() {
+        reportIDs = KSCrash.shared.reportStore?.reportIDs.map(\.int64Value).reversed() ?? []
+    }
+
+    private func copyReport(_ reportID: Int64) {
+        guard let text = reportText(reportID) else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        copiedReportID = reportID
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            if copiedReportID == reportID { copiedReportID = nil }
+        }
+    }
+
+    private func reportOnGitHub(_ reportID: Int64) {
+        copyReport(reportID)
+        let unknown = String(localized: "Unknown")
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? unknown
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? unknown
+        let macOSVersion = ProcessInfo.processInfo.operatingSystemVersionString
+        let extra = String(localized: """
+        Local crash report #\(reportID) was copied to the clipboard in sanitized form.
+
+        Please review it, then paste it here.
+        """)
+        var components = URLComponents(string: "https://github.com/ErikLuimes/resonance/issues/new")
+        components?.queryItems = [
+            URLQueryItem(name: "template", value: "bug-report.yml"),
+            URLQueryItem(name: "title", value: String(localized: "[Crash] Resonance \(version)")),
+            URLQueryItem(name: "what", value: String(localized: "Resonance quit unexpectedly.")),
+            URLQueryItem(name: "version", value: "\(version) (\(build))"),
+            URLQueryItem(name: "macos", value: macOSVersion),
+            URLQueryItem(name: "extra", value: extra),
+        ]
+        if let url = components?.url { NSWorkspace.shared.open(url) }
+    }
+
+    private func deleteReport(_ reportID: Int64) {
+        KSCrash.shared.reportStore?.deleteReport(with: reportID)
+        reload()
+    }
+
+#if DEBUG
+    private func createTestReport() {
+        KSCrash.shared.reportUserException(
+            "ResonanceTestCrash",
+            reason: "Created from Crashes settings",
+            language: "Swift",
+            lineOfCode: nil,
+            stackTrace: Thread.callStackSymbols,
+            logAllThreads: true,
+            terminateProgram: false
+        )
+        reload()
+    }
+#endif
+
+    private func reportText(_ reportID: Int64) -> String? {
+        guard let report = KSCrash.shared.reportStore?.report(for: reportID),
+              let json = CrashReportSanitizer.jsonString(from: report.value) else { return nil }
+        return json
+    }
+}
+
+private struct CrashReportRow: View {
+    let reportID: Int64
+    let copied: Bool
+    let copy: () -> Void
+    let report: () -> Void
+    let delete: () -> Void
+
+    var body: some View {
+        LabeledContent {
+            HStack {
+                Button(copied ? String(localized: "Copied") : String(localized: "Copy Sanitized Report"), action: copy)
+                    .disabled(copied)
+                Button("Report on GitHub…", action: report)
+                Button("Delete", role: .destructive, action: delete)
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Crash report")
+                Text("Report #\(reportID)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            }
+        }
     }
 }
 

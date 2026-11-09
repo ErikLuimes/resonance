@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		03B99C8C30A28AC400C50012 /* Installations in Frameworks */ = {isa = PBXBuildFile; productRef = 03B99C8B30A28AC400C50012 /* Installations */; };
 		0BC0465548DDA9FA7F88FFB1 /* PhosphorCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		0E07FDAAF4E88A1E0C881555 /* PhosphorCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D3083881103BCAC2EE1BC2C /* PhosphorCore.swift */; };
 		5C1A7E0B2D9F4E3A8B6C0D11 /* STILKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5C1A7E0B2D9F4E3A8B6C0D12 /* STILKit */; };
@@ -123,6 +124,7 @@
 			files = (
 				E836E96C5BC45F7A1EFF5F86 /* PhosphorCore.framework in Frameworks */,
 				5C1A7E0B2D9F4E3A8B6C0D11 /* STILKit in Frameworks */,
+				03B99C8C30A28AC400C50012 /* Installations in Frameworks */,
 				5C1A7E0B2D9F4E3A8B6C0D21 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -301,6 +303,7 @@
 			packageProductDependencies = (
 				5C1A7E0B2D9F4E3A8B6C0D12 /* STILKit */,
 				5C1A7E0B2D9F4E3A8B6C0D22 /* Sparkle */,
+				03B99C8B30A28AC400C50012 /* Installations */,
 			);
 			productName = Resonance;
 			productReference = BD618DF38BE01ED7BAC0B411 /* Resonance.app */;
@@ -343,6 +346,7 @@
 			packageReferences = (
 				5C1A7E0B2D9F4E3A8B6C0D13 /* XCLocalSwiftPackageReference "Packages/STILKit" */,
 				5C1A7E0B2D9F4E3A8B6C0D23 /* XCRemoteSwiftPackageReference "Sparkle" */,
+				03B99C8A30A28AC400C50012 /* XCRemoteSwiftPackageReference "KSCrash" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2AB91D63C9C73ECC697336D4 /* Products */;
@@ -822,6 +826,14 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		03B99C8A30A28AC400C50012 /* XCRemoteSwiftPackageReference "KSCrash" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kstenerud/KSCrash";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.6.1;
+			};
+		};
 		5C1A7E0B2D9F4E3A8B6C0D23 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sparkle-project/Sparkle";
@@ -833,6 +845,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		03B99C8B30A28AC400C50012 /* Installations */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 03B99C8A30A28AC400C50012 /* XCRemoteSwiftPackageReference "KSCrash" */;
+			productName = Installations;
+		};
 		5C1A7E0B2D9F4E3A8B6C0D12 /* STILKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = STILKit;
