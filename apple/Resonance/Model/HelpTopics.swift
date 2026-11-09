@@ -537,7 +537,7 @@ extension HelpTopic {
             title: String(localized: "Raycast"), symbol: "command",
             summary: String(localized: "Search, play and discover from Raycast, without opening a window."),
             blocks: [
-                .paragraph(String(localized: "Install **Resonance** from the Raycast Store. It doesn't need the command line tool, and if Resonance isn't running, it starts in the background.")),
+                .paragraph(String(localized: "The **Resonance** extension is coming soon to the Raycast Store. It doesn't need the command line tool, and if Resonance isn't running, it starts in the background.")),
                 .bullets([
                     String(localized: "**Search Tunes**: find tunes by title or composer, and see how each one sounds."),
                     String(localized: "**Sounds Like This**: tunes that sound like the one playing."),

@@ -1796,9 +1796,6 @@
     "Install" : {
 
     },
-    "Install **Resonance** from the Raycast Store. It doesn't need the command line tool, and if Resonance isn't running, it starts in the background." : {
-
-    },
     "Install Again" : {
 
     },
@@ -3413,6 +3410,9 @@
 
     },
     "The **Fingerprint** column shows each tune's fingerprint as a barcode. Hover it for a card with the tune's sphere and sound, to play it or find similar tunes." : {
+
+    },
+    "The **Resonance** extension is coming soon to the Raycast Store. It doesn't need the command line tool, and if Resonance isn't running, it starts in the background." : {
 
     },
     "The **Sound** chips above a list keep only the tunes that have all the sounds you pick: Arpeggios, Filter sweeps, Noise drums, Ring mod, Sync leads and Digi samples." : {
