@@ -151,3 +151,87 @@ fragment float4 monitorFragment(MonitorVertex in [[stage_in]],
     color = mix(avg, color, inGlass);
     return float4(color * alpha, alpha);
 }
+
+// MARK: - The tube on the 3D desk
+
+// MonitorDesk.swift draws the tube into a texture that the 1702's glass
+// shows. This is monitorFragment without what the 3D scene now does itself:
+// the glass's outline (the mesh), its dark reflective surface (the
+// material and the room), and the spill onto the bezel (a light in front
+// of the screen). The texture covers the screen mesh's front, which is a
+// little larger than the glass that shows inside the bezel, and is sRGB, so
+// what's written is linear. Same as design/crt-monitor/mockup-3d.html.
+
+struct TubeUniforms {
+    float2 meshHalf;    // half the screen mesh's front, in scene units
+    float2 glassHalf;   // half the glass that shows, in scene units
+    float2 scale;       // the raster's size, 1 when on
+    float linePx;       // texture pixels per raster line at full height
+    float minWidth;     // the collapsed line's least half-width, in glass units
+    float time;
+    float bright;
+    float focus;
+    float wobble;
+    float seed;
+    float collapse;
+};
+
+fragment float4 monitorTubeFragment(MonitorVertex in [[stage_in]],
+                                    constant TubeUniforms &U [[buffer(0)]],
+                                    texture2d<float> frame [[texture(0)]]) {
+    // uv runs top to bottom, so +y is down, as in monitorFragment.
+    float2 p = (in.uv - 0.5) * 2.0 * U.meshHalf / U.glassHalf;
+    float2 q = p / RASTER;
+    q *= 1.0 + BARREL * dot(q, q);
+    q.x += U.wobble * (0.6 * sin(U.time * 62.0 + q.y * 7.0) + 0.4 * sin(U.time * 9.0));
+    q.y *= 1.0 + 0.5 * U.wobble * sin(U.time * 11.0);
+    float2 s = max(U.scale, float2(1e-4));
+    float2 t = (q / s) * 0.5 + 0.5;
+
+    float3 pic = float3(0.0);
+    float pxLine = U.linePx * s.y;
+    if (U.collapse < 0.5) {
+        if (t.x > -0.03 && t.x < 1.03 && t.y > -0.03 && t.y < 1.03) {
+            float foot = 1.0 / max(pxLine, 1e-3);
+            float lod = clamp(log2(max(foot, 1.0)), 0.0, 8.0);
+            float ly = t.y * FRAME.y;
+            float k0 = floor(ly - 0.5) - 1.0;
+            float u = t.x * FRAME.x + (hash(float2(k0, U.seed)) - 0.5) * 0.25;
+            float3 acc = float3(0.0);
+            float wsum = 0.0;
+            float sige = 0.0;
+            for (int i = 0; i < 4; i++) {
+                float k = k0 + float(i);
+                float inside = step(0.0, k) * step(k, FRAME.y - 1.0);
+                float3 c = lineSample(frame, u, k + 0.5, lod) * inside;
+                float lum = dot(c, float3(0.299, 0.587, 0.114));
+                float sg = U.focus * (0.85 + 0.35 * lum);
+                float s2 = sg * sg + foot * foot / 12.0;
+                sige = sqrt(s2);
+                float d = ly - (k + 0.5);
+                float w = exp(-0.5 * d * d / s2) / sqrt(6.2831853 * s2);
+                acc += c * w;
+                wsum += w * inside;
+            }
+            acc /= mix(1.0, max(wsum, 1e-3), smoothstep(0.6, 1.2, sige));
+            float2 tc = clamp(t, 0.0, 1.0);
+            float2 outside = max(abs(t - 0.5) - 0.5, 0.0) * FRAME;
+            float3 halo = (0.10 * frameAt(frame, tc, 3.0) + 0.05 * frameAt(frame, tc, 5.0)) * exp(-length(outside) / 5.0);
+            pic = (acc + halo) / 1.15;
+            pic *= 1.0 - 0.08 * smoothstep(0.4, 1.6, dot(p, p));
+            pic *= 1.0 + 0.03 * (hash(in.position.xy + U.seed) - 0.5);
+        }
+    } else {
+        float2 w = max(U.scale * RASTER, float2(U.minWidth));
+        float kx = mix(2.0, 6.0, smoothstep(0.0, 0.1, U.scale.x));
+        float env = exp(-0.5 * pow(abs(p.x) / w.x, kx)) * exp(-0.5 * pow(abs(p.y) / w.y, 2.0));
+        pic = frameAt(frame, float2(0.5), 8.0) * env;
+    }
+    float3 c = pic * U.bright;
+    float lum = dot(c, float3(0.299, 0.587, 0.114));
+    c += float3(max(lum - 1.0, 0.0)) * 0.8;
+    // The picture's values are sRGB; the texture encodes on the way in.
+    c = clamp(c, 0.0, 1.0);
+    c = select(pow((c + 0.055) / 1.055, float3(2.4)), c / 12.92, c <= 0.04045);
+    return float4(c, 1.0);
+}

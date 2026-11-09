@@ -120,6 +120,25 @@ enum AppKeys {
         }
     }
 
+    /// A key of the C64 on About's desk, clicked: what it stands for, as
+    /// that key would do it on the monitor (C64Key.action).
+    static func monitorAction(_ action: KeyAction) {
+        guard let store else { return }
+        let monitor = MonitorModel.shared
+        guard monitor.isOn else { return }
+        if monitor.mode == .boot {
+            monitor.skipBoot()
+            return
+        }
+        if action == .playPause {
+            store.playPause()
+        } else if action.actsOnList {
+            _ = monitor.handle(action, store: store)
+        } else {
+            _ = perform(action, store: store, window: nil)
+        }
+    }
+
     /// Return on a row of the panel, or a click on it: what its key does.
     static func activate(_ action: KeyAction) {
         guard let store, !action.actsOnList else { return }

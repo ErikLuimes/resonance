@@ -181,6 +181,9 @@ final class MonitorModel {
     /// watches this and puts its window back.
     private(set) var resets = 0
     @ObservationIgnored private var lastDraw = 0.0
+    /// Each character the boot types, as it types it, and its Returns: the
+    /// desk in About presses the C64's keys with it.
+    @ObservationIgnored var typed: ((Character) -> Void)?
 
     /// The power button: on from off, off from on. Nothing while the picture
     /// is still collapsing or About's window is on the move: pressing in
@@ -247,7 +250,7 @@ final class MonitorModel {
         ]
         steps += typing("LOAD\"RESONANCE\",8,1")
         steps += [
-            Step(delay: 0.35) { m in m.showCursor(false); m.newline() },
+            Step(delay: 0.35) { m in m.showCursor(false); m.newline(); m.typed?("\n") },
             Step(delay: 0.4) { m in m.print("\nSEARCHING FOR RESONANCE\n") },
             Step(delay: 1.0) { m in m.print("LOADING\n") },
             Step(delay: 1.7) { m in m.print("READY.\n"); m.showCursor(true) },
@@ -255,7 +258,7 @@ final class MonitorModel {
         ]
         steps += typing("RUN")
         steps += [
-            Step(delay: 0.3) { m in m.showCursor(false); m.newline() },
+            Step(delay: 0.3) { m in m.showCursor(false); m.newline(); m.typed?("\n") },
             Step(delay: 0.35) { m in m.startPlayer() },
         ]
         // The picture only shows once the tube is warm; the boot runs from then.
@@ -273,6 +276,7 @@ final class MonitorModel {
             Step(delay: Double.random(in: 0.06...0.16)) { m in
                 m.print(String(character))
                 m.showCursor(true)
+                m.typed?(character)
             }
         }
     }

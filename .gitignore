@@ -26,3 +26,6 @@
 # OS / editor cruft
 .DS_Store
 Thumbs.db
+
+# The 3D desk for design/crt-monitor/mockup-3d.html, made by blender/scene.py from the CC BY model
+/design/crt-monitor/model/

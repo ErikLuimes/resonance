@@ -1,0 +1,683 @@
+import Metal
+import SceneKit
+import SwiftUI
+
+/// The live 3D desk in About Resonance: dark_igorek's Commodore 1702, C64,
+/// 1541 and joystick (CC BY 4.0, prepared by design/crt-monitor/blender/scene.py
+/// into Scenes/Desk.usdz), the tube drawn into a texture on the 1702's glass
+/// by Shaders/Monitor.metal, the keys pressed as the C64 types and as you
+/// type or click them, the camera gliding to the monitor on power. The
+/// picture and its timing are MonitorModel's, as in the 2D MonitorCase,
+/// which stays as the fallback. Reasons and measurements in
+/// design/crt-monitor/README.md; the reference is design/crt-monitor/mockup-3d.html.
+struct MonitorDesk: NSViewRepresentable {
+    let store: PlayerStore
+
+    func makeCoordinator() -> DeskScene? { DeskScene.make() }
+
+    func makeNSView(context: Context) -> DeskView {
+        let view = DeskView(frame: .zero, options: [
+            SCNView.Option.preferredRenderingAPI.rawValue: SCNRenderingAPI.metal.rawValue,
+        ])
+        context.coordinator?.attach(to: view, store: store)
+        return view
+    }
+
+    func updateNSView(_ view: DeskView, context: Context) {
+        context.coordinator?.store = store
+    }
+
+    static func dismantleNSView(_ view: DeskView, coordinator: DeskScene?) {
+        coordinator?.detach(from: view)
+    }
+}
+
+/// The SCNView, passing its clicks and the pointer to the desk.
+final class DeskView: SCNView {
+    weak var desk: DeskScene?
+    private var tracking: NSTrackingArea?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let tracking { removeTrackingArea(tracking) }
+        let area = NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+                                  owner: self, userInfo: nil)
+        addTrackingArea(area)
+        tracking = area
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        desk?.mouseDown(at: convert(event.locationInWindow, from: nil), flags: event.modifierFlags)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        desk?.mouseUp()
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        let hot = desk?.isClickable(at: convert(event.locationInWindow, from: nil)) ?? false
+        (hot ? NSCursor.pointingHand : NSCursor.arrow).set()
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        NSCursor.arrow.set()
+    }
+
+    // The window drags from its background, not from the desk.
+    override var mouseDownCanMoveWindow: Bool { false }
+}
+
+/// The scene and everything that moves in it. Updated once per display frame
+/// on the main thread (`step`); the tube's texture is drawn on SceneKit's
+/// render thread just before each frame (`renderer(_:willRenderScene:atTime:)`).
+final class DeskScene: NSObject, SCNSceneRendererDelegate {
+    static let url = Bundle.main.url(forResource: "Desk", withExtension: "usdz")
+    static var available: Bool { url != nil && MTLCreateSystemDefaultDevice() != nil }
+
+    // The scene's measurements, in its units (Y up, the machines facing +Z).
+    /// Half the screen mesh's front, its center, and how far forward it is.
+    static let meshHalf = SIMD2<Float>(1.5288, 1.10525)
+    static let screenCenterY: Float = 2.26355
+    static let screenFrontZ: Float = -0.196
+    /// The glass that shows inside the bezel, a little smaller than the mesh
+    /// (measured on the still render: 1308 of 1362 px wide, 958 of 983 tall).
+    static let glassHalf = meshHalf * SIMD2(1308 / 1362, 958 / 983)
+    /// About 4 mm: the caps are 0.22 wide, a C64's are 18 mm.
+    static let keyTravel: Float = 0.05
+    /// The POWER rocker goes in 3 mm, along the panel's normal.
+    static let buttonNormal = simd_normalize(SIMD3<Float>(0, 0.548, 0.837))
+
+    /// The camera at rest (the whole desk, three-quarters from the front) and
+    /// on (the monitor with the keyboard in front of it), from the mockup.
+    struct Pose {
+        var position: SIMD3<Float>
+        var target: SIMD3<Float>
+    }
+    static let restPose = Pose(position: [-3.6, 8.2, 17.5], target: [-0.2, 1.0, 0.3])
+    static let onPose = Pose(position: [-0.25, 5.0, 10.6], target: [-0.25, 1.6, 1.0])
+
+    let scene: SCNScene
+    nonisolated let tube: TubePass
+    var store: PlayerStore?
+    private weak var view: DeskView?
+    private var link: CADisplayLink?
+    private var keyMonitor: Any?
+
+    private let cameraNode = SCNNode()
+    private let screenMaterial = SCNMaterial()
+    private let ledMaterial = SCNMaterial()
+    private let screenLight = SCNLight()
+    private var button: (node: SCNNode, rest: SIMD3<Float>)?
+    private var caps: [C64Key: (node: SCNNode, rest: SIMD3<Float>, depth: Float)] = [:]
+
+    // The frame on the tube, as last handed to the render thread.
+    private var pixels = [UInt32](repeating: 0, count: C64Frame.width * C64Frame.height)
+    private var uploaded: C64Frame?
+    private var uploadedCursor: (x: Int, y: Int)?
+    private var uploadedBlink = false
+    private var frames: UInt32 = 0
+    private var targetHeight = 0
+
+    // The camera's glide, and the power it follows.
+    private var glide = (from: DeskScene.restPose, to: DeskScene.restPose, start: 0.0, duration: 1.0)
+    private var lastPower = MonitorModel.Power.off
+    private var lastResets = -1
+    private var buttonPressedAt = -10.0
+    private var lastStep = 0.0
+
+    // What holds the keys down.
+    private var keyboardHeld: [UInt16: [C64Key]] = [:]
+    private var modifiersHeld = Set<C64Key>()
+    private var mouseHeld: C64Key?
+    /// Shifts clicked with the mouse: they stay down until the next key
+    /// (SHIFT LOCK until it's clicked again, as on the C64).
+    private var latched = Set<C64Key>()
+    private var taps: [C64Key: Double] = [:]
+
+    /// The desk, or nil without the scene or Metal. Loading the scene takes
+    /// a few tenths of a second, so it's kept for the next time About opens;
+    /// each opening still starts clean, from MonitorModel.startOver and the
+    /// camera snapping back with it.
+    static func make() -> DeskScene? {
+        if let shared { return shared }
+        guard let url, let device = MTLCreateSystemDefaultDevice(),
+              let scene = try? SCNScene(url: url, options: nil),
+              let tube = TubePass(device: device)
+        else { return nil }
+        shared = DeskScene(scene: scene, tube: tube)
+        return shared
+    }
+    private static var shared: DeskScene?
+
+    private init(scene: SCNScene, tube: TubePass) {
+        self.scene = scene
+        self.tube = tube
+        super.init()
+        build()
+    }
+
+    // MARK: Building the scene
+
+    private func build() {
+        let root = scene.rootNode
+
+        for key in C64Key.allCases {
+            if let node = root.childNode(withName: key.nodeName, recursively: true) {
+                caps[key] = (node, node.simdWorldPosition, 0)
+            }
+        }
+        if let node = root.childNode(withName: "power_button", recursively: true) {
+            button = (node, node.simdPosition)
+        }
+
+        // The glass: dark and glossy, the room in it, the tube's light added.
+        if let screen = root.childNode(withName: "screen", recursively: true), let mesh = Self.geometryNode(in: screen) {
+            let glass = mesh.geometry?.firstMaterial
+            screenMaterial.lightingModel = .physicallyBased
+            screenMaterial.diffuse.contents = glass?.diffuse.contents
+            screenMaterial.diffuse.intensity = 0.03
+            screenMaterial.metalness.contents = 0.0
+            screenMaterial.roughness.contents = 0.2
+            screenMaterial.clearCoat.contents = 0.5
+            screenMaterial.clearCoatRoughness.contents = 0.05
+            screenMaterial.diffuse.mappingChannel = 1        // the model's own UV map
+            screenMaterial.emission.mappingChannel = 0       // "crt", which SceneKit lists first
+            // Mipmapped: while the camera moves, the glass can be smaller
+            // on screen than its texture for a frame or two.
+            screenMaterial.emission.mipFilter = .linear
+            screenMaterial.emission.contents = tube.resize(width: 512, height: 370)
+            mesh.geometry?.materials = [screenMaterial]
+            mesh.castsShadow = false
+            // Out of the screen light's reach (it lights category 1 only):
+            // the glass shows the tube's light, it isn't lit by it.
+            mesh.categoryBitMask = 2
+        }
+        if let led = root.childNode(withName: "power_led", recursively: true), let mesh = Self.geometryNode(in: led) {
+            ledMaterial.lightingModel = .physicallyBased
+            ledMaterial.diffuse.contents = NSColor(red: 0.06, green: 0.19, blue: 0.10, alpha: 1)
+            ledMaterial.roughness.contents = 0.35
+            ledMaterial.emission.contents = NSColor.black
+            mesh.geometry?.materials = [ledMaterial]
+        }
+        if let sticker = root.childNode(withName: "sticker", recursively: true), let mesh = Self.geometryNode(in: sticker) {
+            let material = SCNMaterial()
+            material.lightingModel = .physicallyBased
+            material.diffuse.contents = Self.stickerImage()
+            material.roughness.contents = 0.55
+            material.transparencyMode = .aOne
+            material.isDoubleSided = false
+            mesh.geometry?.materials = [material]
+        }
+
+        // The camera: a 30° lens, the picture's colors untouched (no HDR).
+        let camera = SCNCamera()
+        camera.fieldOfView = 30
+        camera.projectionDirection = .vertical
+        camera.zNear = 0.1
+        camera.zFar = 100
+        camera.wantsHDR = false
+        cameraNode.camera = camera
+        cameraNode.name = "desk camera"
+        root.addChildNode(cameraNode)
+        place(Self.restPose)
+
+        // A warm key light from the front top left, with soft shadows on the
+        // desk; a cool fill from the right; a soft room around it all.
+        let key = SCNLight()
+        key.type = .directional
+        key.color = NSColor(red: 1, green: 0.96, blue: 0.91, alpha: 1)
+        key.intensity = 1500
+        key.castsShadow = true
+        key.shadowMode = .deferred
+        key.shadowMapSize = CGSize(width: 2048, height: 2048)
+        key.shadowSampleCount = 16
+        key.shadowRadius = 4
+        key.orthographicScale = 9
+        key.zNear = 1
+        key.zFar = 40
+        key.shadowColor = NSColor(white: 0, alpha: 0.4)
+        let keyNode = SCNNode()
+        keyNode.light = key
+        keyNode.simdPosition = [-6, 11, 9]
+        keyNode.simdLook(at: .zero)
+        root.addChildNode(keyNode)
+
+        let fill = SCNLight()
+        fill.type = .directional
+        fill.color = NSColor(red: 0.91, green: 0.93, blue: 1, alpha: 1)
+        fill.intensity = 350
+        let fillNode = SCNNode()
+        fillNode.light = fill
+        fillNode.simdPosition = [8, 4, 6]
+        fillNode.simdLook(at: .zero)
+        root.addChildNode(fillNode)
+
+        scene.lightingEnvironment.contents = Self.roomImage()
+        scene.lightingEnvironment.intensity = 1.0
+
+        // The desk: only its shadows show.
+        let floor = SCNFloor()
+        floor.reflectivity = 0
+        let floorMaterial = SCNMaterial()
+        floorMaterial.lightingModel = .shadowOnly
+        floor.materials = [floorMaterial]
+        let floorNode = SCNNode(geometry: floor)
+        floorNode.simdPosition = [0, 0.011, 0]
+        root.addChildNode(floorNode)
+
+        // The screen's own light on the keyboard and the desk, in the picture's purple.
+        screenLight.type = .area
+        screenLight.areaType = .rectangle
+        screenLight.areaExtents = simd_float3(2 * Self.glassHalf.x, 2 * Self.glassHalf.y, 0)
+        screenLight.color = NSColor(red: 0.48, green: 0.40, blue: 0.82, alpha: 1)
+        screenLight.intensity = 0
+        screenLight.categoryBitMask = 1
+        let screenLightNode = SCNNode()
+        screenLightNode.light = screenLight
+        screenLightNode.simdPosition = [0, Self.screenCenterY, -0.15]
+        screenLightNode.simdLook(at: [0, Self.screenCenterY, 10])
+        root.addChildNode(screenLightNode)
+    }
+
+    /// The node carrying a part's mesh: USD puts it a level under the part's own.
+    private static func geometryNode(in node: SCNNode) -> SCNNode? {
+        if node.geometry != nil { return node }
+        for child in node.childNodes {
+            if let found = geometryNode(in: child) { return found }
+        }
+        return nil
+    }
+
+    /// The app icon sticker, as About's 2D monitor draws it, straight and
+    /// without its shadow: the plane is turned and lit in the scene.
+    private static func stickerImage() -> NSImage? {
+        let renderer = ImageRenderer(content: IconSticker(size: 512, mounted: false))
+        renderer.scale = 1
+        return renderer.nsImage
+    }
+
+    /// The room the glass reflects: a dim studio, lighter above, with two
+    /// soft boxes, one large at the front left and one small at the right.
+    private static func roomImage() -> CGImage? {
+        let width = 1024, height = 512
+        guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+        else { return nil }
+        let colors = [CGColor(gray: 0.62, alpha: 1), CGColor(gray: 0.36, alpha: 1), CGColor(gray: 0.12, alpha: 1)] as CFArray
+        let gradient = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: colors, locations: [0, 0.5, 1])!
+        // Image rows run top down in an equirectangular map; CG's y runs up.
+        context.drawLinearGradient(gradient, start: CGPoint(x: 0, y: height), end: CGPoint(x: 0, y: 0), options: [])
+        context.setFillColor(CGColor(gray: 1, alpha: 1))
+        // Front is the map's middle; left of it is the room's left.
+        context.fill(CGRect(x: 330, y: 300, width: 150, height: 110))
+        context.setFillColor(CGColor(gray: 0.85, alpha: 1))
+        context.fill(CGRect(x: 700, y: 290, width: 70, height: 60))
+        return context.makeImage()
+    }
+
+    // MARK: Attaching to a view
+
+    func attach(to view: DeskView, store: PlayerStore) {
+        if self.view != nil { detach() }
+        self.view = view
+        self.store = store
+        view.desk = self
+        view.scene = scene
+        view.pointOfView = cameraNode
+        view.delegate = self
+        view.backgroundColor = .clear
+        view.wantsLayer = true
+        view.layer?.isOpaque = false
+        view.antialiasingMode = .multisampling4X
+        view.preferredFramesPerSecond = 60
+        view.rendersContinuously = true
+        view.allowsCameraControl = false
+
+        MonitorModel.shared.typed = { [weak self] character in self?.tap(character) }
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp, .flagsChanged]) { [weak self] event in
+            MainActor.assumeIsolated { self?.keyEvent(event) }
+            return event
+        }
+        let link = view.displayLink(target: self, selector: #selector(step(_:)))
+        link.add(to: .main, forMode: .common)
+        self.link = link
+    }
+
+    /// Lets go of `view`, if it's still the one shown (a new About can attach
+    /// before the old one goes).
+    func detach(from view: DeskView) {
+        if view === self.view { detach() }
+    }
+
+    private func detach() {
+        keyboardHeld = [:]
+        modifiersHeld = []
+        mouseHeld = nil
+        latched = []
+        taps = [:]
+        link?.invalidate()
+        link = nil
+        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
+        keyMonitor = nil
+        MonitorModel.shared.typed = nil
+        view?.delegate = nil
+        view?.desk = nil
+        view?.scene = nil
+        view = nil
+    }
+
+    // MARK: Each frame
+
+    @objc private func step(_ link: CADisplayLink) {
+        update(at: CACurrentMediaTime())
+    }
+
+    /// Everything that moves, at `now`: the model's tick, the frame on the
+    /// tube, the camera, the keys, the button, the light, the LED.
+    func update(at now: Double) {
+        let model = MonitorModel.shared
+        let picture = model.tick(store: store)
+        let dt = lastStep == 0 ? 0 : Float(min(0.1, now - lastStep))
+        lastStep = now
+
+        // The frame, when it changed. The BASIC cursor blinks at the C64's 3 Hz.
+        let blink = Int(now * 3) % 2 == 0
+        let cursor = model.cursor
+        var changed: [UInt32]?
+        if uploaded != model.frame || uploadedBlink != blink || uploadedCursor?.x != cursor?.x || uploadedCursor?.y != cursor?.y {
+            model.frame.render(into: &pixels, cursor: blink ? cursor : nil)
+            uploaded = model.frame
+            uploadedBlink = blink
+            uploadedCursor = cursor
+            changed = pixels
+        }
+
+        followPower(model, now: now)
+        place(pose(at: now))
+        moveKeys(now: now, dt: dt)
+
+        if let button {
+            let t = now - buttonPressedAt
+            let d = t < 0.05 ? t / 0.05 : t < 0.17 ? 1 - (t - 0.05) / 0.12 : 0
+            button.node.simdPosition = button.rest - Self.buttonNormal * Float(0.03 * max(0, d))
+        }
+        ledMaterial.emission.contents = model.isOn ? NSColor(red: 0.36, green: 1, blue: 0.5, alpha: 1) : NSColor.black
+        let lit = picture.collapse > 0.5 ? max(picture.scaleX, 0.05) * 0.3 : min(picture.scaleX, picture.scaleY)
+        screenLight.intensity = CGFloat(220 * picture.bright * lit)
+
+        // The tube's texture, the size the glass has on screen, so the
+        // shader's footprint terms see the pixels the picture really gets.
+        let height = glassPixelHeight()
+        if height != targetHeight {
+            targetHeight = height
+            let width = Int((Float(height) * Self.meshHalf.x / Self.meshHalf.y).rounded())
+            screenMaterial.emission.contents = tube.resize(width: width, height: height)
+        }
+        let glassPixels = Float(height) * Self.glassHalf.y / Self.meshHalf.y
+        frames &+= 1
+        let uniforms = TubeUniforms(
+            meshHalf: Self.meshHalf, glassHalf: Self.glassHalf,
+            scale: SIMD2(picture.scaleX, picture.scaleY),
+            linePx: glassPixels * 0.93 / Float(C64Frame.height),
+            minWidth: 1.4 / (glassPixels * 0.5),
+            time: Float(now.truncatingRemainder(dividingBy: 1000)),
+            bright: picture.bright, focus: picture.focus, wobble: picture.wobble,
+            seed: Float(frames % 1000), collapse: picture.collapse)
+        tube.submit(uniforms, pixels: changed)
+    }
+
+    /// The glass's height on screen in device pixels, rounded up to 64,
+    /// between one texel a line and 2048.
+    private func glassPixelHeight() -> Int {
+        guard let view, view.bounds.height > 0 else { return 370 }
+        let top = view.projectPoint(SCNVector3(0, Self.screenCenterY + Self.meshHalf.y, Self.screenFrontZ))
+        let bottom = view.projectPoint(SCNVector3(0, Self.screenCenterY - Self.meshHalf.y, Self.screenFrontZ))
+        let scale = view.window?.backingScaleFactor ?? view.layer?.contentsScale ?? 1
+        let pixels = abs(top.y - bottom.y) * scale
+        return min(2048, max(C64Frame.height, Int((pixels / 64).rounded(.up)) * 64))
+    }
+
+    // MARK: The camera
+
+    /// Glides to the monitor when the power comes on, back to the desk once
+    /// the dot has faded, and snaps back when About starts over.
+    private func followPower(_ model: MonitorModel, now: Double) {
+        if model.resets != lastResets {
+            lastResets = model.resets
+            glide = (Self.restPose, Self.restPose, now, 1)
+        }
+        let power = model.power
+        if power == .on, lastPower == .off {
+            startGlide(to: Self.onPose, duration: 1.4, now: now)
+        } else if power == .off, lastPower == .dying {
+            startGlide(to: Self.restPose, duration: 1.1, now: now)
+        }
+        lastPower = power
+    }
+
+    private func startGlide(to pose: Pose, duration: Double, now: Double) {
+        let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        glide = (self.pose(at: now), pose, now, reduce ? 0 : duration)
+    }
+
+    private func pose(at now: Double) -> Pose {
+        guard glide.duration > 0 else { return glide.to }
+        let u = min(1, max(0, (now - glide.start) / glide.duration))
+        let e = Float(u < 0.5 ? 4 * u * u * u : 1 - pow(-2 * u + 2, 3) / 2)
+        return Pose(position: simd_mix(glide.from.position, glide.to.position, SIMD3(repeating: e)),
+                    target: simd_mix(glide.from.target, glide.to.target, SIMD3(repeating: e)))
+    }
+
+    private func place(_ pose: Pose) {
+        cameraNode.simdPosition = pose.position
+        cameraNode.simdLook(at: pose.target)
+    }
+
+    // MARK: The keys
+
+    /// Each cap goes down in 30 ms while anything holds it and comes back
+    /// up in 80; a typed character holds its keys for 90 ms.
+    private func moveKeys(now: Double, dt: Float) {
+        var down = modifiersHeld.union(latched)
+        for keys in keyboardHeld.values { down.formUnion(keys) }
+        if let mouseHeld { down.insert(mouseHeld) }
+        for (key, until) in taps {
+            if until > now { down.insert(key) } else { taps[key] = nil }
+        }
+        for (key, cap) in caps {
+            let target: Float = down.contains(key) ? 1 : 0
+            var depth = cap.depth
+            if target > depth {
+                depth = dt == 0 ? target : min(target, depth + dt / 0.03)
+            } else {
+                depth = dt == 0 ? target : max(target, depth - dt / 0.08)
+            }
+            guard depth != cap.depth else { continue }
+            caps[key]?.depth = depth
+            // Ease the way up, as a spring returns.
+            let shown = target > 0 ? depth : depth * depth * (3 - 2 * depth)
+            cap.node.simdWorldPosition = cap.rest - SIMD3(0, Self.keyTravel * shown, 0)
+        }
+    }
+
+    /// A character the boot types: its keys, briefly.
+    private func tap(_ character: Character) {
+        let until = CACurrentMediaTime() + 0.12
+        for key in C64Key.keys(for: character) { taps[key] = until }
+    }
+
+    /// The Mac's keyboard, while About is the key window: the keys go down
+    /// and up with it. What they do is still the app's (AppKeys); this only
+    /// moves the caps, and never takes the event.
+    private func keyEvent(_ event: NSEvent) {
+        guard let window = view?.window, event.window === window else { return }
+        switch event.type {
+        case .flagsChanged:
+            modifiersHeld = C64Key.modifierKeys(event.modifierFlags)
+        case .keyDown:
+            guard !event.isARepeat else { return }
+            let keys = C64Key.keys(for: event)
+            // With ⌘ down, macOS sends no key-up: a tap.
+            if event.modifierFlags.contains(.command) {
+                let until = CACurrentMediaTime() + 0.12
+                for key in keys { taps[key] = until }
+            } else {
+                keyboardHeld[event.keyCode] = keys
+            }
+        case .keyUp:
+            keyboardHeld[event.keyCode] = nil
+        default:
+            break
+        }
+    }
+
+    // MARK: The mouse
+
+    private func part(at point: CGPoint) -> String? {
+        guard let view else { return nil }
+        let hits = view.hitTest(point, options: [.searchMode: SCNHitTestSearchMode.closest.rawValue])
+        var node = hits.first?.node
+        while let current = node {
+            if let name = current.name, name == "power_button" || name.hasPrefix("key_") { return name }
+            node = current.parent
+        }
+        return nil
+    }
+
+    func isClickable(at point: CGPoint) -> Bool { part(at: point) != nil }
+
+    func mouseDown(at point: CGPoint, flags: NSEvent.ModifierFlags) {
+        guard let name = part(at: point) else { return }
+        if name == "power_button" {
+            buttonPressedAt = CACurrentMediaTime()
+            MonitorModel.shared.pressPower(store: store)
+            return
+        }
+        guard let key = C64Key(nodeName: name) else { return }
+        if key.isModifier {
+            if latched.contains(key) { latched.remove(key) } else { latched.insert(key) }
+            return
+        }
+        mouseHeld = key
+        let shifted = flags.contains(.shift) || !latched.isDisjoint(with: [.leftShift, .rightShift, .shiftLock])
+        latched = latched.intersection([.shiftLock])
+        let model = MonitorModel.shared
+        if let action = key.action(shifted: shifted) {
+            AppKeys.monitorAction(action)
+        } else if model.mode == .boot {
+            model.skipBoot()
+        }
+    }
+
+    func mouseUp() {
+        mouseHeld = nil
+    }
+
+    // MARK: The tube, on the render thread
+
+    nonisolated func renderer(_ renderer: any SCNSceneRenderer, willRenderScene scene: SCNScene, atTime time: TimeInterval) {
+        guard let queue = renderer.commandQueue else { return }
+        tube.encode(on: queue)
+    }
+}
+
+/// Matches `TubeUniforms` in Shaders/Monitor.metal.
+nonisolated struct TubeUniforms {
+    var meshHalf: SIMD2<Float>
+    var glassHalf: SIMD2<Float>
+    var scale: SIMD2<Float>
+    var linePx: Float
+    var minWidth: Float
+    var time: Float
+    var bright: Float
+    var focus: Float
+    var wobble: Float
+    var seed: Float
+    var collapse: Float
+}
+
+/// The tube's pass: the 384×272 frame as a mipmapped texture, drawn through
+/// monitorTubeFragment into the texture the glass shows. The main thread
+/// hands over the uniforms and any new frame; SceneKit's render thread
+/// draws, on SceneKit's own command queue so it lands before the frame.
+nonisolated final class TubePass: @unchecked Sendable {
+    let device: MTLDevice
+    private let pipeline: MTLRenderPipelineState
+    private let frame: MTLTexture
+    private let lock = NSLock()
+    private var target: MTLTexture?
+    private var uniforms: TubeUniforms?
+    private var pixels: [UInt32]?
+
+    init?(device: MTLDevice) {
+        guard let library = device.makeDefaultLibrary() else { return nil }
+        let descriptor = MTLRenderPipelineDescriptor()
+        descriptor.vertexFunction = library.makeFunction(name: "monitorVertex")
+        descriptor.fragmentFunction = library.makeFunction(name: "monitorTubeFragment")
+        descriptor.colorAttachments[0].pixelFormat = .bgra8Unorm_srgb
+        let frameDescriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .bgra8Unorm, width: C64Frame.width, height: C64Frame.height, mipmapped: true)
+        frameDescriptor.usage = .shaderRead
+        frameDescriptor.storageMode = .shared
+        guard let pipeline = try? device.makeRenderPipelineState(descriptor: descriptor),
+              let frame = device.makeTexture(descriptor: frameDescriptor)
+        else { return nil }
+        self.device = device
+        self.pipeline = pipeline
+        self.frame = frame
+    }
+
+    /// A new texture for the glass, `width` × `height`: the material shows it from now on.
+    func resize(width: Int, height: Int) -> MTLTexture? {
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .bgra8Unorm_srgb, width: width, height: height, mipmapped: true)
+        descriptor.usage = [.renderTarget, .shaderRead]
+        descriptor.storageMode = .private
+        let texture = device.makeTexture(descriptor: descriptor)
+        lock.lock()
+        target = texture
+        lock.unlock()
+        return texture
+    }
+
+    func submit(_ uniforms: TubeUniforms, pixels: [UInt32]?) {
+        lock.lock()
+        self.uniforms = uniforms
+        if let pixels { self.pixels = pixels }
+        lock.unlock()
+    }
+
+    func encode(on queue: MTLCommandQueue) {
+        lock.lock()
+        let target = target, pending = uniforms, newPixels = pixels
+        pixels = nil
+        lock.unlock()
+        guard let target, var uniforms = pending, let commands = queue.makeCommandBuffer() else { return }
+        if let newPixels {
+            newPixels.withUnsafeBytes { bytes in
+                frame.replace(region: MTLRegionMake2D(0, 0, C64Frame.width, C64Frame.height), mipmapLevel: 0,
+                              withBytes: bytes.baseAddress!, bytesPerRow: C64Frame.width * 4)
+            }
+            if let blit = commands.makeBlitCommandEncoder() {
+                blit.generateMipmaps(for: frame)
+                blit.endEncoding()
+            }
+        }
+        let pass = MTLRenderPassDescriptor()
+        pass.colorAttachments[0].texture = target
+        pass.colorAttachments[0].loadAction = .dontCare
+        pass.colorAttachments[0].storeAction = .store
+        guard let encoder = commands.makeRenderCommandEncoder(descriptor: pass) else { return }
+        encoder.setRenderPipelineState(pipeline)
+        encoder.setFragmentBytes(&uniforms, length: MemoryLayout<TubeUniforms>.stride, index: 0)
+        encoder.setFragmentTexture(frame, index: 0)
+        encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
+        encoder.endEncoding()
+        if let blit = commands.makeBlitCommandEncoder() {
+            blit.generateMipmaps(for: target)
+            blit.endEncoding()
+        }
+        commands.commit()
+    }
+}

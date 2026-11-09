@@ -55,7 +55,15 @@ struct AboutView: View {
             .allowsHitTesting(!grown)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: grown)
 
-            MonitorCase(store: store, live: true)
+            // The live 3D desk; the 2D monitor if the scene or Metal is missing.
+            // Both are 6:5, so the layout is the same either way.
+            Group {
+                if DeskScene.available {
+                    MonitorDesk(store: store)
+                } else {
+                    MonitorCase(store: store, live: true)
+                }
+            }
                 .frame(width: monitorWidth, height: monitorHeight)
                 .offset(y: grown ? max(0, (windowSize.height - monitorHeight) / 2) : 0)
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.7), value: grown)

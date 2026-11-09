@@ -84,9 +84,12 @@ struct MonitorCase: View {
 /// yellowed die-cut edge, sun-faded colors, a crease across it, scratches
 /// and scuffs, a corner lifting, and only a trace of its gloss left. Stuck
 /// on a little crooked, with its shadow on the bezel. Everything is drawn;
-/// the wear is the same every time (a seeded generator).
-private struct IconSticker: View {
+/// the wear is the same every time (a seeded generator). `mounted: false`
+/// is the sticker alone, straight and without its shadow, as the 3D desk's
+/// texture (MonitorDesk.swift), whose plane is turned and lit itself.
+struct IconSticker: View {
     let size: CGFloat
+    var mounted = true
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
@@ -115,8 +118,8 @@ private struct IconSticker: View {
         }
         .frame(width: size, height: size)
         .clipShape(shape)
-        .shadow(color: .black.opacity(0.42), radius: size * 0.045, x: 0, y: size * 0.025)
-        .rotationEffect(.degrees(-5))
+        .shadow(color: .black.opacity(mounted ? 0.42 : 0), radius: size * 0.045, x: 0, y: size * 0.025)
+        .rotationEffect(.degrees(mounted ? -5 : 0))
     }
 
     /// The crease, the scratches and scuffs, the worn edge, the lifted corner.

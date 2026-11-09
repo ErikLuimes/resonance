@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resonance 64 in 3D</title>
+<style>
+html,body{margin:0;height:100%;background:#0f0f11;overflow:hidden;font:13px -apple-system,system-ui,sans-serif;color:#8a8a90}
+/* A stand-in for About Resonance: 440 points wide at rest, the 3D view 320 wide at its top. */
+#about{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:440px;height:520px;background:#2a2a2c;border-radius:12px;
+  box-shadow:0 0 0 .5px #555,0 20px 60px rgba(0,0,0,.6);overflow:hidden}
+#about .titlebar{position:absolute;left:14px;top:12px;display:flex;gap:8px}
+#about .titlebar i{width:12px;height:12px;border-radius:50%;background:#555;display:block}
+#about .titlebar i:first-child{background:#ff5f57}
+#text{position:absolute;left:0;right:0;bottom:28px;text-align:center;color:#ddd;transition:opacity .35s}
+#text h1{font-size:20px;margin:0 0 4px}
+#text p{margin:2px 0;color:#999}
+#text .buttons{margin-top:14px;display:flex;gap:10px;justify-content:center}
+#text .buttons span{background:#444;border-radius:6px;padding:4px 12px;color:#ddd}
+#gl{position:absolute;display:block}
+#hint{position:fixed;left:0;right:0;bottom:8px;text-align:center;opacity:.55;pointer-events:none}
+#status{position:fixed;left:10px;top:8px;opacity:.6;pointer-events:none}
+</style>
+<div id="about">
+  <canvas id="gl"></canvas>
+  <div class="titlebar"><i></i><i></i><i></i></div>
+  <div id="text">
+    <h1>Resonance</h1>
+    <p>Version 1.0 (alpha.8)</p>
+    <p>A SID player for the Mac</p>
+    <div class="buttons"><span>Acknowledgments</span><span>Credits</span></div>
+  </div>
+</div>
+<div id="status">Loading the desk…</div>
+<div id="hint">Click POWER on the monitor (the brown button, bottom right). Then: Space play/pause · ⌘→ ⌘← next/previous · ⌥⌘→ ⌥⌘← subtune · ⌘↑ ⌘↓ volume · ↑ ↓ Return pick · ⌥⌘S shuffle · ⇧⌘R surprise · ⌘. stop. Vim keys work too: h j k l L H + - s r x.</div>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+ "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+import {RectAreaLightUniformsLib} from 'three/addons/lights/RectAreaLightUniformsLib.js';
+
+// The live 3D monitor: dark_igorek's C64 pack (CC BY 4.0) as prepared by
+// blender/scene.py, the 1702's glass showing the tube shader from mockup.html
+// rendered into a texture, the keys pressed as the C64 types, the camera
+// gliding to the monitor on power. Everything about the picture itself is
+// mockup.html's, unchanged; see README.md.
+
+// ---------------------------------------------------------------------------
+// The C64 picture: 384×272 with the border, 40×25 cells of 8×8 at (32,36).
+// The two colors are sampled from the reference screenshot (border/text and
+// background). Nothing else is ever drawn.
+const FW=384,FH=272,OX=32,OY=36,COLS=40,ROWS=25;
+const BG=[0x65,0x4d,0xb6], FG=[0x9e,0x8b,0xe1];
+const rgb=c=>`rgb(${c[0]},${c[1]},${c[2]})`;
+
+// Our own 8×8 glyphs in the spirit of the C64's upper-case set. Row bytes, MSB left.
+const GLYPHS={
+' ':'0000000000000000','!':'1818181800001800','"':'6666660000000000','#':'6666FF66FF666600',
+'$':'183E603C067C1800','%':'62660C1830664600','&':'3C663C3867663F00',"'":'060C180000000000',
+'(':'0C18303030180C00',')':'30180C0C0C183000','*':'00663CFF3C660000','+':'0018187E18180000',
+',':'0000000000181830','-':'0000007E00000000','.':'0000000000181800','/':'0003060C18306000',
+'0':'3C666E7666663C00','1':'1818381818187E00','2':'3C66060C30607E00','3':'3C66061C06663C00',
+'4':'060E1E667F060600','5':'7E607C0606663C00','6':'3C66607C66663C00','7':'7E660C1818181800',
+'8':'3C66663C66663C00','9':'3C66663E06663C00',':':'0000181800181800',';':'0000181800181830',
+'<':'0E18306030180E00','=':'00007E007E000000','>':'70180C060C187000','?':'3C66060C18001800',
+'@':'3C666E6E60623C00','A':'183C667E66666600','B':'7C66667C66667C00','C':'3C66606060663C00',
+'D':'786C6666666C7800','E':'7E60607860607E00','F':'7E60607860606000','G':'3C66606E66663C00',
+'H':'6666667E66666600','I':'3C18181818183C00','J':'1E0C0C0C0C6C3800','K':'666C7870786C6600',
+'L':'6060606060607E00','M':'63777F6B63636300','N':'66767E7E6E666600','O':'3C66666666663C00',
+'P':'7C66667C60606000','Q':'3C666666663C0E00','R':'7C66667C786C6600','S':'3C66603C06663C00',
+'T':'7E18181818181800','U':'6666666666663C00','V':'66666666663C1800','W':'6363636B7F776300',
+'X':'66663C183C666600','Y':'666666663C181800','Z':'7E060C1830607E00','[':'3C30303030303C00',
+']':'3C0C0C0C0C0C3C00','^':'00183C7E18181800','_':'00000000000000FF',
+// graphics
+'█':'FFFFFFFFFFFFFFFF','▒':'AA55AA55AA55AA55','▄':'00000000FFFFFFFF','▀':'FFFFFFFF00000000',
+'─':'000000FFFF000000','■':'007E7E7E7E7E7E00','□':'007E424242427E00','▶':'0060787E7E786000',
+'‖':'0066666666666600','♥':'367F7F7F3E1C0800','•':'00003C3C3C3C0000','│':'1818181818181818',
+'←':'0010307F7F301000',
+};
+const keys=Object.keys(GLYPHS), glyphIndex=new Map(keys.map((k,i)=>[k,i]));
+const atlas=document.createElement('canvas'); atlas.width=keys.length*8; atlas.height=16;
+{
+  const g=atlas.getContext('2d'), id=g.createImageData(atlas.width,16), d=id.data;
+  keys.forEach((k,i)=>{const h=GLYPHS[k];for(let r=0;r<8;r++){const b=parseInt(h.substr(r*2,2),16);for(let c=0;c<8;c++){const on=(b>>(7-c))&1;for(let rev=0;rev<2;rev++){const col=(on^rev)?FG:BG;const o=(((rev*8+r)*atlas.width)+i*8+c)*4;d[o]=col[0];d[o+1]=col[1];d[o+2]=col[2];d[o+3]=255;}}}});
+  g.putImageData(id,0,0);
+}
+const toGlyph=ch=>{
+  if(glyphIndex.has(ch))return glyphIndex.get(ch);
+  const up=ch.normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase();
+  return glyphIndex.has(up)?glyphIndex.get(up):glyphIndex.get('?');
+};
+
+const frame=document.createElement('canvas'); frame.width=FW; frame.height=FH;
+const fctx=frame.getContext('2d');
+const cells=new Uint16Array(COLS*ROWS), revs=new Uint8Array(COLS*ROWS);
+let dirty=true, cursor=null; // cursor: {x,y} when the BASIC cursor is shown
+function cls(){cells.fill(glyphIndex.get(' '));revs.fill(0);dirty=true;}
+function put(x,y,s,rev=false){for(const ch of s){if(x>=COLS)break;if(x>=0&&y>=0&&y<ROWS){cells[y*COLS+x]=toGlyph(ch);revs[y*COLS+x]=rev?1:0;}x++;}dirty=true;}
+function line(y,s,rev=false){put(0,y,(s+' '.repeat(COLS)).slice(0,COLS),rev);}
+function renderFrame(blink){
+  fctx.fillStyle=rgb(FG);fctx.fillRect(0,0,FW,FH);
+  fctx.fillStyle=rgb(BG);fctx.fillRect(OX,OY,320,200);
+  for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){const i=y*COLS+x;fctx.drawImage(atlas,cells[i]*8,revs[i]*8,8,8,OX+x*8,OY+y*8,8,8);}
+  if(cursor&&blink){const i=cursor.y*COLS+cursor.x;fctx.drawImage(atlas,cells[i]*8,(revs[i]^1)*8,8,8,OX+cursor.x*8,OY+cursor.y*8,8,8);}
+}
+
+// ---------------------------------------------------------------------------
+// A tiny terminal for the boot: print, newline, scroll, auto-typing.
+const term={x:0,y:0,
+  nl(){this.x=0;this.y++;if(this.y>=ROWS){cells.copyWithin(0,COLS);revs.copyWithin(0,COLS);for(let x=0;x<COLS;x++){cells[(ROWS-1)*COLS+x]=glyphIndex.get(' ');revs[(ROWS-1)*COLS+x]=0;}this.y=ROWS-1;dirty=true;}},
+  print(s){for(const ch of s){if(ch==='\n'){this.nl();continue;}put(this.x,this.y,ch);this.x++;if(this.x>=COLS)this.nl();}},
+  showCursor(v){cursor=v?{x:this.x,y:this.y}:null;dirty=true;},
+};
+let script=[], scriptAt=0, mode='off'; // off | boot | player
+function schedule(steps){script=steps;scriptAt=0;}
+function typeSteps(text){const out=[];for(const ch of text)out.push({dt:0.06+Math.random()*0.1,fn:()=>{term.print(ch);term.showCursor(true);typeKey(ch);}});return out;}
+function boot(){
+  cls();term.x=0;term.y=0;term.showCursor(false);mode='boot';
+  const t=performance.now()/1000;
+  const steps=[
+    {dt:0.05,fn:()=>{term.print('\n    **** RESONANCE 64 SID PLAYER ****\n\n');term.print(` 64K RAM SYSTEM  ${HVSC_TUNES} SID TUNES FREE\n\nREADY.\n`);term.showCursor(true);}},
+    {dt:1.1,fn:()=>{}},
+    ...typeSteps('LOAD"RESONANCE",8,1'),
+    {dt:0.35,fn:()=>{term.showCursor(false);term.nl();pressKeys(['RETURN']);}},
+    {dt:0.4,fn:()=>{term.print('\nSEARCHING FOR RESONANCE\n');}},
+    {dt:1.0,fn:()=>{term.print('LOADING\n');}},
+    {dt:1.7,fn:()=>{term.print('READY.\n');term.showCursor(true);}},
+    {dt:0.8,fn:()=>{}},
+    ...typeSteps('RUN'),
+    {dt:0.3,fn:()=>{term.showCursor(false);term.nl();pressKeys(['RETURN']);}},
+    {dt:0.35,fn:()=>{startPlayer();}},
+  ];
+  let at=t;for(const s of steps){at+=s.dt;s.at=at;}
+  schedule(steps);
+}
+function runScript(now){while(scriptAt<script.length&&script[scriptAt].at<=now){script[scriptAt].fn();scriptAt++;}}
+
+// ---------------------------------------------------------------------------
+// The player screen. In the app this is live data from PlayerStore and the
+// visualizer feed; here it's a simulation over tunes from Recently Played.
+const HVSC_TUNES=63165;
+const TUNES=[
+ {title:'International Karate',author:'Rob Hubbard',released:'1986 System 3',secs:646,songs:1},
+ {title:'Wizball',author:'Martin Galway',released:'1987 Ocean',secs:215,songs:9},
+ {title:'Metal Warrior Ultra',author:'Lasse Öörni (Cadaver) & Jammer',released:'2020 Psytronik/Protovision',secs:197,songs:44},
+ {title:'Hessian Upper City Theme',author:'Lasse Öörni (Cadaver)',released:'2013 Covert Bitops',secs:116,songs:1},
+ {title:'The Consultant',author:'Lasse Öörni (Cadaver)',released:'2002 Covert Bitops',secs:177,songs:1},
+ {title:'Commando',author:'Lasse Öörni (Cadaver)',released:'1999 Cadaver',secs:63,songs:1},
+ {title:'Sanxion',author:'Rob Hubbard',released:'1986 Thalamus',secs:335,songs:2},
+ {title:'Commando',author:'Rob Hubbard',released:'1985 Elite',secs:236,songs:19},
+ {title:'Ghost in Blue',author:'Marco Miotti (4wd-soft)',released:'1987 Systems Editoriale',secs:113,songs:1},
+ {title:'Wizardry',author:'Graham Jarvis & Rob Hartshorne',released:'1985 The Edge',secs:61,songs:8},
+ {title:'The Last Ninja',author:'Ben Daglish & Anthony Lees',released:'1987 System 3',secs:262,songs:11},
+ {title:'Reckless Rufus',author:'David Green',released:'1992 Alternative Software',secs:228,songs:4},
+];
+const P={index:7,song:1,elapsed:84,state:'playing',volume:8,shuffle:false,surprise:false,selected:7,
+  voices:[{wave:'PUL',level:0,peak:0},{wave:'SAW',level:0,peak:0},{wave:'NOI',level:0,peak:0}],step:0,stepAt:0};
+function startPlayer(){mode='player';term.showCursor(false);cls();drawPlayer();}
+const mmss=s=>{s=Math.max(0,Math.floor(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');};
+function playIndex(i){P.index=(i+TUNES.length)%TUNES.length;P.song=1;P.elapsed=0;P.state='playing';P.selected=P.index;}
+function next(){playIndex(P.shuffle?Math.floor(Math.random()*TUNES.length):P.index+1);}
+function prev(){if(P.elapsed>3){P.elapsed=0;return;}playIndex(P.index-1);}
+function simulate(dt,now){
+  const tune=TUNES[P.index];
+  if(P.state==='playing'){P.elapsed+=dt;if(P.elapsed>=tune.secs)next();}
+  // Voices: a 16th-note grid at 125 BPM. Lead plays most steps, bass every other, drums on the beat.
+  if(P.state==='playing'&&now-P.stepAt>=0.12){P.stepAt=now;P.step=(P.step+1)%16;const v=P.voices;
+    if(Math.random()<0.6)v[0].level=0.6+Math.random()*0.4;
+    if(P.step%2===0&&Math.random()<0.85)v[1].level=0.7+Math.random()*0.3;
+    if(P.step%4===0)v[2].level=1;else if(P.step%4===2&&Math.random()<0.6)v[2].level=0.55;}
+  const tau=[0.22,0.16,0.07];
+  P.voices.forEach((v,i)=>{v.level*=Math.exp(-dt/(P.state==='playing'?tau[i]:0.05));v.peak=Math.max(v.level,v.peak-dt*1.2);});
+}
+function drawPlayer(){
+  const tune=TUNES[P.index];
+  line(0,' RESONANCE 64'.padEnd(29)+'SID PLAYER ',true);
+  line(1,'');
+  line(2,(P.surprise?' SURPRISE ME':' RECENTLY PLAYED').padEnd(31)+String(TUNES.length).padStart(3)+' TUNES');
+  const first=Math.max(0,Math.min(P.selected-4,TUNES.length-10));
+  for(let r=0;r<10;r++){const i=first+r;if(i>=TUNES.length){line(3+r,'');continue;}const t=TUNES[i];
+    const s=(i===P.selected?'>':' ')+String(i+1).padStart(2)+'. '+t.title;
+    line(3+r,s.slice(0,COLS),i===P.index);}
+  line(13,'');
+  line(14,' PLAYING: '+tune.title);
+  line(15,' BY:      '+tune.author);
+  line(16,' YEAR:    '+tune.released);
+  line(17,(' SONG:    '+P.song+' OF '+tune.songs).padEnd(20)+'TIME: '+mmss(P.elapsed)+' / '+mmss(tune.secs));
+  const f=Math.round(36*Math.min(1,P.elapsed/tune.secs));
+  line(18,' ['+'█'.repeat(f)+'▒'.repeat(36-f)+']');
+  line(19,'');
+  P.voices.forEach((v,i)=>{const n=Math.round(v.level*30),pk=Math.round(v.peak*30);let bar='';for(let c=0;c<30;c++)bar+=c<n?'■':(c===pk-1&&pk>n?'□':'.');line(20+i,` V${i+1} ${v.wave} `+bar);});
+  line(23,'');
+  const st={playing:'PLAYING',paused:'PAUSED ',stopped:'STOPPED'}[P.state];
+  line(24,' '+st+'  VOL '+'■'.repeat(P.volume)+'.'.repeat(10-P.volume)+' '+String(P.volume*10).padStart(3)+'%'+(P.shuffle?'  SHUFFLE':''));
+}
+
+// ---------------------------------------------------------------------------
+// Keys: the app's own set, and the vim set.
+addEventListener('keydown',e=>{
+  if(mode==='off')return;
+  if(e.key==='Meta'||e.key==='Alt'||e.key==='Shift'||e.key==='Control')return;
+  if(mode==='boot'){pressKeys(['SPACE']);startPlayer();e.preventDefault();return;}
+  const k=e.key, meta=e.metaKey, alt=e.altKey; let used=true;
+  if(k===' ')P.state=P.state==='playing'?'paused':'playing';
+  else if((meta&&alt&&k==='ArrowRight')||k==='L'){P.song=P.song%TUNES[P.index].songs+1;P.elapsed=0;}
+  else if((meta&&alt&&k==='ArrowLeft')||k==='H'){P.song=(P.song+TUNES[P.index].songs-2)%TUNES[P.index].songs+1;P.elapsed=0;}
+  else if((meta&&k==='ArrowRight')||k==='l')next();
+  else if((meta&&k==='ArrowLeft')||k==='h')prev();
+  else if((meta&&k==='ArrowUp')||k==='+'||k==='=')P.volume=Math.min(10,P.volume+1);
+  else if((meta&&k==='ArrowDown')||k==='-')P.volume=Math.max(0,P.volume-1);
+  else if(k==='ArrowDown'||k==='j')P.selected=Math.min(TUNES.length-1,P.selected+1);
+  else if(k==='ArrowUp'||k==='k')P.selected=Math.max(0,P.selected-1);
+  else if(k==='Home')P.selected=0;
+  else if(k==='End'||k==='G')P.selected=TUNES.length-1;
+  else if(k==='Enter'){playIndex(P.selected);P.surprise=false;}
+  else if((meta&&alt&&k.toLowerCase()==='s')||k==='s')P.shuffle=!P.shuffle;
+  else if((meta&&k==='R')||k==='r'){P.surprise=true;next();}
+  else if((meta&&k==='.')||k==='x'){P.state='stopped';P.elapsed=0;}
+  else used=false;
+  if(used){e.preventDefault();drawPlayer();pressKeys(c64KeysFor(e));}
+});
+
+
+// ---------------------------------------------------------------------------
+// The keys. Each cap is its own node (key_<NAME>) with its origin at the top
+// of the cap; pressing one moves it down by the C64's key travel.
+const TRAVEL=0.05;        // about 4 mm: the caps are 0.22 wide, a C64 cap is 18 mm
+const keyNodes={}, presses=[];
+function pressKeys(names,hold=0.09){const t=performance.now()/1000;for(const n of names||[])if(keyNodes[n])presses.push({n,t,hold});}
+const CHAR_KEYS={'"':['LEFT_SHIFT','2'],',':['COMMA'],'.':['PERIOD'],' ':['SPACE'],'$':['LEFT_SHIFT','4'],':':['COLON'],'+':['PLUS'],'-':['MINUS']};
+function typeKey(ch){pressKeys(CHAR_KEYS[ch]||[ch.toUpperCase()]);}
+// The app's keys on the C64's: Space; CRSR right and down, with SHIFT for back
+// and up; RETURN; + and −; RUN/STOP for stop; CLR/HOME for the top; S and R;
+// f1 and SHIFT f1 for the subtune.
+function c64KeysFor(e){
+  const k=e.key, meta=e.metaKey, alt=e.altKey;
+  if(k===' ')return['SPACE'];
+  if((meta&&alt&&k==='ArrowRight')||k==='L')return['F1'];
+  if((meta&&alt&&k==='ArrowLeft')||k==='H')return['LEFT_SHIFT','F1'];
+  if((meta&&k==='ArrowRight')||k==='l')return['CRSR_LR'];
+  if((meta&&k==='ArrowLeft')||k==='h')return['LEFT_SHIFT','CRSR_LR'];
+  if((meta&&k==='ArrowUp')||k==='+'||k==='=')return['PLUS'];
+  if((meta&&k==='ArrowDown')||k==='-')return['MINUS'];
+  if(k==='ArrowDown'||k==='j')return['CRSR_UD'];
+  if(k==='ArrowUp'||k==='k')return['LEFT_SHIFT','CRSR_UD'];
+  if(k==='Home'||k==='End'||k==='G')return['CLR_HOME'];
+  if(k==='Enter')return['RETURN'];
+  if(k.toLowerCase()==='s')return['S'];
+  if(k.toLowerCase()==='r')return['R'];
+  if(k==='.'||k==='x')return['RUN_STOP'];
+  return[];
+}
+function animateKeys(now){
+  const depth={};
+  for(let i=presses.length-1;i>=0;i--){const p=presses[i],t=now-p.t;
+    let d;if(t<0.03)d=t/0.03;else if(t<0.03+p.hold)d=1;else{const u=(t-0.03-p.hold)/0.08;d=1-u*u*(3-2*u);if(u>=1){presses.splice(i,1);continue;}}
+    depth[p.n]=Math.max(depth[p.n]||0,d);}
+  for(const n in keyNodes){const k=keyNodes[n];k.node.position.y=k.y-TRAVEL*(depth[n]||0);}
+}
+
+// ---------------------------------------------------------------------------
+// The tube, drawn into a texture that the 1702's glass shows. This is
+// mockup.html's shader minus what the 3D scene now does itself: the glass's
+// outline (the mesh), its dark reflective surface (the material and the
+// room), and the spill onto the bezel (a light in front of the screen).
+// The texture covers the screen mesh's front, which is a little larger than
+// the glass that shows inside the bezel (the 2D render's measurements).
+const MESH_HALF=new THREE.Vector2(1.5288,(3.3688-1.1583)/2);
+const GLASS_HALF=new THREE.Vector2(MESH_HALF.x*1308/1362,MESH_HALF.y*958/983);
+const tex=new THREE.CanvasTexture(frame);
+tex.flipY=false;tex.generateMipmaps=true;tex.minFilter=THREE.LinearMipmapLinearFilter;tex.magFilter=THREE.LinearFilter;
+tex.wrapS=tex.wrapT=THREE.ClampToEdgeWrapping;tex.colorSpace=THREE.NoColorSpace;
+const U={uFrame:{value:tex},uMeshHalf:{value:MESH_HALF},uGlassHalf:{value:GLASS_HALF},uLinePx:{value:4},uTime:{value:0},
+  uBright:{value:0},uScale:{value:new THREE.Vector2(1,1)},uFocus:{value:0.4},uWobble:{value:0},uSeed:{value:0},uCollapse:{value:0},uMinPx:{value:0.004}};
+const tubeMaterial=new THREE.ShaderMaterial({
+  glslVersion:THREE.GLSL3,uniforms:U,depthTest:false,depthWrite:false,
+  vertexShader:`out vec2 vUv; void main(){vUv=uv;gl_Position=vec4(position.xy*2.0,0.0,1.0);}`,
+  fragmentShader:`
+precision highp float;
+uniform sampler2D uFrame; uniform vec2 uMeshHalf,uGlassHalf,uScale;
+uniform float uLinePx,uTime,uBright,uFocus,uWobble,uSeed,uCollapse,uMinPx;
+in vec2 vUv; out vec4 outColor;
+const vec2 FR=vec2(384.0,272.0);
+const float RASTER=0.93;
+const float BARREL=0.07;
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+vec3 frameAt(vec2 t,float lod){return textureLod(uFrame,t,lod).rgb;}
+vec3 lineSample(float u,float v,float lod){
+  float fw=max(fwidth(u),1e-4);
+  float b=floor(u+0.5);
+  float us=b+clamp((u-b)/fw,-0.5,0.5);
+  float y=v/FR.y;
+  return 0.18*frameAt(vec2((us-0.4)/FR.x,y),lod)+0.64*frameAt(vec2(us/FR.x,y),lod)+0.18*frameAt(vec2((us+0.4)/FR.x,y),lod);
+}
+void main(){
+  // The mesh's UVs run top to bottom in this texture's v, so +y is down, as in mockup.html.
+  vec2 p=(vUv-0.5)*2.0*uMeshHalf/uGlassHalf;
+  vec2 q=p/RASTER;
+  q*=1.0+BARREL*dot(q,q);
+  q.x+=uWobble*(0.6*sin(uTime*62.0+q.y*7.0)+0.4*sin(uTime*9.0));
+  q.y*=1.0+0.5*uWobble*sin(uTime*11.0);
+  vec2 s=max(uScale,vec2(1e-4));
+  vec2 t=(q/s)*0.5+0.5;
+  vec3 pic=vec3(0.0);
+  float pxLine=uLinePx*s.y;
+  if(uCollapse<0.5){
+    if(t.x>-0.03&&t.x<1.03&&t.y>-0.03&&t.y<1.03){
+      float foot=1.0/max(pxLine,1e-3);
+      float lod=clamp(log2(max(foot,1.0)),0.0,8.0);
+      float ly=t.y*FR.y;
+      float k0=floor(ly-0.5)-1.0;
+      float u=t.x*FR.x+(hash(vec2(k0,uSeed))-0.5)*0.25;
+      vec3 acc=vec3(0.0); float wsum=0.0; float sige=0.0;
+      for(int i=0;i<4;i++){
+        float k=k0+float(i);
+        float inside=step(0.0,k)*step(k,FR.y-1.0);
+        vec3 c=lineSample(u,k+0.5,lod)*inside;
+        float lum=dot(c,vec3(0.299,0.587,0.114));
+        float sg=uFocus*(0.85+0.35*lum);
+        float s2=sg*sg+foot*foot/12.0;
+        sige=sqrt(s2);
+        float d=ly-(k+0.5);
+        float w=exp(-0.5*d*d/s2)/sqrt(6.2831853*s2);
+        acc+=c*w; wsum+=w*inside;
+      }
+      acc/=mix(1.0,max(wsum,1e-3),smoothstep(0.6,1.2,sige));
+      vec2 tc=clamp(t,0.0,1.0);
+      vec2 outside=max(abs(t-0.5)-0.5,0.0)*FR;
+      vec3 halo=(0.10*frameAt(tc,3.0)+0.05*frameAt(tc,5.0))*exp(-length(outside)/5.0);
+      pic=(acc+halo)/1.15;
+      pic*=1.0-0.08*smoothstep(0.4,1.6,dot(p,p));
+      pic*=1.0+0.03*(hash(gl_FragCoord.xy+uSeed)-0.5);
+    }
+  }else{
+    vec2 w=max(uScale*RASTER,vec2(uMinPx));
+    float kx=mix(2.0,6.0,smoothstep(0.0,0.1,uScale.x));
+    float env=exp(-0.5*pow(abs(p.x)/w.x,kx))*exp(-0.5*pow(abs(p.y)/w.y,2.0));
+    pic=frameAt(vec2(0.5),8.0)*env;
+  }
+  vec3 c=pic*uBright;
+  float lum=dot(c,vec3(0.299,0.587,0.114));
+  c+=vec3(max(lum-1.0,0.0))*0.8;
+  // The texture is sRGB, which encodes on the way in; the picture's values
+  // are already sRGB, so they're decoded first.
+  c=clamp(c,0.0,1.0);
+  c=mix(c/12.92,pow((c+0.055)/1.055,vec3(2.4)),step(0.04045,c));
+  outColor=vec4(c,1.0);
+}`});
+const tubeScene=new THREE.Scene(), tubeCamera=new THREE.Camera();
+tubeScene.add(new THREE.Mesh(new THREE.PlaneGeometry(1,1),tubeMaterial));
+const tubeTarget=new THREE.WebGLRenderTarget(512,370,{depthBuffer:false});
+tubeTarget.texture.colorSpace=THREE.SRGBColorSpace;
+tubeTarget.texture.channel=1;     // the screen mesh's second UV map, "crt"
+
+// ---------------------------------------------------------------------------
+// The desk.
+const canvas=document.getElementById('gl'), about=document.getElementById('about'), text=document.getElementById('text');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,preserveDrawingBuffer:true});
+renderer.setClearColor(0x000000,0);
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+RectAreaLightUniformsLib.init();
+const scene=new THREE.Scene();
+const pmrem=new THREE.PMREMGenerator(renderer);
+scene.environment=pmrem.fromScene(new RoomEnvironment(renderer),0.04).texture;
+scene.environmentIntensity=0.55;
+const key=new THREE.DirectionalLight(0xfff4e8,2.2);
+key.position.set(-6,11,9);key.castShadow=true;
+key.shadow.mapSize.set(2048,2048);Object.assign(key.shadow.camera,{left:-8,right:8,top:8,bottom:-8,near:1,far:40});key.shadow.bias=-0.0005;key.shadow.normalBias=0.02;
+scene.add(key);
+const fill=new THREE.DirectionalLight(0xe8eeff,0.5);fill.position.set(8,4,6);scene.add(fill);
+// The desk under the machines: only its shadows show.
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(40,40),new THREE.ShadowMaterial({opacity:0.35}));
+ground.rotation.x=-Math.PI/2;ground.position.y=0.011;ground.receiveShadow=true;scene.add(ground);
+// The screen's own light on the keyboard and the desk, the color of the picture.
+const screenLight=new THREE.RectAreaLight(0x7a66d0,0,2*GLASS_HALF.x,2*GLASS_HALF.y);
+screenLight.position.set(0,2.264,-0.15);screenLight.lookAt(0,2.264,10);scene.add(screenLight);
+
+let screenMesh=null, button=null, led=null, buttonRest=null;
+new GLTFLoader().load('model/desk.glb',gltf=>{
+  const root=gltf.scene;
+  root.traverse(o=>{
+    if(!o.isMesh)return;
+    o.castShadow=true;o.receiveShadow=true;
+    if(o.name.startsWith('key_'))keyNodes[o.name.slice(4)]={node:o,y:o.position.y};
+  });
+  screenMesh=root.getObjectByName('screen');
+  const glass=screenMesh.material;
+  screenMesh.material=new THREE.MeshPhysicalMaterial({
+    map:glass.map,color:0x1c1e21,roughness:0.2,metalness:0,clearcoat:0.5,clearcoatRoughness:0.05,envMapIntensity:0.4,
+    emissive:0xffffff,emissiveMap:tubeTarget.texture,emissiveIntensity:1,toneMapped:false});
+  screenMesh.castShadow=false;
+  button=root.getObjectByName('power_button');buttonRest=button.position.clone();
+  led=root.getObjectByName('power_led');
+  led.material=new THREE.MeshStandardMaterial({color:0x10301a,roughness:0.35,emissive:0x5cff80,emissiveIntensity:0});
+  const sticker=root.getObjectByName('sticker');
+  sticker.material=new THREE.MeshStandardMaterial({map:stickerTexture(),transparent:true,roughness:0.55,alphaTest:0.02});
+  // It casts its shadow into the recess it bridges.
+  sticker.castShadow=true;
+  scene.add(root);
+  document.getElementById('status').textContent='';
+},undefined,e=>{document.getElementById('status').textContent='Run blender/scene.py first: model/desk.glb is missing. '+e;});
+
+// The sticker, after IconSticker in MonitorView.swift: the icon on yellowed
+// paper, faded and warmed, a crease, scratches and scuffs, a lifting corner.
+function stickerTexture(){
+  const S=512,c=document.createElement('canvas');c.width=c.height=S;const g=c.getContext('2d');
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;
+  t.flipY=false;   // glTF UVs run top down
+  const rr=(x,y,w,h,r)=>{g.beginPath();g.roundRect(x,y,w,h,r);};
+  const img=new Image();img.src='icon-256.png';
+  img.onload=()=>{
+    g.save();rr(0,0,S,S,S*0.22);g.clip();
+    g.fillStyle='rgb(235,230,214)';g.fillRect(0,0,S,S);
+    g.filter='saturate(0.68) contrast(0.92) brightness(0.97)';
+    const m=S*0.07;g.drawImage(img,-m,-m,S+2*m,S+2*m);g.filter='none';
+    g.globalCompositeOperation='multiply';g.fillStyle='rgba(245,214,148,0.14)';g.fillRect(0,0,S,S);
+    g.globalCompositeOperation='source-over';
+    let seed=0x1084;const rnd=()=>{seed=(seed*1103515245+12345)&0x7fffffff;return seed/0x7fffffff;};
+    // The crease.
+    g.lineCap='round';
+    g.filter=`blur(${S*0.012}px)`;g.strokeStyle='rgba(0,0,0,0.26)';g.lineWidth=S*0.035;
+    g.beginPath();g.moveTo(S*0.08,S*0.86);g.quadraticCurveTo(S*0.30,S*0.50,S*0.66,S*0.06);g.stroke();g.filter='none';
+    g.strokeStyle='rgba(255,255,255,0.38)';g.lineWidth=S*0.012;
+    g.beginPath();g.moveTo(S*0.092,S*0.868);g.quadraticCurveTo(S*0.312,S*0.508,S*0.672,S*0.068);g.stroke();
+    // Scratches.
+    for(let i=0;i<22;i++){const x=S*rnd(),y=S*rnd(),l=S*(0.06+0.26*rnd()),a=(-0.35+0.7*rnd())+(rnd()<0.25?1.3:0);const dark=rnd()<0.3;
+      g.strokeStyle=dark?`rgba(0,0,0,${0.10+0.12*rnd()})`:`rgba(255,255,255,${0.14+0.3*rnd()})`;g.lineWidth=S*(0.005+0.008*rnd());
+      g.beginPath();g.moveTo(x,y);g.lineTo(x+Math.cos(a)*l,y+Math.sin(a)*l);g.stroke();}
+    // Scuffs near the edges.
+    for(let i=0;i<9;i++){const e=rnd();const x=e<0.5?S*(rnd()<0.5?0.08:0.92):S*rnd();const y=e<0.5?S*rnd():S*(rnd()<0.5?0.08:0.92);const r=S*(0.04+0.08*rnd());
+      g.filter=`blur(${r*0.6}px)`;g.fillStyle=`rgba(255,255,255,${0.10+0.16*rnd()})`;g.beginPath();g.ellipse(x,y,r,r*0.6,0,0,7);g.fill();g.filter='none';}
+    // What's left of the gloss.
+    const gl=g.createLinearGradient(0,0,S,S);gl.addColorStop(0,'rgba(255,255,255,0.28)');gl.addColorStop(0.4,'rgba(255,255,255,0.06)');gl.addColorStop(0.48,'rgba(255,255,255,0)');
+    g.fillStyle=gl;g.fillRect(0,0,S,S);
+    // The worn edge.
+    g.strokeStyle='rgba(255,255,255,0.22)';g.lineWidth=S*0.02;rr(S*0.012,S*0.012,S*0.976,S*0.976,S*0.21);g.stroke();
+    // The corner lifting, bottom right.
+    const L=S*0.22;
+    g.filter=`blur(${S*0.02}px)`;g.fillStyle='rgba(0,0,0,0.35)';g.beginPath();g.moveTo(S-S*0.03,S-L-S*0.03);g.lineTo(S-S*0.03,S-S*0.03);g.lineTo(S-L-S*0.03,S-S*0.03);g.fill();g.filter='none';
+    const cg=g.createLinearGradient(S-L*0.3,S-L*0.3,S,S);cg.addColorStop(0,'rgb(247,245,235)');cg.addColorStop(1,'rgb(204,199,184)');
+    g.fillStyle=cg;g.beginPath();g.moveTo(S,S-L);g.lineTo(S,S);g.lineTo(S-L,S);g.fill();
+    g.strokeStyle='rgba(0,0,0,0.25)';g.lineWidth=S*0.008;g.beginPath();g.moveTo(S,S-L);g.lineTo(S-L,S);g.stroke();
+    g.restore();t.needsUpdate=true;
+  };
+  return t;
+}
+
+// ---------------------------------------------------------------------------
+// The camera: a three-quarter view of the desk while About is at rest, the
+// monitor and the keyboard in front of it once the power is on. It glides
+// between them as the window grows and shrinks.
+const camera=new THREE.PerspectiveCamera(30,1.2,0.1,100);
+const VIEWS={
+  rest:{pos:new THREE.Vector3(-3.6,8.2,17.5),at:new THREE.Vector3(-0.2,1.0,0.3)},
+  on:{pos:new THREE.Vector3(-0.25,5.0,10.6),at:new THREE.Vector3(-0.25,1.75,1.0)},
+};
+const view={from:VIEWS.rest,to:VIEWS.rest,t0:0,dur:1};
+function glide(to,dur){const now=performance.now()/1000;const cur=currentView(now);view.from={pos:cur.pos.clone(),at:cur.at.clone()};view.to=to;view.t0=now;view.dur=dur;}
+const ease=u=>u<0.5?4*u*u*u:1-Math.pow(-2*u+2,3)/2;
+function currentView(now){const u=ease(Math.min(1,Math.max(0,(now-view.t0)/view.dur)));
+  return{pos:view.from.pos.clone().lerp(view.to.pos,u),at:view.from.at.clone().lerp(view.to.at,u)};}
+
+// ---------------------------------------------------------------------------
+// The About window: 440 wide with the view 320 wide at its top; switched on,
+// it grows over 0.7 s to three quarters of the screen's height and 1.1 times
+// that wide, the text fades, the view grows to 96% of its width.
+const REST={w:440,h:520};
+const win={from:{...REST},to:{...REST},t0:0,dur:0.7};
+function grow(on){const now=performance.now()/1000;const cur=winSize(now);win.from=cur;
+  if(on){const h=Math.round(innerHeight*0.75);win.to={w:Math.min(Math.round(h*1.1),Math.round(innerWidth*0.9)),h};}else win.to={...REST};
+  win.t0=now;text.style.opacity=on?0:1;}
+function winSize(now){const u=ease(Math.min(1,(now-win.t0)/win.dur));return{w:win.from.w+(win.to.w-win.from.w)*u,h:win.from.h+(win.to.h-win.from.h)*u};}
+function layout(now){
+  const s=winSize(now);about.style.width=s.w+'px';about.style.height=s.h+'px';
+  const g=Math.min(1,Math.max(0,(s.w-REST.w)/Math.max(1,(win.to.w>REST.w?win.to.w:win.from.w)-REST.w)));
+  // At rest: 320 wide, 30 from the top. Grown: 96% of the width, centered.
+  const w=320+(s.w*0.96-320)*g, h=w/1.2;
+  const top=34+((s.h-h)/2-34)*g;
+  canvas.style.left=((s.w-w)/2)+'px';canvas.style.top=top+'px';
+  const dpr=Math.min(devicePixelRatio||1,2);
+  if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){renderer.setPixelRatio(dpr);renderer.setSize(w,h,false);canvas.style.width=w+'px';canvas.style.height=h+'px';}
+  camera.aspect=w/h;camera.updateProjectionMatrix();
+}
+
+// The tube texture follows the glass's size on screen, so the shader's
+// footprint terms see the pixels the picture really gets.
+const _v=new THREE.Vector3();
+function sizeTube(){
+  if(!screenMesh)return;
+  const proj=y=>{_v.set(0,y,-0.2).project(camera);return _v.y;};
+  const hPx=Math.abs(proj(3.3688)-proj(1.1583))*0.5*renderer.domElement.height;
+  const h=Math.min(2048,Math.max(272,Math.ceil(hPx/64)*64)), w=Math.round(h*MESH_HALF.x/MESH_HALF.y);
+  if(tubeTarget.height!==h)tubeTarget.setSize(w,h);
+  U.uLinePx.value=h*(GLASS_HALF.y/MESH_HALF.y)*0.93/272;
+  U.uMinPx.value=1.4/(h*GLASS_HALF.y/MESH_HALF.y*0.5);
+}
+
+// ---------------------------------------------------------------------------
+// Power: the button is hit-tested in 3D. The tube's timing is mockup.html's.
+let power='off', onAt=0, offAt=0, pressedAt=-1, settled=true;
+const raycaster=new THREE.Raycaster(), pointer=new THREE.Vector2();
+function hitButton(e){
+  if(!button)return false;const r=canvas.getBoundingClientRect();
+  if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)return false;
+  pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);
+  raycaster.setFromCamera(pointer,camera);
+  const hit=raycaster.intersectObject(scene,true)[0];
+  return !!hit&&hit.object===button;
+}
+addEventListener('pointermove',e=>{document.body.style.cursor=hitButton(e)?'pointer':'';});
+addEventListener('click',e=>{
+  if(!hitButton(e))return;
+  const now=performance.now()/1000;pressedAt=now;
+  if(power==='off'){power='on';onAt=now;settled=false;boot();grow(true);glide(VIEWS.on,1.4);}
+  else if(power==='on'){power='dying';offAt=now;mode='off';schedule([]);cursor=null;}
+});
+function crt(now){
+  let bright=0,sx=1,sy=1,focus=0.4,wobble=0,collapse=0;
+  if(power==='on'){
+    const WARM=1.0,t=now-onAt;
+    if(t>WARM){
+      const a=t-WARM,u=Math.min(1,a/0.7),e=1-Math.pow(1-u,3);
+      sy=0.03+0.97*e; sx=0.9+0.1*e;
+      const u2=Math.min(1,a/1.8);
+      bright=(0.15+0.85*Math.min(1,a/0.45))*(1+0.22*Math.sin(Math.PI*u2)*(1-u2));
+      focus=0.4+0.55*Math.max(0,1-a/1.4);
+      wobble=0.012*Math.exp(-a*2.5);
+    }
+  }else if(power==='dying'){
+    const t=now-offAt;
+    if(t<0.12){const u=t/0.12;sy=1-(1-0.004)*u*u;bright=1+1.4*u;}
+    else if(t<0.45){const u=(t-0.12)/0.33;collapse=1;sy=0.004;sx=1-(1-0.006)*u*u*u;bright=2.4-1.0*u;}
+    else{collapse=1;sy=0.004;sx=0.006;bright=1.4*Math.exp(-(t-0.45)/0.55);
+      if(bright<0.01){power='off';bright=0;grow(false);glide(VIEWS.rest,1.1);}}
+  }
+  U.uBright.value=bright;U.uScale.value.set(sx,sy);U.uFocus.value=focus;U.uWobble.value=wobble;U.uCollapse.value=collapse;
+  // The picture lights the room: its mean is about the background's purple.
+  screenLight.intensity=6*bright*(collapse?Math.max(sx,0.05)*0.3:Math.min(sx,sy));
+  if(led)led.material.emissiveIntensity=power==='on'?2.2:0;
+  // The button goes in 3 mm and comes back.
+  if(button){const t=now-pressedAt,d=t<0.05?t/0.05:t<0.17?1-(t-0.05)/0.12:0;button.position.z=buttonRest.z-0.03*Math.max(0,d);}
+}
+
+let last=performance.now()/1000;
+function tick(){
+  const now=performance.now()/1000, dt=Math.min(0.1,now-last); last=now;
+  layout(now);
+  const v=currentView(now);camera.position.copy(v.pos);camera.lookAt(v.at);camera.updateMatrixWorld();
+  if(mode==='boot')runScript(now);
+  if(mode==='player'){simulate(dt,now);drawPlayer();}
+  if(dirty||cursor){renderFrame(Math.floor(now*3)%2===0);tex.needsUpdate=true;dirty=false;}
+  crt(now);animateKeys(now);sizeTube();
+  U.uTime.value=now;U.uSeed.value=Math.floor(now*50)%1000;
+  renderer.setRenderTarget(tubeTarget);renderer.render(tubeScene,tubeCamera);renderer.setRenderTarget(null);
+  renderer.render(scene,camera);
+  requestAnimationFrame(tick);
+}
+// For driving the mockup from a script: where the power button is on the page.
+window.desk={buttonPoint(){const b=new THREE.Box3().setFromObject(button).getCenter(new THREE.Vector3()).project(camera);const r=canvas.getBoundingClientRect();
+  return{x:r.left+(b.x+1)/2*r.width,y:r.top+(1-b.y)/2*r.height};},state:()=>({power,mode}),
+  pressKeys,animateKeys,typeKey,
+  keyDepth:n=>+(keyNodes[n].y-keyNodes[n].node.position.y).toFixed(3),
+  // The color at a point of the glass, in screen-mesh UV (0..1, top left), as the page shows it.
+  sample(u,v){const p=new THREE.Vector3(-1.5288+3.0576*u,3.3688-2.2105*v,-0.2).project(camera);const c=document.createElement('canvas');c.width=canvas.width;c.height=canvas.height;
+    const g=c.getContext('2d');g.drawImage(canvas,0,0);const x=Math.round((p.x+1)/2*c.width),y=Math.round((1-p.y)/2*c.height);const d=g.getImageData(x-1,y-1,3,3).data;
+    let r=0,gg=0,b=0;for(let i=0;i<9;i++){r+=d[i*4];gg+=d[i*4+1];b+=d[i*4+2];}return '#'+[r,gg,b].map(x=>Math.round(x/9).toString(16).padStart(2,'0')).join('');},
+  power(){const p=this.buttonPoint();canvas.dispatchEvent(new MouseEvent('click',{bubbles:true,clientX:p.x,clientY:p.y}));}};
+cls(); tick();
+</script>
