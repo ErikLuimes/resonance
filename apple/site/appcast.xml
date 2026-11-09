@@ -3,6 +3,26 @@
     <channel>
         <title>Resonance</title>
         <item>
+            <title>0.1.0-alpha.8</title>
+            <pubDate>Mon, 09 Nov 2026 01:18:29 +0100</pubDate>
+            <sparkle:channel>alpha</sparkle:channel>
+            <sparkle:version>8</sparkle:version>
+            <sparkle:shortVersionString>0.1.0-alpha.8</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>27.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[## Simpler engine settings
+
+Settings now offers two engines: reSIDfp, the most accurate, and SIDLite direct, the lightest. Both can scrub.
+
+The older SIDLite and reSID engines are gone from Settings, along with Widen mono tunes, which only worked on them.
+
+## And more
+
+- Security updates for the libraries behind downloads and the terminal app.
+- The Settings sidebar is wide enough for its titles.
+]]></description>
+            <enclosure url="https://github.com/ErikLuimes/resonance/releases/download/v0.1.0-alpha.8/Resonance-0.1.0-alpha.8.dmg" length="15519256" type="application/octet-stream" sparkle:edSignature="hUMeEzaDHS2viZNF60cGvQ10wmSvV6WhXFPemYHdZtVzHuzqtp4fQE2KmU/2P8p28zl12xxKGnvOzYp58W1sAg=="/>
+        </item>
+        <item>
             <title>0.1.0-alpha.7</title>
             <pubDate>Sun, 08 Nov 2026 15:14:39 +0100</pubDate>
             <sparkle:version>7</sparkle:version>
