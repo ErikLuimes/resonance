@@ -278,7 +278,6 @@ struct HelpCommands: Commands {
             HelpButton()
             ShortcutsButton(store: store)
             WelcomeButton(store: store)
-            CreditsButton()
             Divider()
             Link("Resonance Website", destination: URL(string: "https://erikluimes.github.io/resonance/")!)
             Link("Report a Problem", destination: URL(string: "https://github.com/ErikLuimes/resonance/issues")!)
@@ -306,14 +305,6 @@ struct HelpCommands: Commands {
                 store.toggleKeyHelp()
                 openWindow(id: "main")
             }
-        }
-    }
-
-    private struct CreditsButton: View {
-        @Environment(\.openWindow) private var openWindow
-
-        var body: some View {
-            Button("Credits") { openWindow(id: CreditsView.windowID) }
         }
     }
 

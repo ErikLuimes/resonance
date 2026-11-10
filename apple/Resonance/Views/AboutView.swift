@@ -2,9 +2,9 @@ import SwiftUI
 import PhosphorCore
 
 /// The About window, in the Mac's classic shape with one difference: where
-/// the icon would be stands a 1084S monitor, with the icon as a sticker on
+/// the icon would be stands a 1702 monitor, with the icon as a sticker on
 /// its bezel. Then the name and version, a line on what it is, who it's
-/// built on, the license, and links to the credits intro, licenses, the website
+/// built on, the license, and links to the licenses, the website
 /// and the source. At rest its size follows its text and nothing else.
 /// The power switch opens the desk fullscreen and returns to compact About
 /// when the tube turns off.
@@ -28,18 +28,22 @@ struct AboutView: View {
     @State private var transition = 0
     @State private var fullscreen = Fullscreen.windowed
     @State private var hostWindow: ObjectIdentifier?
+    @State private var powerPingAt: TimeInterval?
 
     private enum Fullscreen { case windowed, entering, active, exiting }
 
     private var model: MonitorModel { MonitorModel.shared }
+    private var showsPowerHint: Bool { fullscreen == .windowed && model.power == .off }
     private static let textFadeDuration = 0.2
     private var textFade: Animation? {
         reduceMotion ? nil : .easeInOut(duration: Self.textFadeDuration)
     }
 
     static let width: CGFloat = 360
-    /// The monitor's size with About at rest, where the icon was.
-    private static let monitorOffSize = CGSize(width: 320, height: 320 * MonitorCase.aspect)
+    private static let usesDesk = DeskScene.available
+    // Crop the empty space above and below the resting desk without scaling it.
+    private static let compactDeskTrim: CGFloat = usesDesk ? 30 : 0
+    private static let monitorOffSize = CGSize(width: 320, height: 320 * MonitorCase.aspect - 2 * compactDeskTrim)
 
     var body: some View {
         VStack(spacing: 0) {
@@ -47,6 +51,7 @@ struct AboutView: View {
             // size affect the window's minimum size.
             Color.clear
                 .frame(width: Self.monitorOffSize.width, height: Self.monitorOffSize.height)
+                .allowsHitTesting(false)
             aboutText
         }
         .opacity(showsAboutText ? 1 : 0)
@@ -56,17 +61,24 @@ struct AboutView: View {
         .fixedSize(horizontal: false, vertical: !grown)
         .frame(width: grown ? nil : Self.width, alignment: .top)
         .frame(maxWidth: grown ? .infinity : nil, maxHeight: grown ? .infinity : nil, alignment: .top)
-        .overlay(alignment: .top) {
+        // Keep About's text in front of the native SceneKit view for pointer events.
+        .background(alignment: .top) {
             GeometryReader { geometry in
-                let size = deskSize(in: geometry.size)
+                let compactShare = compactDeskShare(at: geometry.size.width)
+                let size = deskSize(in: geometry.size, compactShare: compactShare)
                 Group {
-                    if DeskScene.available {
-                        MonitorDesk(store: store, onPower: pressPower)
+                    if Self.usesDesk {
+                        MonitorDesk(store: store, showsPowerHint: showsPowerHint, powerPingAt: powerPingAt,
+                                    reduceMotion: reduceMotion, onPower: pressPower)
                     } else {
-                        MonitorCase(store: store, live: true, onPower: pressPower)
+                        MonitorCase(store: store, live: true, showsPowerHint: showsPowerHint,
+                                    powerPingAt: powerPingAt, onPower: pressPower)
                     }
                 }
+                .frame(width: size.width, height: size.height + 2 * Self.compactDeskTrim * compactShare)
                 .frame(width: size.width, height: size.height)
+                .clipped()
+                .contentShape(Rectangle())
                 .frame(maxWidth: .infinity, alignment: .top)
                 .allowsHitTesting(fullscreen == .windowed || fullscreen == .active)
             }
@@ -109,6 +121,10 @@ struct AboutView: View {
             window.standardWindowButton(.zoomButton)?.isHidden = true
         }
         .onDisappear { if fullscreen == .windowed { reset() } }
+        .task {
+            do { try await Task.sleep(for: .seconds(1)) } catch { return }
+            if window?.occlusionState.contains(.visible) == true { pingPower() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { note in
             if isAbout(note.object) { reset() }
         }
@@ -126,11 +142,14 @@ struct AboutView: View {
         }
     }
 
-    private func deskSize(in size: CGSize) -> CGSize {
+    private func compactDeskShare(at width: CGFloat) -> CGFloat {
+        guard grown else { return 1 }
+        return 1 - min(1, max(0, (width - Self.width) / max(1, fullscreenWidth - Self.width)))
+    }
+
+    private func deskSize(in size: CGSize, compactShare: CGFloat) -> CGSize {
         guard grown else { return Self.monitorOffSize }
         // Keep the desk's margins continuous as the same window changes size.
-        let span = max(1, fullscreenWidth - Self.width)
-        let compactShare = 1 - min(1, max(0, (size.width - Self.width) / span))
         return CGSize(
             width: max(1, size.width - compactShare * (Self.width - Self.monitorOffSize.width)),
             height: max(1, size.height - compactShare * (compactContentHeight - Self.monitorOffSize.height))
@@ -168,12 +187,18 @@ struct AboutView: View {
         let previous = model.power
         model.pressPower(store: store)
         guard model.power != previous else { return }
+        powerPingAt = nil
         MonitorSounds.shared.update(power: model.power)
         if model.power == .on {
             enterPlayback()
         } else {
             exitPlayback()
         }
+    }
+
+    private func pingPower() {
+        guard showsPowerHint, !reduceMotion else { return }
+        powerPingAt = CACurrentMediaTime()
     }
 
     /// The monitor off and About at rest, at once: no animation, the
@@ -206,7 +231,7 @@ struct AboutView: View {
         VStack(spacing: 0) {
             Text("Resonance")
                 .font(.title2.weight(.semibold))
-                .padding(.top, 14)
+                .padding(.top, 10)
             Text("Version \(Self.version)")
                 .font(.callout)
                 .monospacedDigit()
@@ -221,16 +246,17 @@ struct AboutView: View {
             Text("Try the power button.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .contentShape(Rectangle())
+                .onHover { if $0 { pingPower() } }
                 .padding(.top, 6)
 
             Text("Built on Phosphor \(phosphorVersion()) by Marcin Spoczynski.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .tint(.accentColor)
-                .padding(.top, 18)
+                .padding(.top, 14)
 
             HStack(spacing: 16) {
-                Button("Credits intro…") { openWindow(id: CreditsView.windowID) }
                 Button("Licenses") { openWindow(id: AcknowledgmentsView.windowID) }
                 Link("Website ↗", destination: Self.website)
                 Link("Source ↗", destination: Self.source)
@@ -245,7 +271,7 @@ struct AboutView: View {
                 .padding(.top, 14)
         }
         .padding(.horizontal, 20)
-        .padding(.bottom, 24)
+        .padding(.bottom, 20)
     }
 
     private var window: NSWindow? {

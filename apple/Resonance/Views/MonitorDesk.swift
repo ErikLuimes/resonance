@@ -12,33 +12,119 @@ import SwiftUI
 /// design/crt-monitor/README.md; the reference is design/crt-monitor/mockup-3d.html.
 struct MonitorDesk: NSViewRepresentable {
     let store: PlayerStore
+    let showsPowerHint: Bool
+    let powerPingAt: TimeInterval?
+    let reduceMotion: Bool
     let onPower: () -> Void
 
     func makeCoordinator() -> DeskScene? { DeskScene.make() }
 
-    func makeNSView(context: Context) -> DeskView {
-        let view = DeskView(frame: .zero, options: [
-            SCNView.Option.preferredRenderingAPI.rawValue: SCNRenderingAPI.metal.rawValue,
-        ])
-        context.coordinator?.attach(to: view, store: store)
-        context.coordinator?.onPower = onPower
-        return view
+    func makeNSView(context: Context) -> DeskHostView {
+        let host = DeskHostView()
+        context.coordinator?.attach(to: host.desk, store: store)
+        updateNSView(host, context: context)
+        return host
     }
 
-    func updateNSView(_ view: DeskView, context: Context) {
+    func updateNSView(_ host: DeskHostView, context: Context) {
+        let view = host.desk
         context.coordinator?.store = store
         context.coordinator?.onPower = onPower
+        view.showsPowerHint = showsPowerHint
+        view.powerPingAt = powerPingAt
+        view.reduceMotion = reduceMotion
     }
 
-    static func dismantleNSView(_ view: DeskView, coordinator: DeskScene?) {
-        coordinator?.detach(from: view)
+    static func dismantleNSView(_ host: DeskHostView, coordinator: DeskScene?) {
+        coordinator?.detach(from: host.desk)
+    }
+}
+
+final class DeskHostView: NSView {
+    let desk = DeskView(frame: .zero, options: [
+        SCNView.Option.preferredRenderingAPI.rawValue: SCNRenderingAPI.metal.rawValue,
+    ])
+    private let lights = DeskPowerLights(frame: .zero)
+
+    init() {
+        super.init(frame: .zero)
+        wantsLayer = true
+        for view in [desk, lights] as [NSView] {
+            view.autoresizingMask = [.width, .height]
+            addSubview(view)
+        }
+        desk.powerLights = lights
+    }
+
+    required init?(coder: NSCoder) { nil }
+}
+
+/// Above the Metal surface so the tiny lamps remain readable at compact size.
+/// The overlay follows projected mesh positions and passes through all input.
+final class DeskPowerLights: NSView {
+    private static let computerColor = NSColor(srgbRed: 1, green: 0.23, blue: 0.12, alpha: 1)
+    private let monitor = DeskPowerLights.glow(color: MonitorPowerCue.color)
+    private let computer = DeskPowerLights.glow(color: DeskPowerLights.computerColor)
+    private let ring = CALayer()
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        ring.borderWidth = 1.25
+        ring.borderColor = MonitorPowerCue.color.cgColor
+        for cue in [monitor, computer, ring] as [CALayer] {
+            cue.isHidden = true
+            layer?.addSublayer(cue)
+        }
+    }
+
+    required init?(coder: NSCoder) { nil }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    private static func glow(color: NSColor) -> CAGradientLayer {
+        let glow = CAGradientLayer()
+        glow.type = .radial
+        glow.startPoint = CGPoint(x: 0.5, y: 0.5)
+        glow.endPoint = CGPoint(x: 1, y: 1)
+        glow.colors = [NSColor.white.cgColor, color.cgColor,
+                       color.withAlphaComponent(0.28).cgColor, color.withAlphaComponent(0).cgColor]
+        glow.locations = [0, 0.13, 0.36, 0.7]
+        return glow
+    }
+
+    func update(in desk: DeskView, monitorPoint: CGPoint?, monitorLevel: Double, computerPoint: CGPoint?,
+                ripplePoint: CGPoint?, ripple: (diameter: CGFloat, opacity: Double)?) {
+        guard monitorPoint != nil || computerPoint != nil || ripplePoint != nil ||
+                !monitor.isHidden || !computer.isHidden || !ring.isHidden else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        place(monitor, at: monitorPoint, in: desk, diameter: 11, opacity: 0.4 + 0.6 * monitorLevel)
+        place(computer, at: computerPoint, in: desk, diameter: 7, opacity: 0.95)
+        let diameter = ripple?.diameter ?? 0
+        ring.cornerRadius = diameter / 2
+        place(ring, at: ripplePoint, in: desk, diameter: diameter, opacity: ripple?.opacity ?? 0)
+        CATransaction.commit()
+    }
+
+    private func place(_ cue: CALayer, at point: CGPoint?, in desk: DeskView, diameter: CGFloat, opacity: Double) {
+        guard let point, desk.bounds.contains(point) else { cue.isHidden = true; return }
+        let center = convertToLayer(convert(point, from: desk))
+        cue.frame = CGRect(x: center.x - diameter / 2, y: center.y - diameter / 2,
+                           width: diameter, height: diameter)
+        cue.opacity = Float(opacity)
+        cue.isHidden = false
     }
 }
 
 /// The SCNView, passing its clicks and the pointer to the desk.
 final class DeskView: SCNView {
     weak var desk: DeskScene?
+    weak var powerLights: DeskPowerLights?
     private var tracking: NSTrackingArea?
+    private var pendingPointer: CGPoint?
+    var showsPowerHint = false
+    var powerPingAt: TimeInterval?
+    var reduceMotion = false
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -50,6 +136,7 @@ final class DeskView: SCNView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        pendingPointer = nil
         desk?.mouseDown(at: convert(event.locationInWindow, from: nil), flags: event.modifierFlags)
         if desk?.isHoldingSticker == true { NSCursor.closedHand.set() }
     }
@@ -68,9 +155,15 @@ final class DeskView: SCNView {
     }
 
     override func mouseMoved(with event: NSEvent) {
-        let point = convert(event.locationInWindow, from: nil)
-        let hot = desk?.pointerMoved(to: point) ?? false
-        (hot ? NSCursor.pointingHand : NSCursor.arrow).set()
+        pendingPointer = convert(event.locationInWindow, from: nil)
+    }
+
+    /// Fast mice can send several positions between display frames.
+    func flushPointerMovement() {
+        guard let point = pendingPointer else { return }
+        pendingPointer = nil
+        guard desk?.isHoldingSticker != true else { return }
+        (desk?.pointerMoved(to: point) == true ? NSCursor.pointingHand : NSCursor.arrow).set()
     }
 
     override func mouseEntered(with event: NSEvent) {
@@ -78,6 +171,7 @@ final class DeskView: SCNView {
     }
 
     override func mouseExited(with event: NSEvent) {
+        pendingPointer = nil
         desk?.pointerMoved(to: nil)
         NSCursor.arrow.set()
     }
@@ -103,8 +197,10 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     static let glassHalf = meshHalf * SIMD2(1308 / 1362, 958 / 983)
     /// About 4 mm: the caps are 0.22 wide, a C64's are 18 mm.
     static let keyTravel: Float = 0.05
-    /// The POWER rocker goes in 3 mm, along the panel's normal.
+    /// The POWER push button travels along the slanted panel's normal.
     static let buttonNormal = simd_normalize(SIMD3<Float>(0, 0.548, 0.837))
+    private static let powerLatchDepth: Float = 0.018
+    private static let powerPressDepth: Float = 0.03
     /// The asset's control-panel cover is modeled open, on this hinge.
     static let hatchHinge: SIMD3<Float> = [0, 0.224, -0.190]
     static let hatchClosedAngle: Float = -.pi / 2
@@ -118,6 +214,8 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     static let restPose = Pose(position: [-3.6, 8.2, 17.5], target: [-0.2, 1.0, 0.3])
     static let onPose = Pose(position: [-0.25, 5.0, 10.6], target: [-0.25, 1.6, 1.0])
     private static let drivePose = Pose(position: [-5.6, 2.8, 6.35], target: [-3.95, 0.56, 0.84])
+    // Leave about 5% above the top of the case, with the power button still in view.
+    private static let creditsPose = Pose(position: [-0.16, 3.10, 6.22], target: [0, 2.30, -0.16])
     private static let pullbackDuration = 1.1
 
     let scene: SCNScene
@@ -130,11 +228,16 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     private let cameraNode = SCNNode()
     private let screenMaterial = SCNMaterial()
     private let ledMaterial = SCNMaterial()
+    private var monitorLED: SCNNode?
+    private var computerLED: SCNNode?
     private let screenLight = SCNLight()
     private var creditsDisk: DeskCreditsDisk?
     private var paperSticker: DeskSticker?
     var isHoldingSticker: Bool { paperSticker?.isGrabbed == true }
+    private var canDragSticker: Bool { creditsDisk?.isActive != true }
     private var button: (node: SCNNode, rest: SIMD3<Float>)?
+    private var keyboard: SCNNode?
+    private var hatchPanel: SCNNode?
     private var hatchPivot: SCNNode?
     private var hatchMotion: (from: Float, to: Float, start: Double)?
     private enum CartridgeButton: String, CaseIterable {
@@ -217,6 +320,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
 
     private func build() {
         let root = scene.rootNode
+        keyboard = root.childNode(withName: "keyboard", recursively: true)
 
         for key in C64Key.allCases {
             if let node = root.childNode(withName: key.nodeName, recursively: true) {
@@ -224,10 +328,11 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
             }
         }
         if let node = root.childNode(withName: "power_button", recursively: true) {
-            button = (node, node.simdPosition)
+            button = (node, node.simdWorldPosition)
             prepareHover(on: node, named: "power_button")
         }
         if let hatch = root.childNode(withName: "monitor_cap", recursively: true) {
+            hatchPanel = hatch
             let openTransform = hatch.simdWorldTransform
             let pivot = SCNNode()
             pivot.name = "monitor_hatch_hinge"
@@ -282,6 +387,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
             mesh.categoryBitMask = 2
         }
         if let led = root.childNode(withName: "power_led", recursively: true), let mesh = Self.geometryNode(in: led) {
+            monitorLED = led
             ledMaterial.lightingModel = .physicallyBased
             ledMaterial.diffuse.contents = NSColor(red: 0.06, green: 0.19, blue: 0.10, alpha: 1)
             ledMaterial.roughness.contents = 0.35
@@ -294,7 +400,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         let lensMaterial = SCNMaterial()
         lensMaterial.lightingModel = .physicallyBased
         lensMaterial.diffuse.contents = NSColor(srgbRed: 0.34, green: 0.02, blue: 0.015, alpha: 1)
-        lensMaterial.emission.contents = NSColor(srgbRed: 0.69, green: 0.065, blue: 0.035, alpha: 1)
+        lensMaterial.emission.contents = NSColor(srgbRed: 1, green: 0.23, blue: 0.12, alpha: 1)
         lensMaterial.roughness.contents = 0.32
         lens.materials = [lensMaterial]
         let computerLED = SCNNode(geometry: lens)
@@ -302,6 +408,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         computerLED.simdPosition = [1.61185, 0.8064, 2.34875]
         computerLED.castsShadow = false
         root.addChildNode(computerLED)
+        self.computerLED = computerLED
         if root.childNode(withName: "drive_1541", recursively: true) != nil {
             creditsDisk = DeskCreditsDisk(root: root)
         }
@@ -363,14 +470,16 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         scene.lightingEnvironment.intensity = 1.0
 
         // The desk: only its shadows show.
-        let floor = SCNFloor()
-        floor.reflectivity = 0
+        let floor = SCNPlane(width: 200, height: 200)
         let floorMaterial = SCNMaterial()
         floorMaterial.lightingModel = .shadowOnly
         floor.materials = [floorMaterial]
         let floorNode = SCNNode(geometry: floor)
+        floorNode.name = "desk_shadow_receiver"
+        floorNode.eulerAngles.x = -.pi / 2
         floorNode.simdPosition = [0, 0.011, 0]
         root.addChildNode(floorNode)
+        DeskMagazines.place(in: root)
 
         // The screen's own light on the keyboard and the desk, in the picture's purple.
         screenLight.type = .area
@@ -406,14 +515,15 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     }
 
     private func setHoveredControl(_ part: String?) {
-        let next = part.flatMap { hoverMaterials[$0] == nil ? nil : $0 }
+        let next = part.flatMap { hoverMaterials[$0] != nil || $0 == DeskCreditsDisk.name ? $0 : nil }
         guard next != hoveredControl else { return }
         if let hoveredControl, let materials = hoverMaterials[hoveredControl] {
             for entry in materials { entry.material.emission.contents = entry.emission }
         }
         hoveredControl = next
         if let next, let materials = hoverMaterials[next] {
-            let glow = NSColor(srgbRed: 0.28, green: 0.22, blue: 0.16, alpha: 1)
+            let glow = next == "power_button" ? NSColor(srgbRed: 0.12, green: 0.32, blue: 0.17, alpha: 1)
+                : NSColor(srgbRed: 0.28, green: 0.22, blue: 0.16, alpha: 1)
             for entry in materials { entry.material.emission.contents = glow }
         }
     }
@@ -492,6 +602,8 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         paperSticker?.reset()
         creditsDisk?.reset()
         resetPictureControls()
+        buttonPressedAt = -10
+        if let button { button.node.simdWorldPosition = button.rest }
         latched = []
         taps = [:]
         keysDownLastFrame = []
@@ -517,6 +629,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     /// Everything that moves, at `now`: the model's tick, the frame on the
     /// tube, the camera, the keys, the button, the light, the LED.
     func update(at now: Double) {
+        view?.flushPointerMovement()
         let model = MonitorModel.shared
         let picture = model.tick(store: store)
         let elapsed = lastStep == 0 ? 0 : max(0, now - lastStep)
@@ -528,10 +641,18 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
             if creditsDisk?.canLoad == false { creditsDisk?.reset() }
         } else {
             if model.mode != .player { stopCredits(at: now) }
-            if creditsDisk?.update(at: now, audible: view?.window != nil) == true {
-                startGlide(to: Self.onPose, duration: 0.66, now: now)
+            if let creditsDisk {
+                let wasPlaying = creditsDisk.isPlaying
+                if creditsDisk.update(at: now, audible: view?.window != nil) {
+                    // The intro starts just after the existing 0.66-second drive-to-screen move.
+                    startGlide(to: Self.creditsPose, duration: 0.66, now: now)
+                } else if wasPlaying, !creditsDisk.isPlaying {
+                    startGlide(to: Self.onPose, duration: 0.66, now: now)
+                }
             }
         }
+
+        creditsDisk?.setLabelHighlight(available: canLoadCredits, hovered: hoveredControl == DeskCreditsDisk.name)
 
         // The frame, when it changed. The BASIC cursor blinks at the C64's 3 Hz.
         let cursor = model.cursor
@@ -569,13 +690,10 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         let rolling = model.isOn && abs(vertical) > 0.1
         verticalPhase = rolling ? (verticalPhase + vertical * dt).truncatingRemainder(dividingBy: 1) : 0
 
-        if let button {
-            button.node.simdPosition = button.rest - Self.buttonNormal * 0.03 * Self.buttonDepth(now - buttonPressedAt)
-        }
+        updatePowerControl(isOn: model.isOn, now: now)
         for button in cartridgeButtons.values {
             button.node.simdPosition = button.rest + button.travel * Self.buttonDepth(now - button.pressedAt)
         }
-        ledMaterial.emission.contents = model.isOn ? NSColor(red: 0.36, green: 1, blue: 0.5, alpha: 1) : NSColor.black
         let lit = picture.collapse > 0.5 ? max(picture.scaleX, 0.05) * 0.3 : min(picture.scaleX, picture.scaleY)
         screenLight.intensity = CGFloat(220 * brightness * lit)
 
@@ -674,9 +792,10 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         let distance = 1 + broad.z * 0.014 + fine.z * 0.003
         let rotation = simd_quatf(angle: yaw, axis: SIMD3(0, 1, 0))
             * simd_quatf(angle: pitch, axis: SIMD3(1, 0, 0))
-        let offset = Self.onPose.position - Self.onPose.target
+        let base = creditsDisk?.isPlaying == true ? Self.creditsPose : Self.onPose
+        let offset = base.position - base.target
         // The power-off glide starts from this exact angle.
-        glide.to.position = Self.onPose.target + rotation.act(offset * distance)
+        glide.to.position = base.target + rotation.act(offset * distance)
     }
 
     /// Bounded random waypoints, with smooth velocity and acceleration at each join.
@@ -819,9 +938,14 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
 
     // MARK: The mouse
 
+    private var canLoadCredits: Bool {
+        let model = MonitorModel.shared
+        return creditsDisk?.canLoad == true && model.isOn && !model.busy && model.mode != .frozen
+    }
+
     private func loadCredits() {
         let model = MonitorModel.shared
-        guard let creditsDisk, creditsDisk.canLoad, model.isOn, !model.busy, model.mode != .frozen else { return }
+        guard let creditsDisk, canLoadCredits, !isHoldingSticker else { return }
         if model.mode == .boot { model.skipBoot() }
         let tune = store?.nowPlaying.map { CreditsScene.Tune(title: $0.displayTitle, author: $0.author) }
         let now = CACurrentMediaTime()
@@ -834,7 +958,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     @discardableResult
     private func stopCredits(at now: Double) -> Bool {
         guard let creditsDisk, creditsDisk.isActive else { return false }
-        if creditsDisk.isLoading { startGlide(to: Self.onPose, duration: 0.66, now: now) }
+        startGlide(to: Self.onPose, duration: 0.66, now: now)
         creditsDisk.eject(at: now)
         return true
     }
@@ -880,10 +1004,28 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     @discardableResult
     func pointerMoved(to point: CGPoint?) -> Bool {
         if knobDrag != nil || isHoldingSticker { return true }
-        let hit = point.flatMap { part(at: $0) }
+        let hit = point.flatMap { hoverPart(at: $0) }
         setHoveredControl(hit)
         updateCameraHover(at: point)
         return hit != nil
+    }
+
+    /// Hover is an affordance. Use projected targets and leave mesh picking to clicks.
+    private func hoverPart(at point: CGPoint) -> String? {
+        guard let view, view.bounds.contains(point) else { return nil }
+        func isOver(_ node: SCNNode?, scale: CGFloat = 1) -> Bool {
+            guard let node, let rect = projectedBounds(of: node, in: view) else { return false }
+            let expansion = (scale - 1) / 2
+            return rect.insetBy(dx: -rect.width * expansion, dy: -rect.height * expansion).contains(point)
+        }
+        if isOver(button?.node, scale: view.showsPowerHint ? MonitorPowerCue.hitScale : 1.2) { return "power_button" }
+        if canDragSticker, paperSticker?.hoverContains(point, in: view) == true { return "sticker" }
+        if canLoadCredits, isOver(creditsDisk?.node) { return DeskCreditsDisk.name }
+        if let knob = nearbyKnob(at: point, in: view) { return knob.rawValue }
+        if let control = nearbyCartridgeButton(at: point, in: view) { return control.rawValue }
+        if isOver(hatchPanel) { return "monitor_cap" }
+        if isOver(keyboard) { return "keyboard" }
+        return nil
     }
 
     private func updateCameraHover(at point: CGPoint?) {
@@ -897,6 +1039,10 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
            hypot(point.x - center.x, point.y - center.y) <= min(48, max(24, view.bounds.height * 0.05)) {
             pointerNearPower = true
             cartridgeLookTarget = cartridgeLook
+            return
+        }
+        if creditsDisk?.isPlaying == true {
+            cartridgeLookTarget = 0
             return
         }
         guard let freeze = cartridgeButtons[.freeze]?.node, let button = projectedPoint(of: freeze, in: view) else {
@@ -919,6 +1065,52 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     private static func buttonDepth(_ elapsed: Double) -> Float {
         if elapsed < 0.05 { return Float(max(0, elapsed) / 0.05) }
         return Float(max(0, 1 - (elapsed - 0.05) / 0.12))
+    }
+
+    private func updatePowerControl(isOn: Bool, now: Double) {
+        let hovered = hoveredControl == "power_button"
+        let compact = view?.showsPowerHint == true
+        let reduceMotion = view?.reduceMotion == true
+        let depth = isOn ? Self.powerLatchDepth : 0
+        if let button {
+            let elapsed = now - buttonPressedAt
+            // Push past the latch on both presses, then settle into the new position.
+            let startDepth = isOn ? 0 : Self.powerLatchDepth
+            let travel = Self.buttonDepth(elapsed)
+            let base = elapsed < 0.05 ? startDepth : depth
+            let pressed = reduceMotion ? depth : base + (Self.powerPressDepth - base) * travel
+            button.node.simdWorldPosition = button.rest - Self.buttonNormal * pressed
+        }
+        let level = CGFloat(isOn ? 1 : compact
+            ? MonitorPowerCue.ledLevel(at: now, hovered: hovered, reduceMotion: reduceMotion) : 0)
+        ledMaterial.emission.contents = level > 0
+            ? NSColor(red: 0.36 * level, green: level, blue: 0.5 * level, alpha: 1)
+            : NSColor.black
+
+        guard let view, let lights = view.powerLights else { return }
+        let ripple = compact && !reduceMotion ? MonitorPowerCue.ripple(at: now, since: view.powerPingAt) : nil
+        lights.update(in: view,
+                      monitorPoint: compact ? monitorLED.flatMap { projectedPoint(of: $0, in: view) } : nil,
+                      monitorLevel: level,
+                      computerPoint: compact ? computerLED.flatMap { projectedPoint(of: $0, in: view) } : nil,
+                      ripplePoint: ripple == nil ? nil : button.flatMap { projectedPoint(of: $0.node, in: view) },
+                      ripple: ripple)
+    }
+
+    private func projectedBounds(of node: SCNNode, in view: DeskView) -> CGRect? {
+        let (min, max) = node.boundingBox
+        var rect = CGRect.null
+        for x in [min.x, max.x] {
+            for y in [min.y, max.y] {
+                for z in [min.z, max.z] {
+                    let corner = node.convertPosition(SCNVector3(x, y, z), to: nil)
+                    let point = view.projectPoint(corner)
+                    guard (0...1).contains(point.z) else { return nil }
+                    rect = rect.union(CGRect(x: point.x, y: point.y, width: 0, height: 0))
+                }
+            }
+        }
+        return rect
     }
 
     private func toggleHatch(at now: Double) {
@@ -949,15 +1141,19 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
 
     private func part(at point: CGPoint) -> String? {
         guard let view else { return nil }
+        if view.showsPowerHint, view.bounds.contains(point), let button,
+           let rect = projectedBounds(of: button.node, in: view) {
+            let expansion = (MonitorPowerCue.hitScale - 1) / 2
+            if rect.insetBy(dx: -rect.width * expansion, dy: -rect.height * expansion).contains(point) {
+                return "power_button"
+            }
+        }
         let hits = view.hitTest(point, options: [.searchMode: SCNHitTestSearchMode.closest.rawValue])
-        if paperSticker?.pick(at: point, in: view, blocker: hits.first) != nil { return "sticker" }
+        if canDragSticker, paperSticker?.pick(at: point, in: view, blocker: hits.first) != nil { return "sticker" }
         var node = hits.first?.node
         while let current = node {
             if let name = current.name {
-                if name == DeskCreditsDisk.name, creditsDisk?.canLoad == true {
-                    let model = MonitorModel.shared
-                    return model.isOn && !model.busy && model.mode != .frozen ? name : nil
-                }
+                if name == DeskCreditsDisk.name { return canLoadCredits ? name : nil }
                 if name == "power_button" || name == "monitor_cap" || name.hasPrefix("key_") { return name }
                 if hatchMotion == nil, hatchPivot?.simdEulerAngles.x == 0, MonitorKnob(rawValue: name) != nil {
                     return name
@@ -965,36 +1161,39 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
             }
             node = current.parent
         }
-        if hatchMotion == nil, hatchPivot?.simdEulerAngles.x == 0 {
-            var nearest: MonitorKnob?
-            var distance = min(15, max(6, view.bounds.height * 0.011))
-            for (knob, part) in knobs {
-                let front = part.node.simdWorldPosition + SIMD3<Float>(0, 0, 0.075)
-                let projected = view.projectPoint(SCNVector3(front))
-                let gap = hypot(point.x - projected.x, point.y - projected.y)
-                if (0...1).contains(projected.z), gap < distance {
-                    nearest = knob
-                    distance = gap
-                }
+        // SceneKit can miss the imported switches; fall back to their projected caps.
+        return nearbyKnob(at: point, in: view)?.rawValue ?? nearbyCartridgeButton(at: point, in: view)?.rawValue
+    }
+
+    private func nearbyKnob(at point: CGPoint, in view: DeskView) -> MonitorKnob? {
+        guard hatchMotion == nil, hatchPivot?.simdEulerAngles.x == 0 else { return nil }
+        var nearest: MonitorKnob?
+        var distance = min(15, max(6, view.bounds.height * 0.011))
+        for (knob, part) in knobs {
+            let front = part.node.simdWorldPosition + SIMD3<Float>(0, 0, 0.075)
+            let projected = view.projectPoint(SCNVector3(front))
+            let gap = hypot(point.x - projected.x, point.y - projected.y)
+            if (0...1).contains(projected.z), gap < distance {
+                nearest = knob
+                distance = gap
             }
-            if let nearest { return nearest.rawValue }
         }
-        // SceneKit can miss the imported switches. Pick the nearest cap
-        // within the small screen-space target around each control.
-        if MonitorModel.shared.isOn {
-            var nearest: CartridgeButton?
-            var distance = max(9, view.bounds.height * 0.015)
-            for (control, button) in cartridgeButtons {
-                guard let center = projectedPoint(of: button.node, in: view) else { continue }
-                let gap = hypot(point.x - center.x, point.y - center.y)
-                if gap < distance {
-                    nearest = control
-                    distance = gap
-                }
+        return nearest
+    }
+
+    private func nearbyCartridgeButton(at point: CGPoint, in view: DeskView) -> CartridgeButton? {
+        guard MonitorModel.shared.isOn else { return nil }
+        var nearest: CartridgeButton?
+        var distance = max(9, view.bounds.height * 0.015)
+        for (control, button) in cartridgeButtons {
+            guard let center = projectedPoint(of: button.node, in: view) else { continue }
+            let gap = hypot(point.x - center.x, point.y - center.y)
+            if gap < distance {
+                nearest = control
+                distance = gap
             }
-            return nearest?.rawValue
         }
-        return nil
+        return nearest
     }
 
     func isClickable(at point: CGPoint) -> Bool { part(at: point) != nil }
@@ -1012,8 +1211,10 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
             return
         }
         if name == "power_button" {
-            buttonPressedAt = CACurrentMediaTime()
-            if let onPower { onPower() } else { MonitorModel.shared.pressPower(store: store) }
+            let model = MonitorModel.shared
+            let previous = model.power
+            if let onPower { onPower() } else { model.pressPower(store: store) }
+            if model.power != previous { buttonPressedAt = CACurrentMediaTime() }
             return
         }
         if name == "monitor_cap" {

@@ -1,6 +1,26 @@
 import MetalKit
 import SwiftUI
 
+/// Shared timing for the power cue on the desk and its still-image fallback.
+enum MonitorPowerCue {
+    static let color = NSColor(srgbRed: 0.36, green: 1, blue: 0.50, alpha: 1)
+    static let hitScale: CGFloat = 2.5
+
+    static func ledLevel(at now: TimeInterval, hovered: Bool, reduceMotion: Bool) -> Double {
+        if hovered { return 0.9 }
+        if reduceMotion { return 0.38 }
+        return 0.34 + 0.24 * cos(2 * .pi * now / 3)
+    }
+
+    static func ripple(at now: TimeInterval, since ping: TimeInterval?) -> (diameter: CGFloat, opacity: Double)? {
+        guard let ping else { return nil }
+        let t = (now - ping) / 0.72
+        guard (0..<1).contains(t) else { return nil }
+        let remaining = 1 - t
+        return (CGFloat(10 + 32 * (1 - remaining * remaining)), 0.85 * remaining)
+    }
+}
+
 /// A Commodore 1702 in About Resonance, switched off, until you press its
 /// power button: then it warms up, a C64 boots and runs the player, live,
 /// answering the app's own keys while About is in front. The case is a photo;
@@ -12,7 +32,11 @@ import SwiftUI
 struct MonitorCase: View {
     let store: PlayerStore
     var live: Bool
+    var showsPowerHint = false
+    var powerPingAt: TimeInterval?
     var onPower: (() -> Void)?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var powerHovered = false
 
     /// The render's geometry, in its own pixels (design/crt-monitor/README.md):
     /// a Commodore 1702 from dark_igorek's CC BY 4.0 model, rendered straight
@@ -25,7 +49,7 @@ struct MonitorCase: View {
     static let margin: CGFloat = 60
     /// The power light on the badge strip, a small bar; the render shows it unlit.
     static let led = CGRect(x: 1371, y: 1572, width: 32, height: 14)
-    /// The brown POWER rocker at the right of the panel, with its label.
+    /// The brown POWER push button at the right of the panel, with its label.
     static let powerZone = CGRect(x: 1930, y: 1540, width: 140, height: 130)
     /// The sticker on the black bezel, top left, a corner over the glass.
     static let sticker = CGRect(x: 330, y: 150, width: 260, height: 260)
@@ -54,24 +78,40 @@ struct MonitorCase: View {
                 IconSticker(size: Self.sticker.width * k)
                     .offset(x: Self.sticker.minX * k, y: Self.sticker.minY * k)
                     .allowsHitTesting(false)
-                // The power light: the render has it unlit; lit, it's drawn over it.
-                Capsule()
-                    .fill(Color(red: 0.45, green: 1, blue: 0.55))
-                    .shadow(color: Color(red: 0.36, green: 1, blue: 0.5).opacity(0.9), radius: 6 * k)
-                    .shadow(color: Color(red: 0.36, green: 1, blue: 0.5).opacity(0.5), radius: 16 * k)
-                    .frame(width: Self.led.width * k, height: Self.led.height * k)
-                    .offset(x: Self.led.minX * k, y: Self.led.minY * k)
-                    .opacity(model.isOn ? 1 : 0)
-                    .allowsHitTesting(false)
+                TimelineView(.animation(paused: !showsPowerHint || reduceMotion)) { _ in
+                    let now = CACurrentMediaTime()
+                    let green = Color(nsColor: MonitorPowerCue.color)
+                    let level = model.isOn ? 1 : showsPowerHint
+                        ? MonitorPowerCue.ledLevel(at: now, hovered: powerHovered, reduceMotion: reduceMotion) : 0
+                    Capsule()
+                        .fill(green)
+                        .shadow(color: green.opacity(0.9), radius: 6 * k)
+                        .shadow(color: green.opacity(0.5), radius: 16 * k)
+                        .frame(width: Self.led.width * k, height: Self.led.height * k)
+                        .offset(x: Self.led.minX * k, y: Self.led.minY * k)
+                        .opacity(level)
+                    if showsPowerHint, !reduceMotion, let ripple = MonitorPowerCue.ripple(at: now, since: powerPingAt) {
+                        Circle()
+                            .strokeBorder(green, lineWidth: 1)
+                            .frame(width: ripple.diameter, height: ripple.diameter)
+                            .position(x: Self.powerZone.midX * k, y: Self.powerZone.midY * k)
+                            .opacity(ripple.opacity)
+                    }
+                }
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+                let hitScale = showsPowerHint ? MonitorPowerCue.hitScale : 1
                 Button {
                     if let onPower { onPower() } else { model.pressPower(store: store) }
                 } label: {
                     Color.clear
-                        .frame(width: Self.powerZone.width * k, height: Self.powerZone.height * k)
+                        .frame(width: Self.powerZone.width * k * hitScale, height: Self.powerZone.height * k * hitScale)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .offset(x: Self.powerZone.minX * k, y: Self.powerZone.minY * k)
+                .position(x: Self.powerZone.midX * k, y: Self.powerZone.midY * k)
+                .onHover { powerHovered = $0 }
+                .pointerStyle(.link)
                 .help("Power")
                 .accessibilityLabel("Power")
             }

@@ -111,9 +111,6 @@ const VOICE_REGISTERS: [&str; 7] = ["FREQ LO", "FREQ HI", "PW LO", "PW HI", "CTR
 const CONTROL_BITS: [&str; 8] = ["GATE", "SYNC", "RING", "TST", "TRI", "SAW", "PUL", "NOI"];
 /// HVSC's rows in the sidebar, under the library's.
 const HVSC_ROWS: [(&str, Option<&str>); 4] = [("Home", None), ("Musicians", Some("musicians")), ("Demos", Some("demos")), ("Games", Some("games"))];
-/// Holds the logo before making room for the player, and how long that takes.
-const SPLASH_FOR: Duration = Duration::from_secs(2);
-const SPLASH_LEAVES: Duration = Duration::from_millis(600);
 
 /// The pages of the full-screen visuals.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -207,8 +204,6 @@ pub enum Mode {
     Visual,
     /// When they started.
     Credits(Instant),
-    /// The logo, from when it appeared.
-    Splash(Instant),
     /// Typing to find a composer.
     Jump(String),
     /// Typing what you'd like to hear.
@@ -829,11 +824,6 @@ impl App {
                 self.mode = Mode::Normal;
             }
         }
-        if let Mode::Splash(started) = self.mode {
-            if now.duration_since(started) >= SPLASH_FOR + SPLASH_LEAVES {
-                self.mode = Mode::Normal;
-            }
-        }
         if let Mode::Credits(started) = self.mode {
             if now.duration_since(started).as_secs_f64() >= credits::length(self.playing()) {
                 self.close_credits();
@@ -1124,10 +1114,6 @@ impl App {
             self.quit = true;
             return;
         }
-        if matches!(self.mode, Mode::Splash(_)) {
-            self.mode = Mode::Normal;
-            return;
-        }
         // Letters are for typing in these, so only ⌃G and ⌃N mean anything.
         if matches!(self.mode, Mode::Search | Mode::NewPlaylist(_) | Mode::Jump(_) | Mode::Describing(_)) {
             let key = match key.code {
@@ -1168,7 +1154,7 @@ impl App {
             Mode::DrawerClosing(since) => self.mode = Mode::DrawerClosing(since),
             Mode::AddTo(cursor) => self.key_add_to(key, cursor),
             Mode::Browser(browser) => self.key_browser(key, browser),
-            Mode::Help | Mode::Search | Mode::NewPlaylist(_) | Mode::Jump(_) | Mode::Describing(_) | Mode::Splash(_) => unreachable!("handled above"),
+            Mode::Help | Mode::Search | Mode::NewPlaylist(_) | Mode::Jump(_) | Mode::Describing(_) => unreachable!("handled above"),
         }
     }
 
@@ -1583,43 +1569,9 @@ fn draw_screen(frame: &mut Frame, app: &App) {
         Mode::Browser(browser) => draw_browser(frame, browser, app.keys.scheme),
         Mode::Help => draw_help(frame, app.key_choice),
         Mode::Reading(top) => draw_announcement(frame, app, *top),
-        Mode::Splash(started) => draw_splash(frame, app, *started),
         Mode::Drawer(since) => draw_drawer(frame, app, *since, false),
         Mode::DrawerClosing(since) => draw_drawer(frame, app, *since, true),
         Mode::Normal | Mode::Search | Mode::Jump(_) | Mode::Describing(_) | Mode::Visual | Mode::Credits(_) => {}
-    }
-}
-
-/// The logo fills the window, then the player takes its place from the bottom up. The
-/// logo's own drawing is untouched: it's copied across, row by row.
-fn draw_splash(frame: &mut Frame, app: &App, started: Instant) {
-    let area = frame.area();
-    let plan = header::plan(area.width, area.height);
-    let seconds = app.now.unwrap_or(started).saturating_duration_since(started);
-    let leaving = seconds.saturating_sub(SPLASH_FOR).as_secs_f32() / SPLASH_LEAVES.as_secs_f32();
-    let shown = (f32::from(area.height) * (1.0 - leaving.min(1.0))).round() as u16;
-    let divider = u16::from(plan.rows > 1);
-    let art = Rect::new(0, 0, area.width, plan.rows + divider);
-    let mut picture = ratatui::buffer::Buffer::empty(art);
-    header::draw(&mut picture, Rect::new(0, 0, area.width, plan.rows), plan);
-    if divider > 0 {
-        header::draw_divider(&mut picture, Rect::new(0, plan.rows, area.width, 1));
-    }
-    let top = shown.saturating_sub(art.height) / 2;
-    let buffer = frame.buffer_mut();
-    for y in 0..shown.min(area.height) {
-        for x in 0..area.width {
-            let cell = &mut buffer[(area.x + x, area.y + y)];
-            cell.reset();
-            if y >= top && y - top < art.height {
-                *cell = picture[(x, y - top)].clone();
-            }
-        }
-    }
-    if leaving <= 0.0 {
-        let hint = "any key to start";
-        let left = area.width.saturating_sub(hint.len() as u16) / 2;
-        buffer.set_string(area.x + left, area.y + area.height.saturating_sub(2), hint, dim());
     }
 }
 
@@ -3322,8 +3274,6 @@ fn event_loop(
     if only_credits {
         app.leave_after_credits = true;
         app.open_credits();
-    } else if header::plan(terminal.size()?.width, terminal.size()?.height).rows > 1 {
-        app.mode = Mode::Splash(Instant::now());
     }
     let mut last_status = Instant::now() - STATUS_EVERY;
     let mut last_scope = Instant::now() - SCOPE_EVERY;
@@ -3876,7 +3826,7 @@ mod tests {
         let mut terminal = Terminal::new(TestBackend::new(195, 40)).unwrap();
         terminal.draw(|frame| draw(frame, &app)).unwrap();
         let shown: String = terminal.backend().buffer().content.iter().map(|c| c.symbol()).collect();
-        assert!(!shown.contains("T H E   S O U N D"), "the logo belongs to the splash");
+        assert!(!shown.contains("T H E   S O U N D"), "the player has no startup logo");
         assert!(shown.contains("Tune 9"), "the list should have the room now");
         assert!(shown.contains("▓▒░ This tune"), "no third column");
         assert!(shown.contains("in 2000  98"), "a playlist's count was cut off");
@@ -4559,51 +4509,6 @@ mod tests {
         app.cursor = 0;
         app.outbox.clear();
         app
-    }
-
-    #[test]
-    fn the_splash_holds_then_gives_way_and_any_key_skips_it() {
-        let mut app = app();
-        let start = Instant::now();
-        app.mode = Mode::Splash(start);
-        app.tick(start + SPLASH_FOR);
-        assert!(matches!(app.mode, Mode::Splash(_)));
-        app.tick(start + SPLASH_FOR + SPLASH_LEAVES);
-        assert!(matches!(app.mode, Mode::Normal));
-
-        let mut app = self::app();
-        app.mode = Mode::Splash(start);
-        press(&mut app, KeyCode::Char('q'));
-        assert!(matches!(app.mode, Mode::Normal));
-        assert!(!app.quit, "skipping it isn't quitting");
-    }
-
-    #[test]
-    fn the_splash_shows_the_logo_and_the_list_has_the_room_after() {
-        let mut app = app();
-        let start = Instant::now();
-        app.now = Some(start);
-        app.mode = Mode::Splash(start);
-        let splash = screen_of(&app, 160, 48);
-        assert!(splash.contains("any key to start") && splash.contains('█'), "{splash}");
-        assert!(splash.contains("T H E   S O U N D"), "{splash}");
-        app.mode = Mode::Normal;
-        let list = screen_of(&app, 160, 48);
-        assert!(!list.contains("T H E   S O U N D"), "the logo has gone");
-        assert!(list.lines().next().unwrap().contains("RESONANCE"), "{list}");
-    }
-
-    #[test]
-    fn the_splash_never_leaves_a_small_window_broken() {
-        for (w, h) in [(160, 48), (120, 38), (80, 26), (60, 25)] {
-            for ms in [0, 2100, 2400, 2590] {
-                let mut app = app();
-                let start = Instant::now();
-                app.mode = Mode::Splash(start);
-                app.now = Some(start + Duration::from_millis(ms));
-                let _ = screen_of(&app, w, h);
-            }
-        }
     }
 
     #[test]

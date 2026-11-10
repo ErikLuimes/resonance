@@ -32,6 +32,12 @@ nonisolated enum C64Font {
         ("─", "000000FFFF000000"), ("■", "007E7E7E7E7E7E00"), ("□", "007E424242427E00"), ("▶", "0060787E7E786000"),
         ("‖", "0066666666666600"), ("♥", "367F7F7F3E1C0800"), ("•", "00003C3C3C3C0000"), ("│", "1818181818181818"),
         ("←", "0010307F7F301000"),
+        // Extra graphics for the startup disk's directory art.
+        ("🮏", "00000000AA55AA55"), ("🮂", "FFFF000000000000"), ("🮌", "A050A050A050A050"),
+        ("▔", "FF00000000000000"), ("▁", "00000000000000FF"), ("▂", "000000000000FFFF"),
+        ("▕", "0101010101010101"), ("▏", "8080808080808080"), ("▌", "F0F0F0F0F0F0F0F0"),
+        ("▝", "0F0F0F0F00000000"), ("▘", "F0F0F0F000000000"), ("╲", "8040201008040201"),
+        ("╭", "000000071F3C3030"), ("╰", "30303C1F07000000"), ("╯", "0C0C3CF8E0000000"),
     ]
 
     /// Every glyph's eight rows, in the table's order.
@@ -119,6 +125,47 @@ nonisolated struct C64Frame: Equatable {
             }
         }
     }
+}
+
+/// The startup disk's simulated LIST output. Each zero-block entry supplies
+/// one 16-character row of the skull; the PRG is the only loadable entry.
+private nonisolated enum C64StartupDirectory {
+    private static let art = [
+        "    .🮏🮏🮏🮏🮏🮏.    ",
+        "   🮏▒*🮂▔▔🮂*▒🮏   ",
+        "  ╭▒▔ ▁▁▁▁ ▔*│  ",
+        " ▕▒▔ 🮏▒▒▒▒▒▁.▒▏ ",
+        " │🮌 ▒▒▒▒▒▒▒▒ ▕│ ",
+        " ▒▏▕▒▒▒▒▒▒▒▒🮌▕▒ ",
+        " │🮏🮏▒*▒▒▒▒*─▒🮏▒ ",
+        "▕▒▌ ▒  ▒▒  ▒ ▕▒▏",
+        "▕▒▌ ▕  ▒▒  ▏ ▕▒▏",
+        "▕▒▌ ▝▂▂▒│▂▂▘ ▕▒▏",
+        "▕▒▌  ▒▒▏▕▒▒  ▕▒▏",
+        " ▔▔   ▒▒▒▒   ▔▔╲",
+        "     ▕▂▂▂▂▏    ╲",
+        "     ▕▌▌▌▌▏    ╯",
+        "      ╰▂▂╯ ───╯ ",
+        " .            + ",
+        "STILL LISTENING "
+    ]
+
+    static let frame: C64Frame = {
+        var frame = C64Frame()
+        frame.put(0, 0, "LIST")
+        frame.put(0, 2, "0 ")
+        frame.put(2, 2, "\"RESONANCE       \" RS 2A", reversed: true)
+        for (index, name) in art.enumerated() {
+            frame.put(0, 3 + index, "0    \"\(name)\"")
+            frame.put(24, 3 + index, "DEL")
+        }
+        let programRow = 3 + art.count
+        frame.put(0, programRow, "38   \"RESONANCE\"")
+        frame.put(24, programRow, "PRG")
+        frame.put(0, programRow + 1, "626 BLOCKS FREE.")
+        frame.put(0, programRow + 3, "READY.")
+        return frame
+    }()
 }
 
 /// What the tube is doing, for the shader: the power animation's parameters.
@@ -273,9 +320,27 @@ final class MonitorModel {
             },
             Step(delay: 1.1) { _ in },
         ]
+        steps += typing("LOAD\"$\",8")
+        steps += [
+            submit(after: 0.35),
+            Step(delay: 0.18) { m in m.print("\nSEARCHING FOR $\n") },
+            Step(delay: 0.20) { m in m.print("LOADING\n") },
+            Step(delay: 0.35) { m in m.print("\nREADY.\n"); m.showCursor(true) },
+            Step(delay: 0.25) { _ in },
+        ]
+        steps += typing("LIST")
+        steps += [
+            submit(after: 0.24),
+            Step(delay: 0.10) { m in
+                m.frame = C64StartupDirectory.frame
+                m.term = (0, C64Frame.rows - 1)
+                m.showCursor(true)
+            },
+            Step(delay: 2) { _ in },
+        ]
         steps += typing("LOAD\"RESONANCE\",8,1")
         steps += [
-            Step(delay: 0.35) { m in m.showCursor(false); m.newline(); m.typed?("\n") },
+            submit(after: 0.35),
             Step(delay: 0.4) { m in m.print("\nSEARCHING FOR RESONANCE\n") },
             Step(delay: 1.0) { m in m.print("LOADING\n") },
             Step(delay: 1.7) { m in m.print("READY.\n"); m.showCursor(true) },
@@ -283,7 +348,7 @@ final class MonitorModel {
         ]
         steps += typing("RUN")
         steps += [
-            Step(delay: 0.3) { m in m.showCursor(false); m.newline(); m.typed?("\n") },
+            submit(after: 0.3),
             Step(delay: 0.35) { m in m.startPlayer() },
         ]
         // A warm CRT can show a reboot right away.
@@ -294,6 +359,14 @@ final class MonitorModel {
         }
         script = steps
         scriptAt = 0
+    }
+
+    private func submit(after delay: Double) -> Step {
+        Step(delay: delay) { m in
+            m.showCursor(false)
+            m.newline()
+            m.typed?("\n")
+        }
     }
 
     private func typing(_ text: String) -> [Step] {
@@ -381,8 +454,7 @@ final class MonitorModel {
 
     /// Advances the boot, redraws the player from the store, and says what
     /// the tube is doing. Called once per display frame by the renderer.
-    func tick(store: PlayerStore?) -> MonitorPicture {
-        let now = CACurrentMediaTime()
+    func tick(store: PlayerStore?, now: Double = CACurrentMediaTime()) -> MonitorPicture {
         // A gap in the drawing: About was away. Everything starts over.
         if !hostFullscreen, lastDraw > 0, now - lastDraw > 0.5, power != .off || mode != .off {
             startOver()

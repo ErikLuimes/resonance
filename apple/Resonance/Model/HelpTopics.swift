@@ -151,7 +151,7 @@ extension HelpTopic {
                     String(localized: "Double-click any tune in a list to play it."),
                     String(localized: "Drop SID files, folders or M3U playlists onto the window, or press **⌘O**. They go into My Playlist."),
                 ]),
-                .paragraph(String(localized: "The Help menu brings back the welcome steps with **Welcome to Resonance**. It also has **Keyboard Shortcuts** and the **Credits**, with a nod to the demoscene.")),
+                .paragraph(String(localized: "The Help menu has **Keyboard Shortcuts** and brings back the welcome steps with **Welcome to Resonance**.")),
             ],
             related: [.soundsLike, .library, .settings]
         ),

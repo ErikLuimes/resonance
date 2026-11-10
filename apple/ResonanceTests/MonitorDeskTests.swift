@@ -63,6 +63,7 @@ struct MonitorDeskTests {
         let button = try #require(cartridge.childNode(withName: "freeze_button", recursively: true))
         let reset = try #require(cartridge.childNode(withName: "reset_button", recursively: true))
         let power = try #require(desk.scene.rootNode.childNode(withName: "power_button", recursively: true))
+        let powerRest = power.simdWorldPosition
         // Warm the renderer before powering up. A slow first snapshot can
         // otherwise trip the monitor's idle reset in the middle of this test.
         _ = view.snapshot()
@@ -72,6 +73,10 @@ struct MonitorDeskTests {
         model.showPlayer(store: store)
         desk.update(at: now + 0.01)
         desk.update(at: now + 1.5)
+        SCNTransaction.flush()
+        let powerTravel = power.simdWorldPosition - powerRest
+        #expect(simd_dot(powerTravel, DeskScene.buttonNormal) < -0.01)
+        #expect(simd_length(simd_cross(powerTravel, DeskScene.buttonNormal)) < 0.001)
 
         func point(of node: SCNNode) -> CGPoint {
             let projected = view.projectPoint(node.worldPosition)
@@ -97,6 +102,7 @@ struct MonitorDeskTests {
         }
 
         let leanedPosition = camera.simdWorldPosition
+        SCNTransaction.flush()
         desk.pointerMoved(to: point(of: power))
         desk.update(at: now + 2.2)
         #expect(simd_distance(camera.simdWorldPosition, leanedPosition) < 0.001)
@@ -232,6 +238,7 @@ struct MonitorDeskTests {
         ridge.position = SCNVector3(-4.25, 1.015, -0.71)
         root.addChildNode(ridge)
         defer { ridge.removeFromParentNode() }
+        _ = view.snapshot()
         var now = CACurrentMediaTime()
         desk.update(at: now)
         SCNTransaction.flush()
@@ -324,6 +331,9 @@ struct MonitorDeskTests {
         }
 
         let player = try picture("credits-disk")
+        let camera = try #require(view.pointOfView)
+        let glassCenter = SIMD3<Float>(0, DeskScene.screenCenterY, DeskScene.screenFrontZ)
+        let playerDistance = simd_distance(camera.simdWorldPosition, glassCenter)
         let projected = view.projectPoint(disk.convertPosition(SCNVector3(0, 0, -0.35), to: nil))
         let point = CGPoint(x: projected.x, y: projected.y)
         try #require(view.bounds.contains(point))
@@ -365,6 +375,7 @@ struct MonitorDeskTests {
             if credits.blueComponent < player.blueComponent - 0.3 { break }
         }
         #expect(credits.blueComponent < player.blueComponent - 0.3)
+        #expect(simd_distance(camera.simdWorldPosition, glassCenter) < playerDistance * 0.70)
 
         // A native fullscreen transition changes the viewport in place and may pause draws.
         model.setHostFullscreen(true)
@@ -377,11 +388,8 @@ struct MonitorDeskTests {
         let sticker = try #require(root.childNode(withName: "sticker", recursively: true))
         let stickerPoint = view.projectPoint(sticker.worldPosition)
         let grip = CGPoint(x: stickerPoint.x, y: stickerPoint.y)
+        #expect(!desk.pointerMoved(to: grip))
         desk.mouseDown(at: grip, flags: [])
-        #expect(desk.isHoldingSticker)
-        desk.mouseDragged(to: CGPoint(x: grip.x + 100, y: grip.y + 30))
-        desk.update(at: clicked + 7.1)
-        desk.mouseUp(at: nil)
         #expect(!desk.isHoldingSticker)
         model.setHostFullscreen(false)
 
@@ -393,8 +401,13 @@ struct MonitorDeskTests {
         #expect(abs(latch.simdEulerAngles.x) < 0.01)
         #expect(simd_distance(disk.simdWorldPosition, rest) < 0.001)
         #expect(model.mode == .player)
+        #expect(abs(simd_distance(camera.simdWorldPosition, glassCenter) - playerDistance) < 0.4)
         let returned = try picture("credits-returned")
         #expect(abs(returned.blueComponent - player.blueComponent) < 0.15)
+        let returnedStickerPoint = view.projectPoint(sticker.worldPosition)
+        desk.mouseDown(at: CGPoint(x: returnedStickerPoint.x, y: returnedStickerPoint.y), flags: [])
+        #expect(desk.isHoldingSticker)
+        desk.mouseUp()
     }
 
     @Test func theGlassShowsTheReferenceColors() throws {

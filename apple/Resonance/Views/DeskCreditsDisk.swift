@@ -41,6 +41,7 @@ final class DeskCreditsDisk {
     ]
 
     let node: SCNNode
+    private let outline = SCNNode()
     private let door = SCNNode()
     private let led = SCNMaterial()
     private let jacket: SCNGeometry
@@ -83,6 +84,11 @@ final class DeskCreditsDisk {
         return false
     }
 
+    var isPlaying: Bool {
+        if case .playing = phase { return true }
+        return false
+    }
+
     var isActive: Bool {
         switch phase {
         case .loading, .playing: true
@@ -95,6 +101,27 @@ final class DeskCreditsDisk {
         node = SCNNode(geometry: jacket)
         node.name = Self.name
         root.addChildNode(node)
+        // A thin, depth-tested rim follows the sleeve without a full-screen outline pass.
+        let rimMaterial = SCNMaterial()
+        rimMaterial.lightingModel = .constant
+        rimMaterial.diffuse.contents = NSColor(srgbRed: 0.75, green: 0.82, blue: 0.92, alpha: 1)
+        for axis in 0..<2 {
+            for sign: Float in [-1, 1] {
+                let rim = SCNBox(width: axis == 0 ? CGFloat(Self.side) : 0.012,
+                                 height: 0.004,
+                                 length: axis == 0 ? 0.012 : CGFloat(Self.side),
+                                 chamferRadius: 0)
+                rim.materials = [rimMaterial]
+                let edge = SCNNode(geometry: rim)
+                edge.castsShadow = false
+                edge.simdPosition = axis == 0
+                    ? [0, Self.thickness / 2 + 0.003, sign * Self.side / 2]
+                    : [sign * Self.side / 2, Self.thickness / 2 + 0.003, 0]
+                outline.addChildNode(edge)
+            }
+        }
+        outline.isHidden = true
+        node.addChildNode(outline)
 
         if let latch = root.childNode(withName: "drive_door", recursively: true) {
             let openTransform = latch.simdWorldTransform
@@ -132,6 +159,7 @@ final class DeskCreditsDisk {
 
     func reset() {
         phase = .resting
+        setLabelHighlight(available: false, hovered: false)
         stopRendering()
         tune = nil
         if driveSoundStarted {
@@ -141,6 +169,11 @@ final class DeskCreditsDisk {
         place(Self.rest, hidden: false)
         closeDoor(0)
         setActivity(false)
+    }
+
+    func setLabelHighlight(available: Bool, hovered: Bool) {
+        outline.isHidden = !available
+        outline.opacity = hovered ? 0.85 : 0.25
     }
 
     func eject(at now: Double) {
@@ -196,8 +229,7 @@ final class DeskCreditsDisk {
     }
 
     var isShowingIntro: Bool {
-        if case .playing = phase { return hasShownFrame }
-        return false
+        isPlaying && hasShownFrame
     }
 
     /// Hand off the last completed frame and allow only one render in flight.
@@ -330,6 +362,9 @@ final class DeskCreditsDisk {
         label.lightingModel = .physicallyBased
         label.diffuse.contents = labelImage()
         label.diffuse.mipFilter = .linear
+        label.emission.contents = labelImage(highlightOnly: true)
+        label.emission.mipFilter = .linear
+        label.emission.intensity = 0
         label.roughness.contents = 0.82
         let plastic = SCNMaterial()
         plastic.lightingModel = .physicallyBased
@@ -359,20 +394,22 @@ final class DeskCreditsDisk {
         led.emission.contents = on ? NSColor(srgbRed: 1, green: 0.12, blue: 0.025, alpha: 1) : NSColor.black
     }
 
-    private static func labelImage() -> NSImage {
+    private static func labelImage(highlightOnly: Bool = false) -> NSImage {
         NSImage(size: CGSize(width: 256, height: 256), flipped: false) { bounds in
-            NSColor(srgbRed: 0.15, green: 0.14, blue: 0.13, alpha: 1).setFill()
+            (highlightOnly ? NSColor.black : NSColor(srgbRed: 0.15, green: 0.14, blue: 0.13, alpha: 1)).setFill()
             NSBezierPath(rect: bounds).fill()
-            NSColor(srgbRed: 0.21, green: 0.20, blue: 0.18, alpha: 1).setStroke()
-            NSBezierPath(roundedRect: bounds.insetBy(dx: 4, dy: 4), xRadius: 6, yRadius: 6).stroke()
+            if !highlightOnly {
+                NSColor(srgbRed: 0.21, green: 0.20, blue: 0.18, alpha: 1).setStroke()
+                NSBezierPath(roundedRect: bounds.insetBy(dx: 4, dy: 4), xRadius: 6, yRadius: 6).stroke()
 
-            // The hub, read window and write-protect notch on the jacket.
-            NSColor(srgbRed: 0.32, green: 0.30, blue: 0.27, alpha: 1).setFill()
-            NSBezierPath(ovalIn: CGRect(x: 92, y: 92, width: 72, height: 72)).fill()
-            NSColor(srgbRed: 0.075, green: 0.064, blue: 0.058, alpha: 1).setFill()
-            NSBezierPath(roundedRect: CGRect(x: 112, y: 15, width: 32, height: 68), xRadius: 15, yRadius: 15).fill()
-            NSBezierPath(rect: CGRect(x: 246, y: 173, width: 10, height: 21)).fill()
-            NSBezierPath(ovalIn: CGRect(x: 164, y: 112, width: 10, height: 10)).fill()
+                // The hub, read window and write-protect notch on the jacket.
+                NSColor(srgbRed: 0.32, green: 0.30, blue: 0.27, alpha: 1).setFill()
+                NSBezierPath(ovalIn: CGRect(x: 92, y: 92, width: 72, height: 72)).fill()
+                NSColor(srgbRed: 0.075, green: 0.064, blue: 0.058, alpha: 1).setFill()
+                NSBezierPath(roundedRect: CGRect(x: 112, y: 15, width: 32, height: 68), xRadius: 15, yRadius: 15).fill()
+                NSBezierPath(rect: CGRect(x: 246, y: 173, width: 10, height: 21)).fill()
+                NSBezierPath(ovalIn: CGRect(x: 164, y: 112, width: 10, height: 10)).fill()
+            }
 
             let paper = CGRect(x: 22, y: 172, width: 213, height: 64)
             NSColor(srgbRed: 0.83, green: 0.79, blue: 0.66, alpha: 1).setFill()

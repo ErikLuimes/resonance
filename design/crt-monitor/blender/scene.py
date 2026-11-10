@@ -106,6 +106,18 @@ boxed(bpy.data.objects["drive_1541"], {
     "drive_door": ((-4.60, -0.72, 0.511), (-4.25, -0.45, 0.553)),
 }, max_width=0.54)
 
+# Tuck the two disconnected mains plugs and their slack behind the CRT.
+# Blender's positive Y points to the back of the desk. The other connectors
+# and the sections of cable that leave the power supply and CRT stay put.
+for vertex in bpy.data.objects["connectors"].data.vertices:
+    if vertex.co.x > 3.7 and vertex.co.y > 4.7 and vertex.co.z < 0.2:
+        vertex.co.x -= 2.75
+for vertex in bpy.data.objects["cables"].data.vertices:
+    x, y, z = vertex.co
+    if z < 0.4 and x > 0.65 and y > 3.5:
+        t = min(1, (y - 3.5) / 1.1)
+        vertex.co.x -= min(2.75, (x - 0.65) * 0.90) * t * t * (3 - 2 * t)
+
 
 # --- The keys --------------------------------------------------------------
 # The keyboard mesh is 729 pieces, eleven to a key (the cap, its top, the walls

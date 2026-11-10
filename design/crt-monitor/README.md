@@ -78,7 +78,7 @@ These are plausible figures for a 1980s tube, not measurements of a 1084S. If so
 
 ## What the screen shows
 
-The boot: `**** RESONANCE 64 SID PLAYER ****`, `64K RAM SYSTEM  63165 SID TUNES FREE` (the collection's tune count), `READY.`, then `LOAD"RESONANCE",8,1` typed at about 12 characters a second, `SEARCHING FOR RESONANCE`, `LOADING`, `READY.`, `RUN`. The cursor blinks at the C64's 3 Hz. Any key skips to the player.
+The boot shows the Resonance banner and the collection's tune count, then types `LOAD"$",8` and `LIST`. The simulated directory spells out “STILL LISTENING” beneath a skull in headphones, using 16-character filename rows. It stays on screen for two seconds before the boot types `LOAD"RESONANCE",8,1` and `RUN`. The cursor blinks at the C64's 3 Hz. Any key skips to the player.
 
 The player, in 40 columns and two colors; reverse video is the only emphasis:
 

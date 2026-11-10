@@ -182,6 +182,23 @@ final class DeskSticker {
         original.isHidden ? localPoints.map { sheet.simdConvertPosition($0, to: nil) } : originalPoints
     }
 
+    /// A cheap pointer cue from the paper's four corners, without a scene hit test.
+    func hoverContains(_ point: CGPoint, in view: SCNView) -> Bool {
+        let peeled = original.isHidden
+        guard !peeled || (!sheet.isHidden && localPoints.count == Self.count && landing == nil && falling == nil) else {
+            return false
+        }
+        let edge = Self.side - 1
+        var bounds = CGRect.null
+        for index in [0, edge, Self.count - Self.side, Self.count - 1] {
+            let world = peeled ? sheet.simdConvertPosition(localPoints[index], to: nil) : originalPoints[index]
+            let p = view.projectPoint(SCNVector3(world))
+            guard (0...1).contains(p.z) else { return false }
+            bounds = bounds.union(CGRect(x: p.x, y: p.y, width: 0, height: 0))
+        }
+        return bounds.contains(point)
+    }
+
     /// Intersect the thin paper from either side. The imported decal itself
     /// isn't always returned by SceneKit's mesh hit test.
     func pick(at point: CGPoint, in view: SCNView, blocker: SCNHitTestResult?) -> SIMD3<Float>? {
@@ -583,7 +600,7 @@ final class DeskSticker {
         var candidates: [MeshCandidate] = []
         func visit(_ node: SCNNode) {
             guard !node.isHidden, !contains(node) else { return }
-            if let geometry = node.geometry, !(geometry is SCNFloor) {
+            if let geometry = node.geometry, !(geometry is SCNFloor), node.name != "desk_shadow_receiver" {
                 let (min, max) = geometry.boundingBox
                 let center = (SIMD3<Float>(min) + SIMD3<Float>(max)) * 0.5
                 let extent = SIMD3<Float>(max) - center
@@ -617,7 +634,7 @@ final class DeskSticker {
     private func visibleHit(at point: CGPoint, in view: SCNView) -> SCNHitTestResult? {
         guard view.bounds.contains(point) else { return nil }
         let hits = view.hitTest(point, options: [.searchMode: SCNHitTestSearchMode.all.rawValue])
-        return hits.first { !isPaper($0.node) && !($0.node.geometry is SCNFloor) }
+        return hits.first { !isPaper($0.node) && !($0.node.geometry is SCNFloor) && $0.node.name != "desk_shadow_receiver" }
     }
 
     private func meshHit(from start: SIMD3<Float>, to end: SIMD3<Float>, entering movement: SIMD3<Float>) -> SCNHitTestResult? {
@@ -625,7 +642,7 @@ final class DeskSticker {
         let b = SCNVector3(root.simdConvertPosition(end, from: nil))
         let hits = root.hitTestWithSegment(from: a, to: b, options: Self.meshOptions)
         return hits.first {
-            !isPaper($0.node) && !($0.node.geometry is SCNFloor)
+            !isPaper($0.node) && !($0.node.geometry is SCNFloor) && $0.node.name != "desk_shadow_receiver"
                 && simd_dot(SIMD3<Float>($0.worldNormal), movement) < -0.00001
         }
     }

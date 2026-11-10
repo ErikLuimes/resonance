@@ -27,7 +27,7 @@ struct CrashReportSanitizerTests {
             ],
             "user": [
                 "track": "Secret Tune.sid",
-                "playlist": "Private favourites",
+                "playlist": "Private favorites",
             ],
             "crash": [
                 "error": [
@@ -58,7 +58,7 @@ struct CrashReportSanitizerTests {
         #expect(!text.contains("alice"))
         #expect(!text.contains("Alice"))
         #expect(!text.contains("Secret Tune"))
-        #expect(!text.contains("Private favourites"))
+        #expect(!text.contains("Private favorites"))
         #expect(!text.contains("192.168.1.42"))
         #expect(!text.contains("83612"))
         #expect(!text.contains("83617"))
