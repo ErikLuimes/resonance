@@ -51,10 +51,16 @@ final class DeskView: SCNView {
 
     override func mouseDown(with event: NSEvent) {
         desk?.mouseDown(at: convert(event.locationInWindow, from: nil), flags: event.modifierFlags)
+        if desk?.isHoldingSticker == true { NSCursor.closedHand.set() }
     }
 
     override func mouseUp(with event: NSEvent) {
-        desk?.mouseUp(at: convert(event.locationInWindow, from: nil))
+        let point = convert(event.locationInWindow, from: nil)
+        let wasHoldingSticker = desk?.isHoldingSticker == true
+        desk?.mouseUp(at: point)
+        if wasHoldingSticker {
+            (desk?.isClickable(at: point) == true ? NSCursor.pointingHand : NSCursor.arrow).set()
+        }
     }
 
     override func mouseDragged(with event: NSEvent) {
@@ -123,6 +129,8 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     private let screenMaterial = SCNMaterial()
     private let ledMaterial = SCNMaterial()
     private let screenLight = SCNLight()
+    private var paperSticker: DeskSticker?
+    var isHoldingSticker: Bool { paperSticker?.isGrabbed == true }
     private var button: (node: SCNNode, rest: SIMD3<Float>)?
     private var hatchPivot: SCNNode?
     private var hatchMotion: (from: Float, to: Float, start: Double)?
@@ -299,6 +307,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
             material.transparencyMode = .aOne
             material.isDoubleSided = false
             mesh.geometry?.materials = [material]
+            paperSticker = DeskSticker(original: sticker, mesh: mesh, root: root, front: material)
         }
 
         // The camera: a 30° lens, the picture's colors untouched (no HDR).
@@ -474,6 +483,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         hatchMotion = nil
         hatchPivot?.simdEulerAngles.x = 0
         knobDrag = nil
+        paperSticker?.reset()
         resetPictureControls()
         latched = []
         taps = [:]
@@ -520,6 +530,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         followPower(model, now: now)
         advanceDrift(model, now: now, dt: dt)
         place(cartridgePose(pose(at: now), powered: model.isOn, dt: dt))
+        if let view { paperSticker?.update(dt: dt, in: view) }
         moveKeys(now: now, dt: dt, audible: model.isOn && view?.window != nil)
         updateHatch(at: now)
         // Reflect changes made from the player or its keyboard shortcuts.
@@ -603,7 +614,8 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     }
 
     private func advanceDrift(_ model: MonitorModel, now: Double, dt: Float) {
-        guard model.isOn, !model.busy, !pointerNearPower, knobDrag == nil, now >= glide.start + glide.duration,
+        guard model.isOn, !model.busy, !pointerNearPower, !isHoldingSticker, knobDrag == nil,
+              now >= glide.start + glide.duration,
               now >= driftResumeAt, mouseHeld == nil, keyboardHeld.isEmpty, modifiersHeld.isEmpty,
               !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         else {
@@ -787,6 +799,10 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     }
 
     func mouseDragged(to point: CGPoint) {
+        if isHoldingSticker, let view {
+            paperSticker?.drag(to: point, in: view)
+            return
+        }
         guard let drag = knobDrag else { return }
         let distance = point.x - drag.lastX
         guard drag.hasDragged || abs(distance) >= 3 else { return }
@@ -797,7 +813,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
 
     @discardableResult
     func pointerMoved(to point: CGPoint?) -> Bool {
-        if knobDrag != nil { return true }
+        if knobDrag != nil || isHoldingSticker { return true }
         let hit = point.flatMap { part(at: $0) }
         setHoveredControl(hit)
         updateCameraHover(at: point)
@@ -867,6 +883,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     private func part(at point: CGPoint) -> String? {
         guard let view else { return nil }
         let hits = view.hitTest(point, options: [.searchMode: SCNHitTestSearchMode.closest.rawValue])
+        if paperSticker?.pick(at: point, in: view, blocker: hits.first) != nil { return "sticker" }
         var node = hits.first?.node
         while let current = node {
             if let name = current.name {
@@ -913,6 +930,12 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
 
     func mouseDown(at point: CGPoint, flags: NSEvent.ModifierFlags) {
         guard let name = part(at: point) else { return }
+        if name == "sticker", let view, paperSticker?.begin(at: point, in: view) == true {
+            setHoveredControl(nil)
+            cartridgeLookTarget = cartridgeLook
+            pauseDrift()
+            return
+        }
         if name == "power_button" {
             buttonPressedAt = CACurrentMediaTime()
             if let onPower { onPower() } else { MonitorModel.shared.pressPower(store: store) }
@@ -961,6 +984,11 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     }
 
     func mouseUp(at point: CGPoint? = nil) {
+        if isHoldingSticker, let view {
+            paperSticker?.release(at: point, in: view)
+            pointerMoved(to: point)
+            pauseDrift()
+        }
         if let drag = knobDrag {
             knobDrag = nil
             if !drag.hasDragged {

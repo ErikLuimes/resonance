@@ -216,6 +216,76 @@ struct MonitorDeskTests {
         #expect(store.volume == 0.65)
     }
 
+    @Test func theStickerPeelsSticksToTheDriveAndFallsOnAMiss() throws {
+        let desk = try #require(DeskScene.make())
+        let view = DeskView(frame: NSRect(x: 0, y: 0, width: 1200, height: 1000))
+        let model = MonitorModel.shared
+        model.startOver()
+        desk.attach(to: view, store: PlayerStore.preview)
+        defer { desk.detach(from: view); model.startOver() }
+        let root = desk.scene.rootNode
+        let original = try #require(root.childNode(withName: "sticker", recursively: true))
+        let paper = try #require(root.childNode(withName: "sticker_paper", recursively: true))
+        // A thin lip on the drive, between the original placement samples.
+        let ridge = SCNNode(geometry: SCNBox(width: 0.035, height: 0.06, length: 0.36, chamferRadius: 0))
+        ridge.position = SCNVector3(-4.25, 1.015, -0.71)
+        root.addChildNode(ridge)
+        defer { ridge.removeFromParentNode() }
+        var now = CACurrentMediaTime()
+        desk.update(at: now)
+        SCNTransaction.flush()
+
+        func project(_ world: SCNVector3) -> CGPoint {
+            let p = view.projectPoint(world)
+            return CGPoint(x: p.x, y: p.y)
+        }
+        func advance(_ frames: Int) {
+            for _ in 0..<frames {
+                now += 1.0 / 60
+                desk.update(at: now)
+            }
+            SCNTransaction.flush()
+        }
+
+        desk.mouseDown(at: project(original.worldPosition), flags: [])
+        try #require(desk.isHoldingSticker)
+        let eye = try #require(view.pointOfView).simdWorldPosition
+        let breadbin = SCNVector3(-0.5, 0.45, 4.05)
+        desk.mouseDragged(to: project(breadbin))
+        advance(42)
+        let near = simd_distance(eye, paper.simdWorldPosition)
+        #expect(near + 0.25 < simd_distance(eye, SIMD3<Float>(breadbin)))
+
+        let drive = project(SCNVector3(-4.4, 0.95, -0.8))
+        desk.mouseDragged(to: drive)
+        advance(42)
+        #expect(original.isHidden)
+        #expect(!paper.isHidden)
+        let carried = simd_distance(eye, paper.simdWorldPosition)
+        #expect(carried > near + 0.5)
+        desk.mouseUp(at: drive)
+        advance(8)
+        #expect(paper.parent === root)
+        #expect(simd_distance(eye, paper.simdWorldPosition) > carried + 0.04)
+        advance(42)
+        #expect(paper.parent?.parent?.name == "drive_1541")
+        let aboveRidge = paper.convertPosition(SCNVector3(-4.25, 1.5, -0.71), from: nil)
+        let belowRidge = paper.convertPosition(SCNVector3(-4.25, 0.93, -0.71), from: nil)
+        let stickerAtRidge = try #require(paper.hitTestWithSegment(from: aboveRidge, to: belowRidge, options: nil).first)
+        #expect(stickerAtRidge.worldCoordinates.y > 1.045)
+
+        desk.mouseDown(at: project(paper.worldPosition), flags: [])
+        try #require(desk.isHoldingSticker)
+        let blank = CGPoint(x: 40, y: 920)
+        desk.mouseDragged(to: blank)
+        advance(34)
+        #expect(paper.worldPosition.y > 1)
+        desk.mouseUp(at: blank)
+        advance(150)
+        #expect(paper.parent === root)
+        #expect(paper.worldPosition.y < 0.04)
+    }
+
     @Test func theGlassShowsTheReferenceColors() throws {
         let desk = try #require(DeskScene.make())
         let view = DeskView(frame: NSRect(x: 0, y: 0, width: 1680, height: 1400), options: [
