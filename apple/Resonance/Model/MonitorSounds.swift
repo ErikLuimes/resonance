@@ -1,7 +1,7 @@
 import AVFoundation
 import OSLog
 
-/// Synthesized switch, tube and keyboard sounds for the About desk.
+/// Switch, tube and keyboard sounds for the About desk.
 final class MonitorSounds {
     static let shared = MonitorSounds()
     private static let log = Logger(subsystem: "app.useresonance.resonance", category: "MonitorSounds")
@@ -12,6 +12,8 @@ final class MonitorSounds {
     // Let one key's clack finish while the next starts.
     private let keyDown = (0..<4).compactMap { _ in MonitorSounds.player(named: "C64KeyDown") }
     private let keyUp = (0..<4).compactMap { _ in MonitorSounds.player(named: "C64KeyUp") }
+    private let spaceDown = (0..<2).compactMap { _ in MonitorSounds.player(named: "C64SpaceDown") }
+    private let spaceUp = (0..<2).compactMap { _ in MonitorSounds.player(named: "C64SpaceUp") }
 
     private init() {
         hum?.numberOfLoops = -1
@@ -33,8 +35,10 @@ final class MonitorSounds {
         }
     }
 
-    func playKey(pressed: Bool) {
-        let players = pressed ? keyDown : keyUp
+    func playKey(pressed: Bool, spacebar: Bool) {
+        let keyPlayers = pressed ? keyDown : keyUp
+        let spacePlayers = pressed ? spaceDown : spaceUp
+        let players = spacebar && !spacePlayers.isEmpty ? spacePlayers : keyPlayers
         let player = players.first { !$0.isPlaying } ?? players.first
         play(player, volume: (pressed ? 0.50 : 0.27) * Float.random(in: 0.85...1))
     }
@@ -47,7 +51,7 @@ final class MonitorSounds {
     }
 
     private func stopKeys() {
-        for player in keyDown + keyUp { player.stop() }
+        for player in keyDown + keyUp + spaceDown + spaceUp { player.stop() }
     }
 
     private func play(_ player: AVAudioPlayer?, volume: Float) {

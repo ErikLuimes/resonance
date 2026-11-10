@@ -110,7 +110,6 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     var onPower: (() -> Void)?
     private weak var view: DeskView?
     private var link: CADisplayLink?
-    private var keyMonitor: Any?
 
     private let cameraNode = SCNNode()
     private let screenMaterial = SCNMaterial()
@@ -349,10 +348,6 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         view.allowsCameraControl = false
 
         MonitorModel.shared.typed = { [weak self] character in self?.tap(character) }
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp, .flagsChanged]) { [weak self] event in
-            MainActor.assumeIsolated { self?.keyEvent(event) }
-            return event
-        }
         let link = view.displayLink(target: self, selector: #selector(step(_:)))
         link.add(to: .main, forMode: .common)
         self.link = link
@@ -375,8 +370,6 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         keysDownLastFrame = []
         link?.invalidate()
         link = nil
-        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
-        keyMonitor = nil
         MonitorModel.shared.typed = nil
         view?.delegate = nil
         view?.desk = nil
@@ -563,8 +556,10 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         }
         if audible {
             // A chord (such as SHIFT + 2) should not stack several loud attacks.
-            if !down.isSubset(of: keysDownLastFrame) { MonitorSounds.shared.playKey(pressed: true) }
-            if !keysDownLastFrame.isSubset(of: down) { MonitorSounds.shared.playKey(pressed: false) }
+            let pressed = down.subtracting(keysDownLastFrame)
+            let released = keysDownLastFrame.subtracting(down)
+            if !pressed.isEmpty { MonitorSounds.shared.playKey(pressed: true, spacebar: pressed.contains(.space)) }
+            if !released.isEmpty { MonitorSounds.shared.playKey(pressed: false, spacebar: released.contains(.space)) }
         }
         keysDownLastFrame = down
         for (key, cap) in caps {
@@ -589,11 +584,13 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         for key in C64Key.keys(for: character) { taps[key] = until }
     }
 
-    /// The Mac's keyboard, while About is the key window: the keys go down
-    /// and up with it. What they do is still the app's (AppKeys); this only
-    /// moves the caps, and never takes the event.
+    /// AppKeys forwards the physical event before dispatching the shortcut.
+    static func observeKeyEvent(_ event: NSEvent, in window: NSWindow?) {
+        guard let window, let desk = shared, desk.view?.window === window else { return }
+        desk.keyEvent(event)
+    }
+
     private func keyEvent(_ event: NSEvent) {
-        guard let window = view?.window, event.window === window else { return }
         pauseDrift()
         switch event.type {
         case .flagsChanged:
@@ -601,11 +598,13 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         case .keyDown:
             guard !event.isARepeat else { return }
             let keys = C64Key.keys(for: event)
-            // With ⌘ down, macOS sends no key-up: a tap.
-            if event.modifierFlags.contains(.command) {
-                let until = CACurrentMediaTime() + 0.12
-                for key in keys { taps[key] = until }
-            } else {
+            guard !keys.isEmpty else { return }
+            // Let even a tap between two frames move the cap. With ⌘ down,
+            // macOS can omit key-up, so use the tap alone in that case.
+            let command = event.modifierFlags.contains(.command)
+            let until = CACurrentMediaTime() + (command ? 0.12 : 0.045)
+            for key in keys { taps[key] = max(taps[key] ?? 0, until) }
+            if !command {
                 keyboardHeld[event.keyCode] = keys
             }
         case .keyUp:

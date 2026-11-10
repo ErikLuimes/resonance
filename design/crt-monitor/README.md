@@ -119,3 +119,12 @@ The size matters more than anything in the shader. The text reads at two device 
 **Decided (2026-11-08), after click-testing the window version: in About, in place.** Erik tried the separate `Resonance 64` window and wanted the monitor to simply start where it stands, small, with nothing opening; the text is then texture rather than reading matter, which is the point of an easter egg. The window is gone. The monitor fills About's width (284 points), keeps its state while About is open, and is off again next time, as a real one left unplugged.
 
 Still to decide: whether the boot sequence runs every time or only the first; whether pressing POWER makes the 1084S's click and degauss thump (there is no sound anywhere else in the UI); and whether the screen should also show the `Under the Hood` tracker page as a second program (`LOAD"TRACKER",8,1`), which would be the natural next page.
+
+## Keyboard sound sources
+
+The About keyboard uses CC0 recordings as stand-ins. `C64KeyDown.wav` and `C64KeyUp.wav` are trimmed from [Vintage Keyboard 4 by jim-ph](https://freesound.org/people/jim-ph/sounds/194798/), recorded from a 1986 DOS keyboard. `C64SpaceDown.wav` and `C64SpaceUp.wav` come from [FUJITSU Computers Keyboard – spacebar Press Mono by Sadiquecat](https://freesound.org/people/Sadiquecat/sounds/799124/). Each pair was separated into press and release, leveled together, and converted to 48 kHz mono PCM.
+
+### Original C64 keyboard recordings to revisit
+
+- [Matching Sound Effects — Computer Keyboard SFX Library](https://matchingsoundeffects.com/product/computer-keyboard-sfx-library/) includes recordings of an original breadbin C64. Its [product policy](https://matchingsoundeffects.com/product-policy/) allows use in projects. Ask for written permission to distribute the edited clips in Resonance’s public source and app bundles, and confirm the library has an isolated spacebar take, before buying it for that purpose.
+- [Sound Ideas — Foley Typing Commodore 64 Speedy, Pond5 item 66900756](https://www.pond5.com/sound-effects/item/66900756-foley-typing-commodore-64-speedy) is another original-hardware lead. Sections 5 and 8 of the [standard Pond5 license](https://www.pond5.com/legal/license) restrict raw or readily extractable audio, which includes WAV assets in the public repository and the current Mac bundle layout. Get a separate grant before using this recording in either.

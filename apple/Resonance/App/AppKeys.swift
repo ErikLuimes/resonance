@@ -20,22 +20,28 @@ enum AppKeys {
         guard monitor == nil else { return }
         self.store = store
         self.library = library
-        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp, .flagsChanged]) { event in
             MainActor.assumeIsolated { handle(event) } ? nil : event
         }
     }
 
     /// True when the event has been dealt with.
     private static func handle(_ event: NSEvent) -> Bool {
+        let monitorWindow = event.window ?? NSApp.keyWindow
+        if isMonitorWindow(monitorWindow) {
+            // Record the physical press before a playback shortcut can consume it.
+            DeskScene.observeKeyEvent(event, in: monitorWindow)
+            if event.type == .keyDown, let store, MonitorModel.shared.power != .off {
+                return handleInMonitor(event, store)
+            }
+        }
+        guard event.type == .keyDown else { return false }
         guard let store, let stroke = KeyStroke(event) else { return false }
         let responder = event.window?.firstResponder
         // Space works in every window of Resonance, as it did before the
         // panel. Everything else belongs to the main window, and not to a
         // sheet over it, which is a window of its own.
         guard isMainWindow(event.window) else {
-            if isMonitorWindow(event.window), MonitorModel.shared.power != .off {
-                return handleInMonitor(event, stroke, store)
-            }
             return stroke == KeyStroke(KeyStroke.space) && SpaceKey.handle(store: store, responder: responder)
         }
         if store.isShowingKeyHelp {
@@ -101,23 +107,34 @@ enum AppKeys {
     /// About Resonance while its monitor is on: the playback keys as in the
     /// main window, the list keys on the monitor's own list, and any key skips
     /// the boot. Esc is left alone, and the menus' shortcuts work as everywhere.
-    private static func handleInMonitor(_ event: NSEvent, _ stroke: KeyStroke, _ store: PlayerStore) -> Bool {
+    private static func handleInMonitor(_ event: NSEvent, _ store: PlayerStore) -> Bool {
         let monitor = MonitorModel.shared
-        if stroke == KeyStroke(KeyStroke.escape) { return false }
+        if Int(event.keyCode) == kVK_Escape { return false }
         if monitor.mode == .boot {
             if !event.isARepeat { monitor.skipBoot() }
             return true
         }
-        switch matcher.feed(stroke, in: .current, at: event.timestamp) {
-        case .none: return false
+        let scheme = KeyScheme.current
+        let match = KeyStroke(event).map { matcher.feed($0, in: scheme, at: event.timestamp) } ?? .none
+        let action: KeyAction
+        switch match {
+        case .none:
+            // Unbound physical keys can still act like their clickable C64 caps.
+            let flags = event.modifierFlags
+            guard monitor.isOn, flags.intersection([.command, .control, .option]).isEmpty else { return false }
+            let keys = C64Key.keys(for: event)
+            let shifted = flags.contains(.shift) || keys.contains(.leftShift)
+            guard let mapped = keys.last?.action(shifted: shifted) else { return false }
+            action = mapped
         case .pending: return true
-        case .action(let action):
-            if action == .playPause { return SpaceKey.handle(store: store, responder: event.window?.firstResponder) }
-            if event.isARepeat, !action.repeats { return true }
-            if action.actsOnList { return monitor.handle(action, store: store) }
-            guard action.binding(in: .current).handler == .monitor, action != .close else { return false }
-            return perform(action, store: store, window: nil)
+        case .action(let matched):
+            guard matched != .close,
+                  matched.actsOnList || matched.binding(in: scheme).handler == .monitor else { return false }
+            action = matched
         }
+        if event.isARepeat, !action.repeats { return true }
+        if action.actsOnList { return monitor.handle(action, store: store) }
+        return perform(action, store: store, window: nil)
     }
 
     /// A key of the C64 on About's desk, clicked: what it stands for, as
