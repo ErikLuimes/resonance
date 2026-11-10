@@ -17,17 +17,21 @@ struct AboutView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(PlayerStore.self) private var store
 
-    /// The window has grown for the monitor: it fills the window, the text is gone.
+    /// The window is resizing or expanded for the monitor.
     @State private var grown = false
+    @State private var showsAboutText = true
     /// Scene bounds and window frame share one transition clock.
     @State private var monitorSize = Self.monitorOffSize
     /// The window's frame before it grew, to go back to.
     @State private var offFrame: NSRect?
-    /// Counts the window animations, so a finished one only acts if no
-    /// newer one has started.
+    /// Invalidates animation completions when About resets or starts a new transition.
     @State private var animation = 0
 
     private var model: MonitorModel { MonitorModel.shared }
+    private static let textFadeDuration = 0.2
+    private var textFade: Animation? {
+        reduceMotion ? nil : .easeInOut(duration: Self.textFadeDuration)
+    }
 
     static let width: CGFloat = 360
     /// The monitor's size with About at rest, where the icon was.
@@ -42,9 +46,9 @@ struct AboutView: View {
                 .frame(width: Self.monitorOffSize.width, height: Self.monitorOffSize.height)
             aboutText
         }
-        .opacity(grown ? 0 : 1)
-        .allowsHitTesting(!grown)
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: grown)
+        .opacity(showsAboutText ? 1 : 0)
+        .allowsHitTesting(showsAboutText)
+        .accessibilityHidden(!showsAboutText)
         .multilineTextAlignment(.center)
         .fixedSize(horizontal: false, vertical: !grown)
         .frame(width: grown ? nil : Self.width, alignment: .top)
@@ -52,20 +56,25 @@ struct AboutView: View {
         .overlay(alignment: .top) {
             Group {
                 if DeskScene.available {
-                    MonitorDesk(store: store)
+                    MonitorDesk(store: store, onPower: pressPower)
                 } else {
-                    MonitorCase(store: store, live: true)
+                    MonitorCase(store: store, live: true, onPower: pressPower)
                 }
             }
             .frame(width: monitorSize.width, height: monitorSize.height)
         }
         .ignoresSafeArea(.container, edges: grown ? .all : [])
         .onChange(of: awake) { _, on in
-            if on { grow() } else { shrinkBack() }
+            if on {
+                grow()
+            } else {
+                MonitorSounds.shared.stop()
+                shrinkBack()
+            }
         }
         .onChange(of: grown, initial: true) { _, isGrown in model.hostGrown = isGrown }
         // The model found About had been away: About goes back to rest too.
-        .onChange(of: model.resets) { _, _ in if grown { settle() } }
+        .onChange(of: model.resets) { _, _ in if grown || !showsAboutText { settle() } }
         // Off whenever About opens, and off when it goes. About's window can
         // outlive its view's appearance and come back without a new one, so
         // the window's own closing counts, and so does its going out of
@@ -100,10 +109,19 @@ struct AboutView: View {
         (object as? NSWindow)?.identifier?.rawValue.hasPrefix(Self.windowID) == true
     }
 
+    private func pressPower() {
+        let previous = model.power
+        model.pressPower(store: store)
+        if model.power != previous {
+            MonitorSounds.shared.update(power: model.power)
+        }
+    }
+
     /// The monitor off and About at rest, at once: no animation, the
     /// window straight back to its own frame if it had grown.
     private func reset() {
         model.startOver()
+        MonitorSounds.shared.stop()
         settle()
     }
 
@@ -114,7 +132,10 @@ struct AboutView: View {
             window.setFrame(rest, display: false)
         }
         grown = false
+        showsAboutText = true
         monitorSize = Self.monitorOffSize
+        model.hostGrown = false
+        model.busyUntil = 0
     }
 
     private var aboutText: some View {
@@ -172,24 +193,41 @@ struct AboutView: View {
     /// follows its size as it goes, so the monitor grows with it.
     private func grow() {
         guard let window else { return }
-        grown = true
+        animation += 1
+        let mine = animation
         model.hostGrown = true
-        offFrame = window.frame
-        AboutSession.shared.restFrame = window.frame
-        let screen = (window.screen ?? NSScreen.main)?.visibleFrame ?? window.frame
-        let height = (screen.height * 0.75).rounded()
-        let width = min((height * 1.1).rounded(), (screen.width * 0.9).rounded())
-        let frame = window.frameRect(forContentRect: NSRect(
-            x: (screen.midX - width / 2).rounded(), y: (screen.midY - height / 2).rounded(), width: width, height: height))
-        animate(window, to: frame, expanded: true, duration: 0.7)
+        let fadeDuration = reduceMotion ? 0 : Self.textFadeDuration
+        model.busyUntil = CACurrentMediaTime() + fadeDuration + 0.2
+
+        // Keep the compact layout in place until the text has fully faded.
+        withAnimation(textFade, completionCriteria: .removed) {
+            showsAboutText = false
+        } completion: {
+            guard mine == animation else { return }
+            grown = true
+            offFrame = window.frame
+            AboutSession.shared.restFrame = window.frame
+            let screen = (window.screen ?? NSScreen.main)?.visibleFrame ?? window.frame
+            let height = (screen.height * 0.75).rounded()
+            let width = min((height * 1.1).rounded(), (screen.width * 0.9).rounded())
+            let frame = window.frameRect(forContentRect: NSRect(
+                x: (screen.midX - width / 2).rounded(), y: (screen.midY - height / 2).rounded(), width: width, height: height))
+            animate(window, to: frame, expanded: true, duration: 0.7)
+        }
     }
 
     /// Back to About's own frame, then its own layout.
     private func shrinkBack() {
-        guard grown else { return }
+        guard grown else {
+            if !showsAboutText { settle() }
+            return
+        }
         guard let window, let offFrame else { settle(); return }
         guard window.isVisible else { reset(); return }
-        animate(window, to: offFrame, expanded: false, duration: 0.5) { grown = false }
+        animate(window, to: offFrame, expanded: false, duration: 0.6) {
+            grown = false
+            withAnimation(textFade) { showsAboutText = true }
+        }
     }
 
     /// Moves the window, with the power button locked until it's there.

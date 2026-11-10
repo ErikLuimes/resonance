@@ -12,6 +12,7 @@ import SwiftUI
 /// design/crt-monitor/README.md; the reference is design/crt-monitor/mockup-3d.html.
 struct MonitorDesk: NSViewRepresentable {
     let store: PlayerStore
+    let onPower: () -> Void
 
     func makeCoordinator() -> DeskScene? { DeskScene.make() }
 
@@ -20,11 +21,13 @@ struct MonitorDesk: NSViewRepresentable {
             SCNView.Option.preferredRenderingAPI.rawValue: SCNRenderingAPI.metal.rawValue,
         ])
         context.coordinator?.attach(to: view, store: store)
+        context.coordinator?.onPower = onPower
         return view
     }
 
     func updateNSView(_ view: DeskView, context: Context) {
         context.coordinator?.store = store
+        context.coordinator?.onPower = onPower
     }
 
     static func dismantleNSView(_ view: DeskView, coordinator: DeskScene?) {
@@ -55,8 +58,13 @@ final class DeskView: SCNView {
     }
 
     override func mouseMoved(with event: NSEvent) {
-        let hot = desk?.isClickable(at: convert(event.locationInWindow, from: nil)) ?? false
+        let point = convert(event.locationInWindow, from: nil)
+        let hot = desk?.isClickable(at: point) ?? false
         (hot ? NSCursor.pointingHand : NSCursor.arrow).set()
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        mouseMoved(with: event)
     }
 
     override func mouseExited(with event: NSEvent) {
@@ -99,6 +107,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     let scene: SCNScene
     nonisolated let tube: TubePass
     var store: PlayerStore?
+    var onPower: (() -> Void)?
     private weak var view: DeskView?
     private var link: CADisplayLink?
     private var keyMonitor: Any?
@@ -118,8 +127,12 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     private var frames: UInt32 = 0
     private var targetHeight = 0
 
-    // The camera's glide, and the power it follows.
+    // The camera's power glide and its gentle drift while on.
     private var glide = (from: DeskScene.restPose, to: DeskScene.restPose, start: 0.0, duration: 1.0)
+    private var bodyDrift = CameraNoise(interval: 3...7)
+    private var handDrift = CameraNoise(interval: 0.6...1.5)
+    private var driftRate: Float = 0
+    private var driftResumeAt: Double = 0
     private var lastPower = MonitorModel.Power.off
     private var lastResets = -1
     private var buttonPressedAt = -10.0
@@ -133,6 +146,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     /// (SHIFT LOCK until it's clicked again, as on the C64).
     private var latched = Set<C64Key>()
     private var taps: [C64Key: Double] = [:]
+    private var keysDownLastFrame = Set<C64Key>()
 
     /// The desk, or nil without the scene or Metal. Loading the scene takes
     /// a few tenths of a second, so it's kept for the next time About opens;
@@ -351,11 +365,14 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     }
 
     private func detach() {
+        onPower = nil
         keyboardHeld = [:]
         modifiersHeld = []
         mouseHeld = nil
+        driftResumeAt = 0
         latched = []
         taps = [:]
+        keysDownLastFrame = []
         link?.invalidate()
         link = nil
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
@@ -394,8 +411,9 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         }
 
         followPower(model, now: now)
+        advanceDrift(model, now: now, dt: dt)
         place(pose(at: now))
-        moveKeys(now: now, dt: dt)
+        moveKeys(now: now, dt: dt, audible: model.isOn && view?.window != nil)
 
         if let button {
             let t = now - buttonPressedAt
@@ -449,11 +467,69 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         }
         let power = model.power
         if power == .on, lastPower == .off {
+            bodyDrift = CameraNoise(interval: 3...7)
+            handDrift = CameraNoise(interval: 0.6...1.5)
+            driftRate = 0
             startGlide(to: Self.onPose, duration: 1.4, now: now)
         } else if power == .off, lastPower == .dying {
             startGlide(to: Self.restPose, duration: 1.1, now: now)
         }
         lastPower = power
+    }
+
+    private func advanceDrift(_ model: MonitorModel, now: Double, dt: Float) {
+        guard model.isOn, !model.busy, now >= glide.start + glide.duration,
+              now >= driftResumeAt, mouseHeld == nil, keyboardHeld.isEmpty, modifiersHeld.isEmpty,
+              !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        else {
+            driftRate = 0
+            return
+        }
+
+        // Slow shifts in stance with smaller, quicker hand corrections.
+        driftRate = min(1, driftRate + dt)
+        let elapsed = dt * driftRate
+        let broad = bodyDrift.advance(by: elapsed)
+        let fine = handDrift.advance(by: elapsed)
+        let yaw = (broad.x * 4.5 + fine.x * 0.65) * .pi / 180
+        let pitch = (broad.y * 1.8 + fine.y * 0.3) * .pi / 180
+        let distance = 1 + broad.z * 0.014 + fine.z * 0.003
+        let rotation = simd_quatf(angle: yaw, axis: SIMD3(0, 1, 0))
+            * simd_quatf(angle: pitch, axis: SIMD3(1, 0, 0))
+        let offset = Self.onPose.position - Self.onPose.target
+        // The power-off glide starts from this exact angle.
+        glide.to.position = Self.onPose.target + rotation.act(offset * distance)
+    }
+
+    /// Bounded random waypoints, with smooth velocity and acceleration at each join.
+    private struct CameraNoise {
+        let interval: ClosedRange<Float>
+        private var from: SIMD3<Float> = .zero
+        private var to = SIMD3<Float>.random(in: -1...1)
+        private var elapsed: Float = 0
+        private var duration: Float
+
+        init(interval: ClosedRange<Float>) {
+            self.interval = interval
+            duration = .random(in: interval)
+        }
+
+        mutating func advance(by seconds: Float) -> SIMD3<Float> {
+            elapsed += seconds
+            if elapsed >= duration {
+                elapsed -= duration
+                from = to
+                to = .random(in: -1...1)
+                duration = .random(in: interval)
+            }
+            let t = elapsed / duration
+            let eased = t * t * t * (t * (t * 6 - 15) + 10)
+            return from + (to - from) * eased
+        }
+    }
+
+    private func pauseDrift() {
+        driftResumeAt = CACurrentMediaTime() + 1.2
     }
 
     private func startGlide(to pose: Pose, duration: Double, now: Double) {
@@ -478,13 +554,19 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
 
     /// Each cap goes down in 30 ms while anything holds it and comes back
     /// up in 80; a typed character holds its keys for 90 ms.
-    private func moveKeys(now: Double, dt: Float) {
+    private func moveKeys(now: Double, dt: Float, audible: Bool) {
         var down = modifiersHeld.union(latched)
         for keys in keyboardHeld.values { down.formUnion(keys) }
         if let mouseHeld { down.insert(mouseHeld) }
         for (key, until) in taps {
             if until > now { down.insert(key) } else { taps[key] = nil }
         }
+        if audible {
+            // A chord (such as SHIFT + 2) should not stack several loud attacks.
+            if !down.isSubset(of: keysDownLastFrame) { MonitorSounds.shared.playKey(pressed: true) }
+            if !keysDownLastFrame.isSubset(of: down) { MonitorSounds.shared.playKey(pressed: false) }
+        }
+        keysDownLastFrame = down
         for (key, cap) in caps {
             let target: Float = down.contains(key) ? 1 : 0
             var depth = cap.depth
@@ -512,6 +594,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     /// moves the caps, and never takes the event.
     private func keyEvent(_ event: NSEvent) {
         guard let window = view?.window, event.window === window else { return }
+        pauseDrift()
         switch event.type {
         case .flagsChanged:
             modifiersHeld = C64Key.modifierKeys(event.modifierFlags)
@@ -551,10 +634,11 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         guard let name = part(at: point) else { return }
         if name == "power_button" {
             buttonPressedAt = CACurrentMediaTime()
-            MonitorModel.shared.pressPower(store: store)
+            if let onPower { onPower() } else { MonitorModel.shared.pressPower(store: store) }
             return
         }
         guard let key = C64Key(nodeName: name) else { return }
+        pauseDrift()
         if key.isModifier {
             if latched.contains(key) { latched.remove(key) } else { latched.insert(key) }
             return
@@ -571,6 +655,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     }
 
     func mouseUp() {
+        if mouseHeld != nil { pauseDrift() }
         mouseHeld = nil
     }
 
