@@ -3,6 +3,29 @@
     <channel>
         <title>Resonance</title>
         <item>
+            <title>0.1.0-alpha.9</title>
+            <pubDate>Tue, 10 Nov 2026 20:34:15 +0100</pubDate>
+            <sparkle:channel>alpha</sparkle:channel>
+            <sparkle:version>9</sparkle:version>
+            <sparkle:shortVersionString>0.1.0-alpha.9</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>27.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[## Crash reports that stay on your Mac
+
+If Resonance quits unexpectedly, it now saves a report, and Settings → Crashes lists them.
+
+- **Nothing is sent.** A report only leaves your Mac when you copy it, save it or choose **Report on GitHub…**.
+- **Cleaned first.** The copy you share has your user name, your Mac's name and file paths taken out. GitHub issues are public, so read it before you post.
+- **Yours to delete**, one at a time or all at once.
+
+## And more
+
+- About Resonance has a desk now. Switch the monitor on and look around: the Credits moved there from the Help menu.
+- The window's columns hold still while you resize it, after a crash during a resize.
+- The terminal app opens straight into the player, without the logo screen.
+]]></description>
+            <enclosure url="https://github.com/ErikLuimes/resonance/releases/download/v0.1.0-alpha.9/Resonance-0.1.0-alpha.9.dmg" length="23114984" type="application/octet-stream" sparkle:edSignature="mBwM+kdG/Th6vjGKQ0+AWeOujbcb32YU/20BkLAImq7JLZOFHNQTKR8ko73zNtdmk5aPPxtUw7K01k3dlZGfBA=="/>
+        </item>
+        <item>
             <title>0.1.0-alpha.8</title>
             <pubDate>Mon, 09 Nov 2026 01:18:29 +0100</pubDate>
             <sparkle:channel>alpha</sparkle:channel>
