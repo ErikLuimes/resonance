@@ -20,8 +20,7 @@ struct AboutView: View {
     /// The window has grown for the monitor: it fills the window, the text is gone.
     @State private var grown = false
     /// Scene bounds and window frame share one transition clock.
-    @State private var monitorWidth: CGFloat = Self.monitorOffWidth
-    @State private var monitorOffset: CGFloat = 0
+    @State private var monitorSize = Self.monitorOffSize
     /// The window's frame before it grew, to go back to.
     @State private var offFrame: NSRect?
     /// Counts the window animations, so a finished one only acts if no
@@ -30,29 +29,27 @@ struct AboutView: View {
 
     private var model: MonitorModel { MonitorModel.shared }
 
-    static let width: CGFloat = 440
-    /// The monitor's width with About at rest, where the icon was.
-    static let monitorOffWidth: CGFloat = 320
-    /// And grown: nearly the window's width, as tall as fits.
-    static let monitorShare: CGFloat = 0.96
+    static let width: CGFloat = 360
+    /// The monitor's size with About at rest, where the icon was.
+    private static let monitorOffSize = CGSize(width: 320, height: 320 * MonitorCase.aspect)
 
     var body: some View {
         let awake = model.power != .off
-        let monitorHeight = monitorWidth * MonitorCase.aspect
-        ZStack(alignment: .top) {
-            VStack(spacing: 0) {
-                // The monitor's place in the layout; the monitor itself is
-                // drawn over it, so it can grow without moving the text.
-                Color.clear
-                    .frame(width: Self.monitorOffWidth, height: Self.monitorOffWidth * MonitorCase.aspect)
-                aboutText
-            }
-            .opacity(grown ? 0 : 1)
-            .allowsHitTesting(!grown)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: grown)
-
-            // The live 3D desk; the 2D monitor if the scene or Metal is missing.
-            // Both are 6:5, so the layout is the same either way.
+        VStack(spacing: 0) {
+            // Reserve the monitor's resting space without letting its animated
+            // size affect the window's minimum size.
+            Color.clear
+                .frame(width: Self.monitorOffSize.width, height: Self.monitorOffSize.height)
+            aboutText
+        }
+        .opacity(grown ? 0 : 1)
+        .allowsHitTesting(!grown)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: grown)
+        .multilineTextAlignment(.center)
+        .fixedSize(horizontal: false, vertical: !grown)
+        .frame(width: grown ? nil : Self.width, alignment: .top)
+        .frame(maxWidth: grown ? .infinity : nil, maxHeight: grown ? .infinity : nil, alignment: .top)
+        .overlay(alignment: .top) {
             Group {
                 if DeskScene.available {
                     MonitorDesk(store: store)
@@ -60,13 +57,9 @@ struct AboutView: View {
                     MonitorCase(store: store, live: true)
                 }
             }
-                .frame(width: monitorWidth, height: monitorHeight)
-                .offset(y: monitorOffset)
+            .frame(width: monitorSize.width, height: monitorSize.height)
         }
-        .multilineTextAlignment(.center)
-        .fixedSize(horizontal: false, vertical: !grown)
-        .frame(width: grown ? nil : Self.width, alignment: .top)
-        .frame(maxWidth: grown ? .infinity : nil, maxHeight: grown ? .infinity : nil, alignment: .top)
+        .ignoresSafeArea(.container, edges: grown ? .all : [])
         .onChange(of: awake) { _, on in
             if on { grow() } else { shrinkBack() }
         }
@@ -79,11 +72,17 @@ struct AboutView: View {
         // sight, which is what closing looks like when the window is kept.
         .onAppear {
             reset()
-            // A new instance: the window at its resting frame, whatever size it was left at.
-            if let window, let rest = AboutSession.shared.restFrame, window.frame != rest {
+            guard let window else { return }
+            // Restore the resting frame and apply the compact width on first open.
+            var content = window.contentRect(forFrameRect: AboutSession.shared.restFrame ?? window.frame)
+            content.origin.x += (content.width - Self.width) / 2
+            content.size.width = Self.width
+            let rest = window.frameRect(forContentRect: content)
+            if window.frame != rest {
                 window.setFrame(rest, display: false)
             }
-            window?.styleMask.remove(.resizable)
+            window.styleMask.remove(.resizable)
+            window.standardWindowButton(.zoomButton)?.isHidden = true
         }
         .onDisappear { reset() }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { note in
@@ -115,8 +114,7 @@ struct AboutView: View {
             window.setFrame(rest, display: false)
         }
         grown = false
-        monitorWidth = Self.monitorOffWidth
-        monitorOffset = 0
+        monitorSize = Self.monitorOffSize
     }
 
     private var aboutText: some View {
@@ -161,7 +159,7 @@ struct AboutView: View {
                 .foregroundStyle(.secondary)
                 .padding(.top, 14)
         }
-        .padding(.horizontal, 28)
+        .padding(.horizontal, 20)
         .padding(.bottom, 24)
     }
 
@@ -207,13 +205,8 @@ struct AboutView: View {
         let seconds = reduceMotion ? 0 : duration
         model.busyUntil = CACurrentMediaTime() + seconds + 0.2
         let startFrame = window.frame
-        let startWidth = monitorWidth
-        let startOffset = monitorOffset
-        let content = window.contentRect(forFrameRect: frame).size
-        let endWidth = expanded
-            ? min(content.width * Self.monitorShare, max(0, content.height - 40) / MonitorCase.aspect)
-            : Self.monitorOffWidth
-        let endOffset = expanded ? max(0, (content.height - endWidth * MonitorCase.aspect) / 2) : 0
+        let startSize = monitorSize
+        let endSize = expanded ? window.contentRect(forFrameRect: frame).size : Self.monitorOffSize
         // Resize the native window and its embedded view from the same progress.
         // SceneKit keeps its own camera glide; only its host bounds change here.
         Task { @MainActor in
@@ -226,8 +219,9 @@ struct AboutView: View {
                     y: startFrame.minY + (frame.minY - startFrame.minY) * t,
                     width: startFrame.width + (frame.width - startFrame.width) * t,
                     height: startFrame.height + (frame.height - startFrame.height) * t)
-                monitorWidth = startWidth + (endWidth - startWidth) * t
-                monitorOffset = startOffset + (endOffset - startOffset) * t
+                monitorSize = CGSize(
+                    width: startSize.width + (endSize.width - startSize.width) * t,
+                    height: startSize.height + (endSize.height - startSize.height) * t)
                 window.setFrame(next, display: true)
                 if progress >= 1 {
                     model.busyUntil = 0

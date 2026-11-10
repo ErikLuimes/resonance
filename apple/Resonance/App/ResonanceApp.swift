@@ -37,6 +37,7 @@ struct ResonanceApp: App {
                 // The monitor in it plays from the store.
                 .environment(appDelegate.store)
                 .windowMinimizeBehavior(.disabled)
+                .windowFullScreenBehavior(.disabled)
         }
         .windowStyle(.hiddenTitleBar)
         // Its content's size at rest; the monitor grows it itself, and the
