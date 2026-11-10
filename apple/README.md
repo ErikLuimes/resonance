@@ -439,6 +439,8 @@ Each release:
    `https://github.com/ErikLuimes/resonance/releases/download/v<version>/<name>.dmg`.
    It stops early if the key is missing or doesn't match the build
    setting, or if the build number isn't higher than the feed's newest.
+   It ends with the next steps and the values the GitHub release needs:
+   tag, title, notes, file, and a link that opens the form with them.
 4. Commit and push the version change and the release notes, but **not
    `site/appcast.xml` yet**.
 5. On GitHub, draft a release tagged `v<version>` (`v0.1.0-alpha.3`) on
@@ -448,8 +450,18 @@ Each release:
 6. Then commit and push `site/appcast.xml`. The website deploys it and
    copies of Resonance find the update within a day, or at once with
    Check for Updates….
-7. Check: https://erikluimes.github.io/resonance/appcast.xml lists the new
-   version, and Check for Updates… in the previous release offers it.
+7. Check, once the site has deployed: `scripts/release-check.sh` looks at
+   the release from the outside and says ok, warn or FAIL for each part,
+   with what to do about a failure. It covers the GitHub release (published,
+   pre-release, title, file, tag), the download (it's the file in
+   `build/release`, notarized), the live feed (newest entry, channel, link,
+   length, notes) and the website's Download button. It can't check that
+   Check for Updates… in the previous release offers the new one: try that
+   yourself.
+
+`scripts/publish.sh` does steps 3, 5 and 6 in one run, asking before it
+publishes. It wants step 4 done first: the version change and the notes
+committed and pushed.
 
 Why this order: the tag marks the source of the release, so it goes on
 the commit with the version change. The `.dmg` isn't in git at all; it's

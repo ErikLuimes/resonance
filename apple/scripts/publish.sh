@@ -68,7 +68,7 @@ done
 echo "Checks passed: data sets x$EXTRACTOR and e$EMBEDDING are published."
 
 # 2. Build
-"$APPLE/scripts/release.sh"
+RESONANCE_PUBLISHING=1 "$APPLE/scripts/release.sh"
 DMG="$(ls -t "$APPLE"/build/release/Resonance-"$VERSION"*.dmg 2>/dev/null | head -1 || true)"
 [ -n "$DMG" ] && [ -f "$DMG" ] || fail "release.sh left no .dmg for $VERSION in apple/build/release"
 
@@ -91,4 +91,5 @@ git fetch -q origin "refs/tags/$TAG:refs/tags/$TAG"
 git add "$APPCAST"
 git commit -q -m "Appcast: $VERSION"
 git push origin main
-echo "Published $TAG."
+echo "Published $TAG. Once the site has deployed, check it from the outside:"
+echo "  apple/scripts/release-check.sh"

@@ -246,6 +246,41 @@ open(path, "w").write(re.sub(r"<item>.*?</item>", name, feed, flags=re.S))
 EOF
 cp "$FEED/appcast.xml" "$APPCAST"
 
-ls -lh "$OUT/$NAME.dmg"
-shasum -a 256 "$OUT/$NAME.dmg"
-echo "Updated $APPCAST: commit and push it after publishing the GitHub release."
+ROOT="$(cd "$APPLE/.." && pwd)"
+REPO="${RESONANCE_REPO:-ErikLuimes/resonance}"
+SIZE="$(stat -f %z "$OUT/$NAME.dmg")"
+echo
+echo "Built $NAME.dmg"
+echo "  File     ${OUT#$ROOT/}/$NAME.dmg"
+echo "  Size     $SIZE bytes"
+echo "  SHA-256  $(shasum -a 256 "$OUT/$NAME.dmg" | cut -d' ' -f1)"
+echo "  Feed     ${APPCAST#$ROOT/} has the entry for build $BUILD"
+
+# publish.sh does the rest itself. By hand, these are the values the GitHub
+# release needs, in the order that never leaves the feed pointing at a
+# missing download. The link opens the form with the first three filled in.
+if [ -z "${RESONANCE_PUBLISHING:-}" ]; then
+    HEAD_COMMIT="$(git -C "$ROOT" rev-parse --short HEAD)"
+    cat <<EOF
+
+Next, in this order:
+
+1. Commit and push the version change and the release notes, if they aren't
+   yet. Not ${APPCAST#$ROOT/}: that goes last.
+
+2. Draft the GitHub release, and publish it:
+   https://github.com/$REPO/releases/new?tag=v$VERSION&title=Resonance%20$VERSION${STAGE:+&prerelease=1}
+
+     Tag          v$VERSION, on main (HEAD is $HEAD_COMMIT; push first)
+     Title        Resonance $VERSION
+     Notes        paste ${NOTES#$ROOT/}$([ -f "$NOTES" ] || echo "  (missing!)")
+     Attach       ${OUT#$ROOT/}/$NAME.dmg, without renaming it
+     Pre-release  $([ -n "$STAGE" ] && echo "yes: tick \"Set as a pre-release\"" || echo "no: this is a final release")
+
+3. Commit and push ${APPCAST#$ROOT/}. Installed copies are offered the
+   update from then on.
+
+4. Check it all from the outside, once the site has deployed:
+   apple/scripts/release-check.sh
+EOF
+fi
