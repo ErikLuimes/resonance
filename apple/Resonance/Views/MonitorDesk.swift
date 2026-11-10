@@ -867,7 +867,11 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
 
     private func place(_ pose: Pose) {
         cameraNode.simdPosition = pose.position
-        cameraNode.simdLook(at: pose.target)
+        // With the up vector given, the camera's angle follows from the pose
+        // alone. Without it SceneKit turns the camera from the angle it had,
+        // and each lean over the cartridge left it rolled: 2° after one,
+        // still there back at the desk and the next time About opened.
+        cameraNode.simdLook(at: pose.target, up: SIMD3(0, 1, 0), localFront: SIMD3(0, 0, -1))
     }
 
     // MARK: The keys

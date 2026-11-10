@@ -106,6 +106,8 @@ struct MonitorDeskTests {
         desk.pointerMoved(to: point(of: power))
         desk.update(at: now + 2.2)
         #expect(simd_distance(camera.simdWorldPosition, leanedPosition) < 0.001)
+        // The lean pitches the camera and leaves the horizon level.
+        #expect(abs(camera.simdWorldRight.y) < 0.001)
 
         let raisedPoint = point(of: button)
         #expect(view.bounds.contains(raisedPoint))
