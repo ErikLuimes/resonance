@@ -4,13 +4,12 @@ import PhosphorCore
 /// The About window, in the Mac's classic shape with one difference: where
 /// the icon would be stands a 1084S monitor, with the icon as a sticker on
 /// its bezel. Then the name and version, a line on what it is, who it's
-/// built on, the license, and buttons to the acknowledgments, the website
+/// built on, the license, and links to the credits intro, licenses, the website
 /// and the source. At rest its size follows its text and nothing else.
 /// Switched on, the window grows to most of the screen with the monitor
 /// filling it and the text gone, and shrinks back when the tube is off.
 struct AboutView: View {
     @Environment(\.openWindow) private var openWindow
-    @Environment(\.openURL) private var openURL
 
     static let website = URL(string: "https://useresonance.app")!
     static let source = URL(string: "https://github.com/ErikLuimes/resonance")!
@@ -20,9 +19,9 @@ struct AboutView: View {
 
     /// The window has grown for the monitor: it fills the window, the text is gone.
     @State private var grown = false
-    /// The window's content size, live, which the grown layout follows as
-    /// the window animates.
-    @State private var windowSize = CGSize.zero
+    /// Scene bounds and window frame share one transition clock.
+    @State private var monitorWidth: CGFloat = Self.monitorOffWidth
+    @State private var monitorOffset: CGFloat = 0
     /// The window's frame before it grew, to go back to.
     @State private var offFrame: NSRect?
     /// Counts the window animations, so a finished one only acts if no
@@ -39,9 +38,6 @@ struct AboutView: View {
 
     var body: some View {
         let awake = model.power != .off
-        let monitorWidth = grown
-            ? min(windowSize.width * Self.monitorShare, max(0, windowSize.height - 40) / MonitorCase.aspect)
-            : Self.monitorOffWidth
         let monitorHeight = monitorWidth * MonitorCase.aspect
         ZStack(alignment: .top) {
             VStack(spacing: 0) {
@@ -53,7 +49,7 @@ struct AboutView: View {
             }
             .opacity(grown ? 0 : 1)
             .allowsHitTesting(!grown)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: grown)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: grown)
 
             // The live 3D desk; the 2D monitor if the scene or Metal is missing.
             // Both are 6:5, so the layout is the same either way.
@@ -65,18 +61,12 @@ struct AboutView: View {
                 }
             }
                 .frame(width: monitorWidth, height: monitorHeight)
-                .offset(y: grown ? max(0, (windowSize.height - monitorHeight) / 2) : 0)
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.7), value: grown)
+                .offset(y: monitorOffset)
         }
         .multilineTextAlignment(.center)
         .fixedSize(horizontal: false, vertical: !grown)
         .frame(width: grown ? nil : Self.width, alignment: .top)
         .frame(maxWidth: grown ? .infinity : nil, maxHeight: grown ? .infinity : nil, alignment: .top)
-        .background {
-            GeometryReader { geometry in
-                Color.clear.onChange(of: geometry.size, initial: true) { _, size in windowSize = size }
-            }
-        }
         .onChange(of: awake) { _, on in
             if on { grow() } else { shrinkBack() }
         }
@@ -120,11 +110,13 @@ struct AboutView: View {
 
     /// About's window straight back to its own frame, the layout at rest.
     private func settle() {
+        animation += 1
         if grown, let window, let rest = offFrame ?? AboutSession.shared.restFrame {
-            animation += 1
             window.setFrame(rest, display: false)
         }
         grown = false
+        monitorWidth = Self.monitorOffWidth
+        monitorOffset = 0
     }
 
     private var aboutText: some View {
@@ -143,34 +135,31 @@ struct AboutView: View {
                 .font(.callout)
                 .padding(.top, 14)
 
-            VStack(spacing: 3) {
-                // The link as literal markdown: an interpolated link
-                // isn't parsed.
-                Text("Built on [Phosphor](https://github.com/sandlbn/Phosphor) \\((phosphorVersion())) by Marcin Spoczynski.")
-                    .tint(.accentColor)
-                Text("SID emulation by reSIDfp, SIDLite and reSID.")
+            Text("Try the power button.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.top, 6)
+
+            Text("Built on Phosphor \(phosphorVersion()) by Marcin Spoczynski.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .tint(.accentColor)
+                .padding(.top, 18)
+
+            HStack(spacing: 16) {
+                Button("Credits intro…") { openWindow(id: CreditsView.windowID) }
+                Button("Licenses") { openWindow(id: AcknowledgmentsView.windowID) }
+                Link("Website ↗", destination: Self.website)
+                Link("Source ↗", destination: Self.source)
             }
+            .buttonStyle(.link)
             .font(.caption)
-            .foregroundStyle(.secondary)
             .padding(.top, 14)
 
-            Text("© 2026 Erik Luimes. MIT license; distributed under the GNU GPL, version 3.")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            Text("© 2026 Erik Luimes. MIT; distributed under GNU GPL v3.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
                 .padding(.top, 14)
-
-            VStack(spacing: 8) {
-                HStack(spacing: 8) {
-                    Button("Credits") { openWindow(id: CreditsView.windowID) }
-                    Button("Acknowledgments") { openWindow(id: AcknowledgmentsView.windowID) }
-                }
-                HStack(spacing: 8) {
-                    Button("Website") { openURL(Self.website) }
-                    Button("Source Code") { openURL(Self.source) }
-                }
-            }
-            .controlSize(.small)
-            .padding(.top, 18)
         }
         .padding(.horizontal, 28)
         .padding(.bottom, 24)
@@ -184,9 +173,9 @@ struct AboutView: View {
     /// wider than tall, centered on the screen, over 0.7 s; the layout above
     /// follows its size as it goes, so the monitor grows with it.
     private func grow() {
+        guard let window else { return }
         grown = true
         model.hostGrown = true
-        guard let window else { return }
         offFrame = window.frame
         AboutSession.shared.restFrame = window.frame
         let screen = (window.screen ?? NSScreen.main)?.visibleFrame ?? window.frame
@@ -194,21 +183,22 @@ struct AboutView: View {
         let width = min((height * 1.1).rounded(), (screen.width * 0.9).rounded())
         let frame = window.frameRect(forContentRect: NSRect(
             x: (screen.midX - width / 2).rounded(), y: (screen.midY - height / 2).rounded(), width: width, height: height))
-        animate(window, to: frame, duration: 0.7)
+        animate(window, to: frame, expanded: true, duration: 0.7)
     }
 
     /// Back to About's own frame, then its own layout.
     private func shrinkBack() {
         guard grown else { return }
-        guard let window, let offFrame else { grown = false; return }
+        guard let window, let offFrame else { settle(); return }
         guard window.isVisible else { reset(); return }
-        animate(window, to: offFrame, duration: 0.5) { grown = false }
+        animate(window, to: offFrame, expanded: false, duration: 0.5) { grown = false }
     }
 
     /// Moves the window, with the power button locked until it's there.
     private func animate(
         _ window: NSWindow,
         to frame: NSRect,
+        expanded: Bool,
         duration: Double,
         then done: (@MainActor @Sendable () -> Void)? = nil
     ) {
@@ -216,17 +206,37 @@ struct AboutView: View {
         let mine = animation
         let seconds = reduceMotion ? 0 : duration
         model.busyUntil = CACurrentMediaTime() + seconds + 0.2
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = seconds
-            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            window.animator().setFrame(frame, display: true)
-        }, completionHandler: {
-            Task { @MainActor in
-                guard mine == animation else { return }
-                model.busyUntil = 0
-                done?()
+        let startFrame = window.frame
+        let startWidth = monitorWidth
+        let startOffset = monitorOffset
+        let content = window.contentRect(forFrameRect: frame).size
+        let endWidth = expanded
+            ? min(content.width * Self.monitorShare, max(0, content.height - 40) / MonitorCase.aspect)
+            : Self.monitorOffWidth
+        let endOffset = expanded ? max(0, (content.height - endWidth * MonitorCase.aspect) / 2) : 0
+        // Resize the native window and its embedded view from the same progress.
+        // SceneKit keeps its own camera glide; only its host bounds change here.
+        Task { @MainActor in
+            let start = CACurrentMediaTime()
+            while mine == animation {
+                let progress = seconds > 0 ? min(1, (CACurrentMediaTime() - start) / seconds) : 1
+                let t = CGFloat(progress * progress * (3 - 2 * progress))
+                let next = NSRect(
+                    x: startFrame.minX + (frame.minX - startFrame.minX) * t,
+                    y: startFrame.minY + (frame.minY - startFrame.minY) * t,
+                    width: startFrame.width + (frame.width - startFrame.width) * t,
+                    height: startFrame.height + (frame.height - startFrame.height) * t)
+                monitorWidth = startWidth + (endWidth - startWidth) * t
+                monitorOffset = startOffset + (endOffset - startOffset) * t
+                window.setFrame(next, display: true)
+                if progress >= 1 {
+                    model.busyUntil = 0
+                    done?()
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(8))
             }
-        })
+        }
     }
 
     /// "0.1.0-alpha.4 (4)": the version with its release stage, and the
