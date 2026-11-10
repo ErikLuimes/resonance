@@ -4,6 +4,35 @@ import Testing
 
 @MainActor
 struct MonitorScreenTests {
+    @Test func rasterMatchesEveryGlyphInBothVideoModesAndWithACursor() {
+        var frame = C64Frame()
+        let glyphCount = C64Font.rows.count / 8
+        for cell in frame.cells.indices {
+            frame.cells[cell] = UInt16(cell % glyphCount)
+            frame.reversed[cell] = (cell / glyphCount) % 2 == 1
+        }
+        for cursor: (x: Int, y: Int)? in [nil, (0, 0), (39, 24), (17, 12)] {
+            var pixels = [UInt32](repeating: 0, count: C64Frame.width * C64Frame.height)
+            frame.render(into: &pixels, cursor: cursor)
+            var expected = [UInt32](repeating: C64Frame.foreground, count: pixels.count)
+            for y in 0..<C64Frame.rows {
+                for x in 0..<C64Frame.columns {
+                    let cell = y * C64Frame.columns + x
+                    let reversed = frame.reversed[cell] != (cursor?.x == x && cursor?.y == y)
+                    for row in 0..<8 {
+                        let bits = C64Font.rows[Int(frame.cells[cell]) * 8 + row]
+                        for bit in 0..<8 {
+                            let lit = bits & (1 << (7 - bit)) != 0
+                            let offset = (C64Frame.originY + y * 8 + row) * C64Frame.width + C64Frame.originX + x * 8 + bit
+                            expected[offset] = lit != reversed ? C64Frame.foreground : C64Frame.background
+                        }
+                    }
+                }
+            }
+            #expect(pixels == expected)
+        }
+    }
+
     @Test func startupListsTheSkullBeforeLoadingResonance() throws {
         let monitor = MonitorModel()
         var keys = ""

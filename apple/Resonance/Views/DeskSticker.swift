@@ -286,22 +286,13 @@ final class DeskSticker {
     private func carryDistance(for grab: Grab, in view: SCNView) -> Float? {
         guard let eye = view.pointOfView?.simdWorldPosition else { return nil }
         let grip = CGPoint(x: grab.point.x + grab.pinOffset.x, y: grab.point.y + grab.pinOffset.y)
-        let pin = view.projectPoint(SCNVector3(points[grab.pin]))
-        let shift = CGPoint(x: grip.x - pin.x, y: grip.y - pin.y)
-        let last = Self.side - 1
-        var depths: [CGFloat] = []
-        for i in [grab.pin, Self.count / 2, 0, last, last * Self.side, Self.count - 1] {
-            let p = view.projectPoint(SCNVector3(points[i]))
-            let sample = CGPoint(x: p.x + shift.x, y: p.y + shift.y)
-            if let hit = visibleHit(at: sample, in: view) {
-                depths.append(view.projectPoint(hit.worldCoordinates).z)
-            }
-        }
-        let depth = depths.min() ?? grab.depth
+        // One camera ray through the pointer is enough while carrying a prop.
+        // Detailed surface fitting is deferred until the mouse is released.
+        let hit = visibleHit(at: grab.point, in: view)
+        let depth = hit.map { view.projectPoint($0.worldCoordinates).z } ?? grab.depth
         let surface = SIMD3<Float>(view.unprojectPoint(SCNVector3(grip.x, grip.y, depth)))
-        // The gap leaves room for the whole sheet, including the edges that
-        // lag behind the hand. Over empty space the paper stays lifted.
-        let clearance: Float = depths.isEmpty ? 2.0 : 0.85
+        // Leave room for the curled sheet in front of the hit object.
+        let clearance: Float = hit == nil ? 2.0 : 0.85
         return max(0.5, simd_distance(eye, surface) - clearance)
     }
 
@@ -484,7 +475,9 @@ final class DeskSticker {
                 previous[i] = points[i] - SIMD3(travel.x * 0.68, max(0, -travel.y) * 0.14, travel.z * 0.68)
             }
         }
-        resolveMeshCollisions(from: before, excluding: pinned)
+        // Carrying depth already keeps the held prop in front of the pointer's
+        // hit. Per-vertex mesh collisions are only needed after release.
+        if grab == nil { resolveMeshCollisions(from: before, excluding: pinned) }
         if let elapsed = falling, elapsed > 0.4,
            (points.allSatisfy({ $0.y < Self.floor + 0.014 })
             || (elapsed > 1.2 && points.indices.allSatisfy {

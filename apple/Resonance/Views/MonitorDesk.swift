@@ -631,7 +631,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     func update(at now: Double) {
         view?.flushPointerMovement()
         let model = MonitorModel.shared
-        let picture = model.tick(store: store)
+        let picture = model.tick(store: store, updatesScreen: creditsDisk?.isShowingIntro != true)
         let elapsed = lastStep == 0 ? 0 : max(0, now - lastStep)
         let dt = Float(min(0.1, elapsed))
         lastStep = now
@@ -707,9 +707,12 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         }
         let glassPixels = Float(height) * Self.glassHalf.y / Self.meshHalf.y
         frames &+= 1
+        // The normal raster occupies 93% of the glass (Monitor.metal). The
+        // intro has its own dark framing, so let it fill the glass instead.
+        let rasterScale: Float = creditsDisk?.isShowingIntro == true ? 1 / 0.93 : 1
         let uniforms = TubeUniforms(
             meshHalf: Self.meshHalf, glassHalf: Self.glassHalf,
-            scale: SIMD2(picture.scaleX, picture.scaleY),
+            scale: SIMD2(picture.scaleX, picture.scaleY) * rasterScale,
             linePx: glassPixels * 0.93 / Float(C64Frame.height),
             minWidth: 1.4 / (glassPixels * 0.5),
             time: Float(now.truncatingRemainder(dividingBy: 1000)),

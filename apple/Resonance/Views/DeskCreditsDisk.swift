@@ -52,7 +52,7 @@ final class DeskCreditsDisk {
     private var hasShownFrame = false
     private var tune: CreditsScene.Tune?
     private var still = false
-    private var lastFrame = -1
+    private var frameClock = ScreenRefreshClock(framesPerSecond: ScreenRefreshClock.creditsFramesPerSecond)
     private var driveSoundStarted = false
     private var bend: Float?
 
@@ -101,24 +101,29 @@ final class DeskCreditsDisk {
         node = SCNNode(geometry: jacket)
         node.name = Self.name
         root.addChildNode(node)
-        // A thin, depth-tested rim follows the sleeve without a full-screen outline pass.
-        let rimMaterial = SCNMaterial()
-        rimMaterial.lightingModel = .constant
-        rimMaterial.diffuse.contents = NSColor(srgbRed: 0.75, green: 0.82, blue: 0.92, alpha: 1)
-        for axis in 0..<2 {
-            for sign: Float in [-1, 1] {
-                let rim = SCNBox(width: axis == 0 ? CGFloat(Self.side) : 0.012,
-                                 height: 0.004,
-                                 length: axis == 0 ? 0.012 : CGFloat(Self.side),
-                                 chamferRadius: 0)
-                rim.materials = [rimMaterial]
-                let edge = SCNNode(geometry: rim)
-                edge.castsShadow = false
-                edge.simdPosition = axis == 0
-                    ? [0, Self.thickness / 2 + 0.003, sign * Self.side / 2]
-                    : [sign * Self.side / 2, Self.thickness / 2 + 0.003, 0]
-                outline.addChildNode(edge)
-            }
+        // Inverted hulls leave only the silhouette visible around the opaque jacket.
+        // Layer wider, fainter shells outside the bright rim without scene-wide bloom.
+        for (width, alpha): (Float, CGFloat) in [(0.024, 0.10), (0.014, 0.20), (0.006, 0.85)] {
+            guard let geometry = jacket.copy() as? SCNGeometry else { continue }
+            geometry.shaderModifiers = nil
+            let material = SCNMaterial()
+            material.lightingModel = .constant
+            material.diffuse.contents = NSColor.black
+            material.emission.contents = NSColor.white
+            material.transparency = alpha
+            material.cullMode = .front
+            material.readsFromDepthBuffer = true
+            material.writesToDepthBuffer = false
+            geometry.materials = [material, material]
+            let shell = SCNNode(geometry: geometry)
+            shell.name = "credits_floppy_glow"
+            shell.castsShadow = false
+            shell.renderingOrder = node.renderingOrder + 1
+            // Expand by the same distance along each axis, including the thin edge.
+            shell.simdScale = [1 + 2 * width / Self.side,
+                               1 + 2 * width / Self.thickness,
+                               1 + 2 * width / Self.side]
+            outline.addChildNode(shell)
         }
         outline.isHidden = true
         node.addChildNode(outline)
@@ -151,7 +156,7 @@ final class DeskCreditsDisk {
         self.tune = tune
         still = reduceMotion
         renderer = CreditsTubeRenderer()
-        lastFrame = -1
+        frameClock.reset()
         hasShownFrame = false
         phase = .loading(now)
         Task.detached(priority: .utility) { CreditsScene.prepareHeart() }
@@ -172,8 +177,8 @@ final class DeskCreditsDisk {
     }
 
     func setLabelHighlight(available: Bool, hovered: Bool) {
-        outline.isHidden = !available
-        outline.opacity = hovered ? 0.85 : 0.25
+        outline.isHidden = !available || !hovered
+        outline.opacity = 0.85
     }
 
     func eject(at now: Double) {
@@ -240,9 +245,7 @@ final class DeskCreditsDisk {
         pendingPixels = nil
         if pixels != nil { hasShownFrame = true }
 
-        let frame = Int((now - start) * 30)
-        if renderTask == nil, frame != lastFrame {
-            lastFrame = frame
+        if renderTask == nil, frameClock.advance(at: now) != nil {
             let elapsed = seconds(since: start, at: now)
             renderTask = Task { [weak self, tune, still] in
                 let rendered = await renderer.render(seconds: elapsed, tune: tune, still: still)
@@ -429,22 +432,25 @@ final class DeskCreditsDisk {
 
 /// Render the intro into the C64 raster without blocking SceneKit's input thread.
 private actor CreditsTubeRenderer {
-    private let renderer = CreditsRenderer()
+    private let renderer = CreditsRenderer(fineScale: max(
+        Double(C64Frame.width) / CreditsScene.width, Double(C64Frame.height) / CreditsScene.height))
+    private let bitmap: CGContext? = {
+        let format = CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.premultipliedFirst.rawValue
+        return CGContext(data: nil, width: C64Frame.width, height: C64Frame.height,
+                         bitsPerComponent: 8, bytesPerRow: C64Frame.width * 4,
+                         space: CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB(),
+                         bitmapInfo: format)
+    }()
 
     func render(seconds: Double, tune: CreditsScene.Tune?, still: Bool) -> [UInt32]? {
-        guard !Task.isCancelled, let image = renderer.image(seconds: seconds, tune: tune, still: still) else { return nil }
-        let width = C64Frame.width, height = C64Frame.height
-        var pixels = [UInt32](repeating: 0, count: width * height)
-        let drawn = pixels.withUnsafeMutableBytes { bytes -> Bool in
-            let format = CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.premultipliedFirst.rawValue
-            guard let context = CGContext(data: bytes.baseAddress, width: width, height: height,
-                                          bitsPerComponent: 8, bytesPerRow: width * 4,
-                                          space: CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB(),
-                                          bitmapInfo: format) else { return false }
-            context.interpolationQuality = image.width > width ? .medium : .none
-            context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
-            return true
-        }
-        return drawn ? pixels : nil
+        guard !Task.isCancelled, let bitmap,
+              let image = renderer.image(seconds: seconds, tune: tune, still: still) else { return nil }
+        bitmap.interpolationQuality = image.width > C64Frame.width ? .medium : .none
+        bitmap.draw(image, in: CGRect(x: 0, y: 0, width: C64Frame.width, height: C64Frame.height))
+        guard let data = bitmap.data else { return nil }
+        // Reuse the drawing context; copy just the finished pixels for the
+        // render thread so the next background frame cannot overwrite them.
+        return Array(UnsafeBufferPointer(start: data.assumingMemoryBound(to: UInt32.self),
+                                         count: C64Frame.width * C64Frame.height))
     }
 }

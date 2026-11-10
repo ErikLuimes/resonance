@@ -58,6 +58,34 @@ nonisolated enum C64Font {
     }
 }
 
+/// A content clock independent of the display's refresh rate. Late frames skip
+/// straight to the current time; they never queue a burst of catch-up work.
+nonisolated struct ScreenRefreshClock {
+    static let palFramesPerSecond = 50.0
+    static let creditsFramesPerSecond = palFramesPerSecond / 2
+    private let interval: Double
+    private var next: Double?
+    private var last: Double?
+
+    init(framesPerSecond: Double) {
+        precondition(framesPerSecond > 0)
+        interval = 1 / framesPerSecond
+    }
+
+    mutating func reset() { next = nil; last = nil }
+
+    /// Elapsed time since the last accepted frame, or nil when it is too soon.
+    mutating func advance(at now: Double) -> Double? {
+        if let last, now < last { reset() }
+        guard next == nil || now + 1e-9 >= next! else { return nil }
+        let elapsed = last.map { max(0, now - $0) } ?? 0
+        let due = next ?? now
+        next = due + (floor(max(0, now - due) / interval + 1e-9) + 1) * interval
+        last = now
+        return elapsed
+    }
+}
+
 /// 40×25 cells over a 384×272 picture: the C64's 320×200 with its border.
 /// Reverse video is the only emphasis. `render` writes BGRA pixels.
 nonisolated struct C64Frame: Equatable {
@@ -101,23 +129,31 @@ nonisolated struct C64Frame: Equatable {
         reversed.append(contentsOf: [Bool](repeating: false, count: Self.columns))
     }
 
+    // Each possible bitmap row, already expanded to eight BGRA pixels (8 KiB).
+    // Reverse video just complements the row byte, including the cursor.
+    private static let pixelRows: [UInt32] = (0..<256).flatMap { bits in
+        (0..<8).map { bit in bits & (1 << (7 - bit)) != 0 ? foreground : background }
+    }
+
     func render(into pixels: inout [UInt32], cursor: (x: Int, y: Int)?) {
+        precondition(pixels.count == Self.width * Self.height)
         pixels.withUnsafeMutableBufferPointer { out in
-            for i in out.indices { out[i] = Self.foreground }
-            C64Font.rows.withUnsafeBufferPointer { font in
-                for y in 0..<Self.rows {
-                    for x in 0..<Self.columns {
-                        let cell = y * Self.columns + x
-                        var flag = reversed[cell]
-                        if let cursor, cursor.x == x, cursor.y == y { flag.toggle() }
-                        let glyph = Int(cells[cell]) * 8
-                        let left = Self.originX + x * 8
-                        for row in 0..<8 {
-                            let bits = font[glyph + row]
-                            let base = (Self.originY + y * 8 + row) * Self.width + left
-                            for bit in 0..<8 {
-                                let on = (bits >> UInt8(7 - bit)) & 1 == 1
-                                out[base + bit] = on != flag ? Self.foreground : Self.background
+            let destination = out.baseAddress!
+            destination.update(repeating: Self.foreground, count: out.count)
+            Self.pixelRows.withUnsafeBufferPointer { rows in
+                C64Font.rows.withUnsafeBufferPointer { font in
+                    for y in 0..<Self.rows {
+                        for x in 0..<Self.columns {
+                            let cell = y * Self.columns + x
+                            var flag = reversed[cell]
+                            if let cursor, cursor.x == x, cursor.y == y { flag.toggle() }
+                            let glyph = Int(cells[cell]) * 8
+                            let left = Self.originX + x * 8
+                            for row in 0..<8 {
+                                let bits = font[glyph + row] ^ (flag ? 0xFF : 0)
+                                let base = (Self.originY + y * 8 + row) * Self.width + left
+                                destination.advanced(by: base).update(
+                                    from: rows.baseAddress!.advanced(by: Int(bits) * 8), count: 8)
                             }
                         }
                     }
@@ -125,6 +161,7 @@ nonisolated struct C64Frame: Equatable {
             }
         }
     }
+
 }
 
 /// The startup disk's simulated LIST output. Each zero-block entry supplies
@@ -201,7 +238,7 @@ final class MonitorModel {
     @ObservationIgnored private var script: [Step] = []
     @ObservationIgnored private var scriptAt = 0
     @ObservationIgnored private var peaks: [Float] = [0, 0, 0]
-    @ObservationIgnored private var lastTick = 0.0
+    @ObservationIgnored private var screenClock = ScreenRefreshClock(framesPerSecond: ScreenRefreshClock.palFramesPerSecond)
     @ObservationIgnored private var tuneCount: UInt32?
     @ObservationIgnored private var freezer: SIDFreezeMonitor?
 
@@ -271,6 +308,7 @@ final class MonitorModel {
         frame.clear()
         cursor = nil
         peaks = [0, 0, 0]
+        screenClock.reset()
         selected = 0
         hostGrown = false
         hostFullscreen = false
@@ -304,6 +342,7 @@ final class MonitorModel {
         freezer = nil
         selected = 0
         peaks = [0, 0, 0]
+        screenClock.reset()
         boot()
     }
 
@@ -423,6 +462,7 @@ final class MonitorModel {
         freezer?.close()
         freezer = nil
         mode = .player
+        screenClock.reset()
         script = []
         cursor = nil
         frame.clear()
@@ -454,7 +494,7 @@ final class MonitorModel {
 
     /// Advances the boot, redraws the player from the store, and says what
     /// the tube is doing. Called once per display frame by the renderer.
-    func tick(store: PlayerStore?, now: Double = CACurrentMediaTime()) -> MonitorPicture {
+    func tick(store: PlayerStore?, now: Double = CACurrentMediaTime(), updatesScreen: Bool = true) -> MonitorPicture {
         // A gap in the drawing: About was away. Everything starts over.
         if !hostFullscreen, lastDraw > 0, now - lastDraw > 0.5, power != .off || mode != .off {
             startOver()
@@ -463,20 +503,23 @@ final class MonitorModel {
         // Small means off. About grows within a frame of the power press;
         // half a second of grace covers that, and nothing else.
         if !hostGrown, power != .off, now - onAt > 0.5 { powerOff(animated: false) }
-        let dt = lastTick == 0 ? 0 : min(0.1, now - lastTick)
-        lastTick = now
         if mode == .boot {
             while scriptAt < script.count, script[scriptAt].at <= now {
                 script[scriptAt].run(self)
                 scriptAt += 1
             }
         }
-        if mode == .player, let store {
-            compose(store, dt: dt)
-        } else if let freezer {
-            freezer.syncVolume()
-            frame = freezer.frame
-            cursor = freezer.cursor
+        if !updatesScreen {
+            // Credits cover the player. Refresh immediately when it returns.
+            screenClock.reset()
+        } else if let elapsed = screenClock.advance(at: now) {
+            if mode == .player, let store {
+                compose(store, dt: min(0.1, elapsed))
+            } else if let freezer {
+                freezer.syncVolume()
+                frame = freezer.frame
+                cursor = freezer.cursor
+            }
         }
         return picture(at: now)
     }

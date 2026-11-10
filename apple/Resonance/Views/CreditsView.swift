@@ -30,7 +30,7 @@ struct CreditsView: View {
     }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60)) { context in
+        TimelineView(.animation(minimumInterval: 1.0 / ScreenRefreshClock.creditsFramesPerSecond)) { context in
             if let image = renderer.image(seconds: seconds(at: context.date), tune: tune, still: reduceMotion) {
                 Image(decorative: image, scale: 1)
                     .interpolation(.none)
@@ -108,10 +108,10 @@ final class CreditsEscapeKey {
 nonisolated final class CreditsRenderer {
     private let bitmap: CGContext?
     private let fine: CGContext?
-    private static let fineScale = 4.0
-
-    init() {
-        let scale = Self.fineScale
+    // The standalone window needs 4× dots; the CRT only needs its raster's
+    // resolution, rather than drawing a megapixel heart and shrinking it.
+    init(fineScale: Double = 4) {
+        let scale = fineScale
         fine = CGContext(data: nil, width: Int(CreditsScene.width * scale), height: Int(CreditsScene.height * scale), bitsPerComponent: 8,
                          bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB(),
                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
