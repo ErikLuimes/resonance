@@ -11,6 +11,12 @@ final class DeskSticker {
     private static let floor: Float = 0.017
     private static let step: Float = 1.0 / 120
     private static let clearance: Float = 0.009
+    private static let meshOptions = [SCNHitTestOption.backFaceCulling.rawValue: false]
+    private static let singleMeshOptions = [
+        SCNHitTestOption.backFaceCulling.rawValue: false,
+        SCNHitTestOption.ignoreChildNodes.rawValue: true
+    ]
+    private static let paperVertices = (0..<count).filter { isPaperPixel(gridPoint($0)) }
     private static let surfaces: Set<String> = [
         "monitor_white", "monitor_black", "monitor_cap", "screen",
         "c64_body", "c64_details", "drive_1541", "joystick", "power_supply", "action_replay"
@@ -33,6 +39,7 @@ final class DeskSticker {
         let down: SIMD3<Float>
         var point: CGPoint
         var carryDistance: Float?
+        var needsCarryDepth = false
         var elapsed: Float = 0
         var peeled = false
     }
@@ -48,6 +55,18 @@ final class DeskSticker {
         var elapsed: Float = 0
     }
 
+    @MainActor private struct MeshCandidate {
+        let node: SCNNode
+        let worldToLocal: simd_float4x4
+
+        func hits(from start: SIMD3<Float>, to end: SIMD3<Float>) -> [SCNHitTestResult] {
+            let a = worldToLocal * SIMD4(start, 1)
+            let b = worldToLocal * SIMD4(end, 1)
+            return node.hitTestWithSegment(from: SCNVector3(a.x, a.y, a.z), to: SCNVector3(b.x, b.y, b.z),
+                                          options: DeskSticker.singleMeshOptions)
+        }
+    }
+
     private let original: SCNNode
     private let root: SCNNode
     private let sheet = SCNNode()
@@ -57,6 +76,7 @@ final class DeskSticker {
     private let coordinates: SCNGeometrySource
     private let faces: [SCNGeometryElement]
     private let triangleIndices: [Int]
+    private let landingSamples: [[Int]]
     private let materials: [SCNMaterial]
     private let width: Float
     private let height: Float
@@ -112,6 +132,19 @@ final class DeskSticker {
         self.links = links
         self.bends = bends
         triangleIndices = frontFaces.map(Int.init)
+        var edges = Set<Int>()
+        var samples: [[Int]] = []
+        for offset in stride(from: 0, to: triangleIndices.count, by: 3) {
+            let a = triangleIndices[offset], b = triangleIndices[offset + 1], c = triangleIndices[offset + 2]
+            for (first, second) in [(a, b), (b, c), (a, c)] {
+                let key = min(first, second) * Self.count + max(first, second)
+                if edges.insert(key).inserted { samples.append([first, second]) }
+            }
+            samples.append([a, b, c])
+        }
+        landingSamples = samples.filter { indices in
+            Self.isPaperPixel(indices.map(Self.gridPoint).reduce(.zero, +) / Float(indices.count))
+        }
         let backFaces = Array(frontFaces.reversed()).map { $0 + Int16(Self.count) }
         faces = [
             SCNGeometryElement(indices: frontFaces, primitiveType: .triangles),
@@ -211,7 +244,7 @@ final class DeskSticker {
         return true
     }
 
-    func drag(to point: CGPoint, in view: SCNView) {
+    func drag(to point: CGPoint) {
         guard var grab else { return }
         grab.point = point
         if !grab.peeled, hypot(point.x - grab.start.x, point.y - grab.start.y) >= 3 {
@@ -227,7 +260,7 @@ final class DeskSticker {
             publish()
         }
         if grab.peeled {
-            grab.carryDistance = carryDistance(for: grab, in: view)
+            grab.needsCarryDepth = true
         }
         self.grab = grab
     }
@@ -320,6 +353,13 @@ final class DeskSticker {
         guard grab?.peeled == true || falling != nil else { return }
         accumulator += min(dt, 0.065)
         guard accumulator >= Self.step else { return }
+        // Mouse events can arrive several times between frames. Only the
+        // latest pointer position will be used by the simulation.
+        if var grab, grab.needsCarryDepth {
+            grab.carryDistance = carryDistance(for: grab, in: view)
+            grab.needsCarryDepth = false
+            self.grab = grab
+        }
         while accumulator >= Self.step {
             simulate(in: view)
             accumulator -= Self.step
@@ -430,7 +470,7 @@ final class DeskSticker {
     }
 
     private func resolveMeshCollisions(from before: [SIMD3<Float>], excluding pinned: [Bool]? = nil) {
-        for i in points.indices where pinned?[i] != true && Self.isPaperPixel(Self.gridPoint(i)) {
+        for i in Self.paperVertices where pinned?[i] != true {
             let movement = points[i] - before[i]
             guard simd_length_squared(movement) > 0.0000001,
                   let hit = meshHit(from: before[i], to: points[i], entering: movement) else { continue }
@@ -471,13 +511,32 @@ final class DeskSticker {
     }
 
     private func landingHeights(over footprint: [SIMD3<Float>], normal: SIMD3<Float>, surface: SCNNode) -> [Float]? {
+        let above = normal * max(width, height)
+        let below = normal * 0.16
+        // Find nearby meshes once, then reuse their transforms for every probe.
+        let candidates = meshCandidates(over: footprint, above: above, below: below)
         func probe(_ point: SIMD3<Float>) -> SCNHitTestResult? {
-            meshHit(from: point + normal * max(width, height), to: point - normal * 0.16, entering: -normal)
+            let start = point + above
+            let end = point - below
+            var closest: SCNHitTestResult?
+            var distance = Float.infinity
+            for candidate in candidates {
+                for hit in candidate.hits(from: start, to: end) {
+                    guard simd_dot(SIMD3<Float>(hit.worldNormal), normal) > 0.00001 else { continue }
+                    let hitDistance = simd_distance_squared(start, SIMD3<Float>(hit.worldCoordinates))
+                    if hitDistance < distance {
+                        closest = hit
+                        distance = hitDistance
+                    }
+                }
+            }
+            return closest
         }
 
+        let maxLift: Float = 0.11
         var heights = Array(repeating: Float(0.024), count: Self.count)
         var support = 0
-        for i in footprint.indices where Self.isPaperPixel(Self.gridPoint(i)) {
+        for i in Self.paperVertices {
             guard let hit = probe(footprint[i]) else { continue }
             let height = simd_dot(SIMD3<Float>(hit.worldCoordinates) - footprint[i], normal)
             if hit.node === surface {
@@ -486,31 +545,55 @@ final class DeskSticker {
             } else {
                 heights[i] = max(heights[i], height + Self.clearance)
             }
+            guard heights[i] < maxLift else { return nil }
         }
         guard support >= 12 else { return nil }
 
-        // Test the edges and centers of the rendered triangles as well. A
-        // seam or vent can protrude between vertices even when all corners clear it.
-        let samples: [SIMD3<Float>] = [[0.5, 0.5, 0], [0, 0.5, 0.5], [0.5, 0, 0.5], SIMD3(repeating: 1.0 / 3)]
-        for offset in stride(from: 0, to: triangleIndices.count, by: 3) {
-            let a = triangleIndices[offset], b = triangleIndices[offset + 1], c = triangleIndices[offset + 2]
-            for weights in samples {
-                let grid = Self.gridPoint(a) * weights.x + Self.gridPoint(b) * weights.y + Self.gridPoint(c) * weights.z
-                guard Self.isPaperPixel(grid) else { continue }
-                let sample = footprint[a] * weights.x + footprint[b] * weights.y + footprint[c] * weights.z
-                guard let hit = probe(sample) else { continue }
-                let height = simd_dot(SIMD3<Float>(hit.worldCoordinates) - sample, normal) + Self.clearance
-                let paper = heights[a] * weights.x + heights[b] * weights.y + heights[c] * weights.z
-                let lift = max(0, height - paper)
-                if weights.x > 0 { heights[a] += lift }
-                if weights.y > 0 { heights[b] += lift }
-                if weights.z > 0 { heights[c] += lift }
+        // Check each shared edge and triangle center once. Subsequent lifts
+        // only raise the sheet, so they can't invalidate an earlier sample.
+        for indices in landingSamples {
+            let count = Float(indices.count)
+            let sample = indices.reduce(SIMD3<Float>.zero) { $0 + footprint[$1] } / count
+            guard let hit = probe(sample) else { continue }
+            let height = simd_dot(SIMD3<Float>(hit.worldCoordinates) - sample, normal) + Self.clearance
+            let paper = indices.reduce(Float.zero) { $0 + heights[$1] } / count
+            let lift = max(0, height - paper)
+            for i in indices {
+                heights[i] += lift
+                // The sheet can bridge shallow seams, but can't wrap around a sharp corner.
+                guard heights[i] < maxLift else { return nil }
             }
         }
-        // A stiff sheet can bridge small bumps. If it would have to straddle
-        // a deep step or wrap around a sharp corner, let it fall instead.
-        guard (heights.max() ?? 0) < 0.11 else { return nil }
         return heights
+    }
+
+    private func meshCandidates(over footprint: [SIMD3<Float>], above: SIMD3<Float>,
+                                below: SIMD3<Float>) -> [MeshCandidate] {
+        let padding = SIMD3<Float>(repeating: 0.0001)
+        let low = footprint.reduce(SIMD3<Float>(repeating: .infinity), simd_min) + simd_min(above, -below) - padding
+        let high = footprint.reduce(SIMD3<Float>(repeating: -.infinity), simd_max) + simd_max(above, -below) + padding
+        var candidates: [MeshCandidate] = []
+        func visit(_ node: SCNNode) {
+            guard !node.isHidden, !contains(node) else { return }
+            if let geometry = node.geometry, !(geometry is SCNFloor) {
+                let (min, max) = geometry.boundingBox
+                let center = (SIMD3<Float>(min) + SIMD3<Float>(max)) * 0.5
+                let extent = SIMD3<Float>(max) - center
+                let world = node.simdWorldTransform
+                let position = world * SIMD4(center, 1)
+                let radius = simd_abs(world.columns.0) * extent.x + simd_abs(world.columns.1) * extent.y
+                           + simd_abs(world.columns.2) * extent.z
+                let minimum = position - radius
+                let maximum = position + radius
+                if minimum.x <= high.x, minimum.y <= high.y, minimum.z <= high.z,
+                   maximum.x >= low.x, maximum.y >= low.y, maximum.z >= low.z {
+                    candidates.append(MeshCandidate(node: node, worldToLocal: world.inverse))
+                }
+            }
+            for child in node.childNodes { visit(child) }
+        }
+        visit(root)
+        return candidates
     }
 
     private func surfaceHit(at point: CGPoint, in view: SCNView) -> SCNHitTestResult? {
@@ -532,9 +615,7 @@ final class DeskSticker {
     private func meshHit(from start: SIMD3<Float>, to end: SIMD3<Float>, entering movement: SIMD3<Float>) -> SCNHitTestResult? {
         let a = SCNVector3(root.simdConvertPosition(start, from: nil))
         let b = SCNVector3(root.simdConvertPosition(end, from: nil))
-        let hits = root.hitTestWithSegment(from: a, to: b, options: [
-            SCNHitTestOption.backFaceCulling.rawValue: false
-        ])
+        let hits = root.hitTestWithSegment(from: a, to: b, options: Self.meshOptions)
         return hits.first {
             !isPaper($0.node) && !($0.node.geometry is SCNFloor)
                 && simd_dot(SIMD3<Float>($0.worldNormal), movement) < -0.00001

@@ -799,8 +799,8 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     }
 
     func mouseDragged(to point: CGPoint) {
-        if isHoldingSticker, let view {
-            paperSticker?.drag(to: point, in: view)
+        if isHoldingSticker {
+            paperSticker?.drag(to: point)
             return
         }
         guard let drag = knobDrag else { return }
