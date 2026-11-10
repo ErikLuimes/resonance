@@ -117,6 +117,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     }
     static let restPose = Pose(position: [-3.6, 8.2, 17.5], target: [-0.2, 1.0, 0.3])
     static let onPose = Pose(position: [-0.25, 5.0, 10.6], target: [-0.25, 1.6, 1.0])
+    private static let drivePose = Pose(position: [-5.6, 2.8, 6.35], target: [-3.95, 0.56, 0.84])
 
     let scene: SCNScene
     nonisolated let tube: TubePass
@@ -129,6 +130,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     private let screenMaterial = SCNMaterial()
     private let ledMaterial = SCNMaterial()
     private let screenLight = SCNLight()
+    private var creditsDisk: DeskCreditsDisk?
     private var paperSticker: DeskSticker?
     var isHoldingSticker: Bool { paperSticker?.isGrabbed == true }
     private var button: (node: SCNNode, rest: SIMD3<Float>)?
@@ -299,6 +301,9 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         computerLED.simdPosition = [1.61185, 0.8064, 2.34875]
         computerLED.castsShadow = false
         root.addChildNode(computerLED)
+        if root.childNode(withName: "drive_1541", recursively: true) != nil {
+            creditsDisk = DeskCreditsDisk(root: root)
+        }
         if let sticker = root.childNode(withName: "sticker", recursively: true), let mesh = Self.geometryNode(in: sticker) {
             let material = SCNMaterial()
             material.lightingModel = .physicallyBased
@@ -484,6 +489,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         hatchPivot?.simdEulerAngles.x = 0
         knobDrag = nil
         paperSticker?.reset()
+        creditsDisk?.reset()
         resetPictureControls()
         latched = []
         taps = [:]
@@ -515,11 +521,25 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         let dt = lastStep == 0 ? 0 : Float(min(0.1, max(0, now - lastStep)))
         lastStep = now
 
+        followPower(model, now: now)
+        if !model.isOn {
+            if creditsDisk?.canLoad == false { creditsDisk?.reset() }
+        } else {
+            if model.mode != .player { stopCredits(at: now) }
+            if creditsDisk?.update(at: now) == true {
+                startGlide(to: Self.onPose, duration: 0.66, now: now)
+            }
+        }
+
         // The frame, when it changed. The BASIC cursor blinks at the C64's 3 Hz.
         let blink = Int(now * 3) % 2 == 0
         let cursor = model.cursor
         var changed: [UInt32]?
-        if uploaded != model.frame || uploadedBlink != blink || uploadedCursor?.x != cursor?.x || uploadedCursor?.y != cursor?.y {
+        if creditsDisk?.render(at: now, into: &pixels) == true {
+            changed = pixels
+            uploaded = nil
+        } else if creditsDisk?.isShowingIntro != true,
+                  uploaded != model.frame || uploadedBlink != blink || uploadedCursor?.x != cursor?.x || uploadedCursor?.y != cursor?.y {
             model.frame.render(into: &pixels, cursor: blink ? cursor : nil)
             uploaded = model.frame
             uploadedBlink = blink
@@ -527,7 +547,6 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
             changed = pixels
         }
 
-        followPower(model, now: now)
         advanceDrift(model, now: now, dt: dt)
         place(cartridgePose(pose(at: now), powered: model.isOn, dt: dt))
         if let view { paperSticker?.update(dt: dt, in: view) }
@@ -615,6 +634,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
 
     private func advanceDrift(_ model: MonitorModel, now: Double, dt: Float) {
         guard model.isOn, !model.busy, !pointerNearPower, !isHoldingSticker, knobDrag == nil,
+              creditsDisk?.isLoading != true,
               now >= glide.start + glide.duration,
               now >= driftResumeAt, mouseHeld == nil, keyboardHeld.isEmpty, modifiersHeld.isEmpty,
               !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
@@ -742,9 +762,14 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     }
 
     /// AppKeys forwards the physical event before dispatching the shortcut.
-    static func observeKeyEvent(_ event: NSEvent, in window: NSWindow?) {
-        guard let window, let desk = shared, desk.view?.window === window else { return }
+    static func observeKeyEvent(_ event: NSEvent, in window: NSWindow?) -> Bool {
+        guard let window, let desk = shared, desk.view?.window === window else { return false }
         desk.keyEvent(event)
+        if event.type == .keyDown, !event.isARepeat, event.keyCode == 53,
+           event.modifierFlags.intersection([.command, .control, .option]).isEmpty {
+            return desk.stopCredits(at: CACurrentMediaTime())
+        }
+        return false
     }
 
     private func keyEvent(_ event: NSEvent) {
@@ -772,6 +797,26 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     }
 
     // MARK: The mouse
+
+    private func loadCredits() {
+        let model = MonitorModel.shared
+        guard let creditsDisk, creditsDisk.canLoad, model.isOn, !model.busy, model.mode != .frozen else { return }
+        if model.mode == .boot { model.skipBoot() }
+        let tune = store?.nowPlaying.map { CreditsScene.Tune(title: $0.displayTitle, author: $0.author) }
+        let now = CACurrentMediaTime()
+        let still = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        cartridgeLookTarget = 0
+        creditsDisk.load(at: now, tune: tune, reduceMotion: still)
+        if !still { startGlide(to: Self.drivePose, duration: 0.45, now: now) }
+    }
+
+    @discardableResult
+    private func stopCredits(at now: Double) -> Bool {
+        guard let creditsDisk, creditsDisk.isActive else { return false }
+        if creditsDisk.isLoading { startGlide(to: Self.onPose, duration: 0.66, now: now) }
+        creditsDisk.eject(at: now)
+        return true
+    }
 
     private func knobValue(_ knob: MonitorKnob) -> Float {
         knob == .volume ? Float(store?.volume ?? PlayerStore.defaultVolume) : knobValues[knob, default: 0.5]
@@ -822,6 +867,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
 
     private func updateCameraHover(at point: CGPoint?) {
         pointerNearPower = false
+        guard creditsDisk?.isLoading != true else { return }
         guard MonitorModel.shared.isOn, let point, let view else {
             cartridgeLookTarget = 0
             return
@@ -887,6 +933,10 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         var node = hits.first?.node
         while let current = node {
             if let name = current.name {
+                if name == DeskCreditsDisk.name, creditsDisk?.canLoad == true {
+                    let model = MonitorModel.shared
+                    return model.isOn && !model.busy && model.mode != .frozen ? name : nil
+                }
                 if name == "power_button" || name == "monitor_cap" || name.hasPrefix("key_") { return name }
                 if hatchMotion == nil, hatchPivot?.simdEulerAngles.x == 0, MonitorKnob(rawValue: name) != nil {
                     return name
@@ -930,6 +980,10 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
 
     func mouseDown(at point: CGPoint, flags: NSEvent.ModifierFlags) {
         guard let name = part(at: point) else { return }
+        if name == DeskCreditsDisk.name {
+            loadCredits()
+            return
+        }
         if name == "sticker", let view, paperSticker?.begin(at: point, in: view) == true {
             setHoveredControl(nil)
             cartridgeLookTarget = cartridgeLook
@@ -972,6 +1026,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
             return
         }
         mouseHeld = key
+        if key == .runStop, stopCredits(at: CACurrentMediaTime()) { return }
         let shifted = flags.contains(.shift) || !latched.isDisjoint(with: [.leftShift, .rightShift, .shiftLock])
         latched = latched.intersection([.shiftLock])
         let model = MonitorModel.shared

@@ -120,6 +120,15 @@ The size matters more than anything in the shader. The text reads at two device 
 
 Still to decide: whether the boot sequence runs every time or only the first; whether pressing POWER makes the 1084S's click and degauss thump (there is no sound anywhere else in the UI); and whether the screen should also show the `Under the Hood` tracker page as a second program (`LOAD"TRACKER",8,1`), which would be the natural next page.
 
+## The credits floppy
+
+The 5¼-inch floppy next to the 1541 has “Resonance - Credits” handwritten on its label. With the monitor on, clicking the disk inserts it into the drive and blinks the activity light. The CRT plays the existing demoscene intro and returns to the player when it ends or when the user presses Escape or RUN/STOP. The About button opens the separate credits window.
+
+## About ideas to revisit
+
+- **Sticker placement.** Remember where the user left the sticker when they reopen About.
+- **Power switch hint.** Show “Turn on the monitor” when the pointer rests over the switch. About already has a short power hint below the tagline.
+
 ## Keyboard sound sources
 
 The About keyboard uses CC0 recordings as stand-ins. `C64KeyDown.wav` and `C64KeyUp.wav` are trimmed from [Vintage Keyboard 4 by jim-ph](https://freesound.org/people/jim-ph/sounds/194798/), recorded from a 1986 DOS keyboard. `C64SpaceDown.wav` and `C64SpaceUp.wav` come from [FUJITSU Computers Keyboard – spacebar Press Mono by Sadiquecat](https://freesound.org/people/Sadiquecat/sounds/799124/). Each pair was separated into press and release, leveled together, and converted to 48 kHz mono PCM.

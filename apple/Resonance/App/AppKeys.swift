@@ -30,7 +30,7 @@ enum AppKeys {
         let monitorWindow = event.window ?? NSApp.keyWindow
         if isMonitorWindow(monitorWindow) {
             // Record the physical press before a playback shortcut can consume it.
-            DeskScene.observeKeyEvent(event, in: monitorWindow)
+            if DeskScene.observeKeyEvent(event, in: monitorWindow) { return true }
             if event.type == .keyDown, let store, MonitorModel.shared.power != .off {
                 return handleInMonitor(event, store)
             }

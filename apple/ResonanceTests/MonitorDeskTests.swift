@@ -286,6 +286,73 @@ struct MonitorDeskTests {
         #expect(paper.worldPosition.y < 0.04)
     }
 
+    @Test func clickingTheFloppyPlaysCreditsOnTheTubeAndReturnsToThePlayer() throws {
+        let desk = try #require(DeskScene.make())
+        let view = DeskView(frame: NSRect(x: 0, y: 0, width: 1200, height: 1000), options: [
+            SCNView.Option.preferredRenderingAPI.rawValue: SCNRenderingAPI.metal.rawValue,
+        ])
+        let store = PlayerStore.preview
+        let model = MonitorModel.shared
+        model.startOver()
+        desk.attach(to: view, store: store)
+        defer { desk.detach(from: view); model.startOver() }
+        let disk = try #require(desk.scene.rootNode.childNode(withName: "credits_floppy", recursively: true))
+        let rest = disk.simdWorldPosition
+        _ = view.snapshot()
+        desk.update(at: CACurrentMediaTime() - 2)
+        model.hostGrown = true
+        model.showPlayer(store: store)
+        let now = CACurrentMediaTime()
+        desk.update(at: now - 1.5)
+        desk.update(at: now)
+        SCNTransaction.flush()
+
+        func picture(_ name: String) throws -> NSColor {
+            _ = view.snapshot()
+            let rep = try #require(view.snapshot().tiffRepresentation.flatMap(NSBitmapImageRep.init(data:)))
+            Self.printForALook(rep, name)
+            let point = view.projectPoint(SCNVector3(0, DeskScene.screenCenterY + DeskScene.glassHalf.y * 0.8,
+                                                     DeskScene.screenFrontZ))
+            let x = Int(point.x / view.bounds.width * CGFloat(rep.pixelsWide))
+            let y = Int((1 - point.y / view.bounds.height) * CGFloat(rep.pixelsHigh))
+            return try #require(rep.colorAt(x: x, y: y))
+        }
+
+        let player = try picture("credits-disk")
+        let projected = view.projectPoint(disk.worldPosition)
+        let point = CGPoint(x: projected.x, y: projected.y)
+        try #require(view.bounds.contains(point))
+        try #require(desk.isClickable(at: point))
+        desk.mouseDown(at: point, flags: [])
+        let clicked = CACurrentMediaTime()
+        desk.update(at: clicked + 1.0)
+        if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            #expect(disk.simdWorldPosition.x < rest.x - 1)
+            if ProcessInfo.processInfo.environment["MONITOR_DESK_SNAPSHOT"] != nil,
+               let rep = view.snapshot().tiffRepresentation.flatMap(NSBitmapImageRep.init(data:)) {
+                Self.printForALook(rep, "credits-inserting")
+            }
+        }
+        desk.update(at: clicked + 1.68)
+        #expect(disk.isHidden)
+        if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
+           ProcessInfo.processInfo.environment["MONITOR_DESK_SNAPSHOT"] != nil,
+           let rep = view.snapshot().tiffRepresentation.flatMap(NSBitmapImageRep.init(data:)) {
+            Self.printForALook(rep, "credits-drive-light")
+        }
+        desk.update(at: clicked + 1.95)
+        desk.update(at: clicked + 6)
+        let credits = try picture("credits-on-crt")
+        #expect(credits.blueComponent < player.blueComponent - 0.3)
+        desk.update(at: clicked + 140)
+        desk.update(at: clicked + 141)
+        #expect(!disk.isHidden)
+        #expect(simd_distance(disk.simdWorldPosition, rest) < 0.001)
+        #expect(model.mode == .player)
+        let returned = try picture("credits-returned")
+        #expect(abs(returned.blueComponent - player.blueComponent) < 0.15)
+    }
+
     @Test func theGlassShowsTheReferenceColors() throws {
         let desk = try #require(DeskScene.make())
         let view = DeskView(frame: NSRect(x: 0, y: 0, width: 1680, height: 1400), options: [
