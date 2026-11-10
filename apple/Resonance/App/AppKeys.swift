@@ -109,6 +109,32 @@ enum AppKeys {
     /// the boot. Esc is left alone, and the menus' shortcuts work as everywhere.
     private static func handleInMonitor(_ event: NSEvent, _ store: PlayerStore) -> Bool {
         let monitor = MonitorModel.shared
+        let flags = event.modifierFlags
+        if monitor.mode == .frozen, flags.contains(.command),
+           event.charactersIgnoringModifiers?.lowercased() == "v",
+           flags.intersection([.control, .option]).isEmpty {
+            if let text = NSPasteboard.general.string(forType: .string) {
+                monitor.pasteIntoFreezeMonitor(text)
+            }
+            return true
+        }
+        if flags.intersection([.command, .control, .option]).isEmpty {
+            let keys = C64Key.keys(for: event)
+            let shifted = flags.contains(.shift) || keys.contains(.leftShift)
+            if let key = keys.last {
+                // Suppress repeat on actions that switch pages.
+                if event.isARepeat, [.f3, .f5, .f7, .runStop, .return].contains(key),
+                   monitor.mode == .frozen || (shifted && [.f5, .f7].contains(key)) {
+                    return true
+                }
+                if monitor.handleFreezeKey(key, shifted: shifted, character: event.characters, store: store) {
+                    return true
+                }
+            }
+            if monitor.mode == .frozen { return true }
+        } else if monitor.mode == .frozen {
+            return false // Keep the window and app menu shortcuts available.
+        }
         if Int(event.keyCode) == kVK_Escape { return false }
         if monitor.mode == .boot {
             if !event.isARepeat { monitor.skipBoot() }

@@ -99,6 +99,16 @@ nonisolated enum C64Key: String, CaseIterable, Sendable {
 
     // MARK: On the monitor
 
+    /// Printable characters on the on-screen keyboard, including shifted caps.
+    func monitorCharacter(shifted: Bool) -> String? {
+        if self == .leftArrow { return "_" }
+        if shifted, let cap = Self.byCharacter.first(where: { $0.value == [.leftShift, self] })?.key {
+            return String(cap)
+        }
+        if rawValue.count == 1 { return rawValue }
+        return Self.byCharacter.first { $0.value == [self] && $0.key.isASCII }.map { String($0.key) }
+    }
+
     /// What a clicked key does in the player, in the app's own terms: the
     /// breadbin mapping of design/crt-monitor/README.md. Space plays and
     /// pauses; CRSR down and right move and skip, with SHIFT up and back;

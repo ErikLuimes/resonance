@@ -139,7 +139,7 @@ final class MonitorModel {
     static let shared = MonitorModel()
 
     enum Power { case off, on, dying }
-    enum Mode { case off, boot, player }
+    enum Mode { case off, boot, player, frozen }
 
     private(set) var power: Power = .off
     @ObservationIgnored private(set) var mode: Mode = .off
@@ -156,6 +156,7 @@ final class MonitorModel {
     @ObservationIgnored private var peaks: [Float] = [0, 0, 0]
     @ObservationIgnored private var lastTick = 0.0
     @ObservationIgnored private var tuneCount: UInt32?
+    @ObservationIgnored private var freezer: SIDFreezeMonitor?
 
     private struct Step {
         var at: Double = 0
@@ -228,6 +229,8 @@ final class MonitorModel {
         } else {
             power = .off
         }
+        freezer?.close()
+        freezer = nil
         mode = .off
         script = []
         cursor = nil
@@ -295,7 +298,35 @@ final class MonitorModel {
         startPlayer()
     }
 
+    // MARK: The freeze cartridge
+
+    /// C64 F6/F8 are Shift+F5/F7 on the modeled keyboard.
+    func handleFreezeKey(_ key: C64Key, shifted: Bool, character: String? = nil, store: PlayerStore) -> Bool {
+        guard isOn else { return false }
+        if let freezer {
+            if freezer.key(key, shifted: shifted, character: character) {
+                startPlayer()
+            }
+            return true
+        }
+        guard shifted, key == .f5 || key == .f7 else { return false }
+        if mode == .boot {
+            startPlayer()
+            compose(store, dt: 0)
+        }
+        guard mode == .player else { return false }
+        freezer = SIDFreezeMonitor(store: store, frozenFrame: frame, direct: key == .f7)
+        mode = .frozen
+        return true
+    }
+
+    func pasteIntoFreezeMonitor(_ text: String) {
+        freezer?.paste(text)
+    }
+
     private func startPlayer() {
+        freezer?.close()
+        freezer = nil
         mode = .player
         script = []
         cursor = nil
@@ -348,6 +379,9 @@ final class MonitorModel {
         }
         if mode == .player, let store {
             compose(store, dt: dt)
+        } else if let freezer {
+            frame = freezer.frame
+            cursor = freezer.cursor
         }
         return picture(at: now)
     }
@@ -467,6 +501,7 @@ final class MonitorModel {
         }
         let volume = max(0, min(10, Int((store.volume * 10).rounded())))
         let percent = String(volume * 10)
+        f.line(23, " F6 FREEZE              F8 CODE MONITOR")
         f.line(24, " " + status + "  VOL " + String(repeating: "■", count: volume) + String(repeating: ".", count: 10 - volume)
                + String(repeating: " ", count: max(1, 4 - percent.count)) + percent + "%" + (store.shuffle ? "  SHUFFLE" : ""))
         frame = f

@@ -244,6 +244,7 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
     func nextSubtune() {}
     func playIndex(index: UInt32) {}
     func playQueue(paths: [String], start: String) {}
+    func setMonitorFrozen(frozen: Bool) {}
     func playPause(fallback: UInt32?) {}
     func prevSubtune() {}
     func previous() {}

@@ -21,8 +21,11 @@ impl Session {
     /// its length or gone silent. Call after `ingest_statuses`, on every
     /// driver tick.
     pub fn tick(&mut self, now: Instant) {
-        if self.status.state != PlayState::Playing {
-            // Paused or stopped: no writes is expected, so the silence clock
+        if self.status.state != PlayState::Playing
+            || self.monitor_paused_revision == Some(self.track_revision)
+        {
+            // Paused, stopped, or waiting for the freeze to reach the player.
+            // No writes are expected, so the silence clock
             // restarts on resume instead of firing immediately.
             self.last_writes_at = now;
             return;

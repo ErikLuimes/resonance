@@ -91,6 +91,7 @@ mod library;
 mod residfp_player;
 pub(crate) mod session;
 mod share;
+mod sid_monitor;
 mod smart;
 mod tracker;
 mod viz;
@@ -98,6 +99,7 @@ mod viz;
 pub use tracker::{chip_agreement, tracker_song, TrackerCell, TrackerEffect, TrackerInstrument, TrackerRow, TrackerSong};
 
 pub use ffi::*;
+pub use sid_monitor::{render_sid_program, SidMonitorError};
 pub use learned::{estimate_length, LengthEstimate, LengthMethod};
 pub use share::{build_share_index, ShareIndex, ShareIndexTune, ShareableTune, SharedTuneMatch};
 pub use hvsc_info::{HvscDisk, HvscInfo, HvscPlaylist, HvscUpdate};

@@ -146,6 +146,7 @@ pub struct Session {
     pub(crate) playlist_revision: u64,
     /// Bumped on every Play / subtune change (drives Now Playing updates).
     pub(crate) track_revision: u64,
+    monitor_paused_revision: Option<u64>,
 }
 
 /// Where Surprise Me's next pick stands. The driver does the picking (it
@@ -210,6 +211,7 @@ impl Session {
             notice: None,
             playlist_revision: 0,
             track_revision: 0,
+            monitor_paused_revision: None,
         }
     }
 
@@ -218,6 +220,7 @@ impl Session {
     /// Point the session at a freshly spawned player thread (after the old
     /// one died). The new player starts out stopped.
     pub fn set_player(&mut self, cmd_tx: Sender<PlayerCmd>) {
+        self.monitor_paused_revision = None;
         self.cmd_tx = cmd_tx;
         self.status = PlayerStatus::default();
         self.last_advance_at = None;
@@ -497,6 +500,7 @@ impl Session {
     /// playlist selection), else the active list's current entry, else its
     /// first.
     pub fn play_pause(&mut self, fallback: Option<usize>, now: Instant) {
+        self.monitor_paused_revision = None;
         if self.status.state == PlayState::Stopped {
             if let Some(i) = fallback {
                 self.play_index(i, now);
@@ -514,7 +518,24 @@ impl Session {
         }
     }
 
+    /// Resume only the track that this monitor put on pause.
+    pub fn set_monitor_frozen(&mut self, frozen: bool) {
+        if frozen {
+            if self.monitor_paused_revision != Some(self.track_revision)
+                && (self.status.state == PlayState::Playing || self.awaiting_play.is_some())
+            {
+                self.send(PlayerCmd::SetPaused(true));
+                self.monitor_paused_revision = Some(self.track_revision);
+                self.last_advance_at = None;
+            }
+        } else if self.monitor_paused_revision.take() == Some(self.track_revision) {
+            self.send(PlayerCmd::SetPaused(false));
+            self.last_advance_at = None;
+        }
+    }
+
     pub fn stop(&mut self) {
+        self.monitor_paused_revision = None;
         self.send(PlayerCmd::Stop);
         self.last_advance_at = None;
         self.awaiting_play = None;
@@ -855,6 +876,7 @@ impl Session {
         if engine == self.engine {
             return;
         }
+        self.monitor_paused_revision = None;
         self.engine = engine;
         let was_playing = self.status.state == PlayState::Playing;
         self.send(PlayerCmd::SetEngine(

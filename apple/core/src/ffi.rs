@@ -1106,6 +1106,10 @@ impl PlayerCore {
         self.send(Command::PlayIndex(index as usize));
     }
 
+    pub fn set_monitor_frozen(&self, frozen: bool) {
+        self.send(Command::SetMonitorFrozen(frozen));
+    }
+
     /// Pause / resume; when stopped, play `fallback` (e.g. the selected row),
     /// else the current track, else the first.
     pub fn play_pause(&self, fallback: Option<u32>) {

@@ -665,17 +665,17 @@ impl Control {
                 self.stop_playback();
                 self.send_status();
             }
-            PlayerCmd::TogglePause => {
+            cmd @ (PlayerCmd::TogglePause | PlayerCmd::SetPaused(_)) => {
                 match self.state {
-                    PlayState::Playing => {
+                    PlayState::Playing if !matches!(cmd, PlayerCmd::SetPaused(false)) => {
                         self.state = PlayState::Paused;
                         let _ = self.to_audio.try_send(ToAudio::Pause(true));
                     }
-                    PlayState::Paused => {
+                    PlayState::Paused if !matches!(cmd, PlayerCmd::SetPaused(true)) => {
                         self.state = PlayState::Playing;
                         let _ = self.to_audio.try_send(ToAudio::Pause(false));
                     }
-                    PlayState::Stopped => {}
+                    _ => {}
                 }
                 self.send_status();
             }

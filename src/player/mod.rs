@@ -48,6 +48,7 @@ pub enum PlayerCmd {
     },
     Stop,
     TogglePause,
+    SetPaused(bool),
     SetSubtune(u16),
     SetEngine(String, String, String), // (engine_name, u64_address, u64_password)
     UpdateU64Config(String, String),   // (u64_address, u64_password) — no device teardown
@@ -1030,7 +1031,11 @@ fn handle_cmd(
             send_status(state, play_ctx, last_error, status_tx);
         }
 
-        PlayerCmd::TogglePause => {
+        cmd @ (PlayerCmd::TogglePause | PlayerCmd::SetPaused(_)) => {
+            if matches!((&*state, &cmd), (PlayState::Playing, PlayerCmd::SetPaused(false))
+                | (PlayState::Paused, PlayerCmd::SetPaused(true))) {
+                return;
+            }
             // For native engines (U64) we use the hardware pause/resume API so
             // the C64 clock freezes mid-frame and resumes from exactly the same
             // point — no song restart, no clock drift.

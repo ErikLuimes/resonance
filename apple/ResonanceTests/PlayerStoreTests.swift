@@ -246,6 +246,7 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     func nextSubtune() { record("nextSubtune") }
     func playIndex(index: UInt32) { record("play \(index)") }
     func playQueue(paths: [String], start: String) { record("queue \(paths) from \(start)") }
+    func setMonitorFrozen(frozen: Bool) {}
     func playPause(fallback: UInt32?) { record("playPause \(fallback.map(String.init) ?? "nil")") }
     func prevSubtune() { record("prevSubtune") }
     func previous() { record("previous") }

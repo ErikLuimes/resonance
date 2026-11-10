@@ -1054,3 +1054,29 @@ fn a_pick_for_the_replaced_radio_is_dropped() {
     assert_eq!(request.kind, RadioKind::Shuffle);
     assert!(request.first);
 }
+
+#[test]
+fn monitor_thaws_only_playback_it_froze() {
+    let mut h = Harness::new(vec![entry("a", 1, None), entry("b", 1, None)]);
+    h.session.status.state = PlayState::Paused;
+    h.session.set_monitor_frozen(true);
+    h.session.set_monitor_frozen(false);
+    assert!(h.sent().is_empty());
+
+    h.session.status.state = PlayState::Playing;
+    h.session.set_monitor_frozen(true);
+    h.session.set_monitor_frozen(false);
+    // Closing before the player reports Paused still queues a resume.
+    assert!(matches!(
+        h.sent().as_slice(),
+        [PlayerCmd::SetPaused(true), PlayerCmd::SetPaused(false)]
+    ));
+
+    h.session.set_monitor_frozen(true);
+    h.session.play_index(1, h.t0);
+    h.session.set_monitor_frozen(false);
+    assert!(matches!(
+        h.sent().as_slice(),
+        [PlayerCmd::SetPaused(true), PlayerCmd::Play { .. }]
+    ));
+}

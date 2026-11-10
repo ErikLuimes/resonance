@@ -646,6 +646,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         let shifted = flags.contains(.shift) || !latched.isDisjoint(with: [.leftShift, .rightShift, .shiftLock])
         latched = latched.intersection([.shiftLock])
         let model = MonitorModel.shared
+        if let store, model.handleFreezeKey(key, shifted: shifted, store: store) { return }
         if let action = key.action(shifted: shifted) {
             AppKeys.monitorAction(action)
         } else if model.mode == .boot {

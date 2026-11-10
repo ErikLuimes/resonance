@@ -59,6 +59,7 @@ pub(crate) enum Command {
     PlayPause {
         fallback: Option<usize>,
     },
+    SetMonitorFrozen(bool),
     Stop,
     Next,
     Previous,
@@ -682,6 +683,7 @@ impl State {
             Command::Surprise => s.surprise(),
             Command::ShuffleCollection => s.shuffle_collection(),
             Command::PlayPause { fallback } => s.play_pause(fallback, now),
+            Command::SetMonitorFrozen(frozen) => s.set_monitor_frozen(frozen),
             Command::Stop => s.stop(),
             Command::Next => s.next(now),
             Command::Previous => s.previous(now),
