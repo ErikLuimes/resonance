@@ -8,6 +8,7 @@
 #   power_button  the brown POWER rocker, cut out of the case
 #   power_led     the power light on the badge strip, cut out of the case
 #   knob_<NAME>   the seven front controls, with their origins on their shafts
+#   drive_door    the 1541's hinged disk catch, separated from its faceplate
 #   key_<NAME>    each of the 66 keycaps, its origin at the cap's top center, so
 #                 pressing a key is moving its node down
 #   sticker       a plane on the bezel where the app icon sticker goes
@@ -99,6 +100,11 @@ def boxed(obj, boxes, max_width=math.inf):
         piece.name = name
         made[name] = piece
     return made
+
+
+boxed(bpy.data.objects["drive_1541"], {
+    "drive_door": ((-4.60, -0.72, 0.511), (-4.25, -0.45, 0.553)),
+}, max_width=0.54)
 
 
 # --- The keys --------------------------------------------------------------

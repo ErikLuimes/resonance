@@ -74,7 +74,7 @@ struct CreditsTests {
         #expect(pages.contains(["SKULL SURGEON", "INIGO QUILEZ", "DISTANCE FUNCTIONS"]))
         #expect(pages.contains(["ALL RESPECT TO THE DEMOSCENE", "TRITON", "WE FORGIVE THE PC"]))
         // Second to last before the composer playing and you.
-        #expect(pages.suffix(3).first == ["WILL CHECK IT LATER", "RICHARD SIMPSON", "INTERNATIONAL KARATEKA ANY DAY NOW"])
+        #expect(pages.suffix(3).first == ["I'LL CHECK IT LATER... MAYBE", "RICHARD SIMPSON", "INTERNATIONAL KARATEKA ANY DAY NOW"])
         for page in pages {
             #expect(page[0].count * 6 <= 320 && page[1].count * 12 <= 320 && page[2].count * 6 <= 320, "\(page)")
         }
@@ -119,18 +119,20 @@ struct CreditsTests {
         #expect(lit(renderer.image(seconds: 12.3, tune: nil, still: false)) == lit(CreditsRenderer().image(seconds: 12.3, tune: nil, still: false)))
     }
 
-    @Test func aNameIsPlacedAndOnScreenMidway() {
-        let place = CreditsScene.placed(letter: 2, of: 11, row: 1, moment: 0.5, elapsed: 2)
-        #expect(place.isOn && place.x == 0 && place.y == 0)
-        #expect(!CreditsScene.placed(letter: 2, of: 11, row: 1, moment: 0, elapsed: 0).isOn)
-        #expect(!CreditsScene.placed(letter: 2, of: 11, row: 1, moment: 0.99, elapsed: 3).isOn)
+    @Test func aNameStaysInPlaceThroughTheExtraReadingTime() {
+        for seconds in [2.0, 5.4] {
+            let place = CreditsScene.placed(letter: 2, of: 11, row: 1, pageElapsed: seconds, elapsed: seconds)
+            #expect(place.isOn && place.x == 0 && place.y == 0)
+        }
+        #expect(!CreditsScene.placed(letter: 2, of: 11, row: 1, pageElapsed: 0, elapsed: 0).isOn)
+        #expect(!CreditsScene.placed(letter: 2, of: 11, row: 1, pageElapsed: 5.94, elapsed: 5.94).isOn)
     }
 
     @Test func withReduceMotionTheNamesStandStill() {
         let t = CreditsScene.timing.namesFrom
         let renderer = CreditsRenderer()
         let first = lit(renderer.image(seconds: t + 0.1, tune: nil, still: true), above: 240)
-        let second = lit(renderer.image(seconds: t + 3.9, tune: nil, still: true), above: 240)
+        let second = lit(renderer.image(seconds: t + 5.9, tune: nil, still: true), above: 240)
         #expect(first > 50)
         #expect(first == second)
     }

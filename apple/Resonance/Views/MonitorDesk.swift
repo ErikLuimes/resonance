@@ -526,7 +526,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
             if creditsDisk?.canLoad == false { creditsDisk?.reset() }
         } else {
             if model.mode != .player { stopCredits(at: now) }
-            if creditsDisk?.update(at: now) == true {
+            if creditsDisk?.update(at: now, audible: view?.window != nil) == true {
                 startGlide(to: Self.onPose, duration: 0.66, now: now)
             }
         }

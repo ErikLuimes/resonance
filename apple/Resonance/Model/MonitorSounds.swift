@@ -1,7 +1,7 @@
 import AVFoundation
 import OSLog
 
-/// Switch, tube, hatch and keyboard sounds for the About desk.
+/// Switch, tube, hatch, disk drive and keyboard sounds for the About desk.
 final class MonitorSounds {
     static let shared = MonitorSounds()
     private static let log = Logger(subsystem: "app.useresonance.resonance", category: "MonitorSounds")
@@ -9,6 +9,7 @@ final class MonitorSounds {
     private let switchOn = MonitorSounds.player(named: "CRTPowerOn")
     private let switchOff = MonitorSounds.player(named: "CRTPowerOff")
     private let hatchClose = MonitorSounds.player(named: "CRTHatchClose")
+    private let driveLoad = MonitorSounds.player(named: "Drive1541Load")
     private let hum = MonitorSounds.player(named: "CRTHum")
     // Let one key's clack finish while the next starts.
     private let keyDown = (0..<4).compactMap { _ in MonitorSounds.player(named: "C64KeyDown") }
@@ -48,10 +49,19 @@ final class MonitorSounds {
         play(hatchClose, volume: 0.72)
     }
 
+    func playDriveLoad() {
+        play(driveLoad, volume: 0.68)
+    }
+
+    func stopDrive() {
+        driveLoad?.stop()
+    }
+
     func stop() {
         switchOn?.stop()
         switchOff?.stop()
         hatchClose?.stop()
+        stopDrive()
         hum?.stop()
         stopKeys()
     }

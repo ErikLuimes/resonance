@@ -198,7 +198,7 @@ nonisolated final class CreditsRenderer {
         let pages = CreditsScene.pages(tune: tune)
         let index = Int(elapsed / CreditsScene.hold)
         guard pages.indices.contains(index) else { return }
-        let moment = (elapsed / CreditsScene.hold).truncatingRemainder(dividingBy: 1)
+        let pageElapsed = elapsed - Double(index) * CreditsScene.hold
         let page = pages[index]
         let rows: [(String, Double, Int, CGColor)] = [
             (page[0], 78, 1, Self.color(233, 161, 59)),
@@ -213,7 +213,7 @@ nonisolated final class CreditsRenderer {
             for (i, letter) in letters.enumerated() {
                 let place = still
                     ? CreditsScene.Placed(isOn: true, x: 0, y: 0)
-                    : CreditsScene.placed(letter: i, of: letters.count, row: row, moment: moment, elapsed: elapsed)
+                    : CreditsScene.placed(letter: i, of: letters.count, row: row, pageElapsed: pageElapsed, elapsed: elapsed)
                 guard place.isOn else { continue }
                 let columns = CreditsScene.bitmapColumns(letter)
                 for column in columns.indices {
@@ -265,7 +265,7 @@ nonisolated enum CreditsScene {
 
     static let width = 320.0
     static let height = 200.0
-    static let hold = 4.0
+    static let hold = 6.0
 
     private static let thanks = "THANKS FOR LISTENING TO"
     private static let name = "RESONANCE"
@@ -313,7 +313,7 @@ nonisolated enum CreditsScene {
         ["PROFESSIONAL LISTENER", "YIZHI LI ET AL", "MERT"],
         ["SKULL SURGEON", "INIGO QUILEZ", "DISTANCE FUNCTIONS"],
         ["ALL RESPECT TO THE DEMOSCENE", "TRITON", "WE FORGIVE THE PC"],
-        ["WILL CHECK IT LATER", "RICHARD SIMPSON", "INTERNATIONAL KARATEKA ANY DAY NOW"],
+        ["I'LL CHECK IT LATER... MAYBE", "RICHARD SIMPSON", "INTERNATIONAL KARATEKA ANY DAY NOW"],
     ]
 
     typealias V = [Double]
@@ -385,6 +385,8 @@ nonisolated enum CreditsScene {
         "8": "3649494936",
         "9": "064949291E",
         ",": "0050300000",
+        ".": "0060600000",
+        "'": "0004030100",
         "-": "0808080808"
     ]
 
@@ -450,11 +452,11 @@ nonisolated enum CreditsScene {
     }
 
     /// A letter of a name: it drops into place, holds, then scatters.
-    static func placed(letter i: Int, of count: Int, row: Int, moment f: Double, elapsed t: Double) -> Placed {
+    static func placed(letter i: Int, of count: Int, row: Int, pageElapsed: Double, elapsed t: Double) -> Placed {
         let index = Double(i)
-        let begins = index * min(0.012, 0.3 / Double(max(count, 1))) + Double(row) * 0.04
-        let coming = min(1, max(0, (f - begins) / 0.1))
-        let going = max(0, (f - 0.86 - index * 0.004) / 0.08)
+        let begins = index * min(0.048, 1.2 / Double(max(count, 1))) + Double(row) * 0.16
+        let coming = min(1, max(0, (pageElapsed - begins) / 0.4))
+        let going = max(0, (pageElapsed - (hold - 0.56) - index * 0.016) / 0.32)
         let left = 1 - coming
         return Placed(isOn: coming > 0 && going < 1,
                       x: (sin(index + t) * left * 30 + going * (index - Double(count) / 2) * 18).rounded(),

@@ -296,8 +296,12 @@ struct MonitorDeskTests {
         model.startOver()
         desk.attach(to: view, store: store)
         defer { desk.detach(from: view); model.startOver() }
-        let disk = try #require(desk.scene.rootNode.childNode(withName: "credits_floppy", recursively: true))
+        let root = desk.scene.rootNode
+        let disk = try #require(root.childNode(withName: "credits_floppy", recursively: true))
+        let latch = try #require(root.childNode(withName: "drive_door_hinge", recursively: true))
         let rest = disk.simdWorldPosition
+        #expect(disk.hitTestWithSegment(from: SCNVector3(0, 0.1, 0), to: SCNVector3(0, -0.1, 0), options: nil).isEmpty)
+        #expect(!disk.hitTestWithSegment(from: SCNVector3(0, 0.1, -0.35), to: SCNVector3(0, -0.1, -0.35), options: nil).isEmpty)
         _ = view.snapshot()
         desk.update(at: CACurrentMediaTime() - 2)
         model.hostGrown = true
@@ -319,34 +323,47 @@ struct MonitorDeskTests {
         }
 
         let player = try picture("credits-disk")
-        let projected = view.projectPoint(disk.worldPosition)
+        let projected = view.projectPoint(disk.convertPosition(SCNVector3(0, 0, -0.35), to: nil))
         let point = CGPoint(x: projected.x, y: projected.y)
         try #require(view.bounds.contains(point))
         try #require(desk.isClickable(at: point))
         desk.mouseDown(at: point, flags: [])
         let clicked = CACurrentMediaTime()
-        desk.update(at: clicked + 1.0)
+        desk.update(at: clicked + 1.52)
         if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             #expect(disk.simdWorldPosition.x < rest.x - 1)
+            #expect((disk.geometry?.value(forKey: "diskBend") as? NSNumber)?.floatValue ?? 0 > 0.14)
+            #expect(abs(latch.simdEulerAngles.x) < 0.01)
+            let readEdge = disk.simdConvertPosition([0, 0, 0.68], to: nil)
+            #expect(readEdge.z < disk.simdWorldPosition.z)
             if ProcessInfo.processInfo.environment["MONITOR_DESK_SNAPSHOT"] != nil,
                let rep = view.snapshot().tiffRepresentation.flatMap(NSBitmapImageRep.init(data:)) {
                 Self.printForALook(rep, "credits-inserting")
             }
+            let contact = disk.simdWorldPosition.z
+            desk.update(at: clicked + 2.03)
+            #expect(!disk.isHidden)
+            #expect(disk.simdWorldPosition.z > contact + 0.2)
+            #expect(abs(latch.simdEulerAngles.x) < 0.01)
         }
-        desk.update(at: clicked + 1.68)
+        desk.update(at: clicked + 3.34)
         #expect(disk.isHidden)
+        #expect(latch.simdEulerAngles.x > 0.8)
         if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
            ProcessInfo.processInfo.environment["MONITOR_DESK_SNAPSHOT"] != nil,
            let rep = view.snapshot().tiffRepresentation.flatMap(NSBitmapImageRep.init(data:)) {
             Self.printForALook(rep, "credits-drive-light")
         }
-        desk.update(at: clicked + 1.95)
-        desk.update(at: clicked + 6)
+        desk.update(at: clicked + 4.52)
+        desk.update(at: clicked + 6.72)
         let credits = try picture("credits-on-crt")
         #expect(credits.blueComponent < player.blueComponent - 0.3)
-        desk.update(at: clicked + 140)
-        desk.update(at: clicked + 141)
+        let tune = store.nowPlaying.map { CreditsScene.Tune(title: $0.displayTitle, author: $0.author) }
+        let end = clicked + 5.3 + CreditsScene.length(tune: tune)
+        desk.update(at: end)
+        desk.update(at: end + 2)
         #expect(!disk.isHidden)
+        #expect(abs(latch.simdEulerAngles.x) < 0.01)
         #expect(simd_distance(disk.simdWorldPosition, rest) < 0.001)
         #expect(model.mode == .player)
         let returned = try picture("credits-returned")
