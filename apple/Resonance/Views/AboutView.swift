@@ -6,8 +6,8 @@ import PhosphorCore
 /// its bezel. Then the name and version, a line on what it is, who it's
 /// built on, the license, and links to the credits intro, licenses, the website
 /// and the source. At rest its size follows its text and nothing else.
-/// Switched on, the window grows to most of the screen with the monitor
-/// filling it and the text gone, and shrinks back when the tube is off.
+/// The power switch opens the desk fullscreen and returns to compact About
+/// when the tube turns off.
 struct AboutView: View {
     @Environment(\.openWindow) private var openWindow
 
@@ -17,15 +17,19 @@ struct AboutView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(PlayerStore.self) private var store
 
-    /// The window is resizing or expanded for the monitor.
+    /// The desk is active and About's text is hidden.
     @State private var grown = false
     @State private var showsAboutText = true
-    /// Scene bounds and window frame share one transition clock.
-    @State private var monitorSize = Self.monitorOffSize
-    /// The window's frame before it grew, to go back to.
+    /// The compact frame AppKit should return to after fullscreen.
     @State private var offFrame: NSRect?
-    /// Invalidates animation completions when About resets or starts a new transition.
-    @State private var animation = 0
+    @State private var compactContentHeight: CGFloat = 0
+    @State private var fullscreenWidth: CGFloat = 0
+    @State private var presentationBeforeFullscreen: NSApplication.PresentationOptions?
+    @State private var transition = 0
+    @State private var fullscreen = Fullscreen.windowed
+    @State private var hostWindow: ObjectIdentifier?
+
+    private enum Fullscreen { case windowed, entering, active, exiting }
 
     private var model: MonitorModel { MonitorModel.shared }
     private static let textFadeDuration = 0.2
@@ -38,7 +42,6 @@ struct AboutView: View {
     private static let monitorOffSize = CGSize(width: 320, height: 320 * MonitorCase.aspect)
 
     var body: some View {
-        let awake = model.power != .off
         VStack(spacing: 0) {
             // Reserve the monitor's resting space without letting its animated
             // size affect the window's minimum size.
@@ -54,23 +57,33 @@ struct AboutView: View {
         .frame(width: grown ? nil : Self.width, alignment: .top)
         .frame(maxWidth: grown ? .infinity : nil, maxHeight: grown ? .infinity : nil, alignment: .top)
         .overlay(alignment: .top) {
-            Group {
-                if DeskScene.available {
-                    MonitorDesk(store: store, onPower: pressPower)
-                } else {
-                    MonitorCase(store: store, live: true, onPower: pressPower)
+            GeometryReader { geometry in
+                let size = deskSize(in: geometry.size)
+                Group {
+                    if DeskScene.available {
+                        MonitorDesk(store: store, onPower: pressPower)
+                    } else {
+                        MonitorCase(store: store, live: true, onPower: pressPower)
+                    }
                 }
+                .frame(width: size.width, height: size.height)
+                .frame(maxWidth: .infinity, alignment: .top)
+                .allowsHitTesting(fullscreen == .windowed || fullscreen == .active)
             }
-            .frame(width: monitorSize.width, height: monitorSize.height)
         }
         .ignoresSafeArea(.container, edges: grown ? .all : [])
-        .onChange(of: awake) { _, on in
-            if on {
-                grow()
-            } else {
-                MonitorSounds.shared.stop()
-                shrinkBack()
+        .overlay(alignment: .topTrailing) {
+            if fullscreen == .active {
+                Button(action: exitPlayback) {
+                    Label("Exit Full Screen", systemImage: "arrow.down.right.and.arrow.up.left")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .padding(20)
             }
+        }
+        .onChange(of: model.power) { _, power in
+            if power == .off { exitPlayback() }
         }
         .onChange(of: grown, initial: true) { _, isGrown in model.hostGrown = isGrown }
         // The model found About had been away: About goes back to rest too.
@@ -80,8 +93,10 @@ struct AboutView: View {
         // the window's own closing counts, and so does its going out of
         // sight, which is what closing looks like when the window is kept.
         .onAppear {
+            guard fullscreen == .windowed else { return }
             reset()
             guard let window else { return }
+            hostWindow = ObjectIdentifier(window)
             // Restore the resting frame and apply the compact width on first open.
             var content = window.contentRect(forFrameRect: AboutSession.shared.restFrame ?? window.frame)
             content.origin.x += (content.width - Self.width) / 2
@@ -93,27 +108,71 @@ struct AboutView: View {
             window.styleMask.remove(.resizable)
             window.standardWindowButton(.zoomButton)?.isHidden = true
         }
-        .onDisappear { reset() }
+        .onDisappear { if fullscreen == .windowed { reset() } }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { note in
             if isAbout(note.object) { reset() }
         }
         // Out of sight, it starts over: off, nothing running, About at rest.
-        // (Only out of sight: a window's occlusion is re-reported as it
-        // resizes, and the grow must not switch the monitor off.)
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeOcclusionStateNotification)) { note in
-            if let window = note.object as? NSWindow, isAbout(window), !window.occlusionState.contains(.visible) { reset() }
+            if fullscreen == .windowed, let window = note.object as? NSWindow,
+               isAbout(window),
+               !window.occlusionState.contains(.visible) { reset() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { note in
+            if grown, isAbout(note.object) { hideSystemChrome() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { note in
+            if isAbout(note.object) { restoreSystemChrome() }
         }
     }
 
+    private func deskSize(in size: CGSize) -> CGSize {
+        guard grown else { return Self.monitorOffSize }
+        // Keep the desk's margins continuous as the same window changes size.
+        let span = max(1, fullscreenWidth - Self.width)
+        let compactShare = 1 - min(1, max(0, (size.width - Self.width) / span))
+        return CGSize(
+            width: max(1, size.width - compactShare * (Self.width - Self.monitorOffSize.width)),
+            height: max(1, size.height - compactShare * (compactContentHeight - Self.monitorOffSize.height))
+        )
+    }
+
+    private func hideSystemChrome() {
+        guard presentationBeforeFullscreen == nil else { return }
+        let previous = NSApp.presentationOptions
+        presentationBeforeFullscreen = previous
+        NSApp.presentationOptions = previous.subtracting([.hideDock, .hideMenuBar]).union([.autoHideDock, .autoHideMenuBar])
+    }
+
+    private func restoreSystemChrome() {
+        guard let previous = presentationBeforeFullscreen else { return }
+        NSApp.presentationOptions = previous
+        presentationBeforeFullscreen = nil
+    }
+
+    private func beginFullscreenTransition(_ next: Fullscreen) {
+        guard fullscreen != next else { return }
+        transition += 1
+        fullscreen = next
+        model.setHostFullscreen(true)
+        model.busyUntil = CACurrentMediaTime() + 2
+    }
+
     private func isAbout(_ object: Any?) -> Bool {
-        (object as? NSWindow)?.identifier?.rawValue.hasPrefix(Self.windowID) == true
+        guard let window = object as? NSWindow else { return false }
+        if let hostWindow { return ObjectIdentifier(window) == hostWindow }
+        return window.identifier?.rawValue.hasPrefix(Self.windowID) == true
     }
 
     private func pressPower() {
         let previous = model.power
         model.pressPower(store: store)
-        if model.power != previous {
-            MonitorSounds.shared.update(power: model.power)
+        guard model.power != previous else { return }
+        MonitorSounds.shared.update(power: model.power)
+        if model.power == .on {
+            enterPlayback()
+        } else {
+            exitPlayback()
         }
     }
 
@@ -127,13 +186,18 @@ struct AboutView: View {
 
     /// About's window straight back to its own frame, the layout at rest.
     private func settle() {
-        animation += 1
-        if grown, let window, let rest = offFrame ?? AboutSession.shared.restFrame {
-            window.setFrame(rest, display: false)
+        transition += 1
+        if let window {
+            if grown, let rest = offFrame, window.frame != rest {
+                window.setFrame(rest, display: false)
+            }
+            window.standardWindowButton(.closeButton)?.isHidden = false
         }
+        restoreSystemChrome()
+        fullscreen = .windowed
+        AboutSession.shared.exitFullscreen = nil
         grown = false
-        showsAboutText = true
-        monitorSize = Self.monitorOffSize
+        withAnimation(textFade) { showsAboutText = true }
         model.hostGrown = false
         model.busyUntil = 0
     }
@@ -185,88 +249,80 @@ struct AboutView: View {
     }
 
     private var window: NSWindow? {
-        NSApp.windows.first { $0.identifier?.rawValue.hasPrefix(Self.windowID) == true }
+        NSApp.windows.first { isAbout($0) }
     }
 
-    /// The window grows to three quarters of the screen's height, a little
-    /// wider than tall, centered on the screen, over 0.7 s; the layout above
-    /// follows its size as it goes, so the monitor grows with it.
-    private func grow() {
-        guard let window else { return }
-        animation += 1
-        let mine = animation
+    private func enterPlayback() {
+        guard let window, let screen = window.screen ?? NSScreen.main else { reset(); return }
+        let target = screen.frame
+        offFrame = window.frame
+        compactContentHeight = window.contentView?.bounds.height ?? window.frame.height
+        fullscreenWidth = target.width
+        AboutSession.shared.restFrame = window.frame
+        beginFullscreenTransition(.entering)
+        let mine = transition
         model.hostGrown = true
-        let fadeDuration = reduceMotion ? 0 : Self.textFadeDuration
-        model.busyUntil = CACurrentMediaTime() + fadeDuration + 0.2
-
-        // Keep the compact layout in place until the text has fully faded.
-        withAnimation(textFade, completionCriteria: .removed) {
-            showsAboutText = false
-        } completion: {
-            guard mine == animation else { return }
+        model.holdsCameraForWindowResize = true
+        withAnimation(textFade) { showsAboutText = false }
+        AboutSession.shared.exitFullscreen = { if fullscreen == .active { exitPlayback() } }
+        Task { @MainActor in
+            if !reduceMotion { try? await Task.sleep(for: .seconds(Self.textFadeDuration)) }
+            guard mine == transition else { return }
+            guard window.isVisible else { reset(); return }
             grown = true
-            offFrame = window.frame
-            AboutSession.shared.restFrame = window.frame
-            let screen = (window.screen ?? NSScreen.main)?.visibleFrame ?? window.frame
-            let height = (screen.height * 0.75).rounded()
-            let width = min((height * 1.1).rounded(), (screen.width * 0.9).rounded())
-            let frame = window.frameRect(forContentRect: NSRect(
-                x: (screen.midX - width / 2).rounded(), y: (screen.midY - height / 2).rounded(), width: width, height: height))
-            animate(window, to: frame, expanded: true, duration: 0.7)
+            if window.isKeyWindow { hideSystemChrome() }
+            window.standardWindowButton(.closeButton)?.isHidden = true
+            await resize(window, to: target)
+            guard mine == transition else { return }
+            finishFullscreenEntry()
         }
     }
 
-    /// Back to About's own frame, then its own layout.
-    private func shrinkBack() {
-        guard grown else {
-            if !showsAboutText { settle() }
+    private func finishFullscreenEntry() {
+        fullscreen = .active
+        grown = true
+        model.holdsCameraForWindowResize = false
+        model.busyUntil = 0
+        if model.power == .off { exitPlayback() }
+    }
+
+    private func exitPlayback() {
+        guard fullscreen == .active, let window, let offFrame else { return }
+        beginFullscreenTransition(.exiting)
+        let mine = transition
+        let now = CACurrentMediaTime()
+        if model.power == .on {
+            model.powerOff()
+            MonitorSounds.shared.update(power: model.power)
+        }
+        // The CRT collapse and camera pullback play inside a steady window.
+        let cameraReadyAt = DeskScene.returnCamera(in: window, at: now) ?? now
+        let exitAt = max(now + MonitorModel.pictureCollapseDuration, cameraReadyAt)
+        Task { @MainActor in
+            let delay = exitAt - CACurrentMediaTime()
+            if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
+            guard mine == transition else { return }
+            guard window.isVisible else { reset(); return }
+            model.holdsCameraForWindowResize = true
+            model.powerOff(animated: false)
+            await resize(window, to: offFrame)
+            guard mine == transition else { return }
+            reset()
+        }
+    }
+
+    private func resize(_ window: NSWindow, to frame: NSRect) async {
+        guard !reduceMotion else {
+            window.setFrame(frame, display: true)
             return
         }
-        guard let window, let offFrame else { settle(); return }
-        guard window.isVisible else { reset(); return }
-        animate(window, to: offFrame, expanded: false, duration: 0.6) {
-            grown = false
-            withAnimation(textFade) { showsAboutText = true }
-        }
-    }
-
-    /// Moves the window, with the power button locked until it's there.
-    private func animate(
-        _ window: NSWindow,
-        to frame: NSRect,
-        expanded: Bool,
-        duration: Double,
-        then done: (@MainActor @Sendable () -> Void)? = nil
-    ) {
-        animation += 1
-        let mine = animation
-        let seconds = reduceMotion ? 0 : duration
-        model.busyUntil = CACurrentMediaTime() + seconds + 0.2
-        let startFrame = window.frame
-        let startSize = monitorSize
-        let endSize = expanded ? window.contentRect(forFrameRect: frame).size : Self.monitorOffSize
-        // Resize the native window and its embedded view from the same progress.
-        // SceneKit keeps its own camera glide; only its host bounds change here.
-        Task { @MainActor in
-            let start = CACurrentMediaTime()
-            while mine == animation {
-                let progress = seconds > 0 ? min(1, (CACurrentMediaTime() - start) / seconds) : 1
-                let t = CGFloat(progress * progress * (3 - 2 * progress))
-                let next = NSRect(
-                    x: startFrame.minX + (frame.minX - startFrame.minX) * t,
-                    y: startFrame.minY + (frame.minY - startFrame.minY) * t,
-                    width: startFrame.width + (frame.width - startFrame.width) * t,
-                    height: startFrame.height + (frame.height - startFrame.height) * t)
-                monitorSize = CGSize(
-                    width: startSize.width + (endSize.width - startSize.width) * t,
-                    height: startSize.height + (endSize.height - startSize.height) * t)
-                window.setFrame(next, display: true)
-                if progress >= 1 {
-                    model.busyUntil = 0
-                    done?()
-                    return
-                }
-                try? await Task.sleep(for: .milliseconds(8))
+        await withCheckedContinuation { continuation in
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = window.animationResizeTime(frame)
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                window.animator().setFrame(frame, display: true)
+            } completionHandler: {
+                continuation.resume()
             }
         }
     }
@@ -310,9 +366,16 @@ final class AboutSession {
     static let shared = AboutSession()
     var generation = 0
     var restFrame: NSRect?
+    @ObservationIgnored var exitFullscreen: (() -> Void)?
 
     /// A new instance, then the window.
     func open(with openWindow: OpenWindowAction) {
+        if exitFullscreen != nil, let fullscreen = NSApp.windows.first(where: {
+            $0.identifier?.rawValue.hasPrefix(AboutView.windowID) == true
+        }) {
+            fullscreen.makeKeyAndOrderFront(nil)
+            return
+        }
         MonitorModel.shared.startOver()
         generation += 1
         openWindow(id: AboutView.windowID)

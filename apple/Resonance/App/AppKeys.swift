@@ -29,6 +29,14 @@ enum AppKeys {
     private static func handle(_ event: NSEvent) -> Bool {
         let monitorWindow = event.window ?? NSApp.keyWindow
         if isMonitorWindow(monitorWindow) {
+            if event.type == .keyDown,
+               event.modifierFlags.intersection([.command, .control, .option, .shift]) == [.command, .control],
+               event.charactersIgnoringModifiers?.lowercased() == "f" || event.keyCode == UInt16(kVK_ANSI_F),
+               let window = monitorWindow,
+               let exit = AboutSession.shared.exitFullscreen {
+                if !event.isARepeat, !MonitorModel.shared.busy, window.isKeyWindow { exit() }
+                return true
+            }
             // Record the physical press before a playback shortcut can consume it.
             if DeskScene.observeKeyEvent(event, in: monitorWindow) { return true }
             if event.type == .keyDown, let store, MonitorModel.shared.power != .off {

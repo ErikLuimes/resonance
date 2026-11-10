@@ -39,6 +39,7 @@ final class DeskSticker {
         let down: SIMD3<Float>
         var point: CGPoint
         var carryDistance: Float?
+        var targetCarryDistance: Float?
         var needsCarryDepth = false
         var elapsed: Float = 0
         var peeled = false
@@ -351,12 +352,13 @@ final class DeskSticker {
         }
 
         guard grab?.peeled == true || falling != nil else { return }
-        accumulator += min(dt, 0.065)
+        // While held, avoid a long burst of collision checks after a late frame.
+        accumulator += min(dt, grab == nil ? 0.065 : Self.step * 4)
         guard accumulator >= Self.step else { return }
         // Mouse events can arrive several times between frames. Only the
         // latest pointer position will be used by the simulation.
         if var grab, grab.needsCarryDepth {
-            grab.carryDistance = carryDistance(for: grab, in: view)
+            grab.targetCarryDistance = carryDistance(for: grab, in: view)
             grab.needsCarryDepth = false
             self.grab = grab
         }
@@ -376,6 +378,12 @@ final class DeskSticker {
         if var grab {
             grab.elapsed += dt
             let lifted = min(1, grab.elapsed / 0.17)
+            if let target = grab.targetCarryDistance {
+                let current = grab.carryDistance ?? target
+                // Clear nearer objects promptly, then ease away from the eye
+                // over the same interval used to lift the sticker.
+                grab.carryDistance = min(target, target + (current - target) * exp(-dt * 3 / 0.17))
+            }
             let world = SIMD3<Float>(view.unprojectPoint(SCNVector3(
                 grab.point.x + grab.pinOffset.x, grab.point.y + grab.pinOffset.y, grab.depth
             )))

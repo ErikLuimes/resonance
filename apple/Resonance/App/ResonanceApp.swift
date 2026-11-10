@@ -40,8 +40,7 @@ struct ResonanceApp: App {
                 .windowFullScreenBehavior(.disabled)
         }
         .windowStyle(.hiddenTitleBar)
-        // Its content's size at rest; the monitor grows it itself, and the
-        // view takes away the user's resizing.
+        // About controls its compact size and enables fullscreen for playback.
         .windowResizability(.contentMinSize)
         .restorationBehavior(.disabled)
         .defaultPosition(.center)

@@ -8,6 +8,7 @@ import Testing
 /// on the glass lands on the reference colors (design/crt-monitor/README.md:
 /// border `#9e8be1`, background `#654db6`) once the room's reflection is in.
 @MainActor
+@Suite(.serialized)
 struct MonitorDeskTests {
     @Test func theSceneHasEveryPartTheDeskMoves() throws {
         let desk = try #require(DeskScene.make())
@@ -286,7 +287,7 @@ struct MonitorDeskTests {
         #expect(paper.worldPosition.y < 0.04)
     }
 
-    @Test func clickingTheFloppyPlaysCreditsOnTheTubeAndReturnsToThePlayer() throws {
+    @Test func clickingTheFloppyPlaysCreditsOnTheTubeAndReturnsToThePlayer() async throws {
         let desk = try #require(DeskScene.make())
         let view = DeskView(frame: NSRect(x: 0, y: 0, width: 1200, height: 1000), options: [
             SCNView.Option.preferredRenderingAPI.rawValue: SCNRenderingAPI.metal.rawValue,
@@ -311,10 +312,10 @@ struct MonitorDeskTests {
         desk.update(at: now)
         SCNTransaction.flush()
 
-        func picture(_ name: String) throws -> NSColor {
+        func picture(_ name: String? = nil) throws -> NSColor {
             _ = view.snapshot()
             let rep = try #require(view.snapshot().tiffRepresentation.flatMap(NSBitmapImageRep.init(data:)))
-            Self.printForALook(rep, name)
+            if let name { Self.printForALook(rep, name) }
             let point = view.projectPoint(SCNVector3(0, DeskScene.screenCenterY + DeskScene.glassHalf.y * 0.8,
                                                      DeskScene.screenFrontZ))
             let x = Int(point.x / view.bounds.width * CGFloat(rep.pixelsWide))
@@ -356,8 +357,34 @@ struct MonitorDeskTests {
         }
         desk.update(at: clicked + 4.52)
         desk.update(at: clicked + 6.72)
-        let credits = try picture("credits-on-crt")
+        var credits = player
+        for _ in 0..<20 {
+            try await Task.sleep(for: .milliseconds(8))
+            desk.update(at: clicked + 6.72)
+            credits = try picture()
+            if credits.blueComponent < player.blueComponent - 0.3 { break }
+        }
         #expect(credits.blueComponent < player.blueComponent - 0.3)
+
+        // A native fullscreen transition changes the viewport in place and may pause draws.
+        model.setHostFullscreen(true)
+        try await Task.sleep(for: .milliseconds(550))
+        view.setFrameSize(NSSize(width: 1600, height: 900))
+        desk.update(at: clicked + 7)
+        #expect(model.isOn)
+        SCNTransaction.flush()
+        _ = view.snapshot()
+        let sticker = try #require(root.childNode(withName: "sticker", recursively: true))
+        let stickerPoint = view.projectPoint(sticker.worldPosition)
+        let grip = CGPoint(x: stickerPoint.x, y: stickerPoint.y)
+        desk.mouseDown(at: grip, flags: [])
+        #expect(desk.isHoldingSticker)
+        desk.mouseDragged(to: CGPoint(x: grip.x + 100, y: grip.y + 30))
+        desk.update(at: clicked + 7.1)
+        desk.mouseUp(at: nil)
+        #expect(!desk.isHoldingSticker)
+        model.setHostFullscreen(false)
+
         let tune = store.nowPlaying.map { CreditsScene.Tune(title: $0.displayTitle, author: $0.author) }
         let end = clicked + 5.3 + CreditsScene.length(tune: tune)
         desk.update(at: end)
@@ -431,6 +458,39 @@ struct MonitorDeskTests {
         }
         #expect(close(border, 0x9e, 0x8b, 0xe1, within: 10), "border \(hex(border))")
         #expect(close(background, 0x65, 0x4d, 0xb6, within: 10), "background \(hex(background))")
+    }
+
+    @Test func resizingAboutHoldsTheCameraInPlace() throws {
+        let desk = try #require(DeskScene.make())
+        let view = DeskView(frame: NSRect(x: 0, y: 0, width: 320, height: 267))
+        let model = MonitorModel.shared
+        let store = PlayerStore.preview
+        model.startOver()
+        desk.attach(to: view, store: store)
+        defer { desk.detach(from: view); model.startOver() }
+        let camera = try #require(view.pointOfView)
+        let now = CACurrentMediaTime()
+        desk.update(at: now)
+
+        model.hostGrown = true
+        model.setHostFullscreen(true)
+        model.holdsCameraForWindowResize = true
+        model.showPlayer(store: store)
+        view.setFrameSize(NSSize(width: 1600, height: 900))
+        desk.update(at: now + 2)
+        #expect(camera.simdPosition == DeskScene.restPose.position)
+
+        model.holdsCameraForWindowResize = false
+        desk.update(at: now + 2.01)
+        desk.update(at: now + 3.5)
+        let poweredPosition = camera.simdPosition
+        #expect(simd_distance(poweredPosition, DeskScene.restPose.position) > 1)
+
+        model.holdsCameraForWindowResize = true
+        model.powerOff(animated: false)
+        view.setFrameSize(NSSize(width: 320, height: 267))
+        desk.update(at: now + 5)
+        #expect(camera.simdPosition == poweredPosition)
     }
 
     /// The snapshot as base64 JPEG on one line, to look at from outside the

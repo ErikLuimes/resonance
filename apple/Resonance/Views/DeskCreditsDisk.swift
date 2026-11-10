@@ -45,7 +45,10 @@ final class DeskCreditsDisk {
     private let led = SCNMaterial()
     private let jacket: SCNGeometry
     private var phase = Phase.resting
-    private var renderer: CreditsRenderer?
+    private var renderer: CreditsTubeRenderer?
+    private var renderTask: Task<Void, Never>?
+    private var pendingPixels: [UInt32]?
+    private var hasShownFrame = false
     private var tune: CreditsScene.Tune?
     private var still = false
     private var lastFrame = -1
@@ -120,15 +123,16 @@ final class DeskCreditsDisk {
         guard canLoad else { return }
         self.tune = tune
         still = reduceMotion
-        renderer = CreditsRenderer()
+        renderer = CreditsTubeRenderer()
         lastFrame = -1
+        hasShownFrame = false
         phase = .loading(now)
         Task.detached(priority: .utility) { CreditsScene.prepareHeart() }
     }
 
     func reset() {
         phase = .resting
-        renderer = nil
+        stopRendering()
         tune = nil
         if driveSoundStarted {
             MonitorSounds.shared.stopDrive()
@@ -144,7 +148,7 @@ final class DeskCreditsDisk {
             reset()
         } else if isActive {
             phase = .ejecting(now)
-            renderer = nil
+            stopRendering()
             tune = nil
         }
     }
@@ -192,30 +196,37 @@ final class DeskCreditsDisk {
     }
 
     var isShowingIntro: Bool {
-        if case .playing = phase { return lastFrame >= 0 }
+        if case .playing = phase { return hasShownFrame }
         return false
     }
 
-    /// Use the same full raster as the player. SceneKit applies the tube's
-    /// controls and rounded edges to both pictures.
-    func render(at now: Double, into pixels: inout [UInt32]) -> Bool {
-        guard case .playing(let start) = phase, now >= start, let renderer else { return false }
+    /// Hand off the last completed frame and allow only one render in flight.
+    /// After a slow frame, the next render samples the current playback time.
+    func render(at now: Double) -> [UInt32]? {
+        guard case .playing(let start) = phase, now >= start, let renderer else { return nil }
+        let pixels = pendingPixels
+        pendingPixels = nil
+        if pixels != nil { hasShownFrame = true }
+
         let frame = Int((now - start) * 30)
-        guard frame != lastFrame,
-              let image = renderer.image(seconds: seconds(since: start, at: now), tune: tune, still: still)
-        else { return false }
-        let drawn = pixels.withUnsafeMutableBytes { bytes -> Bool in
-            let format = CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.premultipliedFirst.rawValue
-            guard let context = CGContext(data: bytes.baseAddress, width: C64Frame.width, height: C64Frame.height,
-                                          bitsPerComponent: 8, bytesPerRow: C64Frame.width * 4,
-                                          space: CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB(),
-                                          bitmapInfo: format) else { return false }
-            context.interpolationQuality = image.width > C64Frame.width ? .medium : .none
-            context.draw(image, in: CGRect(x: 0, y: 0, width: C64Frame.width, height: C64Frame.height))
-            return true
+        if renderTask == nil, frame != lastFrame {
+            lastFrame = frame
+            let elapsed = seconds(since: start, at: now)
+            renderTask = Task { [weak self, tune, still] in
+                let rendered = await renderer.render(seconds: elapsed, tune: tune, still: still)
+                guard !Task.isCancelled, let self else { return }
+                self.pendingPixels = rendered
+                self.renderTask = nil
+            }
         }
-        if drawn { lastFrame = frame }
-        return drawn
+        return pixels
+    }
+
+    private func stopRendering() {
+        renderTask?.cancel()
+        renderTask = nil
+        renderer = nil
+        pendingPixels = nil
     }
 
     private func seconds(since start: Double, at now: Double) -> Double {
@@ -376,5 +387,27 @@ final class DeskCreditsDisk {
             title.draw(at: CGPoint(x: paper.midX - title.size().width / 2, y: 197))
             return true
         }
+    }
+}
+
+/// Render the intro into the C64 raster without blocking SceneKit's input thread.
+private actor CreditsTubeRenderer {
+    private let renderer = CreditsRenderer()
+
+    func render(seconds: Double, tune: CreditsScene.Tune?, still: Bool) -> [UInt32]? {
+        guard !Task.isCancelled, let image = renderer.image(seconds: seconds, tune: tune, still: still) else { return nil }
+        let width = C64Frame.width, height = C64Frame.height
+        var pixels = [UInt32](repeating: 0, count: width * height)
+        let drawn = pixels.withUnsafeMutableBytes { bytes -> Bool in
+            let format = CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.premultipliedFirst.rawValue
+            guard let context = CGContext(data: bytes.baseAddress, width: width, height: height,
+                                          bitsPerComponent: 8, bytesPerRow: width * 4,
+                                          space: CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: format) else { return false }
+            context.interpolationQuality = image.width > width ? .medium : .none
+            context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        return drawn ? pixels : nil
     }
 }

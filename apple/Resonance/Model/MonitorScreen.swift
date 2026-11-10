@@ -176,6 +176,16 @@ final class MonitorModel {
     /// About has grown for the monitor. At its small size the monitor can
     /// only be off: `tick` switches it off if it isn't.
     @ObservationIgnored var hostGrown = false
+    @ObservationIgnored private var hostFullscreen = false
+    @ObservationIgnored var holdsCameraForWindowResize = false
+
+    static let pictureCollapseDuration = 0.45
+
+    /// Fullscreen resizing can interrupt drawing without closing About.
+    func setHostFullscreen(_ enabled: Bool) {
+        hostFullscreen = enabled
+        lastDraw = CACurrentMediaTime()
+    }
     /// Counts the clean starts: the renderer draws only while About is on
     /// screen, so a gap in its drawing means About was closed, and the
     /// monitor starts over, whatever SwiftUI did with the window. About
@@ -216,6 +226,8 @@ final class MonitorModel {
         peaks = [0, 0, 0]
         selected = 0
         hostGrown = false
+        hostFullscreen = false
+        holdsCameraForWindowResize = false
         busyUntil = 0
         resets += 1
     }
@@ -372,7 +384,7 @@ final class MonitorModel {
     func tick(store: PlayerStore?) -> MonitorPicture {
         let now = CACurrentMediaTime()
         // A gap in the drawing: About was away. Everything starts over.
-        if lastDraw > 0, now - lastDraw > 0.5, power != .off || mode != .off {
+        if !hostFullscreen, lastDraw > 0, now - lastDraw > 0.5, power != .off || mode != .off {
             startOver()
         }
         lastDraw = now
@@ -424,8 +436,8 @@ final class MonitorModel {
                 let u = t / 0.12
                 p.scaleY = Float(1 - (1 - 0.004) * u * u)
                 p.bright = Float(1 + 1.4 * u)
-            } else if t < 0.45 {
-                let u = (t - 0.12) / 0.33
+            } else if t < Self.pictureCollapseDuration {
+                let u = (t - 0.12) / (Self.pictureCollapseDuration - 0.12)
                 p.collapse = 1
                 p.scaleY = 0.004
                 p.scaleX = Float(1 - (1 - 0.006) * u * u * u)
@@ -434,7 +446,7 @@ final class MonitorModel {
                 p.collapse = 1
                 p.scaleY = 0.004
                 p.scaleX = 0.006
-                p.bright = Float(1.4 * exp(-(t - 0.45) / 0.55))
+                p.bright = Float(1.4 * exp(-(t - Self.pictureCollapseDuration) / 0.55))
                 if p.bright < 0.01 {
                     power = .off
                     p.bright = 0

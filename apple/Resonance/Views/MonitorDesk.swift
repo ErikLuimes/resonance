@@ -118,6 +118,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     static let restPose = Pose(position: [-3.6, 8.2, 17.5], target: [-0.2, 1.0, 0.3])
     static let onPose = Pose(position: [-0.25, 5.0, 10.6], target: [-0.25, 1.6, 1.0])
     private static let drivePose = Pose(position: [-5.6, 2.8, 6.35], target: [-3.95, 0.56, 0.84])
+    private static let pullbackDuration = 1.1
 
     let scene: SCNScene
     nonisolated let tube: TubePass
@@ -518,7 +519,8 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     func update(at now: Double) {
         let model = MonitorModel.shared
         let picture = model.tick(store: store)
-        let dt = lastStep == 0 ? 0 : Float(min(0.1, max(0, now - lastStep)))
+        let elapsed = lastStep == 0 ? 0 : max(0, now - lastStep)
+        let dt = Float(min(0.1, elapsed))
         lastStep = now
 
         followPower(model, now: now)
@@ -532,11 +534,11 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         }
 
         // The frame, when it changed. The BASIC cursor blinks at the C64's 3 Hz.
-        let blink = Int(now * 3) % 2 == 0
         let cursor = model.cursor
+        let blink = cursor != nil && Int(now * 3) % 2 == 0
         var changed: [UInt32]?
-        if creditsDisk?.render(at: now, into: &pixels) == true {
-            changed = pixels
+        if let credits = creditsDisk?.render(at: now) {
+            changed = credits
             uploaded = nil
         } else if creditsDisk?.isShowingIntro != true,
                   uploaded != model.frame || uploadedBlink != blink || uploadedCursor?.x != cursor?.x || uploadedCursor?.y != cursor?.y {
@@ -547,8 +549,15 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
             changed = pixels
         }
 
-        advanceDrift(model, now: now, dt: dt)
-        place(cartridgePose(pose(at: now), powered: model.isOn, dt: dt))
+        if !model.holdsCameraForWindowResize {
+            if isHoldingSticker {
+                // Picking and dragging must use the same camera, even mid-glide.
+                glide.start += elapsed
+            } else {
+                advanceDrift(model, now: now, dt: dt)
+                place(cartridgePose(pose(at: now), powered: model.isOn, dt: dt))
+            }
+        }
         if let view { paperSticker?.update(dt: dt, in: view) }
         moveKeys(now: now, dt: dt, audible: model.isOn && view?.window != nil)
         updateHatch(at: now)
@@ -572,7 +581,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
 
         // The tube's texture, the size the glass has on screen, so the
         // shader's footprint terms see the pixels the picture really gets.
-        let height = glassPixelHeight()
+        let height = model.holdsCameraForWindowResize && targetHeight > 0 ? targetHeight : glassPixelHeight()
         if height != targetHeight {
             targetHeight = height
             let width = Int((Float(height) * Self.meshHalf.x / Self.meshHalf.y).rounded())
@@ -612,6 +621,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     /// Glides to the monitor when the power comes on, back to the desk once
     /// the dot has faded, and snaps back when About starts over.
     private func followPower(_ model: MonitorModel, now: Double) {
+        guard !model.holdsCameraForWindowResize else { return }
         if model.resets != lastResets {
             lastResets = model.resets
             glide = (Self.restPose, Self.restPose, now, 1)
@@ -625,11 +635,22 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
             handDrift = CameraNoise(interval: 0.6...1.5)
             driftRate = 0
             startGlide(to: Self.onPose, duration: 1.4, now: now)
-        } else if power == .off, lastPower == .dying {
-            startGlide(to: Self.restPose, duration: 1.1, now: now)
+        } else if power == .off, lastPower == .dying, glide.to.position != Self.restPose.position {
+            startGlide(to: Self.restPose, duration: Self.pullbackDuration, now: now)
         }
         if power == .off, lastPower != .off { resetPictureControls() }
         lastPower = power
+    }
+
+    /// Returns when the camera will be in its compact About pose.
+    static func returnCamera(in window: NSWindow, at now: Double) -> Double? {
+        guard let desk = shared, desk.view?.window === window else { return nil }
+        if desk.isHoldingSticker { desk.mouseUp() }
+        let from = desk.cartridgePose(desk.pose(at: now), powered: false, dt: 0)
+        desk.cartridgeLook = 0
+        let duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : Self.pullbackDuration
+        desk.glide = (from, Self.restPose, now, duration)
+        return now + duration
     }
 
     private func advanceDrift(_ model: MonitorModel, now: Double, dt: Float) {
@@ -1108,7 +1129,7 @@ nonisolated final class TubePass: @unchecked Sendable {
         let frameDescriptor = MTLTextureDescriptor.texture2DDescriptor(
             pixelFormat: .bgra8Unorm, width: C64Frame.width, height: C64Frame.height, mipmapped: true)
         frameDescriptor.usage = .shaderRead
-        frameDescriptor.storageMode = .shared
+        frameDescriptor.storageMode = .private
         guard let pipeline = try? device.makeRenderPipelineState(descriptor: descriptor),
               let frame = device.makeTexture(descriptor: frameDescriptor)
         else { return nil }
@@ -1143,15 +1164,17 @@ nonisolated final class TubePass: @unchecked Sendable {
         pixels = nil
         lock.unlock()
         guard let target, var uniforms = pending, let commands = queue.makeCommandBuffer() else { return }
-        if let newPixels {
-            newPixels.withUnsafeBytes { bytes in
-                frame.replace(region: MTLRegionMake2D(0, 0, C64Frame.width, C64Frame.height), mipmapLevel: 0,
-                              withBytes: bytes.baseAddress!, bytesPerRow: C64Frame.width * 4)
-            }
-            if let blit = commands.makeBlitCommandEncoder() {
-                blit.generateMipmaps(for: frame)
-                blit.endEncoding()
-            }
+        if let newPixels, let upload = newPixels.withUnsafeBytes({ bytes in
+            bytes.baseAddress.flatMap { device.makeBuffer(bytes: $0, length: bytes.count, options: .storageModeShared) }
+        }), let blit = commands.makeBlitCommandEncoder() {
+            // Order uploads after earlier GPU reads of the same texture.
+            let row = C64Frame.width * 4
+            blit.copy(from: upload, sourceOffset: 0, sourceBytesPerRow: row,
+                      sourceBytesPerImage: row * C64Frame.height,
+                      sourceSize: MTLSize(width: C64Frame.width, height: C64Frame.height, depth: 1),
+                      to: frame, destinationSlice: 0, destinationLevel: 0, destinationOrigin: MTLOrigin())
+            blit.generateMipmaps(for: frame)
+            blit.endEncoding()
         }
         let pass = MTLRenderPassDescriptor()
         pass.colorAttachments[0].texture = target

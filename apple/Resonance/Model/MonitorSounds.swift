@@ -26,7 +26,7 @@ final class MonitorSounds {
         case .on:
             play(switchOn, volume: 0.85)
             play(hum, volume: 0.12)
-            hum?.setVolume(0.78, fadeDuration: 0.35)
+            hum?.setVolume(0.195, fadeDuration: 0.35)
         case .dying:
             switchOn?.stop()
             stopKeys()
