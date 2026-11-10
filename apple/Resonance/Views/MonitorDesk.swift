@@ -217,6 +217,9 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     // Leave about 5% above the top of the case, with the power button still in view.
     private static let creditsPose = Pose(position: [-0.16, 3.10, 6.22], target: [0, 2.30, -0.16])
     private static let pullbackDuration = 1.1
+    /// What SceneKit draws and `step` updates. The tube's contents keep
+    /// their own 50 a second inside that (ScreenRefreshClock).
+    private static let framesPerSecond = 60
 
     let scene: SCNScene
     nonisolated let tube: TubePass
@@ -570,12 +573,16 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         view.wantsLayer = true
         view.layer?.isOpaque = false
         view.antialiasingMode = .multisampling4X
-        view.preferredFramesPerSecond = 60
+        view.preferredFramesPerSecond = Self.framesPerSecond
         view.rendersContinuously = true
         view.allowsCameraControl = false
 
         MonitorModel.shared.typed = { [weak self] character in self?.tap(character) }
         let link = view.displayLink(target: self, selector: #selector(step(_:)))
+        // One update per frame SceneKit draws. Left alone, the link follows
+        // the display: 120 a second on a ProMotion screen, half of them unseen.
+        let rate = Float(Self.framesPerSecond)
+        link.preferredFrameRateRange = CAFrameRateRange(minimum: rate, maximum: rate, preferred: rate)
         link.add(to: .main, forMode: .common)
         self.link = link
     }

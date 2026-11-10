@@ -62,7 +62,10 @@ nonisolated enum C64Font {
 /// straight to the current time; they never queue a burst of catch-up work.
 nonisolated struct ScreenRefreshClock {
     static let palFramesPerSecond = 50.0
-    static let creditsFramesPerSecond = palFramesPerSecond / 2
+    /// The intro runs at the PAL rate too. A frame takes 0.5 ms to draw at
+    /// the tube's size (1.1 ms for the heart), and 0.3 ms in its own window
+    /// (3.8 ms for the heart, drawn four times finer).
+    static let creditsFramesPerSecond = palFramesPerSecond
     private let interval: Double
     private var next: Double?
     private var last: Double?
@@ -238,6 +241,7 @@ final class MonitorModel {
     @ObservationIgnored private var script: [Step] = []
     @ObservationIgnored private var scriptAt = 0
     @ObservationIgnored private var peaks: [Float] = [0, 0, 0]
+    @ObservationIgnored private var playingInQueue: (path: String?, count: Int, index: Int?) = (nil, 0, nil)
     @ObservationIgnored private var screenClock = ScreenRefreshClock(framesPerSecond: ScreenRefreshClock.palFramesPerSecond)
     @ObservationIgnored private var tuneCount: UInt32?
     @ObservationIgnored private var freezer: SIDFreezeMonitor?
@@ -576,33 +580,45 @@ final class MonitorModel {
 
     private struct Listed {
         let name: String
-        let tunes: [QueuedTune]
+        let count: Int
         let playing: Int?
+        let title: (Int) -> String
     }
 
-    /// The list playing: the library queue, or the playlist.
+    /// The list playing: the library queue, or the playlist. This runs every
+    /// screen refresh and the list can be all of HVSC, so nothing here walks
+    /// it: the rows are read as they're drawn, and the playing tune is looked
+    /// for only when it or the list changed.
     private func listed(_ store: PlayerStore) -> Listed {
         if store.queueActive {
-            let playing = store.queue.firstIndex { $0.path == store.nowPlaying?.path }
-            return Listed(name: store.queueSource?.name ?? "QUEUE", tunes: store.queue, playing: playing)
+            let queue = store.queue
+            let path = store.nowPlaying?.path
+            let found = playingInQueue
+            let holds = found.path == path && found.count == queue.count
+                && found.index.map { queue[$0].path == path } != false
+            if !holds {
+                playingInQueue = (path, queue.count, queue.firstIndex { $0.path == path })
+            }
+            return Listed(name: store.queueSource?.name ?? "QUEUE", count: queue.count,
+                          playing: playingInQueue.index) { queue[$0].title }
         }
-        let tunes = store.rows.map { QueuedTune(path: $0.id, title: $0.title, author: $0.author) }
-        return Listed(name: "PLAYLIST", tunes: tunes, playing: store.currentIndex)
+        let rows = store.rows
+        return Listed(name: "PLAYLIST", count: rows.count, playing: store.currentIndex) { rows[$0].title }
     }
 
     private func compose(_ store: PlayerStore, dt: Double) {
         let list = listed(store)
-        selected = max(0, min(selected, max(0, list.tunes.count - 1)))
+        selected = max(0, min(selected, max(0, list.count - 1)))
         var f = C64Frame()
         f.line(0, " RESONANCE 64".padding(toLength: 29, withPad: " ", startingAt: 0) + "SID PLAYER ", reversed: true)
-        let count = "\(list.tunes.count) TUNES"
+        let count = "\(list.count) TUNES"
         f.line(2, (" " + list.name.uppercased()).padding(toLength: max(0, 39 - count.count), withPad: " ", startingAt: 0) + " " + count)
-        let first = max(0, min(selected - 4, list.tunes.count - 10))
+        let first = max(0, min(selected - 4, list.count - 10))
         for row in 0..<10 {
             let i = first + row
-            guard i < list.tunes.count else { break }
+            guard i < list.count else { break }
             let number = String(i + 1)
-            let text = (i == selected ? ">" : " ") + String(repeating: " ", count: max(0, 2 - number.count)) + number + ". " + list.tunes[i].title
+            let text = (i == selected ? ">" : " ") + String(repeating: " ", count: max(0, 2 - number.count)) + number + ". " + list.title(i)
             f.line(3 + row, text, reversed: i == list.playing)
         }
         if let tune = store.nowPlaying {
@@ -657,15 +673,14 @@ final class MonitorModel {
         guard mode == .player else { return true }
         let list = listed(store)
         switch action {
-        case .moveDown: selected = min(list.tunes.count - 1, selected + 1)
+        case .moveDown: selected = min(list.count - 1, selected + 1)
         case .moveUp: selected = max(0, selected - 1)
         case .top: selected = 0
-        case .bottom: selected = list.tunes.count - 1
+        case .bottom: selected = list.count - 1
         case .playSelected:
-            guard selected < list.tunes.count else { return true }
-            let tune = list.tunes[selected]
+            guard selected < list.count else { return true }
             if store.queueActive {
-                store.playQueue(store.queue.map { URL(filePath: $0.path) }, startAt: URL(filePath: tune.path),
+                store.playQueue(store.queue.map { URL(filePath: $0.path) }, startAt: URL(filePath: store.queue[selected].path),
                                 from: store.queueSource ?? .myPlaylist, tunes: store.queue)
             } else {
                 store.play(index: selected)

@@ -68,7 +68,7 @@ struct CreditsTests {
 
     @Test func theNamesAreAllHereAndFit() {
         let pages = CreditsScene.pages(tune: hubbard)
-        for name in ["ERIK LUIMES", "CLAUDE", "TRITON", "INIGO QUILEZ", "ROB HUBBARD"] {
+        for name in ["ERIK LUIMES", "CLAUDE @ ANTHROPIC", "TRITON", "INIGO QUILEZ", "ROB HUBBARD"] {
             #expect(pages.contains { $0[1] == name }, "\(name)")
         }
         #expect(pages.contains(["SKULL SURGEON", "INIGO QUILEZ", "DISTANCE FUNCTIONS"]))
@@ -111,7 +111,8 @@ struct CreditsTests {
 
     @Test func nothingPlayingLeavesThatPageOutAndItRunsShorter() {
         #expect(CreditsScene.pages(tune: nil).count + 1 == CreditsScene.pages(tune: hubbard).count)
-        #expect(CreditsScene.length(tune: nil) + CreditsScene.hold == CreditsScene.length(tune: hubbard))
+        // Sums of seconds: equal to within rounding, whatever the number of pages.
+        #expect(abs(CreditsScene.length(tune: nil) + CreditsScene.hold - CreditsScene.length(tune: hubbard)) < 1e-9)
     }
 
     @Test func aMomentAlwaysDrawsTheSame() {

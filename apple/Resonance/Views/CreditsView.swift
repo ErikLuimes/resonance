@@ -298,10 +298,9 @@ nonisolated enum CreditsScene {
 
     /// As in the terminal app's credits (cli/src/credits.rs).
     private static let people13: [[String]] = [
-        ["A PRODUCTION BY", "ERIK LUIMES", ""],
+        ["A PRODUCTION BY", "ERIK LUIMES", "FOR A CHIP FROM 1982, IN 2026"],
         ["DIRECTOR OF SAYING NO", "ERIK LUIMES", "IT WAS PERFECT, PUT IT BACK"],
-        ["TYPED VERY FAST", "CLAUDE", "BY ANTHROPIC"],
-        ["BROKE THE BUILD", "CLAUDE", "TWICE BEFORE COFFEE"],
+        ["CONFIDENTLY WRONG, PROMPTLY SORRY", "CLAUDE @ ANTHROPIC", "YOU'RE ABSOLUTELY RIGHT"],
         ["BUILT THE HOUSE WE MOVED INTO", "MARCIN SPOCZYNSKI", "PHOSPHOR"],
         ["CHIP WHISPERER", "DAG LEM", "RESID"],
         ["CHIEF OF DISTORTION", "ANTTI LANKILA", "RESID-FP"],
@@ -387,7 +386,8 @@ nonisolated enum CreditsScene {
         ",": "0050300000",
         ".": "0060600000",
         "'": "0004030100",
-        "-": "0808080808"
+        "-": "0808080808",
+        "@": "324979413E"
     ]
 
     private static let font: [Character: [[(Double, Double)]]] = outlines.mapValues { shapes in

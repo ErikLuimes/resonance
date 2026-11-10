@@ -506,6 +506,24 @@ struct MonitorDeskTests {
         #expect(camera.simdPosition == poweredPosition)
     }
 
+    /// SceneKit draws 60 frames a second; the intro's clock picks 50 of them.
+    @Test func theIntroReachesTheTubeFiftyTimesASecond() async throws {
+        let disk = DeskCreditsDisk(root: SCNNode())
+        let start = CACurrentMediaTime()
+        disk.load(at: start, tune: nil, reduceMotion: false)
+        _ = disk.update(at: start, audible: false)
+        let playing = start + 6
+        #expect(disk.update(at: playing, audible: false))
+        var frames = 0
+        // Two seconds from the moment the picture starts, 0.68 s after the drive stops.
+        for step in 0..<120 {
+            if disk.render(at: playing + 1 + Double(step) / 60) != nil { frames += 1 }
+            // Long enough for the 1 ms render to come back before the next display frame.
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect((96...100).contains(frames), "\(frames) frames in two seconds")
+    }
+
     /// The snapshot as base64 JPEG on one line, to look at from outside the
     /// app's sandbox, when the run sets TEST_RUNNER_MONITOR_DESK_SNAPSHOT=1.
     private static func printForALook(_ rep: NSBitmapImageRep, _ name: String) {
