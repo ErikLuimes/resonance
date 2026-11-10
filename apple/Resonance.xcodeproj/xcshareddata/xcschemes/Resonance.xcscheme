@@ -55,12 +55,12 @@
       <BuildableProductRunnable
          runnableDebuggingMode = "0">
          <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "DCFDDD02CCFD5D33F14599BA"
-               BuildableName = "Resonance.app"
-               BlueprintName = "Resonance"
-               ReferencedContainer = "container:Resonance.xcodeproj">
-            </BuildableReference>
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "DCFDDD02CCFD5D33F14599BA"
+            BuildableName = "Resonance.app"
+            BlueprintName = "Resonance"
+            ReferencedContainer = "container:Resonance.xcodeproj">
+         </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
    <ProfileAction
@@ -72,12 +72,12 @@
       <BuildableProductRunnable
          runnableDebuggingMode = "0">
          <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "DCFDDD02CCFD5D33F14599BA"
-               BuildableName = "Resonance.app"
-               BlueprintName = "Resonance"
-               ReferencedContainer = "container:Resonance.xcodeproj">
-            </BuildableReference>
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "DCFDDD02CCFD5D33F14599BA"
+            BuildableName = "Resonance.app"
+            BlueprintName = "Resonance"
+            ReferencedContainer = "container:Resonance.xcodeproj">
+         </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
    <AnalyzeAction
