@@ -238,6 +238,16 @@ final class MonitorModel {
 
     // MARK: The boot
 
+    /// The cartridge resets the C64 while its monitor stays on.
+    func resetComputer() {
+        guard isOn else { return }
+        freezer?.close()
+        freezer = nil
+        selected = 0
+        peaks = [0, 0, 0]
+        boot()
+    }
+
     private func boot() {
         frame.clear()
         term = (0, 0)
@@ -264,8 +274,8 @@ final class MonitorModel {
             Step(delay: 0.3) { m in m.showCursor(false); m.newline(); m.typed?("\n") },
             Step(delay: 0.35) { m in m.startPlayer() },
         ]
-        // The picture only shows once the tube is warm; the boot runs from then.
-        var at = CACurrentMediaTime() + Self.heaterTime + 0.3
+        // A warm CRT can show a reboot right away.
+        var at = max(CACurrentMediaTime(), onAt + Self.heaterTime + 0.3)
         for i in steps.indices {
             at += steps[i].delay
             steps[i].at = at

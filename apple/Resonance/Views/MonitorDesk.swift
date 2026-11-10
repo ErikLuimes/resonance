@@ -59,7 +59,7 @@ final class DeskView: SCNView {
 
     override func mouseMoved(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        let hot = desk?.isClickable(at: point) ?? false
+        let hot = desk?.pointerMoved(to: point) ?? false
         (hot ? NSCursor.pointingHand : NSCursor.arrow).set()
     }
 
@@ -68,6 +68,7 @@ final class DeskView: SCNView {
     }
 
     override func mouseExited(with event: NSEvent) {
+        desk?.pointerMoved(to: nil)
         NSCursor.arrow.set()
     }
 
@@ -116,6 +117,13 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     private let ledMaterial = SCNMaterial()
     private let screenLight = SCNLight()
     private var button: (node: SCNNode, rest: SIMD3<Float>)?
+    private enum CartridgeButton: String, CaseIterable {
+        case freeze = "freeze_button"
+        case reset = "reset_button"
+    }
+    private var cartridgeButtons: [CartridgeButton: (node: SCNNode, rest: SIMD3<Float>, travel: SIMD3<Float>, pressedAt: Double)] = [:]
+    private var hoverMaterials: [String: [(material: SCNMaterial, emission: Any?)]] = [:]
+    private var hoveredControl: String?
     private var caps: [C64Key: (node: SCNNode, rest: SIMD3<Float>, depth: Float)] = [:]
 
     // The frame on the tube, as last handed to the render thread.
@@ -132,6 +140,9 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     private var handDrift = CameraNoise(interval: 0.6...1.5)
     private var driftRate: Float = 0
     private var driftResumeAt: Double = 0
+    private var cartridgeLook: Float = 0
+    private var cartridgeLookTarget: Float = 0
+    private var pointerNearPower = false
     private var lastPower = MonitorModel.Power.off
     private var lastResets = -1
     private var buttonPressedAt = -10.0
@@ -181,6 +192,23 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         }
         if let node = root.childNode(withName: "power_button", recursively: true) {
             button = (node, node.simdPosition)
+            prepareHover(on: node, named: "power_button")
+        }
+        if let url = Bundle.main.url(forResource: "ActionReplay", withExtension: "usdz"),
+           let cartridge = try? SCNScene(url: url, options: nil) {
+            let mount = SCNNode()
+            mount.name = "action_replay"
+            for part in cartridge.rootNode.childNodes { mount.addChildNode(part) }
+            // Behind the keyboard on its right, connector into the rear port.
+            mount.simdPosition = [1.39, 0.46, 1.51]
+            root.addChildNode(mount)
+            for control in CartridgeButton.allCases {
+                guard let cap = mount.childNode(withName: control.rawValue, recursively: true),
+                      let parent = cap.parent else { continue }
+                let travel = parent.simdConvertVector([0, 0, 0.032], from: mount)
+                cartridgeButtons[control] = (cap, cap.simdPosition, travel, -10)
+                prepareHover(on: cap, named: control.rawValue)
+            }
         }
 
         // The glass: dark and glossy, the room in it, the tube's light added.
@@ -212,6 +240,20 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
             ledMaterial.emission.contents = NSColor.black
             mesh.geometry?.materials = [ledMaterial]
         }
+        // The breadbin's LED is a 0.03-radius dome in the original mesh.
+        // Fit a lit lens over it. This computer stays on when the CRT is off.
+        let lens = SCNSphere(radius: 0.0308)
+        let lensMaterial = SCNMaterial()
+        lensMaterial.lightingModel = .physicallyBased
+        lensMaterial.diffuse.contents = NSColor(srgbRed: 0.34, green: 0.02, blue: 0.015, alpha: 1)
+        lensMaterial.emission.contents = NSColor(srgbRed: 0.69, green: 0.065, blue: 0.035, alpha: 1)
+        lensMaterial.roughness.contents = 0.32
+        lens.materials = [lensMaterial]
+        let computerLED = SCNNode(geometry: lens)
+        computerLED.name = "c64_power_led"
+        computerLED.simdPosition = [1.61185, 0.8064, 2.34875]
+        computerLED.castsShadow = false
+        root.addChildNode(computerLED)
         if let sticker = root.childNode(withName: "sticker", recursively: true), let mesh = Self.geometryNode(in: sticker) {
             let material = SCNMaterial()
             material.lightingModel = .physicallyBased
@@ -301,6 +343,29 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         return nil
     }
 
+    private func prepareHover(on node: SCNNode, named name: String) {
+        guard let geometry = Self.geometryNode(in: node)?.geometry else { return }
+        // The cartridge shell and caps can share materials. Give each
+        // interactive control its own copy before changing its emission.
+        let materials = geometry.materials.compactMap { $0.copy() as? SCNMaterial }
+        guard materials.count == geometry.materials.count, !materials.isEmpty else { return }
+        geometry.materials = materials
+        hoverMaterials[name] = materials.map { ($0, $0.emission.contents) }
+    }
+
+    private func setHoveredControl(_ part: String?) {
+        let next = part.flatMap { hoverMaterials[$0] == nil ? nil : $0 }
+        guard next != hoveredControl else { return }
+        if let hoveredControl, let materials = hoverMaterials[hoveredControl] {
+            for entry in materials { entry.material.emission.contents = entry.emission }
+        }
+        hoveredControl = next
+        if let next, let materials = hoverMaterials[next] {
+            let glow = NSColor(srgbRed: 0.28, green: 0.22, blue: 0.16, alpha: 1)
+            for entry in materials { entry.material.emission.contents = glow }
+        }
+    }
+
     /// The app icon sticker, as About's 2D monitor draws it, straight and
     /// without its shadow: the plane is turned and lit in the scene.
     private static func stickerImage() -> NSImage? {
@@ -365,9 +430,17 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         modifiersHeld = []
         mouseHeld = nil
         driftResumeAt = 0
+        cartridgeLook = 0
+        cartridgeLookTarget = 0
+        pointerNearPower = false
+        setHoveredControl(nil)
         latched = []
         taps = [:]
         keysDownLastFrame = []
+        for (control, button) in cartridgeButtons {
+            button.node.simdPosition = button.rest
+            cartridgeButtons[control]?.pressedAt = -10
+        }
         link?.invalidate()
         link = nil
         MonitorModel.shared.typed = nil
@@ -405,13 +478,14 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
 
         followPower(model, now: now)
         advanceDrift(model, now: now, dt: dt)
-        place(pose(at: now))
+        place(cartridgePose(pose(at: now), powered: model.isOn, dt: dt))
         moveKeys(now: now, dt: dt, audible: model.isOn && view?.window != nil)
 
         if let button {
-            let t = now - buttonPressedAt
-            let d = t < 0.05 ? t / 0.05 : t < 0.17 ? 1 - (t - 0.05) / 0.12 : 0
-            button.node.simdPosition = button.rest - Self.buttonNormal * Float(0.03 * max(0, d))
+            button.node.simdPosition = button.rest - Self.buttonNormal * 0.03 * Self.buttonDepth(now - buttonPressedAt)
+        }
+        for button in cartridgeButtons.values {
+            button.node.simdPosition = button.rest + button.travel * Self.buttonDepth(now - button.pressedAt)
         }
         ledMaterial.emission.contents = model.isOn ? NSColor(red: 0.36, green: 1, blue: 0.5, alpha: 1) : NSColor.black
         let lit = picture.collapse > 0.5 ? max(picture.scaleX, 0.05) * 0.3 : min(picture.scaleX, picture.scaleY)
@@ -457,6 +531,9 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         if model.resets != lastResets {
             lastResets = model.resets
             glide = (Self.restPose, Self.restPose, now, 1)
+            cartridgeLook = 0
+            cartridgeLookTarget = 0
+            pointerNearPower = false
         }
         let power = model.power
         if power == .on, lastPower == .off {
@@ -471,7 +548,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     }
 
     private func advanceDrift(_ model: MonitorModel, now: Double, dt: Float) {
-        guard model.isOn, !model.busy, now >= glide.start + glide.duration,
+        guard model.isOn, !model.busy, !pointerNearPower, now >= glide.start + glide.duration,
               now >= driftResumeAt, mouseHeld == nil, keyboardHeld.isEmpty, modifiersHeld.isEmpty,
               !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         else {
@@ -523,6 +600,19 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
 
     private func pauseDrift() {
         driftResumeAt = CACurrentMediaTime() + 1.2
+    }
+
+    /// Lean over the breadbin to reveal the controls on the cartridge's rear edge.
+    private func cartridgePose(_ pose: Pose, powered: Bool, dt: Float) -> Pose {
+        if !powered { cartridgeLookTarget = 0 }
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            cartridgeLook = 0
+            return pose
+        }
+        cartridgeLook += (cartridgeLookTarget - cartridgeLook) * (1 - exp(-dt * 7))
+        let angle = cartridgeLook * (-15 * .pi / 180)
+        let pitch = simd_quatf(angle: angle, axis: SIMD3(1, 0, 0))
+        return Pose(position: pose.target + pitch.act(pose.position - pose.target), target: pose.target)
     }
 
     private func startGlide(to pose: Pose, duration: Double, now: Double) {
@@ -616,6 +706,48 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
 
     // MARK: The mouse
 
+    @discardableResult
+    func pointerMoved(to point: CGPoint?) -> Bool {
+        let hit = point.flatMap { part(at: $0) }
+        setHoveredControl(hit)
+        updateCameraHover(at: point)
+        return hit != nil
+    }
+
+    private func updateCameraHover(at point: CGPoint?) {
+        pointerNearPower = false
+        guard MonitorModel.shared.isOn, let point, let view else {
+            cartridgeLookTarget = 0
+            return
+        }
+        if let power = button?.node, let center = projectedPoint(of: power, in: view),
+           hypot(point.x - center.x, point.y - center.y) <= min(48, max(24, view.bounds.height * 0.05)) {
+            pointerNearPower = true
+            cartridgeLookTarget = cartridgeLook
+            return
+        }
+        guard let freeze = cartridgeButtons[.freeze]?.node, let button = projectedPoint(of: freeze, in: view) else {
+            cartridgeLookTarget = 0
+            return
+        }
+        let radius = min(110, max(55, view.bounds.height * 0.13))
+        let distance = hypot(point.x - button.x, point.y - button.y)
+        // Hold the full lean near the switch while the pointer moves to click it.
+        let proximity = Float(min(1, max(0, (radius - distance) / (radius * 0.7))))
+        cartridgeLookTarget = proximity * proximity * (3 - 2 * proximity)
+    }
+
+    private func projectedPoint(of node: SCNNode, in view: DeskView) -> CGPoint? {
+        let point = view.projectPoint(node.worldPosition)
+        guard (0...1).contains(point.z) else { return nil }
+        return CGPoint(x: point.x, y: point.y)
+    }
+
+    private static func buttonDepth(_ elapsed: Double) -> Float {
+        if elapsed < 0.05 { return Float(max(0, elapsed) / 0.05) }
+        return Float(max(0, 1 - (elapsed - 0.05) / 0.12))
+    }
+
     private func part(at point: CGPoint) -> String? {
         guard let view else { return nil }
         let hits = view.hitTest(point, options: [.searchMode: SCNHitTestSearchMode.closest.rawValue])
@@ -623,6 +755,21 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         while let current = node {
             if let name = current.name, name == "power_button" || name.hasPrefix("key_") { return name }
             node = current.parent
+        }
+        // SceneKit can miss the imported switches. Pick the nearest cap
+        // within the small screen-space target around each control.
+        if MonitorModel.shared.isOn {
+            var nearest: CartridgeButton?
+            var distance = max(9, view.bounds.height * 0.015)
+            for (control, button) in cartridgeButtons {
+                guard let center = projectedPoint(of: button.node, in: view) else { continue }
+                let gap = hypot(point.x - center.x, point.y - center.y)
+                if gap < distance {
+                    nearest = control
+                    distance = gap
+                }
+            }
+            return nearest?.rawValue
         }
         return nil
     }
@@ -634,6 +781,19 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         if name == "power_button" {
             buttonPressedAt = CACurrentMediaTime()
             if let onPower { onPower() } else { MonitorModel.shared.pressPower(store: store) }
+            return
+        }
+        if let control = CartridgeButton(rawValue: name) {
+            let model = MonitorModel.shared
+            switch control {
+            case .freeze:
+                guard let store, model.handleFreezeKey(.f5, shifted: true, store: store) else { return }
+            case .reset:
+                model.resetComputer()
+            }
+            pauseDrift()
+            cartridgeButtons[control]?.pressedAt = CACurrentMediaTime()
+            MonitorSounds.shared.playKey(pressed: true, spacebar: false)
             return
         }
         guard let key = C64Key(nodeName: name) else { return }

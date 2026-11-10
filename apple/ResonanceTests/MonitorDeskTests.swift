@@ -1,5 +1,6 @@
 import AppKit
 import SceneKit
+import simd
 import Testing
 @testable import Resonance
 
@@ -14,7 +15,7 @@ struct MonitorDeskTests {
         for key in C64Key.allCases {
             #expect(root.childNode(withName: key.nodeName, recursively: true) != nil, "\(key.nodeName)")
         }
-        for name in ["screen", "power_button", "power_led", "sticker"] {
+        for name in ["screen", "power_button", "power_led", "c64_power_led", "sticker"] {
             #expect(root.childNode(withName: name, recursively: true) != nil, "\(name)")
         }
     }
@@ -46,6 +47,73 @@ struct MonitorDeskTests {
         desk.update(at: now + 0.5)
         desk.update(at: now + 0.7)
         #expect(abs(rest - key.simdWorldPosition.y) < 0.001)
+    }
+
+    @Test func clickingTheInstalledCartridgeOpensTheFreezeMenu() throws {
+        let desk = try #require(DeskScene.make())
+        let view = DeskView(frame: NSRect(x: 0, y: 0, width: 1200, height: 1000))
+        let store = PlayerStore.preview
+        let model = MonitorModel.shared
+        model.startOver()
+        desk.attach(to: view, store: store)
+        defer { desk.detach(from: view); model.startOver() }
+
+        let cartridge = try #require(desk.scene.rootNode.childNode(withName: "action_replay", recursively: true))
+        let button = try #require(cartridge.childNode(withName: "freeze_button", recursively: true))
+        let reset = try #require(cartridge.childNode(withName: "reset_button", recursively: true))
+        let power = try #require(desk.scene.rootNode.childNode(withName: "power_button", recursively: true))
+        // Warm the renderer before powering up. A slow first snapshot can
+        // otherwise trip the monitor's idle reset in the middle of this test.
+        _ = view.snapshot()
+        let now = CACurrentMediaTime()
+        desk.update(at: now)
+        model.hostGrown = true
+        model.showPlayer(store: store)
+        desk.update(at: now + 0.01)
+        desk.update(at: now + 1.5)
+
+        func point(of node: SCNNode) -> CGPoint {
+            let projected = view.projectPoint(node.worldPosition)
+            return CGPoint(x: projected.x, y: projected.y)
+        }
+
+        let freezePoint = point(of: button)
+        #expect(view.bounds.contains(freezePoint))
+        #expect(desk.isClickable(at: freezePoint))
+        let camera = try #require(view.pointOfView)
+        let restPosition = camera.simdWorldPosition
+        desk.pointerMoved(to: point(of: power))
+        desk.update(at: now + 1.6)
+        #expect(simd_distance(camera.simdWorldPosition, restPosition) < 0.001)
+
+        desk.pointerMoved(to: freezePoint)
+        for frame in 17...21 {
+            desk.update(at: now + Double(frame) / 10)
+        }
+        try #require(model.isOn)
+        if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            #expect(camera.simdWorldPosition.y > restPosition.y + 2)
+        }
+
+        let leanedPosition = camera.simdWorldPosition
+        desk.pointerMoved(to: point(of: power))
+        desk.update(at: now + 2.2)
+        #expect(simd_distance(camera.simdWorldPosition, leanedPosition) < 0.001)
+
+        let raisedPoint = point(of: button)
+        #expect(view.bounds.contains(raisedPoint))
+        desk.mouseDown(at: raisedPoint, flags: [])
+        #expect(model.mode == .frozen)
+        desk.update(at: now + 2.22)
+        var menuTitle = C64Frame()
+        menuTitle.line(10, "               FREEZE MENU")
+        let row = (10 * C64Frame.columns)..<(11 * C64Frame.columns)
+        #expect(model.frame.cells[row] == menuTitle.cells[row])
+
+        desk.mouseDown(at: point(of: reset), flags: [])
+        #expect(model.mode == .boot)
+        #expect(model.power == .on)
+        #expect(model.hostGrown)
     }
 
     @Test func theGlassShowsTheReferenceColors() throws {
