@@ -7,6 +7,7 @@
 #                 the tube's picture; the first map keeps the model's glass texture
 #   power_button  the brown POWER rocker, cut out of the case
 #   power_led     the power light on the badge strip, cut out of the case
+#   knob_<NAME>   the seven front controls, with their origins on their shafts
 #   key_<NAME>    each of the 66 keycaps, its origin at the cap's top center, so
 #                 pressing a key is moving its node down
 #   sticker       a plane on the bezel where the app icon sticker goes
@@ -74,14 +75,15 @@ def islands(obj):
     return out
 
 
-def boxed(obj, boxes):
+def boxed(obj, boxes, max_width=math.inf):
     """Moves the pieces of obj whose centers lie in each named box into an
     object of that name. Vertex indices change with every separate, so the
     pieces are found again each time."""
     made = {}
     for name, (lo, hi) in boxes.items():
         verts = [i for comp, a, b in islands(obj)
-                 if all(lo[k] <= (a[k] + b[k]) / 2 <= hi[k] for k in range(3)) for i in comp]
+                 if b.x - a.x <= max_width
+                 and all(lo[k] <= (a[k] + b[k]) / 2 <= hi[k] for k in range(3)) for i in comp]
         assert verts, name
         bpy.ops.object.select_all(action='DESELECT')
         obj.select_set(True); bpy.context.view_layer.objects.active = obj
@@ -164,6 +166,23 @@ led.data.materials.clear(); led.data.materials.append(led_mat)
 button = parts["power_button"]
 pts = [button.matrix_world @ v.co for v in button.data.vertices]
 print("BUTTON", [round(min(p[i] for p in pts), 3) for i in range(3)], [round(max(p[i] for p in pts), 3) for i in range(3)])
+
+# Three narrow pieces per knob make up the moving shaft and cap. The wider
+# rings around the shafts belong to the fixed panel.
+knob_centers = dict(zip(
+    ("knob_tint", "knob_color", "knob_brightness", "knob_contrast", "knob_horizontal", "knob_vertical", "knob_volume"),
+    (-1.15414, -0.93061, -0.70707, -0.48354, -0.01560, 0.20723, 0.43007),
+))
+knobs = boxed(case, {
+    name: (mathutils.Vector((x - 0.04, 0.12, 0.34)), mathutils.Vector((x + 0.04, 0.25, 0.38)))
+    for name, x in knob_centers.items()
+}, max_width=0.065)
+for name, knob in knobs.items():
+    bpy.ops.object.select_all(action='DESELECT')
+    knob.select_set(True)
+    bpy.context.view_layer.objects.active = knob
+    bpy.context.scene.cursor.location = (knob_centers[name], 0.20, 0.361195)
+    bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
 
 # --- The screen ----------------------------------------------------------------
 screen = bpy.data.objects["screen"]

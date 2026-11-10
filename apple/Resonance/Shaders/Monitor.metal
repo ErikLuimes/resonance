@@ -174,6 +174,12 @@ struct TubeUniforms {
     float wobble;
     float seed;
     float collapse;
+    float tint;
+    float color;
+    float contrast;
+    float horizontal;
+    float verticalPhase;
+    float rolling;
 };
 
 fragment float4 monitorTubeFragment(MonitorVertex in [[stage_in]],
@@ -183,7 +189,7 @@ fragment float4 monitorTubeFragment(MonitorVertex in [[stage_in]],
     float2 p = (in.uv - 0.5) * 2.0 * U.meshHalf / U.glassHalf;
     float2 q = p / RASTER;
     q *= 1.0 + BARREL * dot(q, q);
-    q.x += U.wobble * (0.6 * sin(U.time * 62.0 + q.y * 7.0) + 0.4 * sin(U.time * 9.0));
+    q.x += U.wobble * (0.6 * sin(U.time * 62.0 + q.y * 7.0) + 0.4 * sin(U.time * 9.0)) - U.horizontal;
     q.y *= 1.0 + 0.5 * U.wobble * sin(U.time * 11.0);
     float2 s = max(U.scale, float2(1e-4));
     float2 t = (q / s) * 0.5 + 0.5;
@@ -192,6 +198,11 @@ fragment float4 monitorTubeFragment(MonitorVertex in [[stage_in]],
     float pxLine = U.linePx * s.y;
     if (U.collapse < 0.5) {
         if (t.x > -0.03 && t.x < 1.03 && t.y > -0.03 && t.y < 1.03) {
+            float retrace = 1.0;
+            if (U.rolling > 0.5) {
+                t.y = fract(t.y + U.verticalPhase);
+                retrace = smoothstep(0.0, 0.024, min(t.y, 1.0 - t.y));
+            }
             float foot = 1.0 / max(pxLine, 1e-3);
             float lod = clamp(log2(max(foot, 1.0)), 0.0, 8.0);
             float ly = t.y * FRAME.y;
@@ -217,7 +228,7 @@ fragment float4 monitorTubeFragment(MonitorVertex in [[stage_in]],
             float2 tc = clamp(t, 0.0, 1.0);
             float2 outside = max(abs(t - 0.5) - 0.5, 0.0) * FRAME;
             float3 halo = (0.10 * frameAt(frame, tc, 3.0) + 0.05 * frameAt(frame, tc, 5.0)) * exp(-length(outside) / 5.0);
-            pic = (acc + halo) / 1.15;
+            pic = (acc + halo) * retrace / 1.15;
             pic *= 1.0 - 0.08 * smoothstep(0.4, 1.6, dot(p, p));
             pic *= 1.0 + 0.03 * (hash(in.position.xy + U.seed) - 0.5);
         }
@@ -227,6 +238,11 @@ fragment float4 monitorTubeFragment(MonitorVertex in [[stage_in]],
         float env = exp(-0.5 * pow(abs(p.x) / w.x, kx)) * exp(-0.5 * pow(abs(p.y) / w.y, 2.0));
         pic = frameAt(frame, float2(0.5), 8.0) * env;
     }
+    float level = dot(pic, float3(0.299, 0.587, 0.114));
+    pic = float3(level) + (pic - float3(level)) * U.color;
+    float chroma = max(max(pic.r, pic.g), pic.b) - min(min(pic.r, pic.g), pic.b);
+    pic += chroma * U.tint * float3(-0.45, 0.30, 0.0);
+    pic = max(pic * U.contrast + 0.35 * (1.0 - U.contrast) * smoothstep(0.0, 0.16, level), 0.0);
     float3 c = pic * U.bright;
     float lum = dot(c, float3(0.299, 0.587, 0.114));
     c += float3(max(lum - 1.0, 0.0)) * 0.8;

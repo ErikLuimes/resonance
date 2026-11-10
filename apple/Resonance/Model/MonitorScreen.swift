@@ -390,6 +390,7 @@ final class MonitorModel {
         if mode == .player, let store {
             compose(store, dt: dt)
         } else if let freezer {
+            freezer.syncVolume()
             frame = freezer.frame
             cursor = freezer.cursor
         }

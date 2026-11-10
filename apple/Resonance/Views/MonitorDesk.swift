@@ -54,7 +54,11 @@ final class DeskView: SCNView {
     }
 
     override func mouseUp(with event: NSEvent) {
-        desk?.mouseUp()
+        desk?.mouseUp(at: convert(event.locationInWindow, from: nil))
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        desk?.mouseDragged(to: convert(event.locationInWindow, from: nil))
     }
 
     override func mouseMoved(with event: NSEvent) {
@@ -95,6 +99,9 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     static let keyTravel: Float = 0.05
     /// The POWER rocker goes in 3 mm, along the panel's normal.
     static let buttonNormal = simd_normalize(SIMD3<Float>(0, 0.548, 0.837))
+    /// The asset's control-panel cover is modeled open, on this hinge.
+    static let hatchHinge: SIMD3<Float> = [0, 0.224, -0.190]
+    static let hatchClosedAngle: Float = -.pi / 2
 
     /// The camera at rest (the whole desk, three-quarters from the front) and
     /// on (the monitor with the keyboard in front of it), from the mockup.
@@ -117,11 +124,26 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     private let ledMaterial = SCNMaterial()
     private let screenLight = SCNLight()
     private var button: (node: SCNNode, rest: SIMD3<Float>)?
+    private var hatchPivot: SCNNode?
+    private var hatchMotion: (from: Float, to: Float, start: Double)?
     private enum CartridgeButton: String, CaseIterable {
         case freeze = "freeze_button"
         case reset = "reset_button"
     }
     private var cartridgeButtons: [CartridgeButton: (node: SCNNode, rest: SIMD3<Float>, travel: SIMD3<Float>, pressedAt: Double)] = [:]
+    private enum MonitorKnob: String, CaseIterable {
+        case tint = "knob_tint"
+        case color = "knob_color"
+        case brightness = "knob_brightness"
+        case contrast = "knob_contrast"
+        case horizontal = "knob_horizontal"
+        case vertical = "knob_vertical"
+        case volume = "knob_volume"
+    }
+    private var knobs: [MonitorKnob: (node: SCNNode, rest: simd_quatf)] = [:]
+    private var knobValues: [MonitorKnob: Float] = [:]
+    private var knobDrag: (knob: MonitorKnob, lastX: CGFloat, hasDragged: Bool)?
+    private var verticalPhase: Float = 0
     private var hoverMaterials: [String: [(material: SCNMaterial, emission: Any?)]] = [:]
     private var hoveredControl: String?
     private var caps: [C64Key: (node: SCNNode, rest: SIMD3<Float>, depth: Float)] = [:]
@@ -193,6 +215,21 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         if let node = root.childNode(withName: "power_button", recursively: true) {
             button = (node, node.simdPosition)
             prepareHover(on: node, named: "power_button")
+        }
+        if let hatch = root.childNode(withName: "monitor_cap", recursively: true) {
+            let openTransform = hatch.simdWorldTransform
+            let pivot = SCNNode()
+            pivot.name = "monitor_hatch_hinge"
+            root.addChildNode(pivot)
+            pivot.simdWorldPosition = Self.hatchHinge
+            pivot.addChildNode(hatch)
+            hatch.simdWorldTransform = openTransform
+            hatchPivot = pivot
+        }
+        for knob in MonitorKnob.allCases {
+            guard let node = root.childNode(withName: knob.rawValue, recursively: true) else { continue }
+            knobs[knob] = (node, node.simdWorldOrientation)
+            prepareHover(on: node, named: knob.rawValue)
         }
         if let url = Bundle.main.url(forResource: "ActionReplay", withExtension: "usdz"),
            let cartridge = try? SCNScene(url: url, options: nil) {
@@ -434,6 +471,10 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         cartridgeLookTarget = 0
         pointerNearPower = false
         setHoveredControl(nil)
+        hatchMotion = nil
+        hatchPivot?.simdEulerAngles.x = 0
+        knobDrag = nil
+        resetPictureControls()
         latched = []
         taps = [:]
         keysDownLastFrame = []
@@ -461,7 +502,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
     func update(at now: Double) {
         let model = MonitorModel.shared
         let picture = model.tick(store: store)
-        let dt = lastStep == 0 ? 0 : Float(min(0.1, now - lastStep))
+        let dt = lastStep == 0 ? 0 : Float(min(0.1, max(0, now - lastStep)))
         lastStep = now
 
         // The frame, when it changed. The BASIC cursor blinks at the C64's 3 Hz.
@@ -480,6 +521,14 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         advanceDrift(model, now: now, dt: dt)
         place(cartridgePose(pose(at: now), powered: model.isOn, dt: dt))
         moveKeys(now: now, dt: dt, audible: model.isOn && view?.window != nil)
+        updateHatch(at: now)
+        // Reflect changes made from the player or its keyboard shortcuts.
+        turnKnob(.volume)
+
+        let brightness = picture.bright * (0.45 + 1.1 * knobValue(.brightness))
+        let vertical = (knobValue(.vertical) - 0.5) * 2
+        let rolling = model.isOn && abs(vertical) > 0.1
+        verticalPhase = rolling ? (verticalPhase + vertical * dt).truncatingRemainder(dividingBy: 1) : 0
 
         if let button {
             button.node.simdPosition = button.rest - Self.buttonNormal * 0.03 * Self.buttonDepth(now - buttonPressedAt)
@@ -489,7 +538,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         }
         ledMaterial.emission.contents = model.isOn ? NSColor(red: 0.36, green: 1, blue: 0.5, alpha: 1) : NSColor.black
         let lit = picture.collapse > 0.5 ? max(picture.scaleX, 0.05) * 0.3 : min(picture.scaleX, picture.scaleY)
-        screenLight.intensity = CGFloat(220 * picture.bright * lit)
+        screenLight.intensity = CGFloat(220 * brightness * lit)
 
         // The tube's texture, the size the glass has on screen, so the
         // shader's footprint terms see the pixels the picture really gets.
@@ -507,8 +556,13 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
             linePx: glassPixels * 0.93 / Float(C64Frame.height),
             minWidth: 1.4 / (glassPixels * 0.5),
             time: Float(now.truncatingRemainder(dividingBy: 1000)),
-            bright: picture.bright, focus: picture.focus, wobble: picture.wobble,
-            seed: Float(frames % 1000), collapse: picture.collapse)
+            bright: brightness, focus: picture.focus, wobble: picture.wobble,
+            seed: Float(frames % 1000), collapse: picture.collapse,
+            tint: (knobValue(.tint) - 0.5) * 2,
+            color: knobValue(.color) * 2,
+            contrast: 0.4 + knobValue(.contrast) * 1.2,
+            horizontal: (knobValue(.horizontal) - 0.5) * 0.48,
+            verticalPhase: verticalPhase, rolling: rolling ? 1 : 0)
         tube.submit(uniforms, pixels: changed)
     }
 
@@ -544,11 +598,12 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         } else if power == .off, lastPower == .dying {
             startGlide(to: Self.restPose, duration: 1.1, now: now)
         }
+        if power == .off, lastPower != .off { resetPictureControls() }
         lastPower = power
     }
 
     private func advanceDrift(_ model: MonitorModel, now: Double, dt: Float) {
-        guard model.isOn, !model.busy, !pointerNearPower, now >= glide.start + glide.duration,
+        guard model.isOn, !model.busy, !pointerNearPower, knobDrag == nil, now >= glide.start + glide.duration,
               now >= driftResumeAt, mouseHeld == nil, keyboardHeld.isEmpty, modifiersHeld.isEmpty,
               !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         else {
@@ -706,8 +761,43 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
 
     // MARK: The mouse
 
+    private func knobValue(_ knob: MonitorKnob) -> Float {
+        knob == .volume ? Float(store?.volume ?? PlayerStore.defaultVolume) : knobValues[knob, default: 0.5]
+    }
+
+    private func turnKnob(_ knob: MonitorKnob) {
+        guard let (node, rest) = knobs[knob] else { return }
+        let angle = (0.5 - knobValue(knob)) * (1.5 * .pi)
+        node.simdWorldOrientation = simd_quatf(angle: angle, axis: [0, 0, 1]) * rest
+    }
+
+    private func setKnob(_ knob: MonitorKnob, to value: Double) {
+        if knob == .volume {
+            store?.volume = value
+        } else {
+            knobValues[knob] = value == 0.5 ? nil : Float(value)
+        }
+        turnKnob(knob)
+    }
+
+    private func resetPictureControls() {
+        let adjusted = Array(knobValues.keys)
+        knobValues.removeAll()
+        for knob in adjusted { turnKnob(knob) }
+    }
+
+    func mouseDragged(to point: CGPoint) {
+        guard let drag = knobDrag else { return }
+        let distance = point.x - drag.lastX
+        guard drag.hasDragged || abs(distance) >= 3 else { return }
+        knobDrag = (drag.knob, point.x, true)
+        let delta = Double(distance) / 150
+        setKnob(drag.knob, to: min(1, max(0, Double(knobValue(drag.knob)) + delta)))
+    }
+
     @discardableResult
     func pointerMoved(to point: CGPoint?) -> Bool {
+        if knobDrag != nil { return true }
         let hit = point.flatMap { part(at: $0) }
         setHoveredControl(hit)
         updateCameraHover(at: point)
@@ -748,13 +838,58 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         return Float(max(0, 1 - (elapsed - 0.05) / 0.12))
     }
 
+    private func toggleHatch(at now: Double) {
+        guard let hatchPivot else { return }
+        let angle = hatchPivot.simdEulerAngles.x
+        let target: Float = (hatchMotion?.to ?? angle) == 0 ? Self.hatchClosedAngle : 0
+        hatchMotion = (angle, target, now)
+        pauseDrift()
+        updateHatch(at: now)
+    }
+
+    private func updateHatch(at now: Double) {
+        guard let hatchPivot, let motion = hatchMotion else { return }
+        let closing = motion.to == Self.hatchClosedAngle
+        let duration = closing ? 0.22 : 0.28
+        let progress = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+            ? 1 : min(1, max(0, (now - motion.start) / duration))
+        if progress == 1 {
+            hatchPivot.simdEulerAngles.x = motion.to
+            hatchMotion = nil
+            if closing { MonitorSounds.shared.playHatchClose() }
+        } else {
+            // The opening falls into its stop. Closing accelerates into the latch.
+            let eased = closing ? pow(progress, 1.8) : 1 - pow(1 - progress, 2.5)
+            hatchPivot.simdEulerAngles.x = motion.from + (motion.to - motion.from) * Float(eased)
+        }
+    }
+
     private func part(at point: CGPoint) -> String? {
         guard let view else { return nil }
         let hits = view.hitTest(point, options: [.searchMode: SCNHitTestSearchMode.closest.rawValue])
         var node = hits.first?.node
         while let current = node {
-            if let name = current.name, name == "power_button" || name.hasPrefix("key_") { return name }
+            if let name = current.name {
+                if name == "power_button" || name == "monitor_cap" || name.hasPrefix("key_") { return name }
+                if hatchMotion == nil, hatchPivot?.simdEulerAngles.x == 0, MonitorKnob(rawValue: name) != nil {
+                    return name
+                }
+            }
             node = current.parent
+        }
+        if hatchMotion == nil, hatchPivot?.simdEulerAngles.x == 0 {
+            var nearest: MonitorKnob?
+            var distance = min(15, max(6, view.bounds.height * 0.011))
+            for (knob, part) in knobs {
+                let front = part.node.simdWorldPosition + SIMD3<Float>(0, 0, 0.075)
+                let projected = view.projectPoint(SCNVector3(front))
+                let gap = hypot(point.x - projected.x, point.y - projected.y)
+                if (0...1).contains(projected.z), gap < distance {
+                    nearest = knob
+                    distance = gap
+                }
+            }
+            if let nearest { return nearest.rawValue }
         }
         // SceneKit can miss the imported switches. Pick the nearest cap
         // within the small screen-space target around each control.
@@ -781,6 +916,17 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         if name == "power_button" {
             buttonPressedAt = CACurrentMediaTime()
             if let onPower { onPower() } else { MonitorModel.shared.pressPower(store: store) }
+            return
+        }
+        if name == "monitor_cap" {
+            toggleHatch(at: CACurrentMediaTime())
+            return
+        }
+        if let knob = MonitorKnob(rawValue: name) {
+            knobDrag = (knob, point.x, false)
+            cartridgeLookTarget = cartridgeLook
+            setHoveredControl(name)
+            pauseDrift()
             return
         }
         if let control = CartridgeButton(rawValue: name) {
@@ -814,7 +960,16 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         }
     }
 
-    func mouseUp() {
+    func mouseUp(at point: CGPoint? = nil) {
+        if let drag = knobDrag {
+            knobDrag = nil
+            if !drag.hasDragged {
+                let value = drag.knob == .volume ? PlayerStore.defaultVolume : 0.5
+                setKnob(drag.knob, to: value)
+            }
+            pointerMoved(to: point)
+            pauseDrift()
+        }
         if mouseHeld != nil { pauseDrift() }
         mouseHeld = nil
     }
@@ -840,6 +995,12 @@ nonisolated struct TubeUniforms {
     var wobble: Float
     var seed: Float
     var collapse: Float
+    var tint: Float
+    var color: Float
+    var contrast: Float
+    var horizontal: Float
+    var verticalPhase: Float
+    var rolling: Float
 }
 
 /// The tube's pass: the 384×272 frame as a mipmapped texture, drawn through

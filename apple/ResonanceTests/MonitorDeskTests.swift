@@ -116,6 +116,106 @@ struct MonitorDeskTests {
         #expect(model.hostGrown)
     }
 
+    @Test func theMonitorHatchStartsOpenAndTogglesWithTheTubeOff() throws {
+        let desk = try #require(DeskScene.make())
+        let view = DeskView(frame: NSRect(x: 0, y: 0, width: 1200, height: 1000))
+        let model = MonitorModel.shared
+        model.startOver()
+        desk.attach(to: view, store: PlayerStore.preview)
+        defer { desk.detach(from: view); model.startOver() }
+        desk.update(at: CACurrentMediaTime())
+        _ = view.snapshot()
+
+        let hinge = try #require(desk.scene.rootNode.childNode(withName: "monitor_hatch_hinge", recursively: true))
+        // A point on the panel itself, clear of the side brackets.
+        let surfaceInHinge = SIMD3<Float>(-0.5, 0.074, -0.06) - DeskScene.hatchHinge
+        func clickHatch() {
+            let projected = view.projectPoint(SCNVector3(hinge.simdConvertPosition(surfaceInHinge, to: nil)))
+            let point = CGPoint(x: projected.x, y: projected.y)
+            #expect(desk.isClickable(at: point))
+            desk.mouseDown(at: point, flags: [])
+            desk.update(at: CACurrentMediaTime() + 0.35)
+            SCNTransaction.flush()
+        }
+
+        #expect(abs(hinge.simdEulerAngles.x) < 0.001)
+        clickHatch()
+        #expect(abs(hinge.simdEulerAngles.x - DeskScene.hatchClosedAngle) < 0.001)
+        clickHatch()
+        #expect(abs(hinge.simdEulerAngles.x) < 0.001)
+        #expect(model.power == .off)
+    }
+
+    @Test func draggingTheKnobsAdjustsThemAndClickingResetsThem() throws {
+        let desk = try #require(DeskScene.make())
+        let view = DeskView(frame: NSRect(x: 0, y: 0, width: 1200, height: 1000))
+        let store = PlayerStore.preview
+        let oldVolume = store.volume
+        let model = MonitorModel.shared
+        model.startOver()
+        store.volume = 0.5
+        desk.attach(to: view, store: store)
+        defer {
+            store.volume = oldVolume
+            desk.detach(from: view)
+            model.startOver()
+        }
+
+        desk.update(at: CACurrentMediaTime())
+        _ = view.snapshot()
+        let knob = try #require(desk.scene.rootNode.childNode(withName: "knob_volume", recursively: true))
+        let material = try #require(knob.childNodes.first?.geometry?.firstMaterial)
+        let emission = material.emission.contents as? NSColor
+        let orientation = knob.simdWorldOrientation
+        func point(of knob: SCNNode) -> CGPoint {
+            let projected = view.projectPoint(SCNVector3(knob.simdWorldPosition + SIMD3(0, 0, 0.075)))
+            return CGPoint(x: projected.x, y: projected.y)
+        }
+
+        let start = point(of: knob)
+        #expect(desk.pointerMoved(to: start))
+        #expect(material.emission.contents as? NSColor != emission)
+
+        desk.mouseDown(at: start, flags: [])
+        desk.mouseDragged(to: CGPoint(x: start.x + 30, y: start.y))
+        #expect(abs(store.volume - 0.7) < 0.001)
+        #expect(abs(simd_dot(knob.simdWorldOrientation.vector, orientation.vector)) < 0.99)
+        desk.mouseUp()
+        #expect(material.emission.contents as? NSColor == emission)
+        desk.mouseDragged(to: start)
+        #expect(abs(store.volume - 0.7) < 0.001)
+
+        desk.mouseDown(at: start, flags: [])
+        desk.mouseDragged(to: CGPoint(x: start.x + 1, y: start.y))
+        desk.mouseUp()
+        #expect(store.volume == PlayerStore.defaultVolume)
+
+        let brightness = try #require(desk.scene.rootNode.childNode(withName: "knob_brightness", recursively: true))
+        let neutral = brightness.simdWorldOrientation.vector
+        let brightnessPoint = point(of: brightness)
+        func adjustBrightness() {
+            desk.mouseDown(at: brightnessPoint, flags: [])
+            desk.mouseDragged(to: CGPoint(x: brightnessPoint.x + 30, y: brightnessPoint.y))
+            desk.mouseUp()
+            #expect(abs(simd_dot(brightness.simdWorldOrientation.vector, neutral)) < 0.99)
+        }
+
+        adjustBrightness()
+        desk.mouseDown(at: brightnessPoint, flags: [])
+        desk.mouseUp()
+        #expect(abs(simd_dot(brightness.simdWorldOrientation.vector, neutral)) > 0.999)
+
+        adjustBrightness()
+        store.volume = 0.65
+        model.hostGrown = true
+        model.showPlayer(store: store)
+        desk.update(at: CACurrentMediaTime())
+        model.powerOff(animated: false)
+        desk.update(at: CACurrentMediaTime())
+        #expect(abs(simd_dot(brightness.simdWorldOrientation.vector, neutral)) > 0.999)
+        #expect(store.volume == 0.65)
+    }
+
     @Test func theGlassShowsTheReferenceColors() throws {
         let desk = try #require(DeskScene.make())
         let view = DeskView(frame: NSRect(x: 0, y: 0, width: 1680, height: 1400), options: [

@@ -47,6 +47,12 @@ final class SIDFreezeMonitor {
         store.core.setMonitorFrozen(frozen: false)
     }
 
+    func syncVolume() {
+        guard let audio else { return }
+        let volume = Float(store.volume)
+        if audio.volume != volume { audio.volume = volume }
+    }
+
     /// Returns true if this key leaves the freezer and resumes the player.
     func key(_ key: C64Key, shifted: Bool, character: String? = nil) -> Bool {
         defer { draw() }

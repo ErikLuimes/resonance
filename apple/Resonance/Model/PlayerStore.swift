@@ -97,6 +97,8 @@ final class PlayerStore {
         }
     }
 
+    static let defaultVolume = 0.8
+
     /// 0...1
     var volume: Double {
         didSet {
@@ -229,7 +231,7 @@ final class PlayerStore {
         makeCore: (CoreConfig) -> any PlayerCoreProtocol
     ) {
         let engine = Engine(storageValue: defaults.string(forKey: Pref.engine)) ?? .reSidFp
-        let volume = defaults.object(forKey: Pref.volume) as? Double ?? 0.8
+        let volume = defaults.object(forKey: Pref.volume) as? Double ?? Self.defaultVolume
         let shuffle = defaults.bool(forKey: Pref.shuffle)
         let repeatMode = Repeat(storageValue: defaults.string(forKey: Pref.repeatMode)) ?? .off
         let options = PlaybackOptions(from: defaults)
