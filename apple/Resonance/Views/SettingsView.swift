@@ -645,7 +645,7 @@ private struct CrashSettings: View {
                 Section {
                     Button("Delete All Reports…", role: .destructive) {
                         confirmingClear = true
-                    }
+                    }.tint(.red)
                 }
             }
 #if DEBUG
@@ -664,6 +664,7 @@ private struct CrashSettings: View {
                 KSCrash.shared.reportStore?.deleteAllReports()
                 reload()
             }
+            .tint(.red)
         } message: {
             Text("This can't be undone.")
         }
@@ -746,21 +747,31 @@ private struct CrashReportRow: View {
     let delete: () -> Void
 
     var body: some View {
-        LabeledContent {
-            HStack {
-                Button(copied ? String(localized: "Copied") : String(localized: "Copy Sanitized Report"), action: copy)
-                    .disabled(copied)
-                Button("Report on GitHub…", action: report)
-                Button("Delete", role: .destructive, action: delete)
+        HStack(spacing: 12) {
+            Button(action: copy) {
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(String(localized: "Crash report"))
+                        Text(String(localized: "Report #\(reportID)"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 12)
+                    Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                        .contentTransition(.symbolEffect(.replace))
+                        .frame(width: 18, height: 18)
+                }
+                .contentShape(.rect)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-        } label: {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Crash report")
-                Text("Report #\(reportID)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-            }
+            .buttonStyle(.plain)
+            .animation(.default, value: copied)
+            .help(String(localized: "Copy Sanitized Report"))
+            .accessibilityLabel(copied ? String(localized: "Copied") : String(localized: "Copy Sanitized Report"))
+
+            Button(String(localized: "Report on GitHub…"), action: report)
+            Button(String(localized: "Delete"), role: .destructive, action: delete)
+                .tint(.red)
         }
     }
 }
