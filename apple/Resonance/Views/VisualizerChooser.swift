@@ -1,12 +1,14 @@
 import SwiftUI
 
 /// Chooses Now Playing's visualizers from pictures of them: a card each,
-/// with the chosen ones outlined. A chosen card runs live, small, with
-/// the tune that's playing, and so does the one under the pointer; the
-/// rest run for a moment when the chooser opens, to have a picture, and
-/// then hold it, so a dozen visualizers aren't all working at once. Up to `NowPlayingVisual.lineupSize` can be chosen and at
-/// least one stays. Settings › Appearance shows it, and so does Now
-/// Playing, from its Visualizers… button.
+/// with the chosen ones outlined. The pictures are stills that ship with
+/// the app (Assets: VisualizerPictures, made by
+/// scripts/visualizer-pictures.sh), a set in each preset theme's colors;
+/// only the card under the pointer runs live, small, and only while a tune
+/// plays for it to show. A dozen visualizers working at once is too much for a modest
+/// Mac. Up to `NowPlayingVisual.lineupSize` can be chosen and at least one
+/// stays. Settings › Appearance shows it, and so does Now Playing, from
+/// its Visualizers… button.
 struct VisualizerChooser: View {
     /// Cards across, and how wide each one's picture is.
     var columns = 3
@@ -54,7 +56,7 @@ struct VisualizerChooser: View {
     }
 }
 
-/// One visualizer: its live picture, name and what it shows. Chosen ones
+/// One visualizer: its picture, name and what it shows. Chosen ones
 /// have the accent outline, like Settings' Appearance pictures.
 private struct VisualizerCard: View {
     let visual: NowPlayingVisual
@@ -64,18 +66,35 @@ private struct VisualizerCard: View {
     let toggle: () -> Void
 
     @State private var isHovering = false
-    /// True for its first moments, while it draws itself a picture.
-    @State private var isWarmingUp = true
+    @Environment(\.voiceTheme) private var theme
+    @Environment(PlayerStore.self) private var store
 
-    /// Long enough for the slowest to have something to show: Notes
-    /// waits for the tune's notes, the fluids for some dye.
-    private static let warmUp = Duration.seconds(3)
+    /// The theme's picture of it. There's a set for each preset; a custom
+    /// theme's colors can be anything, so it shows the default theme's.
+    private var picture: String {
+        let set = VoiceTheme.presets.contains { $0.id == theme.id } ? theme.id : VoiceTheme.resonance.id
+        return "VisualizerPictures/\(set)/\(visual.rawValue)"
+    }
 
     var body: some View {
+        let size = CGSize(width: width, height: (width * 0.62).rounded())
         Button(action: toggle) {
             VStack(alignment: .leading, spacing: 5) {
-                VisualizerPreview(visual: visual, size: CGSize(width: width, height: (width * 0.62).rounded()),
-                                  isActive: isChosen || isHovering || isWarmingUp)
+                ZStack {
+                    Image(decorative: picture)
+                        .resizable()
+                        .interpolation(.high)
+                        .frame(width: size.width, height: size.height)
+                        .clipShape(.rect(cornerRadius: 7))
+                    // Made only while the pointer is here, so nothing of a
+                    // visualizer exists for the other cards. With no tune
+                    // playing it would have nothing to show: the picture stays.
+                    if isHovering, store.isPlaying {
+                        VisualizerPreview(visual: visual, size: size)
+                            .transition(.opacity)
+                    }
+                }
+                    .animation(.easeOut(duration: 0.2), value: isHovering && store.isPlaying)
                     .padding(3)
                     .overlay {
                         RoundedRectangle(cornerRadius: 10)
@@ -99,10 +118,6 @@ private struct VisualizerCard: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
-        .task {
-            try? await Task.sleep(for: Self.warmUp)
-            isWarmingUp = false
-        }
         .disabled(!isEnabled)
         // Those that can't be chosen until there's room step back.
         .opacity(isEnabled || isChosen ? 1 : 0.45)

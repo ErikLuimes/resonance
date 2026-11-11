@@ -83,6 +83,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         spotlight = SpotlightIndex(store: store)
         spotlight?.start()
         startControl()
+        #if DEBUG
+        VisualizerPictures.openIfAsked(store: store)
+        #endif
     }
 
     /// The `resonance` command line tool's way in, and the shell prompt's.
