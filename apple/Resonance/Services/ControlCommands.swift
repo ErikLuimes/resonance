@@ -562,7 +562,7 @@ final class ControlCommands {
                 Status.Now(path: $0.path, title: $0.displayTitle, author: $0.author, released: $0.released,
                            song: Int($0.currentSong), songs: Int($0.songs))
             },
-            elapsed: player.elapsed,
+            elapsed: player.elapsedNow,
             duration: player.duration,
             hasCollection: player.hasCollection,
             favorite: track.map { playlists.isFavorite($0.path) } ?? false,

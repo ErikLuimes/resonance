@@ -32,8 +32,7 @@ struct RowPlayCell: View {
             if isHovered, !isCovered {
                 button
             } else if isCurrent {
-                VoiceBars(feed: feed, isActive: isPlaying)
-                    .foregroundStyle(style)
+                VoiceBars(feed: feed, isActive: isPlaying, color: isSelected ? .primary : .tint)
                     .accessibilityLabel(isPlaying ? "Playing" : "Paused")
             } else if let number {
                 Text(number, format: .number.grouping(.never))
@@ -68,43 +67,112 @@ struct RowPlayCell: View {
 
 /// The app's mark, alive: the SID's three voices as bars, each with its peak
 /// above it. Still while paused, or when the engine reports no voices.
+///
+/// Made of layers in an AppKit view, not a `Canvas` in a `TimelineView`
+/// (see `FrameLinkedNSView`), so it can't take `foregroundStyle`: say
+/// which color with `color`.
 struct VoiceBars: View {
+    /// What to draw it in.
+    enum Tone {
+        /// The accent color.
+        case tint
+        /// The text color, which is white on a selected row.
+        case primary
+        case white
+    }
+
     let feed: VisualizerFeed
     let isActive: Bool
+    var color = Tone.tint
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.sectionIsCovered) private var isCovered
-    @State private var meter = RowVoiceMeter()
 
     var body: some View {
-        // A small thing in a list: half the visualizers' rate looks the same.
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: !isActive || reduceMotion || isCovered)) { context in
-            let frame = isActive && !reduceMotion && !isCovered ? feed.latest() : nil
-            let reading = meter.update(levels: frame?.chips.first?.voices.map { Double($0.envLevel) }, at: context.date)
-            Canvas { canvas, size in
-                Self.draw(reading, in: &canvas, size: size)
-            }
+        VoiceBarsLayerView(feed: feed, isAnimating: isActive && !reduceMotion && !isCovered, tone: color)
+            .frame(width: 14, height: 14)
+    }
+}
+
+private struct VoiceBarsLayerView: NSViewRepresentable {
+    let feed: VisualizerFeed
+    let isAnimating: Bool
+    let tone: VoiceBars.Tone
+
+    func makeNSView(context: Context) -> VoiceBarsNSView {
+        let view = VoiceBarsNSView()
+        update(view, context)
+        return view
+    }
+
+    func updateNSView(_ view: VoiceBarsNSView, context: Context) {
+        update(view, context)
+    }
+
+    private func update(_ view: VoiceBarsNSView, _ context: Context) {
+        let environment = context.environment
+        let color: Color = switch tone {
+        case .white: .white
+        case .tint: .accentColor
+        case .primary: environment.backgroundProminence == .increased ? .white : .primary
         }
-        .frame(width: 14, height: 14)
+        view.apply(feed: feed, isAnimating: isAnimating, color: color.resolve(in: environment).cgColor)
+    }
+}
+
+/// A bar and a peak per voice, each a layer that's moved every frame.
+private final class VoiceBarsNSView: FrameLinkedNSView {
+    private var feed: VisualizerFeed?
+    private let meter = RowVoiceMeter()
+    private let bars = (0..<3).map { _ in CALayer() }
+    private let peaks = (0..<3).map { _ in CALayer() }
+
+    init() {
+        // A small thing in a list: half the visualizers' rate looks the same.
+        super.init(framesPerSecond: VisualizerFeed.framesPerSecond / 2)
+        for part in bars + peaks { layer?.addSublayer(part) }
+    }
+
+    func apply(feed: VisualizerFeed, isAnimating: Bool, color: CGColor) {
+        self.feed = feed
+        for part in bars + peaks where part.backgroundColor != color { part.backgroundColor = color }
+        self.isAnimating = isAnimating
+        // Still, it's the mark as the icon has it.
+        if !isAnimating { place(meter.update(levels: nil, at: .now)) }
+    }
+
+    override func layout() {
+        super.layout()
+        if !isAnimating { place(meter.update(levels: nil, at: .now)) }
+    }
+
+    override func frame(_ link: CADisplayLink) {
+        let voices = feed?.latest()?.chips.first?.voices
+        place(meter.update(levels: voices?.map { Double($0.envLevel) }, at: .now))
     }
 
     /// Proportions from the mark (Assets: MenuBarIcon): bars 150 wide with
-    /// gaps of 70, in 590, and the peak's line 34 tall in 622.
-    private static func draw(_ reading: RowVoiceMeter.Reading, in canvas: inout GraphicsContext, size: CGSize) {
+    /// gaps of 70, in 590, and the peak's line 34 tall in 622. The layers'
+    /// origin is the bottom left.
+    private func place(_ reading: RowVoiceMeter.Reading) {
+        let size = bounds.size
+        guard size.width > 0, size.height > 0 else { return }
         let barWidth = size.width * 150 / 590
         let step = size.width * 220 / 590
         let peakHeight = max(size.height * 34 / 622, 1)
         let gap = size.height * 48 / 622
         let room = size.height - peakHeight - gap
-        for voice in reading.bars.indices {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        for voice in reading.bars.indices.prefix(3) {
             let x = CGFloat(voice) * step
             let barHeight = max(room * reading.bars[voice], 1)
-            let bar = CGRect(x: x, y: size.height - barHeight, width: barWidth, height: barHeight)
-            canvas.fill(Path(roundedRect: bar, cornerRadius: min(barWidth * 0.24, barHeight / 2)), with: .foreground)
-            let peakTop = room * (1 - reading.peaks[voice])
-            let peak = CGRect(x: x, y: peakTop, width: barWidth, height: peakHeight)
-            canvas.fill(Path(roundedRect: peak, cornerRadius: peakHeight / 2), with: .foreground)
+            bars[voice].frame = CGRect(x: x, y: 0, width: barWidth, height: barHeight)
+            bars[voice].cornerRadius = min(barWidth * 0.24, barHeight / 2)
+            peaks[voice].frame = CGRect(x: x, y: room * reading.peaks[voice] + gap, width: barWidth, height: peakHeight)
+            peaks[voice].cornerRadius = peakHeight / 2
         }
+        CATransaction.commit()
     }
 }
 

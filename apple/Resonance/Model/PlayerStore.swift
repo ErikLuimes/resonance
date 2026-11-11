@@ -41,7 +41,14 @@ final class PlayerStore {
         case queue([QueuedTune], source: PlaybackSource, at: String)
     }
     private(set) var nowPlaying: TrackDetails?
+    /// How far into the tune it is, as the views show it: it moves in
+    /// steps no finer than a scrub bar can show (`elapsedStep`), and on
+    /// every whole second for the clocks. Each change redraws every view
+    /// that reads it, and at the poll's 20 a second that was most of what
+    /// the main window did while a tune played. `elapsedNow` is exact.
     private(set) var elapsed: TimeInterval = 0
+    /// How far into the tune it is, as of the last poll. Not observed.
+    @ObservationIgnored private(set) var elapsedNow: TimeInterval = 0
     private(set) var duration: TimeInterval?
     /// Resonance worked `duration` out itself: the tune isn't in HVSC's song lengths.
     private(set) var durationIsEstimate = false
@@ -297,8 +304,11 @@ final class PlayerStore {
         update(\.surpriseActive, s.surpriseActive)
         update(\.shuffleCollectionActive, s.shuffleCollectionActive)
         update(\.nowPlaying, s.track)
-        update(\.elapsed, TimeInterval(s.elapsedMs) / 1000)
         update(\.duration, s.durationMs.map { TimeInterval($0) / 1000 })
+        elapsedNow = TimeInterval(s.elapsedMs) / 1000
+        if Self.showsElapsed(elapsedNow, after: elapsed, duration: duration, isPlaying: s.state == .playing) {
+            elapsed = elapsedNow
+        }
         update(\.durationIsEstimate, s.durationIsEstimate)
         update(\.canSeek, s.canSeek)
         update(\.seeking, s.seeking)
@@ -317,6 +327,19 @@ final class PlayerStore {
             hvscRoot = sync.root
         }
         if let sync, !sync.running { hvscSyncError = nil }
+    }
+
+    /// Whether the views should hear that the tune is at `now`, having last
+    /// heard `shown`. Yes when it would look different: a new second on
+    /// the clock, a step along a scrub bar, a jump (a seek, a new tune),
+    /// or the place it stopped at.
+    nonisolated static func showsElapsed(_ now: TimeInterval, after shown: TimeInterval, duration: TimeInterval?, isPlaying: Bool) -> Bool {
+        guard now != shown else { return false }
+        if !isPlaying || now < shown || now.rounded(.down) != shown.rounded(.down) { return true }
+        // A scrub bar is under a thousand points wide, so a thousandth of
+        // the tune is less than a point of it; with no length it doesn't move.
+        guard let duration else { return false }
+        return now - shown >= min(max(duration / 1000, 0.05), 0.5)
     }
 
     private func update<Value: Equatable>(_ keyPath: ReferenceWritableKeyPath<PlayerStore, Value>, _ value: Value) {

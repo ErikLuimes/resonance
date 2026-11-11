@@ -82,7 +82,7 @@ final class NowPlayingController {
             MPMediaItemPropertyAlbumTitle: track.released,
             MPMediaItemPropertyAlbumTrackNumber: Int(track.currentSong),
             MPMediaItemPropertyAlbumTrackCount: Int(track.songs),
-            MPNowPlayingInfoPropertyElapsedPlaybackTime: store.elapsed,
+            MPNowPlayingInfoPropertyElapsedPlaybackTime: store.elapsedNow,
             MPNowPlayingInfoPropertyPlaybackRate: store.state == .playing ? 1.0 : 0.0,
             MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
         ]

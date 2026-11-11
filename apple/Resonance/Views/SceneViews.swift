@@ -826,8 +826,7 @@ struct CSDbPlaySlot: View {
                     ProgressView()
                         .controlSize(.mini)
                 } else if player.isCurrent && !isHovered {
-                    VoiceBars(feed: store.visualizer, isActive: store.isPlaying)
-                        .foregroundStyle(style)
+                    VoiceBars(feed: store.visualizer, isActive: store.isPlaying, color: overCover ? .white : .tint)
                         .accessibilityLabel(store.isPlaying ? "Playing" : "Paused")
                 } else {
                     Image(systemName: player.isCurrent && store.isPlaying ? "pause.fill" : "play.fill")

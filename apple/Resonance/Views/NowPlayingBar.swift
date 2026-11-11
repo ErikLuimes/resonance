@@ -82,7 +82,6 @@ struct NowPlayingBar: View {
             .buttonStyle(.borderless)
             .font(.title3.weight(.semibold))
             .foregroundStyle(store.isShowingUnderTheHood ? Color.accentColor : Color.primary)
-            .symbolEffect(.breathe, isActive: store.isPlaying)
             .help("Show the tracker, registers, sweeps and pitch trail")
     }
 

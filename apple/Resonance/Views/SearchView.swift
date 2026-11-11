@@ -736,8 +736,7 @@ private struct SearchTuneRow: View {
             ZStack {
                 Color.black.opacity(0.5)
                 if isCurrent && !hovering {
-                    VoiceBars(feed: player.visualizer, isActive: player.isPlaying)
-                        .foregroundStyle(.white)
+                    VoiceBars(feed: player.visualizer, isActive: player.isPlaying, color: .white)
                         .accessibilityLabel(player.isPlaying ? "Playing" : "Paused")
                 } else {
                     Image(systemName: isCurrent && player.isPlaying ? "pause.fill" : "play.fill")
