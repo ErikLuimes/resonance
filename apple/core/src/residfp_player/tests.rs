@@ -27,6 +27,8 @@ struct Rig {
     statuses: Receiver<PlayerStatus>,
     feed: SharedFeed,
     seeker: Seeker,
+    /// Every block the fake output was given.
+    tap: Receiver<Vec<f32>>,
 }
 
 impl Rig {
@@ -36,6 +38,7 @@ impl Rig {
 
     fn with_chip(chip: Chip) -> Self {
         let feed = Arc::new(Mutex::new(VizFeed::new()));
+        let (tap_tx, tap) = crossbeam_channel::unbounded();
         let (cmds, statuses, _device, seeker) = spawn_with(
             feed.clone(),
             chip,
@@ -43,6 +46,7 @@ impl Rig {
                 rate: RATE,
                 block: 480,
                 period: Duration::from_millis(1),
+                tap: Some(tap_tx),
             },
         );
         Self {
@@ -50,6 +54,7 @@ impl Rig {
             statuses,
             feed,
             seeker,
+            tap,
         }
     }
 
@@ -58,6 +63,14 @@ impl Rig {
             .targets
             .send(Duration::from_secs_f64(secs))
             .unwrap();
+    }
+
+    /// The left channel of everything the output has been given so far.
+    fn heard(&self) -> Vec<f32> {
+        self.tap
+            .try_iter()
+            .flat_map(|block| block.into_iter().step_by(2))
+            .collect()
     }
 
     fn seeking(&self) -> bool {
@@ -240,6 +253,10 @@ fn pause_holds_and_stop_clears() {
     rig.play(&path, 1);
     rig.wait(5.0, |s| s.elapsed >= Duration::from_millis(300));
     rig.cmds.send(PlayerCmd::TogglePause).unwrap();
+    rig.wait(2.0, |s| s.state == PlayState::Paused);
+    // The fade out plays a last 10 ms of the tune.
+    std::thread::sleep(Duration::from_millis(50));
+    while rig.statuses.try_recv().is_ok() {}
     let paused = rig.wait(2.0, |s| s.state == PlayState::Paused);
     std::thread::sleep(Duration::from_millis(150));
     let held = rig.wait(2.0, |s| s.state == PlayState::Paused);
@@ -349,4 +366,134 @@ fn quit_ends_the_thread() {
             }
         }
     }
+}
+
+// ── Fades ────────────────────────────────────────────────────────────────────
+
+/// `FADE` at the rig's rate.
+const FADE_FRAMES: usize = 480;
+
+/// The loudest sample in `samples`.
+fn peak(samples: &[f32]) -> f32 {
+    samples.iter().fold(0.0, |m, s| m.max(s.abs()))
+}
+
+/// `samples` end in silence, and the sound before it fades there: within
+/// the fade's length of the silence no sample is above the raised cosine
+/// at that distance, where a cut would leave one at the tune's full level.
+/// Returns the index of the first silent sample.
+fn assert_fades_out(samples: &[f32]) -> usize {
+    let loud = peak(samples);
+    assert!(loud > 0.05, "the tune is audible: {loud}");
+    let silence = samples.iter().rposition(|&s| s != 0.0).expect("sound") + 1;
+    assert!(silence < samples.len(), "it ends in silence");
+    assert!(silence > 3 * FADE_FRAMES);
+    for k in 1..=FADE_FRAMES {
+        let limit = loud * fade_gain(k as u32, FADE_FRAMES as u32) + 1e-6;
+        let s = samples[silence - k].abs();
+        assert!(s <= limit, "{k} frames before silence: {s} > {limit}");
+    }
+    // The last step into silence is a sliver of the level, not the level.
+    assert!(samples[silence - 1].abs() < loud * 1e-4);
+    // And it was at full level just before the fade.
+    let before = &samples[silence - 3 * FADE_FRAMES..silence - FADE_FRAMES];
+    assert!(peak(before) > 0.5 * loud, "{} of {loud}", peak(before));
+    silence
+}
+
+/// The same from the other side: `samples` start in silence and the sound
+/// fades in, toward a tune whose loudest sample is `loud`.
+fn assert_fades_in(samples: &[f32], loud: f32) {
+    let start = samples.iter().position(|&s| s != 0.0).expect("sound");
+    for k in 1..=FADE_FRAMES.min(samples.len() - start) {
+        let limit = loud * fade_gain(k as u32, FADE_FRAMES as u32) + 1e-6;
+        let s = samples[start + k - 1].abs();
+        assert!(s <= limit, "{k} frames into the sound: {s} > {limit}");
+    }
+}
+
+#[test]
+fn stop_fades_to_silence() {
+    let rig = Rig::new();
+    let path = tune_file(1, "fade-stop");
+    rig.play(&path, 1);
+    rig.wait(5.0, |s| s.elapsed >= Duration::from_millis(500));
+    rig.cmds.send(PlayerCmd::Stop).unwrap();
+    rig.wait(2.0, |s| s.state == PlayState::Stopped);
+    std::thread::sleep(Duration::from_millis(50));
+    assert_fades_out(&rig.heard());
+}
+
+#[test]
+fn pause_fades_out_and_resume_fades_in() {
+    let rig = Rig::new();
+    let path = tune_file(1, "fade-pause");
+    rig.play(&path, 1);
+    rig.wait(5.0, |s| s.elapsed >= Duration::from_millis(500));
+    rig.cmds.send(PlayerCmd::TogglePause).unwrap();
+    rig.wait(2.0, |s| s.state == PlayState::Paused);
+    std::thread::sleep(Duration::from_millis(50));
+    let paused = rig.heard();
+    let silence = assert_fades_out(&paused);
+    assert!(paused.len() - silence > FADE_FRAMES, "it stays silent");
+
+    rig.cmds.send(PlayerCmd::TogglePause).unwrap();
+    rig.wait(2.0, |s| s.state == PlayState::Playing);
+    std::thread::sleep(Duration::from_millis(50));
+    let resumed = rig.heard();
+    assert!(peak(&resumed) > 0.05);
+    assert_fades_in(&resumed, peak(&paused));
+}
+
+#[test]
+fn quit_fades_out_before_the_output_closes() {
+    let rig = Rig::new();
+    let path = tune_file(1, "fade-quit");
+    rig.play(&path, 1);
+    rig.wait(5.0, |s| s.elapsed >= Duration::from_millis(500));
+    let began = Instant::now();
+    rig.cmds.send(PlayerCmd::Quit).unwrap();
+    // The output closes when the thread is done with it; then the tap ends.
+    let mut heard = rig.heard();
+    while let Ok(block) = rig.tap.recv_timeout(Duration::from_secs(3)) {
+        heard.extend(block.into_iter().step_by(2));
+    }
+    assert!(began.elapsed() < Duration::from_secs(1), "{:?}", began.elapsed());
+    // Everything the output was ever given ends faded out, in silence.
+    assert_fades_out(&heard);
+}
+
+#[test]
+fn quit_does_not_wait_for_an_output_that_stopped_asking() {
+    // A device that asks once a minute: the fade never gets rendered.
+    let feed = Arc::new(Mutex::new(VizFeed::new()));
+    let (cmds, statuses, _device, _seeker) = spawn_with(
+        feed,
+        Chip::ReSidFp,
+        Output::Fake {
+            rate: RATE,
+            block: 480,
+            period: Duration::from_secs(60),
+            tap: None,
+        },
+    );
+    let path = tune_file(1, "fade-stuck");
+    cmds.send(PlayerCmd::Play {
+        path,
+        song: 1,
+        force_stereo: false,
+        pseudo_stereo: None,
+        sid4_addr: 0,
+        audio_port: None,
+        restart_usb_on_load: false,
+    })
+    .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while statuses.recv_deadline(deadline).expect("a status").state != PlayState::Playing {}
+    let began = Instant::now();
+    cmds.send(PlayerCmd::Quit).unwrap();
+    while statuses.recv_timeout(Duration::from_secs(3)).is_ok() {}
+    let took = began.elapsed();
+    assert!(took >= FADE_WAIT, "it gave the fade its chance: {took:?}");
+    assert!(took < FADE_WAIT + Duration::from_millis(300), "{took:?}");
 }

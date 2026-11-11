@@ -34,6 +34,10 @@ const TICK_PLAYING: Duration = Duration::from_millis(20);
 const TICK_IDLE: Duration = Duration::from_millis(250);
 /// Coalesce bursts of playlist edits into one session write.
 const SAVE_DELAY: Duration = Duration::from_secs(1);
+/// The most shutdown waits for the pull-driven player to fade out and close
+/// its output: above the player's own bounds (fade 400 ms, device latency
+/// 300 ms), below the second `PlayerCore::shutdown` gives the session.
+const PLAYER_QUIT_WAIT: Duration = Duration::from_millis(800);
 
 pub(crate) enum Command {
     AddPaths {
@@ -821,6 +825,17 @@ impl State {
     fn shutdown(&mut self) {
         if self.session_loaded && self.session.playlist_revision != self.saved_revision {
             self.save();
+        }
+        if self.player.seeker.is_some() {
+            // The pull-driven player fades out and closes its output on
+            // Quit, then its thread ends and the statuses disconnect.
+            let _ = self.player.commands.try_send(PlayerCmd::Quit);
+            let deadline = Instant::now() + PLAYER_QUIT_WAIT;
+            while !matches!(
+                self.player.statuses.recv_deadline(deadline),
+                Err(crossbeam_channel::RecvTimeoutError::Disconnected | crossbeam_channel::RecvTimeoutError::Timeout)
+            ) {}
+            return;
         }
         let _ = self.player.commands.try_send(PlayerCmd::Stop);
         thread::sleep(Duration::from_millis(100));
