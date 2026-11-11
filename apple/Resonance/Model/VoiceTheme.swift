@@ -26,8 +26,8 @@ nonisolated struct VoiceTheme: Codable, Hashable, Identifiable {
         resonance,
         VoiceTheme(id: "c64", name: "C64", summary: String(localized: "The rainbow badge on a breadbox"),
                    voices: [0xE2231A, 0xFFCC00, 0x1F6FC5], background: 0x16120E, badge: .rainbow),
-        VoiceTheme(id: "noir", name: String(localized: "Noir"), summary: String(localized: "The dark side: saber red"),
-                   voices: [0xFF2020, 0x8B0A14, 0x9A9DA6], background: 0x000000, badge: .saber),
+        VoiceTheme(id: "noir", name: String(localized: "Noir"), summary: String(localized: "Night drive: scanner red"),
+                   voices: [0xFF2020, 0x8B0A14, 0x9A9DA6], background: 0x000000, badge: .scanner),
         VoiceTheme(id: "ember", name: String(localized: "Ember"), summary: String(localized: "Fire: red, orange and gold"),
                    voices: [0xFF3B2F, 0xFF8C1A, 0xFFD25A], background: 0x140705, badge: .flame),
         VoiceTheme(id: "abyss", name: String(localized: "Abyss"), summary: String(localized: "Deep sea, low light"),
@@ -68,8 +68,8 @@ nonisolated enum ThemeBadge: String, Codable, Hashable {
     case waves
     /// The Commodore rainbow badge's colors as rotating raster bars.
     case rainbow
-    /// A lit lightsaber.
-    case saber
+    /// A row of red lamps with the light running side to side.
+    case scanner
     /// Flames rising from the first voice's color to the third's.
     case flame
     /// A demoscene plasma.

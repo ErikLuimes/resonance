@@ -45,7 +45,8 @@ struct VisualizerView: View {
         }
         // Fixed height, so it never changes the inspector's layout.
         .overlay(alignment: .top) {
-            ThemeBadgeView()
+            // Now Playing covers the inspector without unmounting it.
+            ThemeBadgeView(isAnimating: !store.isShowingNowPlaying)
                 .frame(height: Self.badgeHeight)
                 .padding([.top, .horizontal], 12)
                 .allowsHitTesting(false)
