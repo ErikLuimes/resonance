@@ -426,9 +426,15 @@ async function copy(text) {
     return copied;
   }
 }
+// An event for GoatCounter (index.html), such as a share or a download.
+// Before its script has loaded there's nothing to count with, and that's fine.
+function countEvent(path, title) {
+  window.goatcounter?.count?.({ path, title, event: true });
+}
 const phoneShare = 'share' in navigator && matchMedia('(pointer: coarse)').matches;
 async function share(button, slug, title) {
   const url = new URL(`v/${slug}/`, document.baseURI).href;
+  countEvent(`share-${slug}`, `Share ${title}`);
   if (phoneShare) {
     try { await navigator.share({ title: `${title}, a Resonance visualizer`, url }); } catch {}
     return;
@@ -573,3 +579,8 @@ textOf('[data-year]', String(new Date().getFullYear()));
 // Everything is wired up: the page's fallback can stand down.
 window.resonanceReady = true;
 
+
+// Downloads, by what the button pointed at: the .dmg, or the release page or build steps.
+for (const a of $$('a[data-download]')) {
+  a.addEventListener('click', () => countEvent(a.href.endsWith('.dmg') ? 'download-dmg' : 'download-other', a.textContent.trim()));
+}
