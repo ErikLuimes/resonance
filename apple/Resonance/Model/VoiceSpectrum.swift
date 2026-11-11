@@ -12,14 +12,34 @@ nonisolated final class VoiceSpectrum {
     static let lowHz: Float = 40
     static let highHz: Float = 10_000
 
-    /// `bands` levels per voice, voice after voice.
-    private(set) var levels = [Float](repeating: 0, count: 3 * VoiceSpectrum.bands)
+    /// `bandCount` levels per voice, voice after voice.
+    private(set) var levels: [Float]
 
-    private let fft = vDSP.FFT(log2n: vDSP_Length(log2(Double(VoiceSpectrum.size))), radix: .radix2,
-                               ofType: DSPSplitComplex.self)!
-    private let window = vDSP.window(ofType: Float.self, usingSequence: .hanningDenormalized,
-                                     count: VoiceSpectrum.size, isHalfWindow: false)
+    /// Samples per FFT, a power of two.
+    let fftSize: Int
+    let bandCount: Int
+    let lowHz: Float
+    let highHz: Float
+    /// Where bands are narrower than the FFT's bins (the low ones, when
+    /// there are many), read between the bins rather than repeating one.
+    let interpolates: Bool
+
+    private let fft: vDSP.FFT<DSPSplitComplex>
+    private let window: [Float]
     private var lastUpdate: Date?
+
+    /// The Radial visualizer's by default; the finer ones ask for more.
+    init(size: Int = VoiceSpectrum.size, bands: Int = VoiceSpectrum.bands, lowHz: Float = VoiceSpectrum.lowHz,
+         highHz: Float = VoiceSpectrum.highHz, interpolates: Bool = false) {
+        fftSize = size
+        bandCount = bands
+        self.lowHz = lowHz
+        self.highHz = highHz
+        self.interpolates = interpolates
+        levels = [Float](repeating: 0, count: 3 * bands)
+        fft = vDSP.FFT(log2n: vDSP_Length(log2(Double(size))), radix: .radix2, ofType: DSPSplitComplex.self)!
+        window = vDSP.window(ofType: Float.self, usingSequence: .hanningDenormalized, count: size, isHalfWindow: false)
+    }
 
     /// Advance to `date` with each voice's latest samples (−1…1, oldest
     /// first, any length; missing voices fall silent).
@@ -31,8 +51,8 @@ nonisolated final class VoiceSpectrum {
         let fall = Float(1 - pow(1 - 0.12, dt * 60))
         for v in 0..<3 {
             let target = v < voices.count ? bands(of: voices[v], sampleRate: sampleRate) : nil
-            for b in 0..<Self.bands {
-                let i = v * Self.bands + b
+            for b in 0..<bandCount {
+                let i = v * bandCount + b
                 let t = target?[b] ?? 0
                 levels[i] += (t - levels[i]) * (t > levels[i] ? rise : fall)
             }
@@ -41,9 +61,9 @@ nonisolated final class VoiceSpectrum {
 
     /// One voice's band levels right now, unsmoothed.
     func bands(of samples: [Float], sampleRate: Float) -> [Float] {
-        let n = Self.size
+        let n = fftSize
         guard samples.count >= n / 4, sampleRate > 0 else {
-            return [Float](repeating: 0, count: Self.bands)
+            return [Float](repeating: 0, count: bandCount)
         }
         // The newest samples, zero-padded at the front when there are fewer.
         var input = [Float](repeating: 0, count: n)
@@ -74,13 +94,19 @@ nonisolated final class VoiceSpectrum {
         let scale = 1 / Float(n / 2)
 
         let binHz = sampleRate / Float(n)
-        let ratio = Self.highHz / Self.lowHz
-        return (0..<Self.bands).map { b in
-            let lo = Self.lowHz * pow(ratio, Float(b) / Float(Self.bands))
-            let hi = Self.lowHz * pow(ratio, Float(b + 1) / Float(Self.bands))
+        let ratio = highHz / lowHz
+        return (0..<bandCount).map { b in
+            let lo = lowHz * pow(ratio, Float(b) / Float(bandCount))
+            let hi = lowHz * pow(ratio, Float(b + 1) / Float(bandCount))
             let first = max(1, Int((lo / binHz).rounded(.down)))
             let last = max(first, min(n / 2 - 1, Int((hi / binHz).rounded(.down))))
-            let peak = magnitudes[first...last].max() ?? 0
+            var peak = magnitudes[first...last].max() ?? 0
+            if interpolates, hi - lo < binHz {
+                let at = min(max((lo * hi).squareRoot() / binHz, 1), Float(n / 2 - 1))
+                let below = Int(at)
+                let above = min(below + 1, n / 2 - 1)
+                peak = magnitudes[below] + (magnitudes[above] - magnitudes[below]) * (at - Float(below))
+            }
             let db = 20 * log10(max(peak * scale, 1e-6))
             return min(1, max(0, (db + 60) / 60))
         }

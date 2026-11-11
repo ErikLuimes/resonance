@@ -163,6 +163,13 @@ final class ParticleRenderer: NSObject, MTKViewDelegate {
         let size = view.drawableSize
         let backing = Float(view.window?.backingScaleFactor ?? 2)
         let t = sphere.time
+        // The mockup's 205 px sphere in a 640 px high view.
+        let radius = Float(min(size.width, size.height)) * 0.32
+        // In a small view (the chooser's pictures) the same points crowd
+        // into less room: they shrink, down to a point, and dim by the
+        // rest, so the sphere keeps its look instead of burning white.
+        let room = min(1, radius / (205 * backing))
+        let shrink = max(room, 0.35)
         let states = (0..<3).map { v in
             SIMD4<Float>(sphere.levels[v], sphere.frequencies[v], Float(t - sphere.hits[v]),
                          sphere.waveforms[v] & 0x8 != 0 ? 1 : 0)
@@ -172,11 +179,10 @@ final class ParticleRenderer: NSObject, MTKViewDelegate {
             time: Float(t),
             noiseFrame: Float(frame % 997),
             rotation: SIMD2(Float(t * 0.22), Float(0.38 + sin(t * 0.3) * 0.08)),
-            // The mockup's 205 px sphere in a 640 px high view.
-            radius: Float(min(size.width, size.height)) * 0.32,
-            pointScale: backing * 1.5,
+            radius: radius,
+            pointScale: backing * 1.5 * shrink,
             // The mockup has 2,700 points; this many need to be fainter.
-            alphaScale: 0.45,
+            alphaScale: 0.45 * (room * room) / (shrink * shrink),
             follow: follow,
             state0: states[0], color0: colors[0],
             state1: states[1], color1: colors[1],

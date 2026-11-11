@@ -275,7 +275,7 @@ extension HelpTopic {
             blocks: [
                 .paragraph(String(localized: "Press **⇧⌘F**, or click the tune's title or the button at the right end of the bar at the bottom of the window, and Now Playing slides up over the library: the tune, its composer, where it's playing from, and a large visualizer driven by the SID chip's own registers.")),
                 .bullets([
-                    String(localized: "Pick a visualizer at the top: **Halo**, **Particles**, **Radial** or **Sound Map**."),
+                    String(localized: "Pick a visualizer at the top. It offers three; choose which in **Settings → Appearance**."),
                     String(localized: "Move the pointer to show the controls; they fade when it rests. In full screen the pointer hides too."),
                     String(localized: "Heart the tune or add it to a playlist from here."),
                     String(localized: "Close it with the close button at the top, press **Esc**, or press **⇧⌘F** again."),
@@ -311,6 +311,14 @@ extension HelpTopic {
                     String(localized: "**Particles**: 24,000 points on a turning sphere, a third per voice, rippling with its envelope and sending a wave across on every new note."),
                     String(localized: "**Radial**: a ring of spectrum bars per voice, the rings turning opposite ways."),
                     String(localized: "**Sound Map**: every note becomes a point in 3D, placed by its timbre, so the tune draws its own map as it plays."),
+                    String(localized: "**Notes**: the tune as sheet music running into the distance, a staff per voice. The notes to come are dark; a ball per voice hops from note to note, landing on each as it starts and lighting it up."),
+                    String(localized: "**Spectrum**: an analyzer with a curve per voice from 30 Hz to 16 kHz, a line holding each one's peaks, a white line for all three together, and each voice's note marked at its pitch."),
+                    String(localized: "**Terrain**: the last four seconds of the spectrum as a landscape, low notes on the left, the newest moment at the front. A held note is a ridge, a melody a row of hills, a drum a wall across."),
+                    String(localized: "**Ink**: each voice pours a stream of dye in its color into dark water. Its level is how hard it pours, every note is a puff, and the note steers the stream, so the three curl into each other."),
+                    String(localized: "**Liquid Light**: the same fluid as thick, glossy oil on a projector's glass, lit from behind like a 1960s light show. The oil stays, so the glass fills and marbles as the tune goes."),
+                    String(localized: "**Ferrofluid**: a pool of black liquid with a magnet under it for each voice. Where a voice sounds the liquid stands in spikes, taller the louder it is, with the voice's light gleaming in them."),
+                    String(localized: "**Silicon**: the SID the tune was written for, in 3D and opened up: a 6581 in ceramic with its gold lid off, or an 8580 in black plastic. Its die is rendered from the chip's own mask layers as redrawn by Tommi Lempinen, so every wire and transistor is where it is on the chip. The camera comes down from the whole package into the cavity and hovers over one part after another. Bits glow along their own circuitry, beads of light run the signals' ways, the three voices' waveforms and the output's float over the die, and the pins glow as they're used."),
+                    String(localized: "**Nimbus**: soft balls of smoke in a pale sky, a pair for each voice, roaming round each other, trailing smoke, and swirling together where they meet. A pair swells with its voice's level and jumps on every note, rides higher the higher it plays, and glows from inside in its color. They all drift faster the louder the music is."),
                 ]),
                 .heading(String(localized: "Under the hood")),
                 .paragraph(String(localized: "The chip button in the player bar, or **View → Show Under the Hood**, slides a drawer up over the list, and the button at its top right slides it back down.")),

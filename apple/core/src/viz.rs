@@ -42,7 +42,7 @@ pub(crate) const FRAME_REGS: usize = 29;
 /// About 10 s at 50 Hz.
 pub(crate) const HISTORY_FRAMES: usize = 512;
 /// The longest scope window a read returns.
-pub(crate) const MAX_SCOPE_SAMPLES: usize = 2048;
+pub(crate) const MAX_SCOPE_SAMPLES: usize = 8192;
 /// How far a track's first frame trails its emulation: the engines'
 /// 150 ms of silence (`prefill_silence` in sid_emulated.rs and
 /// sid_sidlite.rs) minus the 50 ms `setup_playback` sleeps after it.

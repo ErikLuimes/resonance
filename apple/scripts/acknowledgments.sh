@@ -102,6 +102,15 @@ Computer (Full Pack)" by dark_igorek (https://skfb.ly/oUKFx), CC BY 4.0
 The model came to us through C64 READY. (https://c64ready.com), whose own
 Retro Vibes scene showed what it could do. The picture on the screen is
 Resonance's.
+
+The Silicon visualizer shows the dies of the MOS 6581 R3 and the 8580 R5 from
+their mask layers as redrawn by Tommi Lempinen (http://oms.wmhost.com/misc/,
+also at https://siliconpr0n.org/archive/doku.php?id=tommi:start), CC BY-SA,
+from microscope photographs by Michael Huth (https://retronn.de). The layers
+were scaled to a quarter of their size and packed into a file a chip
+(SIDDie6581R3.lzfse, SIDDie8580R5.lzfse), which are under the same CC BY-SA
+license; the rendering is Resonance's. The places of the 6581's blocks follow
+his map of its die.
 """)
     for text, crates in sorted(groups.values(), key=lambda g: g[1][0].lower()):
         f.write("\n%s\n\n%s\n\n%s\n" % (rule, "\n".join(crates), text))

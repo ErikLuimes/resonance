@@ -31,8 +31,8 @@ nonisolated struct VisualizerFeed {
         core.vizHistory(count: UInt32(clamping: count))
     }
 
-    /// The last `count` samples (at most 2048) of each of `chip`'s three
-    /// voices, −1…1, oldest first.
+    /// The last `count` samples (at most 8192, about 180 ms) of each of
+    /// `chip`'s three voices, −1…1, oldest first.
     func scope(chip: Int, count: Int) -> VizScope {
         VizScope(core.vizScope(chip: UInt32(clamping: chip), count: UInt32(clamping: count)))
     }
