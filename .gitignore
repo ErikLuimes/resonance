@@ -29,3 +29,8 @@ Thumbs.db
 
 # The 3D desk for design/crt-monitor/mockup-3d.html, made by blender/scene.py from the CC BY model
 /design/crt-monitor/model/
+
+# Other assistants' project files; CLAUDE.md is the one this repo keeps.
+AGENTS.md
+.codex/
+.agents/
