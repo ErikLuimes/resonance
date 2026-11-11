@@ -4,14 +4,44 @@
     {
       "name": "resonance-site",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8642", "--bind", "127.0.0.1", "--directory", "apple/site"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8642",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "apple/site"
+      ],
       "port": 8642
     },
     {
       "name": "design-mockups",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8643", "--bind", "127.0.0.1", "--directory", "design"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8643",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "design"
+      ],
       "port": 8643
+    },
+    {
+      "name": "site-mockups",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8644",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "."
+      ],
+      "port": 8644
     }
   ]
 }

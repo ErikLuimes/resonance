@@ -54,4 +54,69 @@ enum VisualizerPictures {
         self.window = window
     }
 }
+
+/// Debug: one visualizer alone in a bare 1440 × 900 window, as large as in
+/// Now Playing and with nothing over it, to record the website's videos of
+/// it from (scripts/site-videos.sh). Opens when the app is launched with
+/// RESONANCE_VISUALIZER_STAGE set to the visualizer's name (`ink`, `soundMap`…),
+/// above the other windows: a video recording only gets what's on screen.
+@MainActor
+enum VisualizerStage {
+    /// The size of the site's other recordings: 16:10.
+    static let size = CGSize(width: 1440, height: 900)
+
+    private static var window: NSWindow?
+
+    static func openIfAsked(store: PlayerStore) {
+        guard let name = ProcessInfo.processInfo.environment["RESONANCE_VISUALIZER_STAGE"],
+              let visual = NowPlayingVisual(rawValue: name) else { return }
+        let defaults = UserDefaults.standard
+        let theme = VoiceTheme.named(defaults.string(forKey: Pref.theme) ?? VoiceTheme.resonance.id,
+                                     custom: defaults.data(forKey: Pref.customTheme) ?? Data())
+        let stage = StageView(visual: visual)
+            .frame(width: size.width, height: size.height)
+            .background(theme.background.color)
+            .environment(\.colorScheme, .dark)
+            .environment(store)
+            .environment(\.voiceTheme, theme)
+
+        let host = NSHostingView(rootView: stage)
+        host.sizingOptions = []
+        let window = NSWindow(contentRect: CGRect(origin: .zero, size: size),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = host
+        window.isReleasedWhenClosed = false
+        window.title = "Visualizer Stage"
+        if let screen = NSScreen.main {
+            window.setFrameTopLeftPoint(CGPoint(x: screen.visibleFrame.minX, y: screen.visibleFrame.maxY))
+        }
+        window.level = .floating
+        window.orderFrontRegardless()
+        self.window = window
+    }
+
+    /// The visualizer as Now Playing builds it.
+    private struct StageView: View {
+        let visual: NowPlayingVisual
+
+        var body: some View {
+            switch visual {
+            case .halo: HaloView(isActive: true)
+            case .particles: ParticlesView(isActive: true)
+            case .radial: RadialView(isActive: true)
+            case .soundMap: SoundMapView(isActive: true)
+            case .notes: NotesView(isActive: true)
+            case .spectrum: SpectrumView(isActive: true)
+            case .terrain: TerrainView(isActive: true)
+            case .ink: InkView(style: .ink, isActive: true)
+            case .liquidLight: InkView(style: .liquidLight, isActive: true)
+            case .ferrofluid: FerroView(isActive: true)
+            case .chip: ChipView(isActive: true)
+            case .rasters: RasterView(isActive: true)
+            case .silicon: SiliconView(isActive: true)
+            case .nimbus: NimbusView(isActive: true)
+            }
+        }
+    }
+}
 #endif

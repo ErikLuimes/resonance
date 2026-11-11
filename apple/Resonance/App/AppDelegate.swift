@@ -85,6 +85,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         startControl()
         #if DEBUG
         VisualizerPictures.openIfAsked(store: store)
+        VisualizerStage.openIfAsked(store: store)
         #endif
     }
 

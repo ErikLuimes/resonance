@@ -25,7 +25,7 @@ let soundOn = false;
 const CHAPTERS = [
   { slug: 'smart-playlists', title: 'Smart Playlists', text: 'Say what you\'d like to hear, and get the playlist.' },
   { slug: 'sounds-like', title: 'Sounds Like', text: 'Play a tune, and see the ones in HVSC that sound most like it.' },
-  { slug: 'now-playing', title: 'Now Playing', text: 'Halo, Particles, Radial and the Sound Map, driven by the chip itself.' },
+  { slug: 'now-playing', title: 'Now Playing', text: 'Twelve visualizers, driven by the chip itself.' },
   { slug: 'library', title: 'All of HVSC', text: '60,000 tunes, composers by name, one search for everything.' },
   { slug: 'playlists', title: 'Your playlists', text: 'Favorites, playlists, and drag and drop from anywhere.' },
 ];
@@ -260,6 +260,200 @@ for (const video of $$('video[data-video]')) {
   if (stillMotion.matches) video.controls = true;
   videos.observe(video);
 }
+
+// Visualizers: three featured in the whole Now Playing window, taking turns
+// like the tour. Until one's video exists its picture stands in, for a few
+// seconds. The nine below are bare recordings; one plays at a time, the one
+// under the pointer (or, without one, the one in the middle of the screen).
+
+const FEATURED = [
+  { slug: 'vis-ink', title: 'Ink', text: 'Each voice pours a stream of dye in its color into dark water; every note is a puff, and the three curl into each other.' },
+  { slug: 'vis-silicon', title: 'Silicon', text: 'The tune\'s SID in 3D with the lid off, its die drawn from the chip\'s own mask layers, at work.' },
+  { slug: 'vis-notes', title: 'Notes', text: 'The tune as sheet music running into the distance, a ball hopping from note to note.' },
+];
+const vzVideo = $('[data-vz-video]');
+const vzMedia = vzVideo.closest('.media');
+const vzTabs = $('[data-vz-tabs]');
+vzTabs.innerHTML = FEATURED.map((f, i) => `
+  <button type="button" role="tab" class="tour-tab" data-featured="${i}" aria-selected="false">
+    <span>${escapeHtml(f.title)}</span><i class="tour-bar"><b></b></i>
+  </button>`).join('');
+const vzButtons = $$('[data-featured]', vzTabs);
+let featured = -1;
+let vzVisible = false;
+let vzHasVideo = false;
+// When the current picture's seconds started counting (no video yet).
+let vzStarted = 0;
+let vzProgress = 0;
+
+const vzPlaying = () => vzVisible && !document.hidden && !stillMotion.matches;
+
+function showFeatured(i) {
+  featured = (i + FEATURED.length) % FEATURED.length;
+  const shown = featured;
+  const f = FEATURED[featured];
+  textOf('[data-vz-title]', f.title);
+  textOf('[data-vz-text]', f.text);
+  textOf('[data-vz-placeholder]', f.title);
+  vzButtons.forEach((b, n) => {
+    b.setAttribute('aria-selected', n === featured);
+    b.style.setProperty('--fill', 0);
+  });
+  vzMedia.classList.remove('is-ready', 'has-video');
+  vzHasVideo = false;
+  vzStarted = performance.now();
+  vzProgress = 0;
+  vzVideo.poster = `media/${f.slug}.jpg`;
+  vzVideo.innerHTML = `<source src="media/${f.slug}.mp4" type="video/mp4">`;
+  vzVideo.load();
+  vzVideo.muted = !soundOn;
+  // The picture shows until the video has a frame.
+  const poster = new Image();
+  poster.onload = () => { if (featured === shown) vzMedia.classList.add('is-ready'); };
+  poster.src = vzVideo.poster;
+  if (vzPlaying()) vzVideo.play().catch(() => {});
+}
+vzVideo.addEventListener('loadeddata', () => { vzHasVideo = true; vzMedia.classList.add('is-ready', 'has-video'); });
+vzVideo.addEventListener('ended', () => showFeatured(featured + 1));
+for (const b of vzButtons) b.addEventListener('click', () => showFeatured(Number(b.dataset.featured)));
+if (stillMotion.matches) vzVideo.controls = true;
+
+function vzFrame(now) {
+  requestAnimationFrame(vzFrame);
+  const tab = vzButtons[featured];
+  if (!tab) return;
+  if (vzHasVideo) {
+    vzProgress = vzVideo.duration ? vzVideo.currentTime / vzVideo.duration : 0;
+  } else if (vzPlaying()) {
+    vzProgress = (now - vzStarted) / (PLACEHOLDER_SECS * 1000);
+    if (vzProgress >= 1) { showFeatured(featured + 1); return; }
+  } else {
+    // Off screen the picture's count holds where it was.
+    vzStarted = now - vzProgress * PLACEHOLDER_SECS * 1000;
+  }
+  tab.style.setProperty('--fill', vzProgress.toFixed(3));
+}
+requestAnimationFrame(vzFrame);
+
+new IntersectionObserver(([entry]) => {
+  vzVisible = entry.intersectionRatio >= 0.3;
+  onScreen.set(vzVideo, vzVisible);
+  if (featured < 0) showFeatured(linkedFeatured() ?? 0);
+  else if (vzPlaying()) vzVideo.play().catch(() => {});
+  else vzVideo.pause();
+}, { threshold: [0, 0.3] }).observe($('#vz-stage'));
+
+const tiles = $$('video[data-vz-tile]');
+const canHover = matchMedia('(hover: hover)');
+let hoveredTile = null;
+let centeredTile = null;
+// The tile a shared link opened on plays until the pointer picks another.
+let linkedTile = null;
+function playTiles() {
+  const chosen = (canHover.matches ? hoveredTile : centeredTile) ?? linkedTile;
+  for (const t of tiles) {
+    const play = t === chosen && !document.hidden && !stillMotion.matches;
+    onScreen.set(t, play);
+    if (play) t.play().catch(() => {});
+    else t.pause();
+  }
+}
+// Without a pointer: the tile crossing the middle tenth of the screen.
+const middle = new IntersectionObserver((entries) => {
+  for (const { target, isIntersecting } of entries) {
+    if (isIntersecting) centeredTile = target;
+    else if (centeredTile === target) centeredTile = null;
+  }
+  playTiles();
+}, { rootMargin: '-45% 0px -45% 0px' });
+for (const t of tiles) {
+  const media = t.closest('.media');
+  const poster = new Image();
+  poster.onload = () => media.classList.add('is-ready');
+  poster.src = t.poster;
+  t.addEventListener('loadeddata', () => media.classList.add('is-ready'), { once: true });
+  const card = t.closest('.vz-tile');
+  card.addEventListener('pointerenter', () => { hoveredTile = t; linkedTile = null; playTiles(); });
+  card.addEventListener('pointerleave', () => { if (hoveredTile === t) hoveredTile = null; playTiles(); });
+  if (stillMotion.matches) t.controls = true;
+  middle.observe(t);
+}
+
+// A visualizer's own link: its page (v/<slug>/, which link previews read)
+// sends people here with #vis-<slug>. Share copies that page's address, or
+// opens the system's share sheet on a phone.
+function linkedFeatured() {
+  const i = FEATURED.findIndex((f) => `#${f.slug}` === location.hash);
+  return i < 0 ? null : i;
+}
+// Straight there, once the page is laid out: smooth scrolling from the top
+// of a long page gets cut short as the images above it load.
+function jumpTo(el) {
+  const go = () => el.scrollIntoView({ block: 'center', behavior: 'instant' });
+  if (document.readyState === 'complete') go();
+  else addEventListener('load', go, { once: true });
+}
+function openLinked() {
+  const i = linkedFeatured();
+  if (i !== null) {
+    showFeatured(i);
+    jumpTo($('#vz-stage'));
+    return;
+  }
+  const card = location.hash.startsWith('#vis-') && document.getElementById(location.hash.slice(1));
+  if (!card) return;
+  linkedTile = $('video', card);
+  jumpTo(card);
+  playTiles();
+}
+addEventListener('hashchange', openLinked);
+if (location.hash.startsWith('#vis-')) openLinked();
+
+// The clipboard, or the older copy command where a browser refuses that
+// (a page without focus, an old Safari).
+async function copy(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const field = Object.assign(document.createElement('textarea'), { value: text, readOnly: true });
+    field.style.cssText = 'position:fixed; opacity:0; pointer-events:none';
+    document.body.append(field);
+    field.select();
+    let copied = false;
+    try { copied = document.execCommand('copy'); } catch {}
+    field.remove();
+    return copied;
+  }
+}
+const phoneShare = 'share' in navigator && matchMedia('(pointer: coarse)').matches;
+async function share(button, slug, title) {
+  const url = new URL(`v/${slug}/`, document.baseURI).href;
+  if (phoneShare) {
+    try { await navigator.share({ title: `${title}, a Resonance visualizer`, url }); } catch {}
+    return;
+  }
+  if (!(await copy(url))) {
+    // Nothing would take it: show it to copy by hand.
+    prompt('The link to this visualizer:', url);
+    return;
+  }
+  button.textContent = 'Link copied';
+  button.dataset.copied = '';
+  clearTimeout(button.copiedTimer);
+  button.copiedTimer = setTimeout(() => {
+    button.textContent = 'Share';
+    delete button.dataset.copied;
+  }, 1800);
+}
+for (const b of $$('[data-share]')) {
+  b.addEventListener('click', () => share(b, b.dataset.share, $('h3', b.closest('.vz-tile')).textContent));
+}
+const featuredShare = $('[data-share-featured]');
+featuredShare.addEventListener('click', () => {
+  const f = FEATURED[Math.max(featured, 0)];
+  share(featuredShare, f.slug.replace(/^vis-/, ''), f.title);
+});
 
 // Integrations: the list switches the screenshot. A screenshot shows once it
 // has loaded; until then, or with no file yet, the placeholder.

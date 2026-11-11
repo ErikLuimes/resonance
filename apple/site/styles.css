@@ -1035,6 +1035,27 @@ html.js [data-reveal].in { opacity: 1; transform: none; }
   .steps { grid-template-columns: minmax(0, 1fr); gap: 22px; }
 }
 
+/* Visualizers: the featured stage reuses the tour's look; nine more below. */
+.vz-stage { margin-top: 0; }
+.vz-more { margin: 72px 0 20px; text-align: center; font-family: var(--display); font-size: 1.4rem; font-weight: 600; color: var(--muted); }
+.vz-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin-bottom: 40px; }
+.vz-tile .media { border-radius: 16px; }
+.vz-tile .media-sound { display: none !important; }
+/* A picture standing in for a video has no sound to turn on. */
+.vz-stage .media:not(.has-video) .media-sound { display: none !important; }
+.vz-tile-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 12px 0 4px; }
+.vz-tile h3 { margin: 0; font-size: 1.05rem; color: var(--c); }
+/* Share: plain accent text, like the app's links. */
+.share-link { padding: 0; border: 0; background: none; color: var(--accent); font: 500 14px var(--font); cursor: pointer; white-space: nowrap; }
+.share-link:hover { text-decoration: underline; }
+.share-link[data-copied] { color: var(--muted); text-decoration: none; }
+.vz-caption { max-width: 640px; margin: 18px auto 0; text-align: center; }
+.vz-caption strong { display: block; font-family: var(--display); font-size: 1.15rem; margin-bottom: 4px; }
+.vz-caption span { color: var(--muted); font-size: 14.5px; line-height: 1.5; }
+.vz-caption .share-link { margin-left: 8px; }
+.vz-tile p { margin: 0; color: var(--muted); font-size: 14.5px; line-height: 1.5; }
+@media (max-width: 900px) { .vz-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
 @media (max-width: 620px) {
   .container,
   .container-wide,
@@ -1047,6 +1068,7 @@ html.js [data-reveal].in { opacity: 1; transform: none; }
   .sound-grid { grid-template-columns: minmax(0, 1fr); }
   .keys { grid-template-columns: minmax(0, 1fr); }
   .vis-grid { grid-template-columns: minmax(0, 1fr); }
+  .vz-grid { grid-template-columns: minmax(0, 1fr); }
   .tour-tab { min-width: 0; flex: 1 1 40%; }
   /* Too small to cover: the chapter buttons below name the chapter. */
   .tour-caption { display: none; }

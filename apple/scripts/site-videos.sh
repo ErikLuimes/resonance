@@ -5,7 +5,12 @@
 #
 # <name> is the slot on the page: smart-playlists, sounds-like, now-playing, library and
 # playlists (the hero's tour chapters, each shown again in its own section
-# further down) or hvsc-update. Writes apple/site/media/<name>.mp4 (H.264,
+# further down), hvsc-update, or a visualizer's vis-<name>: vis-ink,
+# vis-silicon and vis-notes are the featured three, recorded in the whole
+# Now Playing window; vis-halo, vis-particles, vis-radial, vis-sound-map,
+# vis-spectrum, vis-terrain, vis-nimbus, vis-liquid-light and vis-ferrofluid
+# are bare recordings of the visualizer alone. Until a slot has its video,
+# its .jpg (the app's chooser picture) stands in. Writes apple/site/media/<name>.mp4 (H.264,
 # which every current browser plays) and <name>.jpg (the poster, from the
 # first frame shown). No WebM: for these recordings VP9 came out bigger.
 #
@@ -15,6 +20,9 @@
 # autoplay muted video) and its Sound button turns it on.
 #
 # POSTER=<seconds> takes the poster from that point of the clip instead.
+#
+# CROP=<w:h:0:0> for a bare visualizer recording, whose black background
+# would fool the margin detection.
 #
 # QUALITY=lower squeezes a busy clip (the visualizers' fine, moving detail is
 # the hardest picture to compress) to a sensible size for a web page.
@@ -68,8 +76,9 @@ fi
 echo "window: $CROP"
 
 # 1600 wide is sharp on a Retina laptop without the file getting heavy; 30 fps
-# is plenty for UI, the visualizers included.
-VIDEO="crop=$CROP,scale='min(1600,iw)':-2:flags=lanczos,fps=30"
+# is plenty for UI, the visualizers included. WIDTH=<pixels> for a smaller
+# slot: the visualizer grid's tiles are 800.
+VIDEO="crop=$CROP,scale='min(${WIDTH:-1600},iw)':-2:flags=lanczos,fps=30"
 # One loudness for every clip (EBU R128, -16 LUFS, like most web video).
 AUDIO="loudnorm=I=-16:TP=-1.5:LRA=11"
 

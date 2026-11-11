@@ -12,7 +12,7 @@
   <meta property="og:title" content="Resonance — SID music, native to your Mac">
   <meta property="og:description" content="A native Mac player for Commodore 64 music. Browse all of HVSC, find tunes that sound alike, and watch every voice of the SID chip.">
   <meta property="og:url" content="https://erikluimes.github.io/resonance/">
-  <meta property="og:image" content="https://erikluimes.github.io/resonance/assets/og-card.png">
+  <meta property="og:image" content="https://erikluimes.github.io/resonance/assets/og-card.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
@@ -21,8 +21,8 @@
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <!-- ?v= changes with each site update, so a browser that cached the last
        one fetches the new files instead of mixing old and new. -->
-  <link rel="stylesheet" href="styles.css?v=20261108e">
-  <link rel="modulepreload" href="js/main.js?v=20261108e">
+  <link rel="stylesheet" href="styles.css?v=20261111g">
+  <link rel="modulepreload" href="js/main.js?v=20261111g">
   <script>
     // Sections fade in as main.js reveals them. If it never runs (a failed
     // or stale script), show everything rather than an empty page.
@@ -88,7 +88,7 @@
       <div class="nav-links">
         <a href="#smart">Smart Playlists</a>
         <a href="#sound">Sounds Like</a>
-        <a href="#now-playing">Now Playing</a>
+        <a href="#now-playing">Visualizers</a>
         <a href="#features">Features</a>
         <a href="#integrations">Integrations</a>
         <a href="#under-the-hood">Under the hood</a>
@@ -104,11 +104,11 @@
         <p class="eyebrow" data-reveal>
           <span class="eyebrow-dot"></span> A native Mac player for Commodore&nbsp;64 music
         </p>
-        <h1 class="hero-title" data-reveal>Every C64 tune.<br><span class="grad">Discovered by sound.</span></h1>
+        <h1 class="hero-title" data-reveal>Every C64 tune.<br><span class="grad">Say what you'd like to hear.</span></h1>
         <p class="lede" data-reveal>
-          All 60,000 tunes of the High Voltage SID Collection, fingerprinted by how they sound,
-          with visualizers that draw the chip as it plays. Made of Liquid Glass, made for the Mac,
-          built on Phosphor's open-source engine.
+          All 60,000 tunes of the High Voltage SID Collection. Describe what you're in the mood for and
+          get the playlist, or find the tunes that sound like the one playing, from a fingerprint of how
+          every tune sounds. Then watch the chip play it, twelve ways.
         </p>
         <div class="hero-cta" data-reveal>
           <a class="btn btn-primary" href="#download" data-download>
@@ -138,68 +138,6 @@
           </figcaption>
         </figure>
         <div class="tour-tabs" role="tablist" aria-label="Tour chapters" data-tour-tabs></div>
-      </div>
-    </section>
-
-    <!-- The chip -->
-    <section class="section" id="voices">
-      <div class="container">
-        <div class="section-head" data-reveal>
-          <p class="kicker">The chip</p>
-          <h2>Three voices.<br><span class="grad">That's the whole band.</span></h2>
-          <p class="section-lede">
-            The SID chip inside the Commodore 64 had three oscillators, four waveforms and one resonant
-            filter. Composers built whole soundtracks from that: arpeggios flickering fast enough to pass
-            for chords, bass and drums taking turns on a single voice. Resonance shows you how — the level,
-            note and waveform of every voice, decoded from the chip's registers as the tune plays. Here's a
-            tune doing just that, silently.
-          </p>
-        </div>
-
-        <div class="voice-grid">
-          <article class="voice-card" style="--c: var(--v1)" data-reveal>
-            <header>
-              <span class="voice-num">Voice 1</span>
-            </header>
-            <h3>Lead</h3>
-            <canvas class="scope" data-scope="0" aria-hidden="true"></canvas>
-            <div class="readout"><span data-note="0">·</span><span data-wave="0">—</span></div>
-            <p>The melody: a buzzing pulse with a sweeping width, a bright saw or a soft triangle, with vibrato on long notes.</p>
-          </article>
-          <article class="voice-card" style="--c: var(--v2)" data-reveal>
-            <header>
-              <span class="voice-num">Voice 2</span>
-            </header>
-            <h3>Chords</h3>
-            <canvas class="scope" data-scope="1" aria-hidden="true"></canvas>
-            <div class="readout"><span data-note="1">·</span><span data-wave="1">—</span></div>
-            <p>One voice racing through a chord fifty times a second, swept through the resonant filter.</p>
-          </article>
-          <article class="voice-card" style="--c: var(--v3)" data-reveal>
-            <header>
-              <span class="voice-num">Voice 3</span>
-            </header>
-            <h3>Bass &amp; drums</h3>
-            <canvas class="scope" data-scope="2" aria-hidden="true"></canvas>
-            <div class="readout"><span data-note="2">·</span><span data-wave="2">—</span></div>
-            <p>An octave-bouncing bass, interrupted by noise-burst snares and pitch-dropping kicks.</p>
-          </article>
-        </div>
-
-        <p class="chip-note" data-reveal>In the app, the inspector shows each voice like this: as a scope, as level bars with peak hold, or as its envelope.</p>
-
-        <div class="chip-foot" data-reveal>
-          <div class="waves">
-            <span><svg viewBox="0 0 40 16" aria-hidden="true"><path d="M1 13 9 3l8 10 8-10 8 10 6-7.5"/></svg>TRI</span>
-            <span><svg viewBox="0 0 40 16" aria-hidden="true"><path d="M1 13 13 3v10L25 3v10L37 3v10"/></svg>SAW</span>
-            <span><svg viewBox="0 0 40 16" aria-hidden="true"><path d="M1 13V3h7v10h7V3h7v10h7V3h7v10"/></svg>PUL</span>
-            <span><svg viewBox="0 0 40 16" aria-hidden="true"><path d="M1 9l2-5 2 9 2-7 2 3 2-6 2 10 2-8 2 5 2-3 2 6 2-9 2 7 2-4 2 5 2-8 2 9 2-6 2 3"/></svg>NOI</span>
-          </div>
-          <p>
-            <img src="assets/icon-256.png" alt="" width="36" height="36">
-            Recognize the bars? They're the app icon: three voices, each with its peak-hold cap.
-          </p>
-        </div>
       </div>
     </section>
 
@@ -263,44 +201,147 @@
           </figure>
       </div>
     </section>
-
-    <!-- Now Playing -->
+    <!-- Visualizers: three featured with the whole Now Playing window, nine more as bare recordings. -->
     <section class="section" id="now-playing">
       <div class="container">
         <div class="section-head" data-reveal>
-          <p class="kicker">Now Playing</p>
-          <h2>Four ways<br><span class="grad">to watch the music.</span></h2>
+          <p class="kicker">Visualizers</p>
+          <h2>Twelve ways<br><span class="grad">to watch the music.</span></h2>
           <p class="section-lede">
             Press <kbd>⇧</kbd><kbd>⌘</kbd><kbd>F</kbd> and the window becomes a player: the tune, its
-            composer and a visualizer driven by the SID's own registers, frame by frame.
+            composer and a visualizer driven by the SID's own registers, frame by frame. Keep three
+            at hand and swap them in Settings → Appearance.
           </p>
         </div>
-        <figure class="media media-wide" data-reveal>
-            <div class="media-soon" aria-hidden="true">
-              <svg class="i"><use href="#i-sparkles-tv"/></svg>
-              <span>Now Playing</span>
-              <small>Video coming soon</small>
+      </div>
+      <div class="container container-wide tour vz-stage" id="vz-stage" data-reveal>
+        <div class="stage-glow" aria-hidden="true"></div>
+        <figure class="media media-tour">
+          <div class="media-soon" aria-hidden="true">
+            <svg class="i"><use href="#i-sparkles-tv"/></svg>
+            <span data-vz-placeholder>Ink</span>
+            <small>Video coming soon</small>
+          </div>
+          <video data-vz-video muted playsinline preload="none" aria-label="Featured visualizers in Now Playing"></video>
+        </figure>
+        <div class="tour-tabs" role="tablist" aria-label="Featured visualizers" data-vz-tabs></div>
+        <!-- Below the stage, not over it: the recordings have the app's own track title there. -->
+        <div class="vz-caption" aria-live="polite">
+          <strong data-vz-title>Ink</strong>
+          <span data-vz-text></span>
+          <button type="button" class="share-link" data-share-featured>Share</button>
+        </div>
+      </div>
+      <div class="container">
+        <p class="vz-more" data-reveal>And nine more.</p>
+        <div class="vz-grid">
+          <article class="vz-tile" id="vis-halo" style="--c: var(--v1)" data-reveal>
+            <figure class="media">
+              <video data-vz-tile muted loop playsinline preload="none" poster="media/vis-halo.jpg" aria-label="The Halo visualizer">
+                <source src="media/vis-halo.mp4" type="video/mp4">
+              </video>
+            </figure>
+            <div class="vz-tile-head">
+              <h3>Halo</h3>
+              <button type="button" class="share-link" data-share="halo" aria-label="Share Halo">Share</button>
             </div>
-            <video data-video muted loop playsinline preload="none" poster="media/now-playing.jpg" aria-label="Now Playing in Resonance">
-              <source src="media/now-playing.mp4" type="video/mp4">
-            </video>
-          </figure>
-        <div class="vis-grid">
-          <article class="vis-card" style="--c: var(--v1)" data-reveal>
-            <h3>Halo</h3>
             <p>A glowing ring per voice that swells with its envelope and wobbles with its waveform's harmonics.</p>
           </article>
-          <article class="vis-card" style="--c: var(--v2)" data-reveal>
-            <h3>Particles</h3>
-            <p>24,000 points on a turning sphere, a third per voice, rippling with its envelope and sending a wave across on every new note.</p>
+          <article class="vz-tile" id="vis-particles" style="--c: var(--v2)" data-reveal>
+            <figure class="media">
+              <video data-vz-tile muted loop playsinline preload="none" poster="media/vis-particles.jpg" aria-label="The Particles visualizer">
+                <source src="media/vis-particles.mp4" type="video/mp4">
+              </video>
+            </figure>
+            <div class="vz-tile-head">
+              <h3>Particles</h3>
+              <button type="button" class="share-link" data-share="particles" aria-label="Share Particles">Share</button>
+            </div>
+            <p>24,000 points on a turning sphere, a third per voice, sending a wave across on every new note.</p>
           </article>
-          <article class="vis-card" style="--c: var(--v3)" data-reveal>
-            <h3>Radial</h3>
-            <p>A ring of spectrum bars per voice, lows meeting at the top and highs at the bottom, the rings turning opposite ways.</p>
+          <article class="vz-tile" id="vis-radial" style="--c: var(--v3)" data-reveal>
+            <figure class="media">
+              <video data-vz-tile muted loop playsinline preload="none" poster="media/vis-radial.jpg" aria-label="The Radial visualizer">
+                <source src="media/vis-radial.mp4" type="video/mp4">
+              </video>
+            </figure>
+            <div class="vz-tile-head">
+              <h3>Radial</h3>
+              <button type="button" class="share-link" data-share="radial" aria-label="Share Radial">Share</button>
+            </div>
+            <p>A ring of spectrum bars per voice, lows meeting at the top and highs at the bottom.</p>
           </article>
-          <article class="vis-card" style="--c: #8e93a8" data-reveal>
-            <h3>Sound Map</h3>
-            <p>Every note becomes a point in 3D, placed by its timbre: the tune draws its own map as it plays.</p>
+          <article class="vz-tile" id="vis-sound-map" style="--c: var(--v1)" data-reveal>
+            <figure class="media">
+              <video data-vz-tile muted loop playsinline preload="none" poster="media/vis-sound-map.jpg" aria-label="The Sound Map visualizer">
+                <source src="media/vis-sound-map.mp4" type="video/mp4">
+              </video>
+            </figure>
+            <div class="vz-tile-head">
+              <h3>Sound Map</h3>
+              <button type="button" class="share-link" data-share="sound-map" aria-label="Share Sound Map">Share</button>
+            </div>
+            <p>Every note becomes a point in 3D, placed by its timbre: the tune draws its own map.</p>
+          </article>
+          <article class="vz-tile" id="vis-spectrum" style="--c: var(--v2)" data-reveal>
+            <figure class="media">
+              <video data-vz-tile muted loop playsinline preload="none" poster="media/vis-spectrum.jpg" aria-label="The Spectrum visualizer">
+                <source src="media/vis-spectrum.mp4" type="video/mp4">
+              </video>
+            </figure>
+            <div class="vz-tile-head">
+              <h3>Spectrum</h3>
+              <button type="button" class="share-link" data-share="spectrum" aria-label="Share Spectrum">Share</button>
+            </div>
+            <p>An analyzer with a curve per voice from 30 Hz to 16 kHz, its peaks held and its note marked.</p>
+          </article>
+          <article class="vz-tile" id="vis-terrain" style="--c: var(--v3)" data-reveal>
+            <figure class="media">
+              <video data-vz-tile muted loop playsinline preload="none" poster="media/vis-terrain.jpg" aria-label="The Terrain visualizer">
+                <source src="media/vis-terrain.mp4" type="video/mp4">
+              </video>
+            </figure>
+            <div class="vz-tile-head">
+              <h3>Terrain</h3>
+              <button type="button" class="share-link" data-share="terrain" aria-label="Share Terrain">Share</button>
+            </div>
+            <p>The last four seconds of the spectrum as a landscape: a held note is a ridge, a drum a wall.</p>
+          </article>
+          <article class="vz-tile" id="vis-nimbus" style="--c: var(--v1)" data-reveal>
+            <figure class="media">
+              <video data-vz-tile muted loop playsinline preload="none" poster="media/vis-nimbus.jpg" aria-label="The Nimbus visualizer">
+                <source src="media/vis-nimbus.mp4" type="video/mp4">
+              </video>
+            </figure>
+            <div class="vz-tile-head">
+              <h3>Nimbus</h3>
+              <button type="button" class="share-link" data-share="nimbus" aria-label="Share Nimbus">Share</button>
+            </div>
+            <p>Soft balls of smoke in a pale sky, a pair per voice, that swell with its level and glow in its color.</p>
+          </article>
+          <article class="vz-tile" id="vis-liquid-light" style="--c: var(--v2)" data-reveal>
+            <figure class="media">
+              <video data-vz-tile muted loop playsinline preload="none" poster="media/vis-liquid-light.jpg" aria-label="The Liquid Light visualizer">
+                <source src="media/vis-liquid-light.mp4" type="video/mp4">
+              </video>
+            </figure>
+            <div class="vz-tile-head">
+              <h3>Liquid Light</h3>
+              <button type="button" class="share-link" data-share="liquid-light" aria-label="Share Liquid Light">Share</button>
+            </div>
+            <p>Thick, glossy oil on a projector's glass, lit from behind like a 1960s light show.</p>
+          </article>
+          <article class="vz-tile" id="vis-ferrofluid" style="--c: var(--v3)" data-reveal>
+            <figure class="media">
+              <video data-vz-tile muted loop playsinline preload="none" poster="media/vis-ferrofluid.jpg" aria-label="The Ferrofluid visualizer">
+                <source src="media/vis-ferrofluid.mp4" type="video/mp4">
+              </video>
+            </figure>
+            <div class="vz-tile-head">
+              <h3>Ferrofluid</h3>
+              <button type="button" class="share-link" data-share="ferrofluid" aria-label="Share Ferrofluid">Share</button>
+            </div>
+            <p>A pool of black liquid with a magnet for each voice, standing in spikes where it sounds.</p>
           </article>
         </div>
         <!-- The presets' voices, from VoiceTheme.presets in the app. -->
@@ -315,6 +356,69 @@
             <li><span class="dots" aria-hidden="true"><i style="background: #39ff6e"></i><i style="background: #1fa84a"></i><i style="background: #c8ffd6"></i></span>Phosphor</li>
             <li><span class="dots" aria-hidden="true"><i style="background: #ffffff"></i><i style="background: #a8a8a8"></i><i style="background: #5e5e5e"></i></span>Grayscale</li>
           </ul>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- The chip -->
+    <section class="section" id="voices">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="kicker">The chip</p>
+          <h2>Three voices.<br><span class="grad">That's the whole band.</span></h2>
+          <p class="section-lede">
+            The SID chip inside the Commodore 64 had three oscillators, four waveforms and one resonant
+            filter. Composers built whole soundtracks from that: arpeggios flickering fast enough to pass
+            for chords, bass and drums taking turns on a single voice. Resonance shows you how — the level,
+            note and waveform of every voice, decoded from the chip's registers as the tune plays. Here's a
+            tune doing just that, silently.
+          </p>
+        </div>
+
+        <div class="voice-grid">
+          <article class="voice-card" style="--c: var(--v1)" data-reveal>
+            <header>
+              <span class="voice-num">Voice 1</span>
+            </header>
+            <h3>Lead</h3>
+            <canvas class="scope" data-scope="0" aria-hidden="true"></canvas>
+            <div class="readout"><span data-note="0">·</span><span data-wave="0">—</span></div>
+            <p>The melody: a buzzing pulse with a sweeping width, a bright saw or a soft triangle, with vibrato on long notes.</p>
+          </article>
+          <article class="voice-card" style="--c: var(--v2)" data-reveal>
+            <header>
+              <span class="voice-num">Voice 2</span>
+            </header>
+            <h3>Chords</h3>
+            <canvas class="scope" data-scope="1" aria-hidden="true"></canvas>
+            <div class="readout"><span data-note="1">·</span><span data-wave="1">—</span></div>
+            <p>One voice racing through a chord fifty times a second, swept through the resonant filter.</p>
+          </article>
+          <article class="voice-card" style="--c: var(--v3)" data-reveal>
+            <header>
+              <span class="voice-num">Voice 3</span>
+            </header>
+            <h3>Bass &amp; drums</h3>
+            <canvas class="scope" data-scope="2" aria-hidden="true"></canvas>
+            <div class="readout"><span data-note="2">·</span><span data-wave="2">—</span></div>
+            <p>An octave-bouncing bass, interrupted by noise-burst snares and pitch-dropping kicks.</p>
+          </article>
+        </div>
+
+        <p class="chip-note" data-reveal>In the app, the inspector shows each voice like this: as a scope, as level bars with peak hold, or as its envelope.</p>
+
+        <div class="chip-foot" data-reveal>
+          <div class="waves">
+            <span><svg viewBox="0 0 40 16" aria-hidden="true"><path d="M1 13 9 3l8 10 8-10 8 10 6-7.5"/></svg>TRI</span>
+            <span><svg viewBox="0 0 40 16" aria-hidden="true"><path d="M1 13 13 3v10L25 3v10L37 3v10"/></svg>SAW</span>
+            <span><svg viewBox="0 0 40 16" aria-hidden="true"><path d="M1 13V3h7v10h7V3h7v10h7V3h7v10"/></svg>PUL</span>
+            <span><svg viewBox="0 0 40 16" aria-hidden="true"><path d="M1 9l2-5 2 9 2-7 2 3 2-6 2 10 2-8 2 5 2-3 2 6 2-9 2 7 2-4 2 5 2-8 2 9 2-6 2 3"/></svg>NOI</span>
+          </div>
+          <p>
+            <img src="assets/icon-256.png" alt="" width="36" height="36">
+            Recognize the bars? They're the app icon: three voices, each with its peak-hold cap.
+          </p>
         </div>
       </div>
     </section>
@@ -806,6 +910,6 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
     </div>
   </footer>
 
-  <script type="module" src="js/main.js?v=20261108e"></script>
+  <script type="module" src="js/main.js?v=20261111g"></script>
 </body>
 </html>

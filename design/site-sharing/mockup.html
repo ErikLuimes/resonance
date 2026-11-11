@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Social Card Mockup</title>
+  <!-- The site's own styles, for its tokens, kickers, stage and tiles. -->
+  <link rel="stylesheet" href="../../apple/site/styles.css">
+  <style>
+    body { background: var(--bg); color: var(--text); font-family: var(--font); }
+    .mk { width: min(1180px, 100% - 32px); margin: 0 auto; padding: 48px 0 120px; }
+    .mk h1 { font-family: var(--display); font-size: 2rem; margin: 0 0 6px; }
+    .mk h2 { font-family: var(--display); font-size: 1.35rem; margin: 64px 0 6px; }
+    .mk > p, .mk .note { color: var(--muted); max-width: 760px; line-height: 1.55; }
+    .mk .note b { color: var(--text); font-weight: 600; }
+    .label { font: 600 12px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: .06em; margin: 28px 0 10px; }
+
+    /* A social card: drawn at its real 1200 × 630, shown scaled. */
+    .card-frame { width: 100%; max-width: 1200px; aspect-ratio: 1200 / 630; position: relative; overflow: hidden;
+      border-radius: 14px; border: 1px solid var(--line-2); }
+    .card { position: absolute; left: 0; top: 0; width: 1200px; height: 630px; transform-origin: 0 0;
+      background: #07080d; overflow: hidden; font-family: var(--display); color: #f3f4f8; }
+    .card img.bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .card .shade-left { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(7,8,13,.96) 0%, rgba(7,8,13,.82) 34%, rgba(7,8,13,0) 66%); }
+    .card .shade-bottom { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(7,8,13,.95) 0%, rgba(7,8,13,.6) 30%, rgba(7,8,13,0) 55%); }
+    .brand { display: flex; align-items: center; gap: 16px; font-size: 34px; font-weight: 700; letter-spacing: -0.01em; }
+    .brand img { width: 64px; height: 64px; border-radius: 15px; }
+    .headline { font-size: 64px; line-height: 1.02; font-weight: 800; letter-spacing: -0.03em; margin: 0; }
+    .headline .grad { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .url { font: 500 22px var(--mono); color: #a4a9bc; }
+    .vname { font-size: 96px; font-weight: 800; letter-spacing: -0.035em; line-height: 1; margin: 0; }
+    .vline { font-size: 30px; color: #c9ccd8; line-height: 1.25; margin: 12px 0 0; max-width: 820px; }
+
+    /* Chat previews: about the width iMessage, Bluesky and Mastodon give a link. */
+    .previews { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+    .bubble { width: 300px; border-radius: 18px; overflow: hidden; background: #26272d; border: 1px solid var(--line); }
+    .bubble .thumb { position: relative; width: 300px; height: 157.5px; overflow: hidden; }
+    .bubble .thumb .card { transform: scale(.25); }
+    .bubble .meta { padding: 10px 12px 12px; }
+    .bubble .meta strong { display: block; font-size: 14px; }
+    .bubble .meta span { font-size: 12.5px; color: var(--muted); }
+    .post { width: 360px; border-radius: 14px; border: 1px solid var(--line-2); overflow: hidden; background: #0f1118; }
+    .post .thumb { position: relative; width: 360px; height: 189px; overflow: hidden; }
+    .post .thumb .card { transform: scale(.3); }
+    .post .meta { padding: 10px 12px; font-size: 12.5px; color: var(--muted); }
+    .post .meta strong { display: block; color: var(--text); font-size: 14px; margin-bottom: 2px; }
+
+    .variants { display: grid; gap: 36px; }
+
+    /* Share links on the page. */
+    .share { color: var(--accent); font: 500 14px var(--font); background: none; border: 0; padding: 0; cursor: pointer; }
+    .share:hover { text-decoration: underline; }
+    .share[data-copied] { color: var(--muted); }
+    .vz-tile .tile-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 12px 0 4px; }
+    .vz-tile .tile-row h3 { margin: 0; }
+    .tour-caption .share { display: inline-block; margin-top: 6px; }
+    .excerpt { border: 1px dashed var(--line-2); border-radius: 18px; padding: 28px; }
+    .mk-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+    @media (max-width: 760px) { .mk-grid { grid-template-columns: 1fr; } }
+    .toast { position: fixed; left: 50%; bottom: 28px; translate: -50% 0; padding: 10px 16px; border-radius: 12px;
+      background: #1c1f2b; border: 1px solid var(--line-2); font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+    .toast.on { opacity: 1; }
+    .vz-tile .media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .media-tour > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .flow { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 16px; align-items: center; }
+    .flow .step { border: 1px solid var(--line); border-radius: 14px; padding: 16px; background: var(--surface); font-size: 14px; color: var(--muted); line-height: 1.5; }
+    .flow .step b { color: var(--text); display: block; margin-bottom: 4px; }
+    .flow .arrow { color: var(--dim); }
+    @media (max-width: 760px) { .flow { grid-template-columns: 1fr; } .flow .arrow { display: none; } }
+  </style>
+</head>
+<body>
+<main class="mk">
+  <h1>Social card and share links</h1>
+  <p>Mockup. The site's card today is the app icon and three tags. These put a real visualizer frame up front, from the new recordings. The previews underneath are the size the card actually gets in a chat or a feed.</p>
+
+  <h2>1. The site's card</h2>
+  <p class="note">Three directions. Each is drawn at its real 1200 × 630, and the PNG would be rendered from the same HTML.</p>
+
+  <div class="variants">
+    <div>
+      <p class="label">A · Silicon, headline on the left</p>
+      <div class="card-frame" data-card>
+        <div class="card">
+          <img class="bg" src="frames/silicon-8-top.jpg" alt="" style="object-position: 70% 0%">
+          <div class="shade-left"></div>
+          <div style="position:absolute; left:72px; top:70px; bottom:64px; display:flex; flex-direction:column; justify-content:space-between; width:600px">
+            <div class="brand"><img src="../../apple/site/assets/icon-256.png" alt="">Resonance</div>
+            <p class="headline">Every C64 tune.<br><span class="grad">Say what you'd like to hear.</span></p>
+            <div class="url">A Mac player for SID music</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <p class="label">B · Three visualizers side by side</p>
+      <div class="card-frame" data-card>
+        <div class="card">
+          <div style="position:absolute; inset:0 0 170px 0; display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px">
+            <img src="frames/ink-12-top.jpg" alt="" style="width:100%; height:100%; object-fit:cover; object-position: 45% 10%">
+            <img src="frames/silicon-14-top.jpg" alt="" style="width:100%; height:100%; object-fit:cover; object-position: 50% 0%">
+            <img src="frames/notes-12-top.jpg" alt="" style="width:100%; height:100%; object-fit:cover; object-position: 40% 0%">
+          </div>
+          <div style="position:absolute; left:64px; right:64px; bottom:46px; display:flex; align-items:flex-end; justify-content:space-between">
+            <div>
+              <div class="brand" style="font-size:30px"><img src="../../apple/site/assets/icon-256.png" alt="" style="width:52px;height:52px;border-radius:12px">Resonance</div>
+              <p style="margin:14px 0 0; font-size:38px; font-weight:700; letter-spacing:-.02em">Every C64 tune. <span class="grad" style="background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent">Watch the chip play it.</span></p>
+            </div>
+            <div class="url">12 visualizers</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <p class="label">C · Ink, full bleed, headline at the bottom</p>
+      <div class="card-frame" data-card>
+        <div class="card">
+          <img class="bg" src="frames/ink-18-top.jpg" alt="" style="object-position: 50% 30%">
+          <div class="shade-bottom"></div>
+          <div style="position:absolute; left:72px; right:72px; bottom:58px">
+            <div class="brand" style="font-size:30px; margin-bottom:18px"><img src="../../apple/site/assets/icon-256.png" alt="" style="width:52px;height:52px;border-radius:12px">Resonance</div>
+            <p class="headline" style="font-size:58px">Every C64 tune.<br><span class="grad">Say what you'd like to hear.</span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="label">At the size people see it</p>
+  <div class="previews" data-previews></div>
+  <p class="note">I'd pick <b>A</b>: the die is unlike any other card in a feed, and the headline stays readable at 300 px. B shows the variety but goes busy when it's small. C is the prettiest large but loses the most when shrunk.</p>
+
+  <h2>2. Share links on the page</h2>
+  <p class="note">A plain accent-text <b>Share</b>, no network icons, in two places: the stage caption for the visualizer showing, and next to each tile's name. On a Mac it copies the visualizer's link. On a phone it opens the system share sheet (Web Share API), so AirDrop, Messages and the apps people already use are there. Click one to try it.</p>
+  <div class="excerpt">
+    <div class="tour" style="margin-top:0">
+      <figure class="media media-tour is-ready" style="aspect-ratio:16/10">
+        <img src="frames/silicon-14.jpg" alt="">
+        <figcaption class="tour-caption">
+          <strong>Silicon</strong>
+          <span>The tune's SID in 3D with the lid off, its die drawn from the chip's own mask layers, at work.</span><br>
+          <button class="share" data-share="silicon">Share</button>
+        </figcaption>
+      </figure>
+    </div>
+    <p class="vz-more" style="margin-top:40px">And nine more.</p>
+    <div class="mk-grid">
+      <article class="vz-tile" style="--c: var(--v1)">
+        <figure class="media is-ready"><img src="frames/bare-halo.jpg" alt=""></figure>
+        <div class="tile-row"><h3>Halo</h3><button class="share" data-share="halo">Share</button></div>
+        <p>A glowing ring per voice that swells with its envelope and wobbles with its waveform's harmonics.</p>
+      </article>
+      <article class="vz-tile" style="--c: var(--v2)">
+        <figure class="media is-ready"><img src="frames/bare-nimbus.jpg" alt=""></figure>
+        <div class="tile-row"><h3>Nimbus</h3><button class="share" data-share="nimbus">Share</button></div>
+        <p>Soft balls of smoke in a pale sky, a pair per voice, that swell with its level and glow in its color.</p>
+      </article>
+      <article class="vz-tile" style="--c: var(--v3)">
+        <figure class="media is-ready"><img src="frames/bare-ferrofluid.jpg" alt=""></figure>
+        <div class="tile-row"><h3>Ferrofluid</h3><button class="share" data-share="ferrofluid">Share</button></div>
+        <p>A pool of black liquid with a magnet for each voice, standing in spikes where it sounds.</p>
+      </article>
+    </div>
+  </div>
+
+  <h2>3. What a shared visualizer link looks like</h2>
+  <p class="note">A link preview comes from the page the link points to, and a <code>#silicon</code> on the end can't change it. So each visualizer gets a tiny static page of its own, at <code>/v/silicon/</code>, with its own card. That's 12 small HTML files on GitHub Pages and no server.</p>
+  <div class="flow">
+    <div class="step"><b>Someone shares</b>Share on Silicon copies <code>…/resonance/v/silicon/</code></div>
+    <div class="arrow">→</div>
+    <div class="step"><b>The chat unfurls it</b>with Silicon's card, title and one line</div>
+    <div class="arrow">→</div>
+    <div class="step"><b>A click opens the site</b>scrolled to the showcase with Silicon on the stage, or its tile playing</div>
+  </div>
+
+  <p class="label">A visualizer's card</p>
+  <div class="card-frame" data-card>
+    <div class="card">
+      <img class="bg" src="frames/silicon-3-top.jpg" alt="" style="object-position: 50% 30%">
+      <div class="shade-bottom"></div>
+      <div style="position:absolute; left:72px; right:72px; bottom:56px">
+        <p class="vname">Silicon</p>
+        <p class="vline">The SID in 3D with the lid off, playing the tune.</p>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:26px">
+          <div class="brand" style="font-size:26px"><img src="../../apple/site/assets/icon-256.png" alt="" style="width:44px;height:44px;border-radius:10px">A Resonance visualizer</div>
+          <div class="url">1 of 12</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="label">As people see them</p>
+  <div class="previews" data-previews-v></div>
+  <p class="note">The bare visualizers use the same layout: the frame fills the card and the name sits in front.</p>
+</main>
+<div class="toast" data-toast>Link copied</div>
+
+<script>
+  // Every card is drawn at 1200 × 630 and scaled to its frame.
+  const fit = () => document.querySelectorAll('.card-frame').forEach(f => {
+    f.querySelector('.card').style.transform = `scale(${f.clientWidth / 1200})`;
+  });
+  addEventListener('resize', fit);
+
+  // Chat and feed previews, from the cards above.
+  const cards = [...document.querySelectorAll('[data-card] .card')];
+  const titles = ['Resonance: SID music, native to your Mac', 'Resonance: SID music, native to your Mac', 'Resonance: SID music, native to your Mac'];
+  const host = 'erikluimes.github.io';
+  const previews = document.querySelector('[data-previews]');
+  cards.slice(0, 3).forEach((c, i) => {
+    previews.insertAdjacentHTML('beforeend', `<div class="bubble"><div class="thumb">${c.outerHTML}</div>
+      <div class="meta"><strong>${titles[i]}</strong><span>${host}</span></div></div>`);
+  });
+  previews.insertAdjacentHTML('beforeend', `<div class="post"><div class="thumb">${cards[0].outerHTML}</div>
+    <div class="meta"><strong>Resonance: SID music, native to your Mac</strong>A native Mac player for Commodore 64 music…</div></div>`);
+  const pv = document.querySelector('[data-previews-v]');
+  pv.insertAdjacentHTML('beforeend', `<div class="bubble"><div class="thumb">${cards[3].outerHTML}</div>
+    <div class="meta"><strong>Silicon, a Resonance visualizer</strong><span>${host}</span></div></div>`);
+  pv.insertAdjacentHTML('beforeend', `<div class="post"><div class="thumb">${cards[3].outerHTML}</div>
+    <div class="meta"><strong>Silicon, a Resonance visualizer</strong>The SID in 3D with the lid off, playing the tune.</div></div>`);
+  fit();
+
+  // Share: the system sheet where there is one (phones), else copy the link.
+  const toast = document.querySelector('[data-toast]');
+  for (const b of document.querySelectorAll('[data-share]')) {
+    b.addEventListener('click', async () => {
+      const url = `https://${host}/resonance/v/${b.dataset.share}/`;
+      if (navigator.share && matchMedia('(pointer: coarse)').matches) {
+        try { await navigator.share({ url }); } catch {}
+        return;
+      }
+      try { await navigator.clipboard.writeText(url); } catch {}
+      b.textContent = 'Link copied'; b.dataset.copied = '';
+      toast.textContent = `Copied ${url}`; toast.classList.add('on');
+      setTimeout(() => { b.textContent = 'Share'; delete b.dataset.copied; toast.classList.remove('on'); }, 1800);
+    });
+  }
+</script>
+</body>
+</html>

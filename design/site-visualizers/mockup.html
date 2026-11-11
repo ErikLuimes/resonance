@@ -1,0 +1,910 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <base href="../../apple/site/">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Resonance — SID music, native to your Mac</title>
+  <meta name="description" content="Resonance is a native macOS player for Commodore 64 SID music. All of the High Voltage SID Collection, Smart Playlists from a sentence, Sounds Like discovery from each tune's sound fingerprint, Now Playing visualizers, playlists and Liquid Glass. Its own app, built on Phosphor's open-source engine.">
+  <meta name="theme-color" content="#07080d">
+  <meta name="color-scheme" content="dark">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Resonance — SID music, native to your Mac">
+  <meta property="og:description" content="A native Mac player for Commodore 64 music. Browse all of HVSC, find tunes that sound alike, and watch every voice of the SID chip.">
+  <meta property="og:url" content="https://erikluimes.github.io/resonance/">
+  <meta property="og:image" content="https://erikluimes.github.io/resonance/assets/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="icon" type="image/png" sizes="64x64" href="assets/favicon-64.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <!-- ?v= changes with each site update, so a browser that cached the last
+       one fetches the new files instead of mixing old and new. -->
+  <link rel="stylesheet" href="styles.css?v=20261108e">
+  <link rel="modulepreload" href="js/main.js?v=20261108e">
+  <script>
+    // Sections fade in as main.js reveals them. If it never runs (a failed
+    // or stale script), show everything rather than an empty page.
+    document.documentElement.classList.add('js');
+    setTimeout(() => { if (!window.resonanceReady) document.documentElement.classList.remove('js'); }, 4000);
+  </script>
+
+  <style>
+    .mk-banner { position: fixed; left: 0; right: 0; bottom: 0; z-index: 100; padding: 8px 16px; text-align: center; font: 600 13px var(--font);
+      background: #ffd25a; color: #1a1400; }
+    .mk-banner span { font-weight: 400; }
+    .mk-tag { position: absolute; left: 10px; top: 10px; padding: 3px 8px; border-radius: 6px; font: 600 11px var(--font);
+      background: rgba(255, 210, 90, 0.92); color: #1a1400; }
+    .mk-tag-big { left: 18px; top: 18px; font-size: 13px; padding: 6px 10px; }
+    .vz-feature img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity .35s var(--ease); }
+    .vz-stage { margin-top: 0; }
+    .vz-more { margin: 72px 0 20px; text-align: center; font: 600 1.4rem var(--display); color: var(--muted); }
+    .vz-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin-bottom: 40px; }
+    .vz-tile h3 { margin: 12px 0 4px; font-size: 1.05rem; }
+    .vz-tile p { margin: 0; color: var(--muted); font-size: 14.5px; line-height: 1.5; }
+    .vz-pic { position: relative; aspect-ratio: 16 / 10; border-radius: 16px; overflow: hidden; border: 1px solid var(--line-2); background: #0a0b12; }
+    .vz-pic img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .5s var(--ease); }
+    .vz-tile:hover .vz-pic img { transform: scale(1.03); }
+    .vz-tile:hover .vz-pic::after { content: "▶ plays while hovered or in view"; position: absolute; right: 10px; bottom: 10px;
+      padding: 3px 8px; border-radius: 6px; font: 600 11px var(--font); background: rgba(0,0,0,.6); color: #fff; }
+    @media (max-width: 900px) { .vz-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 560px) { .vz-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-play" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M7 4.6v14.8a1 1 0 0 0 1.52.85l12.1-7.4a1 1 0 0 0 0-1.7L8.52 3.75A1 1 0 0 0 7 4.6z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><g fill="currentColor" stroke="none"><rect x="5.5" y="4" width="4.6" height="16" rx="1.3"/><rect x="13.9" y="4" width="4.6" height="16" rx="1.3"/></g></symbol>
+    <symbol id="i-forward" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M2 6.3v11.4a.8.8 0 0 0 1.25.66L11.5 12.7v5a.8.8 0 0 0 1.25.66l8.6-5.7a.8.8 0 0 0 0-1.32l-8.6-5.7a.8.8 0 0 0-1.25.66v5L3.25 5.64A.8.8 0 0 0 2 6.3z"/></symbol>
+    <symbol id="i-backward" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" transform="matrix(-1 0 0 1 24 0)" d="M2 6.3v11.4a.8.8 0 0 0 1.25.66L11.5 12.7v5a.8.8 0 0 0 1.25.66l8.6-5.7a.8.8 0 0 0 0-1.32l-8.6-5.7a.8.8 0 0 0-1.25.66v5L3.25 5.64A.8.8 0 0 0 2 6.3z"/></symbol>
+    <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M3 7h3.2c2 0 3.2 1 4.3 2.7l3 4.6c1.1 1.7 2.3 2.7 4.3 2.7H21M3 17h3.2c1.5 0 2.6-.6 3.5-1.6M14.3 8.6C15.2 7.6 16.3 7 17.8 7H21M18.2 4.2 21 7l-2.8 2.8M18.2 14.2 21 17l-2.8 2.8"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M4 11.5V10a3 3 0 0 1 3-3h13M17 4l3 3-3 3M20 12.5V14a3 3 0 0 1-3 3H4M7 20l-3-3 3-3"/></symbol>
+    <symbol id="i-repeat-1" viewBox="0 0 24 24"><path d="M4 11.5V10a3 3 0 0 1 3-3h13M17 4l3 3-3 3M20 12.5V14a3 3 0 0 1-3 3H4M7 20l-3-3 3-3"/><path d="M11.2 10.6 12.6 9.8v4.6" stroke-width="1.5"/></symbol>
+    <symbol id="i-dice" viewBox="0 0 24 24"><rect x="3.8" y="3.8" width="16.4" height="16.4" rx="4.2"/><g fill="currentColor" stroke="none"><circle cx="8.6" cy="8.6" r="1.35"/><circle cx="15.4" cy="8.6" r="1.35"/><circle cx="12" cy="12" r="1.35"/><circle cx="8.6" cy="15.4" r="1.35"/><circle cx="15.4" cy="15.4" r="1.35"/></g></symbol>
+    <symbol id="i-dice-fill" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" fill-rule="evenodd" d="M7.5 3h9A4.5 4.5 0 0 1 21 7.5v9a4.5 4.5 0 0 1-4.5 4.5h-9A4.5 4.5 0 0 1 3 16.5v-9A4.5 4.5 0 0 1 7.5 3zM7 8.4a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0zM14 8.4a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0zM10.5 12a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0zM7 15.6a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0zM14 15.6a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-sidebar-right" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M15 5v14"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M3 6h10M3 11h10M3 16h6M17 17.5V5l4 1.4"/><circle cx="15" cy="17.5" r="2.2"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4M9 21h6"/></symbol>
+    <symbol id="i-game" viewBox="0 0 24 24"><path d="M7.2 7.5h9.6a4 4 0 0 1 3.9 3.2l.9 4.3a2.6 2.6 0 0 1-4.5 2.2l-1.6-1.9H8.5l-1.6 1.9a2.6 2.6 0 0 1-4.5-2.2l.9-4.3a4 4 0 0 1 3.9-3.2z"/><path d="M8 10.2v3.2M6.4 11.8h3.2"/><g fill="currentColor" stroke="none"><circle cx="15.8" cy="10.8" r=".9"/><circle cx="17.6" cy="12.8" r=".9"/></g></symbol>
+    <symbol id="i-sparkles-tv" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="12.5" rx="2.5"/><path d="M9 21h6"/><path d="M12 8.6l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-speaker" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M3.5 9.2h3.2L11.4 5v14l-4.7-4.2H3.5z"/></symbol>
+    <symbol id="i-speaker-loud" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M2.5 9.2h3.2L10.4 5v14l-4.7-4.2H2.5z"/><path d="M13.6 9.2a3.8 3.8 0 0 1 0 5.6M16.2 6.8a7.2 7.2 0 0 1 0 10.4M18.8 4.4a10.6 10.6 0 0 1 0 15.2"/></symbol>
+    <symbol id="i-speaker-wave" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M3.5 9.2h3.2L11.4 5v14l-4.7-4.2H3.5z"/><path d="M14.6 9.2a3.8 3.8 0 0 1 0 5.6M17.4 6.6a7.4 7.4 0 0 1 0 10.8"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="M14.5 6 8.5 12l6 6"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9.5 6 6 6-6 6"/></symbol>
+    <symbol id="i-waveform" viewBox="0 0 24 24"><path d="M3.5 10.5v3M7 7.5v9M10.5 4v16M14 8v8M17.5 5.5v13M21 10v4"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-add-list" viewBox="0 0 24 24"><path d="M3 6h12M3 11h12M3 16h7M18 13v8M14 17h8"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3.5v12M7 10.5l5 5 5-5M5 20h14"/></symbol>
+    <symbol id="i-github" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M12 1.8a10.2 10.2 0 0 0-3.2 19.9c.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.6 1 1.6 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.3-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .9-.3 2.8 1a9.6 9.6 0 0 1 5.1 0c1.9-1.3 2.8-1 2.8-1 .6 1.4.2 2.4.1 2.7.7.7 1 1.6 1 2.7 0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10.2 10.2 0 0 0 12 1.8z"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9z"/><path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></symbol>
+    <symbol id="i-books" viewBox="0 0 24 24"><rect x="3.5" y="4" width="4.5" height="16" rx="1.2"/><rect x="9.8" y="4" width="4.5" height="16" rx="1.2"/><path d="m16.2 5.6 3.6-.9 3.2 14.3-3.6.9z"/></symbol>
+    <symbol id="i-quote" viewBox="0 0 24 24"><path d="M4 6h16M4 10.5h16M4 15h10M4 19.5h6"/></symbol>
+    <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h.01M10 10h.01M13.5 10h.01M17 10h.01M7.5 14h9" stroke-width="2"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9 2.5V6M15 2.5V6M9 18v3.5M15 18v3.5M2.5 9H6M2.5 15H6M18 9h3.5M18 15h3.5"/></symbol>
+    <symbol id="i-headphones" viewBox="0 0 24 24"><path d="M4 15.5V12a8 8 0 0 1 16 0v3.5"/><rect x="3" y="14" width="4.6" height="6.5" rx="1.8"/><rect x="16.4" y="14" width="4.6" height="6.5" rx="1.8"/></symbol>
+    <symbol id="i-rows" viewBox="0 0 24 24"><path d="M8.5 6h12M8.5 12h12M8.5 18h12M4 6h.01M4 12h.01M4 18h.01" /></symbol>
+    <symbol id="i-timer" viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4.2l2.8 1.7M9.5 2.8h5"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3.5v11M8 7.5l4-4 4 4M8.5 10.5H7a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-1.5"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2.5"/><path d="M15.5 8.5V7A2.5 2.5 0 0 0 13 4.5H6.5A2.5 2.5 0 0 0 4 7v6.5A2.5 2.5 0 0 0 6.5 16H8.5"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M3.5 9.2h3.2L11.4 5v14l-4.7-4.2H3.5z"/><path d="m15 9.5 5 5M20 9.5l-5 5"/></symbol>
+  </svg>
+
+  <div class="mk-banner">Mockup: site with the visualizer showcase <span>· Order: hero → Smart Playlists → Sounds Like → Visualizers → The chip → … · Yellow tags mark placeholders</span></div>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <div class="aurora" aria-hidden="true">
+    <i class="orb orb-1"></i><i class="orb orb-2"></i><i class="orb orb-3"></i>
+  </div>
+
+  <header class="nav-wrap">
+    <nav class="nav" aria-label="Main">
+      <a class="nav-brand" href="#top" aria-label="Resonance home">
+        <img src="assets/icon-256.png" alt="" width="28" height="28">
+        <span>Resonance</span>
+      </a>
+      <div class="nav-links">
+        <a href="#smart">Smart Playlists</a>
+        <a href="#sound">Sounds Like</a>
+        <a href="#now-playing">Visualizers</a>
+        <a href="#features">Features</a>
+        <a href="#integrations">Integrations</a>
+        <a href="#under-the-hood">Under the hood</a>
+      </div>
+      <a class="nav-cta" href="#download">Download</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <!-- Hero -->
+    <section class="hero" id="top">
+      <div class="container hero-copy">
+        <p class="eyebrow" data-reveal>
+          <span class="eyebrow-dot"></span> A native Mac player for Commodore&nbsp;64 music
+        </p>
+        <h1 class="hero-title" data-reveal>Every C64 tune.<br><span class="grad">Say what you'd like to hear.</span></h1>
+        <p class="lede" data-reveal>
+          All 60,000 tunes of the High Voltage SID Collection. Describe what you're in the mood for and
+          get the playlist, or find the tunes that sound like the one playing, from a fingerprint of how
+          every tune sounds. Then watch the chip play it, twelve ways.
+        </p>
+        <div class="hero-cta" data-reveal>
+          <a class="btn btn-primary" href="#download" data-download>
+            <svg class="i"><use href="#i-download"/></svg><span data-download-label>Download for Mac</span>
+          </a>
+          <a class="btn btn-glass" href="#tour">
+            <svg class="i i-fill"><use href="#i-play"/></svg><span>Watch the tour</span>
+          </a>
+        </div>
+        <p class="fine" data-reveal>
+          <span data-release-line>Free and open source</span> · macOS 27 or later · Apple silicon
+        </p>
+      </div>
+
+      <div class="container container-wide hero-stage tour" id="tour" data-reveal>
+        <div class="stage-glow" aria-hidden="true"></div>
+        <figure class="media media-tour">
+          <div class="media-soon" aria-hidden="true">
+            <svg class="i"><use href="#i-waveform"/></svg>
+            <span data-tour-placeholder>Sounds Like</span>
+            <small>Video coming soon</small>
+          </div>
+          <video data-tour-video muted playsinline preload="none" aria-label="A tour of Resonance"></video>
+          <figcaption class="tour-caption" aria-live="polite">
+            <strong data-tour-title>Sounds Like</strong>
+            <span data-tour-text>Play a tune, and see the ones in HVSC that sound most like it.</span>
+          </figcaption>
+        </figure>
+        <div class="tour-tabs" role="tablist" aria-label="Tour chapters" data-tour-tabs></div>
+      </div>
+    </section>
+
+    <!-- Smart Playlists. Each sentence below is checked in SmartPlaylistTests. -->
+    <section class="section" id="smart">
+      <div class="container showcase">
+        <div class="showcase-copy" data-reveal>
+          <p class="kicker">Smart Playlists</p>
+          <h2>Say what you'd like to hear.<br><span class="grad">Get the playlist.</span></h2>
+          <p class="section-lede">
+            Type a sentence in your own words. Resonance reads it on your Mac and builds the list
+            from all of HVSC, using how each tune actually sounds.
+          </p>
+          <ul class="checks">
+            <li><svg class="i"><use href="#i-check"/></svg>“Intense dual SID from the 2020s”</li>
+            <li><svg class="i"><use href="#i-check"/></svg>“Chill Hermit”</li>
+            <li><svg class="i"><use href="#i-check"/></svg>“Like Second Reality but calmer”: it knows how tunes sound</li>
+            <li><svg class="i"><use href="#i-check"/></svg>“Calm music until midnight”</li>
+          </ul>
+        </div>
+        <figure class="media" data-reveal>
+            <div class="media-soon" aria-hidden="true">
+              <svg class="i"><use href="#i-sparkle"/></svg>
+              <span>Smart Playlists</span>
+              <small>Video coming soon</small>
+            </div>
+            <video data-video muted loop playsinline preload="none" poster="media/smart-playlists.jpg" aria-label="Smart Playlists in Resonance">
+              <source src="media/smart-playlists.mp4" type="video/mp4">
+            </video>
+          </figure>
+      </div>
+    </section>
+
+    <!-- Sounds Like -->
+    <section class="section" id="sound">
+      <div class="container showcase">
+        <div class="showcase-copy" data-reveal>
+          <p class="kicker">Discover by sound</p>
+          <h2>Every tune has a fingerprint.<br><span class="grad">Find the ones that sound alike.</span></h2>
+          <p class="section-lede">
+            In the background, Resonance plays every tune in HVSC silently and learns how it sounds:
+            its waveforms, its arpeggios and filter sweeps, its drums and its bass. Then it can tell you
+            what else sounds like the tune you love, across all 60,000 of them.
+          </p>
+          <ul class="checks">
+            <li><svg class="i"><use href="#i-check"/></svg>Sounds Like: the closest tunes to the one playing, a click away</li>
+            <li><svg class="i"><use href="#i-check"/></svg>Find Similar sorts any list by likeness to one tune</li>
+            <li><svg class="i"><use href="#i-check"/></svg>Sound filters: arpeggios, filter sweeps, noise drums, ring mod, sync leads, digi samples</li>
+            <li><svg class="i"><use href="#i-check"/></svg>Every composer's card names the composers who sound most like them</li>
+          </ul>
+        </div>
+        <figure class="media" data-reveal>
+            <div class="media-soon" aria-hidden="true">
+              <svg class="i"><use href="#i-waveform"/></svg>
+              <span>Sounds Like</span>
+              <small>Video coming soon</small>
+            </div>
+            <video data-video muted loop playsinline preload="none" poster="media/sounds-like.jpg" aria-label="Sounds Like in Resonance">
+              <source src="media/sounds-like.mp4" type="video/mp4">
+            </video>
+          </figure>
+      </div>
+    </section>
+    <!-- Visualizers (mockup) -->
+    <section class="section" id="now-playing">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="kicker">Visualizers</p>
+          <h2>Twelve ways<br><span class="grad">to watch the music.</span></h2>
+          <p class="section-lede">
+            Press <kbd>⇧</kbd><kbd>⌘</kbd><kbd>F</kbd> and the window becomes a player: the tune, its
+            composer and a visualizer driven by the SID's own registers, frame by frame. Keep three
+            at hand and swap them in <strong>Settings → Appearance</strong>.
+          </p>
+        </div>
+      </div>
+      <div class="container container-wide tour vz-stage" data-reveal>
+        <div class="stage-glow" aria-hidden="true"></div>
+        <figure class="media media-tour vz-feature">
+          <img data-vz-img src="../../../design/site-visualizers/pictures/nimbus.jpg" alt="">
+          <span class="mk-tag mk-tag-big">Placeholder · needs a recording of <b data-vz-name>Nimbus</b> with the full Now Playing window</span>
+          <figcaption class="tour-caption" aria-live="polite">
+            <strong data-vz-title>Nimbus</strong>
+            <span data-vz-text>Soft balls of smoke in a pale sky, a pair for each voice. They swell with the voice's level, jump on every note and glow from inside in its color.</span>
+          </figcaption>
+        </figure>
+        <div class="tour-tabs" role="tablist" aria-label="Featured visualizers">
+          <button type="button" role="tab" class="tour-tab" data-vz="0" aria-selected="true">
+            <span>Nimbus</span><span class="tour-bar"><b></b></span>
+          </button>
+          <button type="button" role="tab" class="tour-tab" data-vz="1" aria-selected="false">
+            <span>Silicon</span><span class="tour-bar"><b></b></span>
+          </button>
+          <button type="button" role="tab" class="tour-tab" data-vz="2" aria-selected="false">
+            <span>Notes</span><span class="tour-bar"><b></b></span>
+          </button>
+        </div>
+      </div>
+      <div class="container">
+        <p class="vz-more" data-reveal>And nine more.</p>
+        <div class="vz-grid">
+          <article class="vz-tile" data-reveal>
+            <div class="vz-pic"><img src="../../../design/site-visualizers/pictures/halo.jpg" alt="" loading="lazy"><span class="mk-tag">Bare recording</span></div>
+            <h3>Halo</h3>
+            <p>A glowing ring per voice</p>
+          </article>
+          <article class="vz-tile" data-reveal>
+            <div class="vz-pic"><img src="../../../design/site-visualizers/pictures/particles.jpg" alt="" loading="lazy"><span class="mk-tag">Bare recording</span></div>
+            <h3>Particles</h3>
+            <p>A sphere of points that ripples with each note</p>
+          </article>
+          <article class="vz-tile" data-reveal>
+            <div class="vz-pic"><img src="../../../design/site-visualizers/pictures/radial.jpg" alt="" loading="lazy"><span class="mk-tag">Bare recording</span></div>
+            <h3>Radial</h3>
+            <p>A ring of spectrum bars per voice</p>
+          </article>
+          <article class="vz-tile" data-reveal>
+            <div class="vz-pic"><img src="../../../design/site-visualizers/pictures/soundMap.jpg" alt="" loading="lazy"><span class="mk-tag">Bare recording</span></div>
+            <h3>Sound Map</h3>
+            <p>Every note placed by how it sounds</p>
+          </article>
+          <article class="vz-tile" data-reveal>
+            <div class="vz-pic"><img src="../../../design/site-visualizers/pictures/spectrum.jpg" alt="" loading="lazy"><span class="mk-tag">Bare recording</span></div>
+            <h3>Spectrum</h3>
+            <p>An analyzer with each voice's curve, peaks and notes</p>
+          </article>
+          <article class="vz-tile" data-reveal>
+            <div class="vz-pic"><img src="../../../design/site-visualizers/pictures/terrain.jpg" alt="" loading="lazy"><span class="mk-tag">Bare recording</span></div>
+            <h3>Terrain</h3>
+            <p>The last seconds of the spectrum as a landscape</p>
+          </article>
+          <article class="vz-tile" data-reveal>
+            <div class="vz-pic"><img src="../../../design/site-visualizers/pictures/ink.jpg" alt="" loading="lazy"><span class="mk-tag">Bare recording</span></div>
+            <h3>Ink</h3>
+            <p>Each voice pours dye into swirling water</p>
+          </article>
+          <article class="vz-tile" data-reveal>
+            <div class="vz-pic"><img src="../../../design/site-visualizers/pictures/liquidLight.jpg" alt="" loading="lazy"><span class="mk-tag">Bare recording</span></div>
+            <h3>Liquid Light</h3>
+            <p>Glossy oil on a projector's glass, like a 1960s light show</p>
+          </article>
+          <article class="vz-tile" data-reveal>
+            <div class="vz-pic"><img src="../../../design/site-visualizers/pictures/ferrofluid.jpg" alt="" loading="lazy"><span class="mk-tag">Bare recording</span></div>
+            <h3>Ferrofluid</h3>
+            <p>Black liquid that stands in spikes where a voice sounds</p>
+          </article>
+        </div>
+        <!-- The presets' voices, from VoiceTheme.presets in the app. -->
+        <div class="theme-strip" data-reveal>
+          <p>Color the voices in every visualizer, with a preset or your own three colors and background.</p>
+          <ul class="swatches">
+            <li><span class="dots" aria-hidden="true"><i style="background: #5ac8e8"></i><i style="background: #a27cf6"></i><i style="background: #f2a154"></i></span>Resonance</li>
+            <li><span class="dots" aria-hidden="true"><i style="background: #e2231a"></i><i style="background: #ffcc00"></i><i style="background: #1f6fc5"></i></span>C64</li>
+            <li><span class="dots" aria-hidden="true"><i style="background: #ff2020"></i><i style="background: #8b0a14"></i><i style="background: #9a9da6"></i></span>Noir</li>
+            <li><span class="dots" aria-hidden="true"><i style="background: #ff3b2f"></i><i style="background: #ff8c1a"></i><i style="background: #ffd25a"></i></span>Ember</li>
+            <li><span class="dots" aria-hidden="true"><i style="background: #2f6fdb"></i><i style="background: #15a39a"></i><i style="background: #8a4de0"></i></span>Abyss</li>
+            <li><span class="dots" aria-hidden="true"><i style="background: #39ff6e"></i><i style="background: #1fa84a"></i><i style="background: #c8ffd6"></i></span>Phosphor</li>
+            <li><span class="dots" aria-hidden="true"><i style="background: #ffffff"></i><i style="background: #a8a8a8"></i><i style="background: #5e5e5e"></i></span>Grayscale</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- The chip -->
+    <section class="section" id="voices">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="kicker">The chip</p>
+          <h2>Three voices.<br><span class="grad">That's the whole band.</span></h2>
+          <p class="section-lede">
+            The SID chip inside the Commodore 64 had three oscillators, four waveforms and one resonant
+            filter. Composers built whole soundtracks from that: arpeggios flickering fast enough to pass
+            for chords, bass and drums taking turns on a single voice. Resonance shows you how — the level,
+            note and waveform of every voice, decoded from the chip's registers as the tune plays. Here's a
+            tune doing just that, silently.
+          </p>
+        </div>
+
+        <div class="voice-grid">
+          <article class="voice-card" style="--c: var(--v1)" data-reveal>
+            <header>
+              <span class="voice-num">Voice 1</span>
+            </header>
+            <h3>Lead</h3>
+            <canvas class="scope" data-scope="0" aria-hidden="true"></canvas>
+            <div class="readout"><span data-note="0">·</span><span data-wave="0">—</span></div>
+            <p>The melody: a buzzing pulse with a sweeping width, a bright saw or a soft triangle, with vibrato on long notes.</p>
+          </article>
+          <article class="voice-card" style="--c: var(--v2)" data-reveal>
+            <header>
+              <span class="voice-num">Voice 2</span>
+            </header>
+            <h3>Chords</h3>
+            <canvas class="scope" data-scope="1" aria-hidden="true"></canvas>
+            <div class="readout"><span data-note="1">·</span><span data-wave="1">—</span></div>
+            <p>One voice racing through a chord fifty times a second, swept through the resonant filter.</p>
+          </article>
+          <article class="voice-card" style="--c: var(--v3)" data-reveal>
+            <header>
+              <span class="voice-num">Voice 3</span>
+            </header>
+            <h3>Bass &amp; drums</h3>
+            <canvas class="scope" data-scope="2" aria-hidden="true"></canvas>
+            <div class="readout"><span data-note="2">·</span><span data-wave="2">—</span></div>
+            <p>An octave-bouncing bass, interrupted by noise-burst snares and pitch-dropping kicks.</p>
+          </article>
+        </div>
+
+        <p class="chip-note" data-reveal>In the app, the inspector shows each voice like this: as a scope, as level bars with peak hold, or as its envelope.</p>
+
+        <div class="chip-foot" data-reveal>
+          <div class="waves">
+            <span><svg viewBox="0 0 40 16" aria-hidden="true"><path d="M1 13 9 3l8 10 8-10 8 10 6-7.5"/></svg>TRI</span>
+            <span><svg viewBox="0 0 40 16" aria-hidden="true"><path d="M1 13 13 3v10L25 3v10L37 3v10"/></svg>SAW</span>
+            <span><svg viewBox="0 0 40 16" aria-hidden="true"><path d="M1 13V3h7v10h7V3h7v10h7V3h7v10"/></svg>PUL</span>
+            <span><svg viewBox="0 0 40 16" aria-hidden="true"><path d="M1 9l2-5 2 9 2-7 2 3 2-6 2 10 2-8 2 5 2-3 2 6 2-9 2 7 2-4 2 5 2-8 2 9 2-6 2 3"/></svg>NOI</span>
+          </div>
+          <p>
+            <img src="assets/icon-256.png" alt="" width="36" height="36">
+            Recognize the bars? They're the app icon: three voices, each with its peak-hold cap.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- The collection -->
+    <section class="section" id="collection">
+      <div class="container showcase showcase-flip">
+        <div class="showcase-copy" data-reveal>
+          <p class="kicker">The collection</p>
+          <h2>All of HVSC.<br><span class="grad">Kept current for you.</span></h2>
+          <p class="section-lede">
+            No collection yet? Click the download arrow next to Collection and Resonance fetches the High Voltage SID Collection.
+            When a new release comes out, it says so, updates in one click, and shows what the release
+            added: new tunes, new composers, new STIL notes.
+          </p>
+          <ul class="checks">
+            <li><svg class="i"><use href="#i-check"/></svg>The Home: the release, what's new, and the tunes you played last</li>
+            <li><svg class="i"><use href="#i-check"/></svg>Curated playlists, from HVSC's Top 100 to the Grand Tour</li>
+            <li><svg class="i"><use href="#i-check"/></svg>A card for each composer, with STIL's notes and all their tunes a click away</li>
+            <li><svg class="i"><use href="#i-check"/></svg>STIL's stories and covers set to read, and HVSC's known bugs on the tunes it names</li>
+            <li><svg class="i"><use href="#i-check"/></svg>Song lengths and STIL from the release you have</li>
+            <li><svg class="i"><use href="#i-check"/></svg>Songlengths moves on at the right moment; for tunes outside it, Resonance figures out the length in the background</li>
+          </ul>
+        </div>
+        <figure class="media" data-reveal>
+            <div class="media-soon" aria-hidden="true">
+              <svg class="i"><use href="#i-download"/></svg>
+              <span>Updating HVSC</span>
+              <small>Video coming soon</small>
+            </div>
+            <video data-video muted loop playsinline preload="none" poster="media/hvsc-update.jpg" aria-label="Updating HVSC in Resonance">
+              <source src="media/hvsc-update.mp4" type="video/mp4">
+            </video>
+          </figure>
+      </div>
+    </section>
+
+    <!-- Playlists -->
+    <section class="section" id="playlists">
+      <div class="container showcase">
+        <div class="showcase-copy" data-reveal>
+          <p class="kicker">Your music</p>
+          <h2>Playlists and favorites.<br><span class="grad">Right where you need them.</span></h2>
+          <p class="section-lede">
+            Heart a tune into Favorites. Make as many playlists as you like, drag
+            tunes onto them from anywhere, and reorder them by hand. And wherever the music comes from,
+            Resonance says so: “Playing from Rob Hubbard”, one click back to it.
+          </p>
+          <ul class="checks">
+            <li><svg class="i"><use href="#i-check"/></svg>Add to… finds a playlist as you type, or makes a new one</li>
+            <li><svg class="i"><use href="#i-check"/></svg>Drag a tune, or a whole selection, onto a sidebar playlist</li>
+            <li><svg class="i"><use href="#i-check"/></svg>Playlists are plain M3U files that other players open too</li>
+          </ul>
+        </div>
+        <figure class="media" data-reveal>
+          <div class="media-soon" aria-hidden="true">
+            <svg class="i"><use href="#i-rows"/></svg>
+            <span>Playlists</span>
+            <small>Video coming soon</small>
+          </div>
+          <video data-video muted loop playsinline preload="none" poster="media/playlists.jpg" aria-label="Playlists in Resonance">
+            <source src="media/playlists.mp4" type="video/mp4">
+          </video>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="section" id="features">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="kicker">Features</p>
+          <h2>Forty-year-old chip.<br><span class="grad">Brand-new Mac app.</span></h2>
+        </div>
+
+        <div class="bento">
+          <article class="tile tile-wide" data-reveal>
+            <div class="tile-stage">
+              <img class="stage-player" src="media/mini-player.png" width="386" height="399" loading="lazy"
+                   alt="The menu bar player: Ocean Loader 3 by Peter Clarke playing, with the next four tunes from Encore64">
+            </div>
+            <h3>A player in the menu bar</h3>
+            <p>Click the icon, or press <kbd>⌃</kbd><kbd>⌥</kbd><kbd>⌘</kbd><kbd>P</kbd> in any app: the tune and its voices, the heart, the controls, what's next and Surprise Me. Close the window and the music plays on.</p>
+          </article>
+
+          <article class="tile tile-wide" data-reveal>
+            <div class="tile-stage">
+              <img class="stage-card" src="media/share-card.jpg" width="800" height="420" loading="lazy"
+                   alt="The preview card of a shared link: Commando by Rob Hubbard, 1985 Elite, with its sound fingerprint as nine colored bars">
+            </div>
+            <h3>Share a tune</h3>
+            <p>A short link to any tune in HVSC. In Messages, Slack or Discord it shows who made it, when, and its sound fingerprint. A click opens it in Resonance, or offers the download. <a class="text-link" href="https://useresonance.app/t/bQGey6gxqfhT">See a shared tune</a></p>
+          </article>
+
+          <article class="tile" data-reveal>
+            <div class="tile-icon" style="--c: var(--v3)"><svg class="i"><use href="#i-forward"/></svg></div>
+            <h3>Scrub through a tune</h3>
+            <p>A SID tune is a program, not a recording, so Resonance runs it there silently, sixty times faster than it plays.</p>
+            <div class="seek-art" aria-hidden="true">
+              <span class="sa-time left"></span>
+              <span class="sa-lane">
+                <span class="sa-track"><i class="sa-target"></i><i class="sa-fill"></i></span>
+                <svg class="sa-cursor" viewBox="0 0 16 22" width="16" height="22"><path d="M1.5 1.5v16.3l4.3-4.1 3 6.8 2.6-1.1-3-6.8h5.9z" fill="#fff" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/></svg>
+              </span>
+              <span class="sa-time">4:12</span>
+            </div>
+          </article>
+
+          <article class="tile" data-reveal>
+            <div class="tile-icon" style="--c: var(--v2)"><svg class="i"><use href="#i-dice"/></svg></div>
+            <h3>Surprise Me <kbd>⇧</kbd><kbd>⌘</kbd><kbd>R</kbd></h3>
+            <p>A radio of random tunes from all of HVSC, never repeating anything you've heard since launch.</p>
+          </article>
+
+          <article class="tile" data-reveal>
+            <div class="tile-icon"><svg class="i"><use href="#i-keyboard"/></svg></div>
+            <h3>Now Playing &amp; media keys</h3>
+            <p>Control Center's position slider and 15-second skips, your keyboard's media keys, and every command in a Playback menu.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Integrations -->
+    <section class="section" id="integrations">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="kicker">Integrations</p>
+          <h2>Resonance, from anywhere<br><span class="grad">on your Mac.</span></h2>
+          <p class="section-lede">The app plays everything. All of these reach the same player, so the window, the terminal and every shortcut stay in step.</p>
+        </div>
+
+        <div class="integrations" data-integrations data-reveal>
+          <div class="integration-list" role="tablist" aria-label="Integrations" aria-orientation="vertical">
+            <button type="button" role="tab" id="tab-terminal" aria-controls="panel-terminal" aria-selected="true"><strong>The terminal app</strong><span>Playlists, Sounds Like, fire and a skull</span></button>
+            <button type="button" role="tab" id="tab-assistants" aria-controls="panel-assistants" aria-selected="false" tabindex="-1"><strong>Claude and other assistants</strong><span>Ask for what you'd like to hear</span></button>
+            <button type="button" role="tab" id="tab-raycast" aria-controls="panel-raycast" aria-selected="false" tabindex="-1"><strong>Raycast</strong><span>Eleven commands, no window</span></button>
+            <button type="button" role="tab" id="tab-siri" aria-controls="panel-siri" aria-selected="false" tabindex="-1"><strong>Siri and Shortcuts</strong><span>“Surprise me in Resonance”</span></button>
+            <button type="button" role="tab" id="tab-spotlight" aria-controls="panel-spotlight" aria-selected="false" tabindex="-1"><strong>Spotlight and Quick Look</strong><span>Find a tune, or press Space on one</span></button>
+            <button type="button" role="tab" id="tab-dock" aria-controls="panel-dock" aria-selected="false" tabindex="-1"><strong>Dock and notifications</strong><span>The controls, and how far it's gotten</span></button>
+            <button type="button" role="tab" id="tab-commands" aria-controls="panel-commands" aria-selected="false" tabindex="-1"><strong>Commands and zsh</strong><span>A remote control for scripts</span></button>
+          </div>
+
+          <div class="integration-panels">
+            <div class="integration-panel" role="tabpanel" id="panel-terminal" aria-labelledby="tab-terminal">
+              <figure class="media media-still media-carousel" data-carousel aria-roledescription="carousel" aria-label="The terminal app">
+                <div class="media-soon" aria-hidden="true"><svg class="i"><use href="#i-waveform"/></svg><span>The terminal app</span></div>
+                <img src="media/integration-terminal-home.webp" alt="The Resonance terminal app: the library and playlists, Favorites, and the tune playing" loading="lazy">
+                <img src="media/integration-terminal-viz-fire.webp" alt="The terminal app full screen: fire in the three voices' colors, over the tune playing" loading="lazy">
+                <img src="media/integration-terminal-viz-sphere.webp" alt="The terminal app full screen: a turning sphere of points" loading="lazy">
+                <img src="media/integration-terminal-viz-water.webp" alt="The terminal app full screen: water rippling to the music" loading="lazy">
+              </figure>
+              <p>Run <code>resonance</code> for your playlists, search, Sounds Like and the three voices. Then take the music full screen: fire, Tesla coils, a pool, and a skull that chomps on the hits. Install it from Settings → Integrations.</p>
+            </div>
+
+            <div class="integration-panel" role="tabpanel" id="panel-assistants" aria-labelledby="tab-assistants" hidden>
+              <figure class="media media-still media-carousel" data-carousel aria-roledescription="carousel" aria-label="Claude and Resonance">
+                <div class="media-soon" aria-hidden="true"><svg class="i"><use href="#i-sparkle"/></svg><span>Claude and other assistants</span></div>
+                <img src="media/integration-claude-question.webp" alt="Asking Claude which composers on HVSC Favorite Top 100 still make music, and Claude asking Resonance for the playlist" loading="lazy">
+                <img src="media/integration-claude-sources.webp" alt="Claude's web searches for the composers, one per name" loading="lazy">
+                <img src="media/integration-claude-answer.webp" alt="Claude's answer: one line per composer still making music, with where they post" loading="lazy">
+              </figure>
+              <p>Ask for “something like Commando but darker”, or who on HVSC Favorite Top 100 still makes music. An assistant can search, play, make playlists, open HVSC's own playlists and start a drift, but it can't delete a playlist. To connect Claude Code, run <code>claude mcp add resonance -- resonance mcp</code>.</p>
+            </div>
+
+            <div class="integration-panel" role="tabpanel" id="panel-raycast" aria-labelledby="tab-raycast" hidden>
+              <figure class="media media-still media-carousel" data-carousel aria-roledescription="carousel" aria-label="Resonance in Raycast">
+                <div class="media-soon" aria-hidden="true"><svg class="i"><use href="#i-search"/></svg><span>Raycast</span><small>Screenshot coming soon</small></div>
+                <img src="media/integration-raycast-search.webp" alt="Searching tunes in Raycast for Platoon, with the tune's fingerprint and how it sounds beside it" loading="lazy">
+                <img src="media/integration-raycast-now-playing.webp" alt="Now Playing in Raycast: the tune, its full fingerprint, its time and subtune, and where it's playing from" loading="lazy">
+                <img src="media/integration-raycast-recent.webp" alt="Recently played tunes in Raycast, each with its composer and fingerprint" loading="lazy">
+                <img src="media/integration-raycast-playlist.webp" alt="The tunes of a playlist in Raycast, with the composer, release, length and subtunes of the one selected" loading="lazy">
+              </figure>
+              <p>Search tunes, describe a sound, open your playlists and control what's playing, with a hotkey for the ones you use most. Each tune shows its fingerprint, and <kbd>⌘</kbd><kbd>L</kbd> finds what sounds like it. Coming soon to the Raycast Store.</p>
+            </div>
+
+            <div class="integration-panel" role="tabpanel" id="panel-siri" aria-labelledby="tab-siri" hidden>
+              <figure class="media media-still">
+                <div class="media-soon" aria-hidden="true"><svg class="i"><use href="#i-mic"/></svg><span>Siri and Shortcuts</span><small>Screenshot coming soon</small></div>
+                <img src="media/integration-shortcuts.webp" alt="Resonance's actions in the Shortcuts app" loading="lazy">
+              </figure>
+              <p>Say “Surprise me in Resonance”, “Drift from this tune in Resonance” or “Play Favorites in Resonance”. The Shortcuts app has the same actions, for your own shortcuts and automations.</p>
+            </div>
+
+            <div class="integration-panel" role="tabpanel" id="panel-spotlight" aria-labelledby="tab-spotlight" hidden>
+              <figure class="media media-still">
+                <div class="media-soon" aria-hidden="true"><svg class="i"><use href="#i-search"/></svg><span>Spotlight and Quick Look</span><small>Screenshot coming soon</small></div>
+                <img class="is-whole" src="media/integration-spotlight.webp" alt="Searching Resonance from Spotlight for 2nd Reality: the tunes by that name, each with its composer and release" loading="lazy">
+              </figure>
+              <p>Spotlight finds the collection's tunes by title and composer: click one to play it. In Finder, select a SID file and press <kbd>Space</kbd> to see its title, composer, release and subtunes.</p>
+            </div>
+
+            <div class="integration-panel" role="tabpanel" id="panel-dock" aria-labelledby="tab-dock" hidden>
+              <figure class="media media-still">
+                <div class="media-soon" aria-hidden="true"><svg class="i"><use href="#i-play"/></svg><span>Dock and notifications</span><small>Screenshot coming soon</small></div>
+                <img class="is-whole" src="media/integration-dock.webp" alt="Resonance's Dock menu with the tune playing, its controls, Play Something Like This, Drift From This Tune and Surprise Me" loading="lazy">
+              </figure>
+              <p>Control-click the Dock icon for the tune and its controls. The icon shows how far a download or a scan has gotten, and a notification says when it ends while Resonance is in the background.</p>
+            </div>
+
+            <div class="integration-panel" role="tabpanel" id="panel-commands" aria-labelledby="tab-commands" hidden>
+              <div class="code">
+                <button class="copy" type="button" aria-label="Copy commands"><svg class="i"><use href="#i-copy"/></svg><span>Copy</span></button>
+<pre><code><span class="c"># Play something you may not know</span>
+resonance surprise
+
+<span class="c"># A list from words</span>
+resonance describe fast arpeggios from 1987
+
+<span class="c"># Everything by Hubbard, into a playlist</span>
+resonance search hubbard | resonance playlist add Hubbard
+
+<span class="c"># Choose from a list, for use inside other commands</span>
+resonance playlist add "Late Night" $(resonance pick --multi)</code></pre>
+              </div>
+              <p>Anything that answers takes <code>--json</code>. The <a class="text-link" href="https://github.com/ErikLuimes/resonance/tree/main/apple/cli/zsh">zsh plugin</a> adds completions, short commands, what's playing for your prompt, and <code>rdone make release</code> for a surprise when something slow ends.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Library -->
+    <section class="section" id="library">
+      <div class="container library">
+        <div class="library-copy" data-reveal>
+          <p class="kicker">The library</p>
+          <h2>60,000 tunes.<br><span class="grad">One search field.</span></h2>
+          <p class="section-lede">
+            Musicians, Games and Demos live in the sidebar, composers by handle and real name, with
+            their tune count and years. Or just type, from anywhere: the top result and the first tunes, then composers,
+            games, demos and playlists from all of HVSC, and typos still find their tune.
+          </p>
+          <ul class="checks">
+            <li><svg class="i"><use href="#i-check"/></svg>Composers by name or handle, in any order: “tel jeroen”</li>
+            <li><svg class="i"><use href="#i-check"/></svg>The most prolific first: “jeroen” puts Jeroen Tel on top</li>
+            <li><svg class="i"><use href="#i-check"/></svg>Spelled either way: “second reality” finds 2nd Reality</li>
+            <li><svg class="i"><use href="#i-check"/></svg>Accent-insensitive: “hulsbeck” finds Hülsbeck</li>
+            <li><svg class="i"><use href="#i-check"/></svg>Clear the search and you're back where you were</li>
+          </ul>
+        </div>
+
+        <figure class="media" data-reveal>
+          <div class="media-soon" aria-hidden="true">
+            <svg class="i"><use href="#i-search"/></svg>
+            <span>Searching HVSC</span>
+            <small>Video coming soon</small>
+          </div>
+          <video data-video muted loop playsinline preload="none" poster="media/library.jpg" aria-label="Searching HVSC in Resonance">
+            <source src="media/library.mp4" type="video/mp4">
+          </video>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Shortcuts -->
+    <section class="section" id="shortcuts">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="kicker">Keyboard</p>
+          <h2>Hands on the keys.</h2>
+          <p class="section-lede">Every Playback command has a shortcut. Press one here and watch it light up.</p>
+        </div>
+        <div class="keys" data-reveal>
+          <div class="key-row" data-shortcut="play"><span class="caps"><kbd class="wide">Space</kbd></span><span>Play / Pause</span></div>
+          <div class="key-row" data-shortcut="stop"><span class="caps"><kbd>⌘</kbd><kbd>.</kbd></span><span>Stop</span></div>
+          <div class="key-row" data-shortcut="track"><span class="caps"><kbd>⌘</kbd><kbd>←</kbd><kbd>→</kbd></span><span>Previous / Next track</span></div>
+          <div class="key-row" data-shortcut="subtune"><span class="caps"><kbd>⌥</kbd><kbd>⌘</kbd><kbd>←</kbd><kbd>→</kbd></span><span>Previous / Next subtune</span></div>
+          <div class="key-row" data-shortcut="surprise"><span class="caps"><kbd>⇧</kbd><kbd>⌘</kbd><kbd>R</kbd></span><span>Surprise Me</span></div>
+          <div class="key-row" data-shortcut="nowplaying"><span class="caps"><kbd>⇧</kbd><kbd>⌘</kbd><kbd>F</kbd></span><span>Now Playing</span></div>
+          <div class="key-row" data-shortcut="miniplayer"><span class="caps"><kbd>⌃</kbd><kbd>⌥</kbd><kbd>⌘</kbd><kbd>P</kbd></span><span>Menu bar player <small>from any app</small></span></div>
+          <div class="key-row" data-shortcut="volume"><span class="caps"><kbd>⌘</kbd><kbd>↑</kbd><kbd>↓</kbd></span><span>Volume up / down</span></div>
+          <div class="key-row" data-shortcut="shuffle"><span class="caps"><kbd>⌥</kbd><kbd>⌘</kbd><kbd>S</kbd></span><span>Shuffle</span></div>
+          <div class="key-row" data-shortcut="add"><span class="caps"><kbd>⌘</kbd><kbd>O</kbd></span><span>Add files or folders</span></div>
+          <div class="key-row" data-shortcut="settings"><span class="caps"><kbd>⌘</kbd><kbd>,</kbd></span><span>Settings</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Under the hood -->
+    <section class="section" id="under-the-hood">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="kicker">Under the hood</p>
+          <h2>Its own app.<br><span class="grad">Phosphor's engine, libsidplayfp's sound.</span></h2>
+          <p class="section-lede">
+            Resonance is its own app, but it doesn't reinvent the library. It compiles the engine of
+            <a href="https://sandlbn.github.io/Phosphor/">Phosphor</a>, Marcin Spoczynski's open-source
+            Rust player, without changing a line, and talks to it through UniFFI, so improvements upstream
+            flow straight into the Mac app. For the sound it adds its own player around libsidplayfp's
+            reSIDfp, rendered straight into the audio output.
+          </p>
+        </div>
+
+        <div class="sound-grid">
+          <article class="vis-card" style="--c: var(--v1)" data-reveal>
+            <h3>Two engines</h3>
+            <p>reSIDfp, libsidplayfp's reference emulation, is the default. SIDLite direct is the lightest. Both scrub.</p>
+          </article>
+          <article class="vis-card" style="--c: var(--v2)" data-reveal>
+            <h3>Stereo, your way</h3>
+            <p>Plays 2SID and 3SID tunes, and mirrors 2SID tunes into stereo.</p>
+          </article>
+        </div>
+
+        <div class="hood">
+          <ol class="stack" data-reveal>
+            <li style="--c: var(--v1)">
+              <span class="layer-name">Resonance.app</span>
+              <span class="layer-desc">SwiftUI · Swift 6 · Observation · Liquid Glass</span>
+              <span class="layer-note">Polls a snapshot at 20 Hz, a visualizer frame every display frame</span>
+            </li>
+            <li style="--c: var(--v2)">
+              <span class="layer-name">PhosphorCore.framework</span>
+              <span class="layer-desc">UniFFI-generated Swift bindings</span>
+              <span class="layer-note">Library calls are async: Swift awaits, Rust runs them off the main thread</span>
+            </li>
+            <li style="--c: var(--v3)">
+              <span class="layer-name">libphosphor_apple</span>
+              <span class="layer-desc">Rust · session state machine · driver thread · libsidplayfp player · FFI</span>
+              <span class="layer-note">One thread owns playback and publishes an immutable snapshot after every step; reSIDfp and SIDLite direct render in the audio callback</span>
+            </li>
+            <li style="--c: #8e93a8">
+              <span class="layer-name">Phosphor engine</span>
+              <span class="layer-desc">reSID · SIDLite · playlists · HVSC · Songlengths · STIL</span>
+              <span class="layer-note">Compiled straight from upstream's sources — unchanged</span>
+            </li>
+          </ol>
+        </div>
+
+        <details class="others" data-reveal>
+          <summary>Compare with Phosphor and other Mac SID players</summary>
+          <div class="compare glass-panel">
+            <p class="dim">Checked in November 2026 against each one's own site: <a href="https://sandlbn.github.io/Phosphor/">Phosphor</a>, whose engine Resonance runs; <a href="https://www.sidmusic.org/sidplay/mac/">SIDPLAY</a>, the classic Mac app, last released in 2016 and kept building by a <a href="https://github.com/Alexco500/sidplay5">community port</a>; <a href="https://flipsid.thealumni.fi/">flipSID</a>, new in 2026; and <a href="https://haendel.ddns.net/">JSIDPlay2</a>, the Java one. In the browser there's also <a href="https://deepsid.chordian.net/">DeepSID</a>.</p>
+            <div class="others-scroll">
+              <table>
+                <thead><tr><th></th><th>Resonance</th><th>Phosphor</th><th>SIDPLAY</th><th>flipSID</th><th>JSIDPlay2</th></tr></thead>
+                <tbody>
+                <tr><td>Made for</td><td>The Mac, in SwiftUI</td><td>macOS, Windows, Linux, in Iced</td><td>The Mac, in Cocoa</td><td>Windows, Mac, Linux</td><td>Java; also the browser</td></tr>
+                <tr><td>Apple silicon</td><td class="yes">✓</td><td class="yes">✓</td><td>Through a community port</td><td class="yes">✓</td><td>With OpenJDK 21</td></tr>
+                <tr><td>SID emulation</td><td>reSIDfp, SIDLite</td><td>SIDLite, reSID</td><td>libsidplayfp</td><td>reSIDfp, reSID, resid-fp</td><td>reSID, reSIDfp</td></tr>
+                <tr><td>HVSC download, Songlengths &amp; STIL</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+                <tr><td>Playlists &amp; favorites</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+                <tr><td>Sounds Like</td><td class="yes">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+                <tr><td>Visualizers</td><td>Halo, Particles, Radial, Sound Map</td><td>Bars, Scope, Tracker</td><td>Oscilloscope</td><td class="no">—</td><td>Oscilloscope</td></tr>
+                <tr><td>Small player</td><td>In the menu bar, from any app</td><td>A compact window</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+                <tr><td>Control Center &amp; media keys</td><td class="yes">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+                <tr><td>Share links</td><td class="yes">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+                <tr><td>Real SID hardware</td><td class="no">—</td><td>USBSID-Pico, Ultimate 64</td><td>ASID over MIDI, SIDBlaster</td><td>Ultimate 64, HardSID</td><td>HardSID, SIDBlaster, ExSID</td></tr>
+                <tr><td>Also</td><td>Siri and Shortcuts, Spotlight, Quick Look, a terminal app</td><td>Pedalboard FX, web remote, karaoke, Assembly64</td><td class="no">—</td><td>STIL search, filter curves</td><td>Up to 15 SIDs, NetworkSID</td></tr>
+                <tr><td>Last release</td><td>0.1.0-alpha.3, 2026</td><td>0.4.7, 2026</td><td>4.2, 2016</td><td>0.3.0, November 2026</td><td>4.14 beta</td></tr>
+                <tr><td>License</td><td>MIT; GPL as built</td><td>MIT</td><td>GPL</td><td>GPL</td><td>GPL</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- Download -->
+    <section class="section" id="download">
+      <div class="container">
+        <div class="download glass-panel" data-reveal>
+          <div class="dl-main">
+            <img class="dl-icon" src="assets/icon-512.png" alt="Resonance app icon" width="128" height="128">
+            <div>
+              <p class="kicker">Download</p>
+              <h2>Get Resonance.</h2>
+              <p class="dl-status" data-release-status>Checking for the latest release…</p>
+              <div class="dl-actions">
+                <a class="btn btn-primary" href="#build" data-download>
+                  <svg class="i"><use href="#i-download"/></svg><span data-download-label>Download for Mac</span>
+                </a>
+                <a class="btn btn-glass" href="https://github.com/ErikLuimes/resonance">
+                  <svg class="i i-fill"><use href="#i-github"/></svg><span>Source on GitHub</span>
+                </a>
+              </div>
+              <ul class="reqs">
+                <li>macOS 27 or later</li>
+                <li>Apple silicon</li>
+                <li>Free &amp; open source</li>
+              </ul>
+            </div>
+          </div>
+
+          <ol class="steps">
+            <li>
+              <span class="step-n">1</span>
+              <h3>Install</h3>
+              <p>Open the download and drag Resonance into Applications.</p>
+            </li>
+            <li>
+              <span class="step-n">2</span>
+              <h3>Get the collection</h3>
+              <p>No HVSC yet? Click the download arrow next to Collection in the sidebar. Already have it? Choose its folder in Settings → HVSC.</p>
+            </li>
+            <li>
+              <span class="step-n">3</span>
+              <h3>Press <kbd>⇧</kbd><kbd>⌘</kbd><kbd>R</kbd></h3>
+              <p>Surprise Me starts the radio. Or drop SID files, folders and M3U playlists onto the window.</p>
+            </li>
+          </ol>
+        </div>
+
+        <div class="build" id="build" data-reveal>
+          <div>
+            <h3>Build it yourself</h3>
+            <p>You'll need Xcode 27 and Rust (<code>brew install rustup && rustup default stable</code>). The first build compiles the Rust engine and takes a few minutes; after that Xcode rebuilds it incrementally.</p>
+          </div>
+          <div class="code">
+            <button class="copy" type="button" aria-label="Copy commands"><svg class="i"><use href="#i-copy"/></svg><span>Copy</span></button>
+<pre><code><span class="c"># Get the source</span>
+git clone https://github.com/ErikLuimes/resonance.git
+cd resonance
+
+<span class="c"># Build and launch</span>
+xcodebuild -project apple/Resonance.xcodeproj -scheme Resonance \
+  -derivedDataPath apple/build/DD build
+open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section" id="faq">
+      <div class="container container-narrow">
+        <div class="section-head" data-reveal>
+          <p class="kicker">Questions</p>
+          <h2>Good to know.</h2>
+        </div>
+        <div class="faq" data-reveal>
+          <details>
+            <summary>Do I need Phosphor installed?</summary>
+            <p>No. Resonance is its own app, with Phosphor's engine built in, and it downloads HVSC itself.</p>
+          </details>
+          <details>
+            <summary>Do I need my own copy of HVSC?</summary>
+            <p>No. Click the download arrow next to Collection in the sidebar and Resonance fetches the newest release of the High Voltage SID Collection, free, from an HVSC mirror. When a new release comes out it says so, and updates in one click. Already have a copy? Choose it in Settings → HVSC.</p>
+          </details>
+          <details>
+            <summary>Can I play my own SID files?</summary>
+            <p>Yes. Drop SID files, folders or M3U playlists onto the window, or press <kbd>⌘</kbd><kbd>O</kbd>; they go into My Playlist. Tunes outside HVSC play the same way, they just don't get STIL's notes.</p>
+          </details>
+          <details>
+            <summary>Can it play through a USBSID-Pico or an Ultimate 64?</summary>
+            <p>No. Resonance plays through software emulation: reSIDfp or SIDLite direct. For real hardware, use <a href="https://sandlbn.github.io/Phosphor/">Phosphor</a>.</p>
+          </details>
+          <details>
+            <summary>Which Macs does it run on?</summary>
+            <p>Macs with Apple silicon, running macOS 27 or later.</p>
+          </details>
+          <details>
+            <summary>Where does it keep my playlists and settings?</summary>
+            <p>Resonance runs in the App Sandbox, so it keeps everything in its own container. Your playlists are M3U files in <code>~/Library/Containers/<wbr>app.useresonance.resonance/<wbr>Data/Library/<wbr>Application Support/<wbr>Resonance/Playlists</code>, My Playlist is <code>session.m3u</code> next to them, and your favorites, play history and sound fingerprints are in the same folder. Settings live in Resonance's own preferences. Versions before 0.1.0-alpha.6 used <code>~/Library/Application Support/Resonance</code>, which the sandboxed app can't see; to reuse the HVSC copy there, choose its folder in Settings → HVSC.</p>
+          </details>
+          <details>
+            <summary>How long does fingerprinting take?</summary>
+            <p>Hardly any time: the first time, Resonance imports the published fingerprint set (about 42 MB), which covers all of HVSC, so Sounds Like works right away. A background scan at low priority fills in anything it doesn't cover; you can pause it in Settings → HVSC.</p>
+          </details>
+          <details>
+            <summary>Why does the sound stop for a moment when I scrub?</summary>
+            <p>A SID tune is a little C64 program, not a recording, so there's nothing to jump to. Resonance runs the tune to the point you chose silently, about sixty times faster than it plays: a second or so per minute of tune on reSIDfp, less on SIDLite direct. The bar shows the engine winding up to it, and the sound comes back when it arrives.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <img src="assets/icon-256.png" alt="" width="40" height="40">
+        <div>
+          <strong>Resonance</strong>
+          <span>The SID, played and seen</span>
+        </div>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/ErikLuimes/resonance">GitHub</a>
+        <a href="https://sandlbn.github.io/Phosphor/">Phosphor</a>
+        <a href="https://hvsc.c64.org">HVSC</a>
+      </div>
+      <p class="footer-legal">
+        Resonance © <span data-year>2026</span> Erik Luimes, MIT License. Phosphor © 2026 Marcin Spoczynski, MIT License.
+        Tunes shown are from the High Voltage SID Collection; their music belongs to their composers.
+      </p>
+    </div>
+  </footer>
+
+  <script type="module" src="js/main.js?v=20261108e"></script>
+
+<script>
+  // With <base> set, in-page links would leave the mockup; scroll instead.
+  document.addEventListener('click', e => {
+    const a = e.target.closest('a[href^="#"]'); if (!a) return;
+    const t = document.querySelector(a.getAttribute('href')); if (!t) return;
+    e.preventDefault(); t.scrollIntoView({ behavior: 'smooth' });
+  });
+  // The featured three cycle like the tour; a click picks one.
+  const VZ = [{s:"nimbus",t:"Nimbus",d:"Soft balls of smoke in a pale sky, a pair for each voice. They swell with the voice's level, jump on every note and glow from inside in its color."},{s:"silicon",t:"Silicon",d:"The SID the tune was written for, in 3D with the lid off. Its die is drawn from the chip's own mask layers, and the bits glow along their own wiring as the tune plays."},{s:"notes",t:"Notes",d:'The tune as sheet music running into the distance, a staff per voice, with a ball hopping from note to note.'}];
+  const P = "../../../design/site-visualizers/pictures/";
+  const img = document.querySelector('[data-vz-img]');
+  const tabs = [...document.querySelectorAll('[data-vz]')];
+  let cur = 0, start = performance.now(); const LEN = 9000;
+  function show(i) {
+    cur = i; start = performance.now();
+    img.src = P + VZ[i].s + '.jpg';
+    document.querySelector('[data-vz-title]').textContent = VZ[i].t;
+    document.querySelector('[data-vz-name]').textContent = VZ[i].t;
+    document.querySelector('[data-vz-text]').textContent = VZ[i].d;
+    tabs.forEach((b, j) => b.setAttribute('aria-selected', j === i));
+  }
+  tabs.forEach((b, i) => b.addEventListener('click', () => show(i)));
+  (function tick(now) {
+    const f = Math.min(1, (now - start) / LEN);
+    tabs.forEach((b, j) => b.style.setProperty('--fill', j === cur ? f : 0));
+    if (f >= 1) show((cur + 1) % VZ.length);
+    requestAnimationFrame(tick);
+  })(performance.now());
+</script>
+</body>
+</html>
