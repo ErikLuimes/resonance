@@ -3,6 +3,33 @@
     <channel>
         <title>Resonance</title>
         <item>
+            <title>0.1.0-alpha.10</title>
+            <pubDate>Wed, 11 Nov 2026 16:43:00 +0100</pubDate>
+            <sparkle:channel>alpha</sparkle:channel>
+            <sparkle:version>10</sparkle:version>
+            <sparkle:shortVersionString>0.1.0-alpha.10</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>27.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[## Eight new visualizers
+
+Now Playing has room for three at a time, and you choose which in **Settings → Appearance**, from pictures of each.
+
+- **Notes**: the tune as sheet music, with a ball hopping from note to note.
+- **Spectrum**: an analyzer with each voice's curve, its peaks and its notes.
+- **Terrain**: the last few seconds of the spectrum as a landscape.
+- **Ink**: each voice pours dye into dark, swirling water.
+- **Liquid Light**: glossy oil on a projector's glass, like a 1960s light show.
+- **Ferrofluid**: black liquid that stands in spikes where a voice sounds.
+- **Silicon**: the tune's SID in 3D with the lid off, its real die at work.
+- **Nimbus**: balls of cloud that merge, swell and glow with each voice.
+
+## And more
+
+- Playing a tune takes far less of your Mac: about 15% CPU with the window showing, down from about 47%.
+- Pausing, stopping, skipping, seeking and quitting fade out instead of clicking.
+]]></description>
+            <enclosure url="https://github.com/ErikLuimes/resonance/releases/download/v0.1.0-alpha.10/Resonance-0.1.0-alpha.10.dmg" length="35319659" type="application/octet-stream" sparkle:edSignature="tBXH55oVgrMTOP04WF3Q2/ww+htOQ++M5FKmHtpMcuulslOKEYvBOij3djBHDoo7fCtX34u3Sf8/kg/BhYNfCg=="/>
+        </item>
+        <item>
             <title>0.1.0-alpha.9</title>
             <pubDate>Tue, 10 Nov 2026 20:34:15 +0100</pubDate>
             <sparkle:channel>alpha</sparkle:channel>
