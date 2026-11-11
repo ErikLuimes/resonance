@@ -18,6 +18,8 @@ nonisolated enum Pref {
     static let fileAccess = "fileAccess"
     static let visualizerMode = "visualizerMode"
     static let nowPlayingVisualizer = "nowPlayingVisualizer"
+    /// The visualizers Now Playing offers (`NowPlayingVisual.lineup`).
+    static let nowPlayingLineup = "nowPlayingLineup"
     static let theme = "theme"
     static let customTheme = "customTheme"
     static let themeBadge = "themeBadge"

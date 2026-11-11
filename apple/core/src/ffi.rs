@@ -1375,7 +1375,7 @@ impl PlayerCore {
         frames.iter().map(VizSidFrame::from).collect()
     }
 
-    /// The last `count` samples (at most 2048) of each of `chip`'s voices,
+    /// The last `count` samples (at most 8192) of each of `chip`'s voices,
     /// up to what's being heard now. Fewer at the start of a subtune; empty
     /// while stopped or for a chip the tune doesn't have.
     pub fn viz_scope(&self, chip: u32, count: u32) -> VizScopeSamples {

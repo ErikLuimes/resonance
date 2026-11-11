@@ -3,9 +3,10 @@ import SwiftUI
 import PhosphorCore
 
 /// Now Playing: the main window's second mode, sliding up over the library
-/// like Music's player. A big visualizer (Halo, Particles, Radial or Sound Map, picked
-/// at the top and remembered), with the playing tune, its voices and the
-/// transport over it (design/visualizers/reference/AppNowPlaying.dc.html).
+/// like Music's player. A big visualizer (one of the three chosen in
+/// Settings, picked at the top and remembered), with the playing tune, its
+/// voices and the transport over it
+/// (design/visualizers/reference/AppNowPlaying.dc.html).
 /// Full screen when the window is.
 ///
 /// Toggled from the player bar (its button or the track title) and View ›
@@ -19,11 +20,14 @@ struct NowPlayingView: View {
     @Environment(LibraryStore.self) private var library
     @State private var escape = EscapeKey()
     @AppStorage(Pref.nowPlayingVisualizer) private var visual = NowPlayingVisual.particles
+    @AppStorage(Pref.nowPlayingLineup) private var storedLineup = NowPlayingVisual.stored(NowPlayingVisual.defaultLineup)
     /// Surprise Me, the picker and the playlist status fade out after a
     /// while without the mouse moving, leaving the visualizer and the tune;
     /// full screen, the pointer hides too.
     @State private var showsExtras = true
     @State private var isHoveringExtras = false
+    /// The chooser's popover is open, which keeps the extras showing.
+    @State private var isChoosing = false
     /// Not observed: restarting it on every mouse move redraws nothing.
     @State private var idle = IdleTimer()
 
@@ -36,6 +40,11 @@ struct NowPlayingView: View {
                 HStack(spacing: 10) {
                     closeButton
                     surpriseMe
+                        .extra(showsExtras, hovering: $isHoveringExtras)
+                    Spacer(minLength: 10)
+                    // At the row's end, so it stays put whatever the
+                    // picker beside it offers.
+                    chooseButton
                         .extra(showsExtras, hovering: $isHoveringExtras)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -70,6 +79,7 @@ struct NowPlayingView: View {
             if case .active = phase { wake() }
         }
         .onChange(of: isHoveringExtras) { wake() }
+        .onChange(of: isChoosing) { wake() }
         .onAppear {
             escape.start(store)
             wake()
@@ -94,7 +104,7 @@ struct NowPlayingView: View {
         idle.task?.cancel()
         idle.task = Task {
             try? await Task.sleep(for: .seconds(Self.idleDelay))
-            guard !Task.isCancelled, !isHoveringExtras else { return }
+            guard !Task.isCancelled, !isHoveringExtras, !isChoosing else { return }
             withAnimation(.easeInOut(duration: 0.6)) { showsExtras = false }
             // Full screen, the pointer goes too, until the mouse moves.
             if NSApp.keyWindow?.styleMask.contains(.fullScreen) == true {
@@ -105,28 +115,71 @@ struct NowPlayingView: View {
 
     // MARK: Visualizer
 
+    /// The visualizers chosen in Settings, which the picker offers.
+    private var lineup: [NowPlayingVisual] {
+        NowPlayingVisual.lineup(from: storedLineup)
+    }
+
+    /// The one last picked, or the first on offer once Settings has
+    /// dropped that one.
+    private var shown: NowPlayingVisual {
+        lineup.contains(visual) ? visual : lineup[0]
+    }
+
     /// Only the one shown exists, so the others cost nothing.
     @ViewBuilder
     private var visualizer: some View {
-        switch visual {
+        switch shown {
         case .halo: HaloView(isActive: isShowing)
         case .particles: ParticlesView(isActive: isShowing)
         case .radial: RadialView(isActive: isShowing)
         case .soundMap: SoundMapView(isActive: isShowing)
+        case .notes: NotesView(isActive: isShowing)
+        case .spectrum: SpectrumView(isActive: isShowing)
+        case .terrain: TerrainView(isActive: isShowing)
+        case .ink: InkView(style: .ink, isActive: isShowing)
+        case .liquidLight: InkView(style: .liquidLight, isActive: isShowing)
+        case .ferrofluid: FerroView(isActive: isShowing)
+        case .chip: ChipView(isActive: isShowing)
+        case .rasters: RasterView(isActive: isShowing)
+        case .silicon: SiliconView(isActive: isShowing)
+        case .nimbus: NimbusView(isActive: isShowing)
         }
     }
 
-    /// The system's segmented control, centered above everything.
+    /// The system's segmented control, centered above everything. With
+    /// one visualizer chosen there's nothing to pick.
+    @ViewBuilder
     private var picker: some View {
-        Picker("Visualizer", selection: $visual) {
-            ForEach(NowPlayingVisual.allCases) { option in
-                Text(option.title).tag(option)
+        if lineup.count > 1 {
+            Picker("Visualizer", selection: Binding { shown } set: { visual = $0 }) {
+                ForEach(lineup) { option in
+                    Text(option.title).tag(option)
+                }
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .controlSize(.large)
+            .fixedSize()
+            // A new control for each lineup: the system's keeps the width
+            // it had, and squeezes three titles into the room of two.
+            .id(lineup)
         }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .controlSize(.large)
-        .fixedSize()
+    }
+
+    /// Opens the chooser of what the picker offers.
+    private var chooseButton: some View {
+        Button("Visualizers…") { isChoosing = true }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
+            .controlSize(.large)
+            .help("Choose which visualizers Now Playing offers")
+            .popover(isPresented: $isChoosing, arrowEdge: .bottom) {
+                VisualizerChooser(columns: 4, cardWidth: 170)
+                    .padding(20)
+                    .environment(store)
+                    .voiceThemed()
+            }
     }
 
     // MARK: Tune
@@ -324,11 +377,23 @@ private extension View {
     }
 }
 
+/// Now Playing's visualizers. Settings chooses up to `lineupSize` of them
+/// (the lineup), and Now Playing's picker offers those.
 nonisolated enum NowPlayingVisual: String, CaseIterable, Identifiable {
     case halo
     case particles
     case radial
     case soundMap
+    case notes
+    case spectrum
+    case terrain
+    case ink
+    case liquidLight
+    case ferrofluid
+    case chip
+    case rasters
+    case silicon
+    case nimbus
 
     var id: Self { self }
 
@@ -338,7 +403,60 @@ nonisolated enum NowPlayingVisual: String, CaseIterable, Identifiable {
         case .particles: String(localized: "Particles")
         case .radial: String(localized: "Radial")
         case .soundMap: String(localized: "Sound Map")
+        case .notes: String(localized: "Notes")
+        case .spectrum: String(localized: "Spectrum")
+        case .terrain: String(localized: "Terrain")
+        case .ink: String(localized: "Ink")
+        case .liquidLight: String(localized: "Liquid Light")
+        case .ferrofluid: String(localized: "Ferrofluid")
+        case .chip: String(localized: "Chip")
+        case .rasters: String(localized: "Rasters")
+        case .silicon: String(localized: "Silicon")
+        case .nimbus: String(localized: "Nimbus")
         }
+    }
+
+    /// What it shows, in a line, for Settings.
+    var summary: String {
+        switch self {
+        case .halo: String(localized: "A glowing ring per voice")
+        case .particles: String(localized: "A sphere of points that ripples with each note")
+        case .radial: String(localized: "A ring of spectrum bars per voice")
+        case .soundMap: String(localized: "Every note placed by how it sounds")
+        case .notes: String(localized: "The tune as sheet music, a ball hopping from note to note")
+        case .spectrum: String(localized: "An analyzer with each voice's curve, peaks and notes")
+        case .terrain: String(localized: "The last seconds of the spectrum as a landscape")
+        case .ink: String(localized: "Each voice pours dye into swirling water")
+        case .liquidLight: String(localized: "Glossy oil on a projector's glass, like a 1960s light show")
+        case .ferrofluid: String(localized: "Black liquid that stands in spikes where a voice sounds")
+        case .chip: String(localized: "The SID with its lid off, every register bit lit")
+        case .rasters: String(localized: "A C64 demo screen: copper bars, stars and a scroller")
+        case .silicon: String(localized: "The tune's SID in 3D, opened up: the real die, at work")
+        case .nimbus: String(localized: "Balls of cloud that merge, swell and glow with each voice")
+        }
+    }
+
+    /// The ones the app offers. Two aren't among them: Chip, since Silicon
+    /// does what it did on the real thing, and Rasters, which is lo-fi on
+    /// purpose and doesn't sit with the rest. Their code stays (Silicon
+    /// uses Chip's model of the chip), and adding one back is this line.
+    static let offered = allCases.filter { $0 != .chip && $0 != .rasters }
+
+    /// How many Now Playing offers at once: its picker has room for three.
+    static let lineupSize = 3
+    static let defaultLineup: [NowPlayingVisual] = [.particles, .soundMap, .notes]
+
+    /// The lineup as stored in `Pref.nowPlayingLineup`: at most
+    /// `lineupSize`, in the order they're listed here, and the default
+    /// when nothing usable is stored. Never empty.
+    static func lineup(from stored: String) -> [NowPlayingVisual] {
+        let chosen = Set(stored.split(separator: ",").compactMap { NowPlayingVisual(rawValue: String($0)) })
+        let lineup = offered.filter(chosen.contains).prefix(lineupSize)
+        return lineup.isEmpty ? defaultLineup : Array(lineup)
+    }
+
+    static func stored(_ lineup: [NowPlayingVisual]) -> String {
+        lineup.map(\.rawValue).joined(separator: ",")
     }
 }
 

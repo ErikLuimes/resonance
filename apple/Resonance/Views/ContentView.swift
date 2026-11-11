@@ -102,8 +102,8 @@ extension View {
 }
 
 extension EnvironmentValues {
-    /// Search is over this section: it's kept, but must not animate, fetch or
-    /// react to a pointer it can't be seen under. Clicks are already stopped,
+    /// Search or Now Playing is over this section: it's kept, but must not
+    /// animate, fetch or react to a pointer it can't be seen under. Clicks are already stopped,
     /// but hovers aren't, nor do timers know.
     @Entry var sectionIsCovered = false
 }
@@ -154,6 +154,9 @@ struct ContentView: View {
         // crashed the window, see searchable below.)
         ZStack(alignment: .bottom) {
             libraryMode
+                // Everything in the library rests while Now Playing is over
+                // it: no hover cards, no row buttons.
+                .environment(\.sectionIsCovered, store.isShowingNowPlaying)
             if isNowPlayingMounted {
                 // Paused as soon as it starts sliding away. The slide-out is
                 // an offset rather than a removal transition: SwiftUI never
@@ -566,7 +569,9 @@ struct ContentView: View {
                 .opacity(searching ? 0 : 1)
                 .allowsHitTesting(!searching)
                 .accessibilityHidden(searching)
-                .environment(\.sectionIsCovered, searching)
+                // Now Playing covers it too: hover in the lists under it is
+                // still tracked, and their cards would open over it.
+                .environment(\.sectionIsCovered, searching || store.isShowingNowPlaying)
             if searching {
                 SearchView(query: trimmedQuery, submissions: submittedSearches)
             }

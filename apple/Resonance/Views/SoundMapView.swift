@@ -20,12 +20,15 @@ import PhosphorCore
 struct SoundMapView: View {
     /// False pauses it, e.g. while Now Playing is slid away.
     var isActive = true
+    /// True in a small picture of it (the chooser's): squares and labels
+    /// shrink with the view instead of keeping a readable size.
+    var isMiniature = false
 
     @Environment(PlayerStore.self) private var store
     @Environment(\.voiceTheme) private var theme
 
     var body: some View {
-        SoundMapMetalView(feed: store.visualizer, theme: theme, isActive: isActive)
+        SoundMapMetalView(feed: store.visualizer, theme: theme, isActive: isActive, isMiniature: isMiniature)
             .accessibilityElement()
             .accessibilityLabel("Sound map visualizer")
     }
@@ -35,6 +38,7 @@ private struct SoundMapMetalView: NSViewRepresentable {
     let feed: VisualizerFeed
     let theme: VoiceTheme
     let isActive: Bool
+    let isMiniature: Bool
 
     func makeCoordinator() -> SoundMapRenderer {
         SoundMapRenderer()
@@ -57,6 +61,7 @@ private struct SoundMapMetalView: NSViewRepresentable {
 
     private func update(_ view: MTKView, _ renderer: SoundMapRenderer) {
         renderer.feed = feed
+        renderer.smallestUnit = isMiniature ? 0.15 : 1
         renderer.voiceColors = theme.voices.map { SIMD3(Float($0.red), Float($0.green), Float($0.blue)) }
         view.isPaused = !isActive
     }
@@ -75,6 +80,9 @@ final class SoundMapRenderer: NSObject, MTKViewDelegate {
     /// Voices 1–3, from the theme.
     var voiceColors: [SIMD3<Float>] = Array(repeating: SIMD3(1, 1, 1), count: 3)
     let map = SoundMap()
+    /// The least sizes scale by: 1 keeps labels readable in a small
+    /// window; a miniature lets them shrink with the view.
+    var smallestUnit: Float = 1
     /// The share of nodes inside the view in the last frame, for tests.
     private(set) var onScreen: Float = 1
 
@@ -342,7 +350,7 @@ final class SoundMapRenderer: NSObject, MTKViewDelegate {
 
         // Sizes in points at 600 pt high, growing with the view; `unit`
         // turns them into pixels.
-        let unit = scale * max(1, size.y / scale / 600)
+        let unit = scale * max(smallestUnit, size.y / scale / 600)
         var projected = [SIMD3<Float>?](repeating: nil, count: nodes.count)
         var lives = [Life](repeating: Life(age: 1e9), count: nodes.count)
         var edges = [Float](repeating: 2, count: nodes.count)

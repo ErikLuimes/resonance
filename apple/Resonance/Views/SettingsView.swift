@@ -57,6 +57,7 @@ struct SettingsView: View {
         case .appearance:
             AppearanceSettings()
             ThemeSettings()
+            NowPlayingVisualizerSettings()
         case .engine:
             EngineSettings()
         case .playback:
@@ -1241,6 +1242,20 @@ private struct AppearanceThumbnail: View {
         RoundedRectangle(cornerRadius: 1)
             .fill(color)
             .frame(width: 6, height: height)
+    }
+}
+
+/// Which visualizers Now Playing offers, chosen from live pictures of them.
+private struct NowPlayingVisualizerSettings: View {
+    var body: some View {
+        Section {
+            VisualizerChooser()
+                .padding(.vertical, 4)
+        } header: {
+            Text("Now Playing Visualizers")
+        } footer: {
+            Text("The chosen ones' pictures show the tune that's playing, and so does the one under the pointer. You can also choose from Now Playing itself.")
+        }
     }
 }
 
