@@ -10,6 +10,8 @@
 //!                 `cargo run -p phosphor-apple --example share_index`
 //!   BASE_URL      this server's public address, e.g. https://share.example
 //!   DOWNLOAD_URL  Download Resonance (default: the website)
+//!   GOATCOUNTER   GoatCounter's count address, to count the pages' visits
+//!                 and link clicks without cookies (default: none, no counting)
 //!   PORT          default 8080
 //!   CARD_DIR      where rendered cards are kept (default /data/cards); one
 //!                 folder per card version and HVSC release, so a new index
@@ -37,6 +39,7 @@ struct App {
     index: Index,
     base: String,
     download: String,
+    goatcounter: Option<String>,
     /// Rendered cards, `<md5>-<subtune>.jpg`; None when it can't be made.
     card_dir: Option<PathBuf>,
     generic_card: Vec<u8>,
@@ -61,6 +64,7 @@ async fn main() {
     let app = Arc::new(App {
         base: env("BASE_URL", &format!("http://localhost:{port}")).trim_end_matches('/').to_string(),
         download: env("DOWNLOAD_URL", "https://erikluimes.github.io/resonance/"),
+        goatcounter: Some(env("GOATCOUNTER", "")).filter(|url| !url.is_empty()),
         card_dir: card_dir(&env("CARD_DIR", "/data/cards"), index.hvsc),
         generic_card: card::jpeg(&card::svg(None, None)).expect("the generic card renders"),
         apple_app_id: env("APPLE_APP_ID", "R4D8QN85WK.app.useresonance.resonance"),
@@ -112,7 +116,7 @@ async fn app_site_association(State(app): State<Arc<App>>) -> Response {
 
 async fn tune_page(State(app): State<Arc<App>>, Path(raw): Path<String>, Query(q): Query<LinkQuery>) -> Response {
     let Some(key) = tune::Key::parse(&raw) else { return StatusCode::NOT_FOUND.into_response() };
-    let site = page::Site { base: &app.base, download: &app.download };
+    let site = page::Site { base: &app.base, download: &app.download, goatcounter: app.goatcounter.as_deref() };
     match app.index.find(&key) {
         Some((md5, tune)) => {
             let code = tune::short_code(md5).unwrap_or_else(|| md5.to_string());
@@ -203,6 +207,7 @@ mod tests {
             index: Index::new(Some(85), Default::default()),
             base: "https://useresonance.app".into(),
             download: "https://erikluimes.github.io/resonance/".into(),
+            goatcounter: None,
             card_dir: None,
             generic_card: vec![0xFF, 0xD8, 0xFF],
             apple_app_id: "TEAM.app.useresonance.resonance".into(),

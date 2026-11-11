@@ -23,6 +23,9 @@ pub struct Site<'a> {
     pub base: &'a str,
     /// Where Download Resonance goes.
     pub download: &'a str,
+    /// GoatCounter's count address, which counts the page's visits and its
+    /// links' clicks without cookies; None counts nothing.
+    pub goatcounter: Option<&'a str>,
 }
 
 /// The app's own link: `resonance://tune/<md5>?s=2&v=85&p=/MUSICIANS/…`,
@@ -82,6 +85,7 @@ pub fn tune_page(site: &Site, link: &Link, tune: &Tune) -> String {
 <h1>{}</h1>"#, escape(&image), escape(&title), escape(&title)),
     };
     page(
+        site,
         &title,
         &description,
         &page_url,
@@ -90,11 +94,11 @@ pub fn tune_page(site: &Site, link: &Link, tune: &Tune) -> String {
             r#"{hero}
 <p class="where">{}</p>
 <div class="actions">
-  <a class="button primary" href="{}">Open in Resonance</a>
-  <a class="button" href="{}">Download Resonance</a>
+  <a class="button primary" href="{}" data-goatcounter-click="share-open">Open in Resonance</a>
+  <a class="button" href="{}" data-goatcounter-click="share-download">Download Resonance</a>
 </div>
 <p class="note">Resonance plays the tune from your own copy of HVSC, the High Voltage SID Collection. It finds it even if your collection is an older release, and offers the update when it's missing.</p>
-<p class="note">Not on a Mac? <a href="{}">Listen on DeepSID</a>, in your browser.</p>"#,
+<p class="note">Not on a Mac? <a href="{}" data-goatcounter-click="share-deepsid">Listen on DeepSID</a>, in your browser.</p>"#,
             escape(&tune.path),
             escape(&app_link(link, Some(tune))),
             escape(site.download),
@@ -203,6 +207,7 @@ const SPHERE_JS: &str = r#"
 /// index, or a mistyped link): the app may still have it.
 pub fn unknown_page(site: &Site, link: &Link) -> String {
     page(
+        site,
         "A tune shared from Resonance",
         "Play it in Resonance, the SID music player for Mac.",
         &format!("{}/t/{}{}", site.base, link.code, query(link)),
@@ -212,8 +217,8 @@ pub fn unknown_page(site: &Site, link: &Link) -> String {
 <h1>A tune shared from Resonance</h1>
 <p class="note">This tune isn't in the server's copy of HVSC yet. Resonance can still look for it in yours.</p>
 <div class="actions">
-  <a class="button primary" href="{}">Open in Resonance</a>
-  <a class="button" href="{}">Download Resonance</a>
+  <a class="button primary" href="{}" data-goatcounter-click="share-open">Open in Resonance</a>
+  <a class="button" href="{}" data-goatcounter-click="share-download">Download Resonance</a>
 </div>"#,
             escape(site.base),
             escape(&app_link(link, None)),
@@ -234,8 +239,13 @@ fn query(link: &Link) -> String {
     if params.is_empty() { String::new() } else { format!("?{}", params.join("&")) }
 }
 
-fn page(title: &str, description: &str, url: &str, image: &str, body: &str) -> String {
+fn page(site: &Site, title: &str, description: &str, url: &str, image: &str, body: &str) -> String {
     let (title, description, url, image) = (escape(title), escape(description), escape(url), escape(image));
+    // GoatCounter's script also counts clicks on the `data-goatcounter-click` links.
+    let counter = site.goatcounter.map_or(String::new(), |count| {
+        format!(r#"<script data-goatcounter="{}" async src="https://gc.zgo.at/count.js"></script>
+"#, escape(count))
+    });
     format!(
         r#"<!doctype html>
 <html lang="en">
@@ -287,7 +297,7 @@ fn page(title: &str, description: &str, url: &str, image: &str, body: &str) -> S
 <main>
 {body}
 </main>
-</body>
+{counter}</body>
 </html>
 "#
     )
@@ -317,7 +327,21 @@ mod tests {
         .unwrap()
     }
 
-    const SITE: Site = Site { base: "https://share.example", download: "https://erikluimes.github.io/resonance/" };
+    const SITE: Site = Site { base: "https://share.example", download: "https://erikluimes.github.io/resonance/", goatcounter: None };
+
+    #[test]
+    fn goatcounter_counts_only_when_set() {
+        let link = Link { key: "x", code: "x", subtune: 1, start: 1, hvsc: None };
+        let html = tune_page(&SITE, &link, &tune());
+        assert!(!html.contains("gc.zgo.at"), "no counting without GOATCOUNTER");
+        for event in ["share-open", "share-download", "share-deepsid"] {
+            assert!(html.contains(&format!(r#"data-goatcounter-click="{event}""#)), "{event}");
+        }
+        let counted = Site { goatcounter: Some("https://example.goatcounter.com/count"), ..SITE };
+        let html = tune_page(&counted, &link, &tune());
+        assert!(html.contains(r#"<script data-goatcounter="https://example.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>"#));
+        assert!(unknown_page(&counted, &link).contains("gc.zgo.at"));
+    }
 
     #[test]
     fn the_page_carries_the_preview_tags() {
@@ -340,7 +364,7 @@ mod tests {
     fn the_page_links_to_deepsid() {
         let link = Link { key: "x", code: "x", subtune: 1, start: 1, hvsc: None };
         let html = tune_page(&SITE, &link, &tune());
-        assert!(html.contains(r#"href="https://deepsid.chordian.net/?file=/MUSICIANS/H/Hubbard_Rob/Commando%20%26%20Co.sid">"#), "the start song left out");
+        assert!(html.contains(r#"href="https://deepsid.chordian.net/?file=/MUSICIANS/H/Hubbard_Rob/Commando%20%26%20Co.sid" data-goatcounter-click="share-deepsid">"#), "the start song left out");
         let other = tune_page(&SITE, &Link { subtune: 2, ..link }, &tune());
         assert!(other.contains("Commando%20%26%20Co.sid&amp;subtune=2\""));
     }

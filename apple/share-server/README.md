@@ -66,6 +66,7 @@ cards are rendered on every request instead. Settings, as environment variables:
 | `BASE_URL` | `http://localhost:<PORT>` | public address, used in the page's links and tags |
 | `INDEX` | `/data/index.json` | the tune index |
 | `DOWNLOAD_URL` | the website | Download Resonance |
+| `GOATCOUNTER` | none | GoatCounter's count address (`https://<code>.goatcounter.com/count`): counts the pages' visits and clicks on Open in Resonance, Download and DeepSID (`share-open`, `share-download`, `share-deepsid`), without cookies. Unset, nothing is counted. |
 | `PORT` | `8080` | |
 | `CARD_DIR` | `/data/cards` | rendered cards, in a folder per card version and HVSC release (`v1-hvsc85`); delete old folders after a new index or look |
 | `FONT_DIR` | | extra fonts for the cards (the image has Inter) |
@@ -117,7 +118,7 @@ sudo docker build -f /srv/resonance-share/build/share-server/Dockerfile -t reson
 Swap the running container for one from the new image:
 
 ```bash
-sudo docker rm -f resonance-share && sudo docker run -d --name resonance-share --restart unless-stopped -p 127.0.0.1:8787:8080 -v /srv/resonance-share/data:/data -e BASE_URL=https://useresonance.app resonance-share
+sudo docker rm -f resonance-share && sudo docker run -d --name resonance-share --restart unless-stopped -p 127.0.0.1:8787:8080 -v /srv/resonance-share/data:/data -e BASE_URL=https://useresonance.app -e GOATCOUNTER=https://erikluimes.goatcounter.com/count resonance-share
 ```
 
 Check that it answers. This prints the association file's JSON, with
