@@ -66,6 +66,22 @@ const REGS_PER_CHIP: usize = 32;
 const RENDER_TAIL: Duration = Duration::from_millis(500);
 /// How often the seek worker reports where it is, in tune time.
 const SEEK_STEP: Duration = Duration::from_millis(100);
+/// The fade before the audio goes silent (pause, stop, track change, seek,
+/// quit) and after it comes back: a raised cosine, so the level has no
+/// step and no corner. Cutting to silence instead is a step as tall as the
+/// sample it lands on, which is a click. At 10 ms the fade is nowhere
+/// steeper than a 25 Hz tone of the same level (1 / 4T), and what's left of
+/// the step above 1 kHz is 52 dB down (1 / (2fT)² for a raised cosine), so
+/// the music masks it; it is also at most one device buffer on top of the
+/// one a command already waits for.
+const FADE: Duration = Duration::from_millis(10);
+/// How long quit waits for the callback to finish its fade. The fade
+/// starts with the next buffer, and the longest buffers are about 100 ms,
+/// so this only runs out when the device has stopped asking.
+const FADE_WAIT: Duration = Duration::from_millis(400);
+/// The most quit waits for the faded samples to leave the device (its
+/// reported output latency) before closing the stream.
+const LATENCY_WAIT: Duration = Duration::from_millis(300);
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 
@@ -105,6 +121,8 @@ pub(crate) enum Output {
         rate: u32,
         block: usize,
         period: Duration,
+        /// Every block the callback filled, in order.
+        tap: Option<Sender<Vec<f32>>>,
     },
 }
 
@@ -191,6 +209,18 @@ enum ToAudio {
     /// Hand the playing engine back to the control thread (a forward seek
     /// runs it on from where it is); silence until the next Swap.
     Return,
+}
+
+impl ToAudio {
+    /// Whether this ends what's playing, so it waits for the fade out.
+    fn cuts(&self) -> bool {
+        !matches!(self, ToAudio::Pause(false))
+    }
+}
+
+/// The fade's gain `pos` frames in of `len`: 0 at 0, 1 at `len`.
+fn fade_gain(pos: u32, len: u32) -> f32 {
+    0.5 - 0.5 * (std::f32::consts::PI * pos as f32 / len as f32).cos()
 }
 
 /// A started tune, owned by the callback while it plays.
@@ -303,31 +333,93 @@ struct Source {
     live: Option<Box<Live>>,
     paused: bool,
     scratch: Vec<i16>,
+    /// A command that silences what's playing, waiting for the fade out.
+    held: Option<ToAudio>,
+    /// Frames into the fade: 0 is silent, `fade_len` is full level.
+    fade_pos: u32,
+    /// `FADE` in frames at the output's rate.
+    fade_len: u32,
+    /// Told after each `Drop` is carried out, so quit knows the output is
+    /// silent.
+    silent: Sender<()>,
 }
 
 impl Source {
-    /// Fill `data` (interleaved stereo f32) with the next frames.
+    fn set_rate(&mut self, rate: u32) {
+        self.fade_len = ((rate as f64 * FADE.as_secs_f64()).round() as u32).max(1);
+    }
+
+    /// Something is coming out of the speakers.
+    fn audible(&self) -> bool {
+        self.live.is_some() && !self.paused && self.fade_pos > 0
+    }
+
+    /// Fill `data` (interleaved stereo f32) with the next frames. A command
+    /// that would cut the sound off is held while the playing tune fades
+    /// out, across buffers if need be, and carried out at silence.
     fn fill(&mut self, data: &mut [f32]) {
         let at = Instant::now();
-        for msg in self.inbox.try_iter() {
-            match msg {
-                ToAudio::Swap(live) => {
-                    if let Some(old) = self.live.replace(live) {
-                        let _ = self.retired.try_send(old);
-                    }
-                    self.paused = false;
+        let frames = data.len() / 2;
+        let mut done = 0;
+        loop {
+            while self.held.is_none() {
+                let Ok(msg) = self.inbox.try_recv() else { break };
+                if msg.cuts() && self.audible() {
+                    self.held = Some(msg);
+                } else {
+                    self.apply(msg);
                 }
-                ToAudio::Drop => {
-                    if let Some(old) = self.live.take() {
-                        let _ = self.retired.try_send(old);
+            }
+            // Fading out: only as far as silence, then the command.
+            let want = match self.held {
+                Some(_) => (self.fade_pos as usize).min(frames - done),
+                None => frames - done,
+            };
+            if want > 0 {
+                self.render(&mut data[done * 2..(done + want) * 2], at);
+                done += want;
+            }
+            match self.held.take() {
+                Some(msg) if !self.audible() => self.apply(msg),
+                held => {
+                    self.held = held;
+                    if done == frames {
+                        break;
                     }
-                }
-                ToAudio::Pause(paused) => self.paused = paused,
-                ToAudio::Return => {
-                    let _ = self.returned.try_send(self.live.take());
                 }
             }
         }
+    }
+
+    fn apply(&mut self, msg: ToAudio) {
+        match msg {
+            ToAudio::Swap(live) => {
+                if let Some(old) = self.live.replace(live) {
+                    let _ = self.retired.try_send(old);
+                }
+                self.paused = false;
+            }
+            ToAudio::Drop => {
+                if let Some(old) = self.live.take() {
+                    let _ = self.retired.try_send(old);
+                }
+                let _ = self.silent.try_send(());
+            }
+            ToAudio::Pause(true) => self.paused = true,
+            // Not paused: it keeps fading in, or stays at full level.
+            ToAudio::Pause(false) if !self.paused => return,
+            ToAudio::Pause(false) => self.paused = false,
+            ToAudio::Return => {
+                let _ = self.returned.try_send(self.live.take());
+            }
+        }
+        // Whatever plays next fades in.
+        self.fade_pos = 0;
+    }
+
+    /// The next `data.len() / 2` frames of the playing tune, fading out
+    /// while a command is held and in otherwise; silence when nothing plays.
+    fn render(&mut self, data: &mut [f32], at: Instant) {
         let frames = data.len() / 2;
         let Some(live) = self.live.as_mut().filter(|_| !self.paused) else {
             data.fill(0.0);
@@ -335,17 +427,29 @@ impl Source {
         };
 
         let gain = crate::audio_volume::scale() / 32768.0;
+        let fading_out = self.held.is_some();
         let began = Instant::now();
         let mut done = 0;
         let mut error = None;
         while done < frames {
             let n = (frames - done).min(CHUNK);
             let got = live.engine.render(&mut self.scratch[..n * 2]);
-            for (out, &s) in data[done * 2..(done + got) * 2]
-                .iter_mut()
-                .zip(&self.scratch[..got * 2])
-            {
-                *out = s as f32 * gain;
+            let out = &mut data[done * 2..(done + got) * 2];
+            if !fading_out && self.fade_pos == self.fade_len {
+                for (out, &s) in out.iter_mut().zip(&self.scratch[..got * 2]) {
+                    *out = s as f32 * gain;
+                }
+            } else {
+                for (out, s) in out.chunks_exact_mut(2).zip(self.scratch.chunks_exact(2)) {
+                    if fading_out {
+                        self.fade_pos = self.fade_pos.saturating_sub(1);
+                    } else if self.fade_pos < self.fade_len {
+                        self.fade_pos += 1;
+                    }
+                    let gain = gain * fade_gain(self.fade_pos, self.fade_len);
+                    out[0] = s[0] as f32 * gain;
+                    out[1] = s[1] as f32 * gain;
+                }
             }
             done += got;
             if got < n {
@@ -365,9 +469,11 @@ impl Source {
         // lost to the visualizers, nothing else.
         let _ = self.reports.try_send(report);
         if error.is_some() {
+            // The engine can't render a fade; this one stops where it broke.
             if let Some(old) = self.live.take() {
                 let _ = self.retired.try_send(old);
             }
+            self.fade_pos = 0;
         }
     }
 }
@@ -380,7 +486,7 @@ struct Sink {
 
 fn open_sink(output: &Output, mut source: Source) -> Result<Sink, String> {
     let (stop_tx, stop_rx) = bounded::<()>(0);
-    match *output {
+    match output {
         Output::Device => {
             let (ready_tx, ready_rx) = bounded::<Result<u32, String>>(1);
             thread::Builder::new()
@@ -397,6 +503,7 @@ fn open_sink(output: &Output, mut source: Source) -> Result<Sink, String> {
                             .map_err(|e| format!("No default output config: {e}"))?;
                         let rate = default.sample_rate().0;
                         eprintln!("[residfp] Audio device: '{name}', {rate} Hz");
+                        source.set_rate(rate);
                         let config = cpal::StreamConfig {
                             channels: 2,
                             sample_rate: cpal::SampleRate(rate),
@@ -442,7 +549,10 @@ fn open_sink(output: &Output, mut source: Source) -> Result<Sink, String> {
             rate,
             block,
             period,
+            tap,
         } => {
+            let (rate, block, period, tap) = (*rate, *block, *period, tap.clone());
+            source.set_rate(rate);
             thread::Builder::new()
                 .name("residfp-fake-audio".into())
                 .spawn(move || {
@@ -451,6 +561,9 @@ fn open_sink(output: &Output, mut source: Source) -> Result<Sink, String> {
                         stop_rx.recv_timeout(period)
                     {
                         source.fill(&mut buf);
+                        if let Some(tap) = &tap {
+                            let _ = tap.send(buf.clone());
+                        }
                     }
                 })
                 .map_err(|e| format!("spawn fake audio thread: {e}"))?;
@@ -507,6 +620,8 @@ struct Control {
     pool_tx: Sender<Box<Report>>,
     retired_tx: Sender<Box<Live>>,
     retired_rx: Receiver<Box<Live>>,
+    /// The callback's word that a `Drop` has been carried out.
+    silent_rx: Receiver<()>,
     state: PlayState,
     track: Option<Track>,
     last_error: Option<String>,
@@ -581,6 +696,7 @@ impl Control {
             pool_tx,
             retired_tx,
             retired_rx,
+            silent_rx: crossbeam_channel::never(),
             state: PlayState::Stopped,
             track: None,
             last_error: None,
@@ -640,9 +756,23 @@ impl Control {
                 }
             }
         }
-        self.stop_playback();
-        self.sink = None;
+        self.wind_down();
         eprintln!("[residfp] Player thread exiting");
+    }
+
+    /// Stop and close the output, without a click: the callback fades the
+    /// tune out and says when it's silent, and the stream stays open until
+    /// those last samples have left the device. Every wait is bounded, so
+    /// a device that has stopped asking can't hold up quitting.
+    fn wind_down(&mut self) {
+        let playing = self.state == PlayState::Playing && self.sink.is_some();
+        while self.silent_rx.try_recv().is_ok() {}
+        self.stop_playback();
+        if playing && self.silent_rx.recv_timeout(FADE_WAIT).is_ok() {
+            let latency = viz::lock(&self.viz).output_latency();
+            thread::sleep(latency.min(LATENCY_WAIT));
+        }
+        self.sink = None;
     }
 
     fn handle(&mut self, cmd: PlayerCmd) {
@@ -1068,6 +1198,7 @@ impl Control {
     fn open_output(&mut self) -> Result<u32, String> {
         let (to_audio, inbox) = bounded(8);
         let (pool_tx, pool) = bounded(POOL);
+        let (silent, silent_rx) = bounded(4);
         let source = Source {
             inbox,
             reports: self.reports_tx.clone(),
@@ -1077,12 +1208,17 @@ impl Control {
             live: None,
             paused: false,
             scratch: vec![0; CHUNK * 2],
+            held: None,
+            fade_pos: 0,
+            fade_len: 1,
+            silent,
         };
         let sink = open_sink(&self.output, source)?;
         let rate = sink.rate;
         self.sink = Some(sink);
         self.to_audio = to_audio;
         self.pool_tx = pool_tx;
+        self.silent_rx = silent_rx;
         Ok(rate)
     }
 
@@ -1096,6 +1232,7 @@ impl Control {
     }
 
     fn report(&mut self, mut report: Box<Report>) {
+        let seeking = self.seek.is_some();
         if let Some(error) = report.error.take() {
             if self.track.as_ref().is_some_and(|t| t.id == report.id) {
                 eprintln!("[residfp] playback stopped: {error}");
@@ -1103,7 +1240,13 @@ impl Control {
                 self.last_error = Some(error);
                 self.send_status();
             }
-        } else if let Some(track) = self.track.as_mut().filter(|t| t.id == report.id) {
+        } else if let Some(track) = self
+            .track
+            .as_mut()
+            // During a seek the clock is the target's; what still comes in
+            // is the old position fading out.
+            .filter(|t| t.id == report.id && !seeking)
+        {
             track.elapsed = Duration::from_secs_f64(report.samples_end as f64 / track.rate as f64);
             self.pending_writes += report.writes as usize;
             for c in 0..track.chips.min(report.chips) {
