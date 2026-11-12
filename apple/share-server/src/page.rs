@@ -84,6 +84,8 @@ pub fn tune_page(site: &Site, link: &Link, tune: &Tune) -> String {
         None => format!(r#"<img class="card" src="{}" width="800" height="420" alt="{}">
 <h1>{}</h1>"#, escape(&image), escape(&title), escape(&title)),
     };
+    // Clicks name the tune's page as their referrer, so they're counted per tune.
+    let from = escape(&format!("/t/{}", link.code));
     page(
         site,
         &title,
@@ -94,11 +96,11 @@ pub fn tune_page(site: &Site, link: &Link, tune: &Tune) -> String {
             r#"{hero}
 <p class="where">{}</p>
 <div class="actions">
-  <a class="button primary" href="{}" data-goatcounter-click="share-open">Open in Resonance</a>
-  <a class="button" href="{}" data-goatcounter-click="share-download">Download Resonance</a>
+  <a class="button primary" href="{}" data-goatcounter-click="share-open" data-goatcounter-referrer="{from}">Open in Resonance</a>
+  <a class="button" href="{}" data-goatcounter-click="share-download" data-goatcounter-referrer="{from}">Download Resonance</a>
 </div>
 <p class="note">Resonance plays the tune from your own copy of HVSC, the High Voltage SID Collection. It finds it even if your collection is an older release, and offers the update when it's missing.</p>
-<p class="note">Not on a Mac? <a href="{}" data-goatcounter-click="share-deepsid">Listen on DeepSID</a>, in your browser.</p>"#,
+<p class="note">Not on a Mac? <a href="{}" data-goatcounter-click="share-deepsid" data-goatcounter-referrer="{from}">Listen on DeepSID</a>, in your browser.</p>"#,
             escape(&tune.path),
             escape(&app_link(link, Some(tune))),
             escape(site.download),
@@ -206,6 +208,7 @@ const SPHERE_JS: &str = r#"
 /// A link to a tune this server doesn't know (a newer HVSC than its
 /// index, or a mistyped link): the app may still have it.
 pub fn unknown_page(site: &Site, link: &Link) -> String {
+    let from = escape(&format!("/t/{}", link.code));
     page(
         site,
         "A tune shared from Resonance",
@@ -217,8 +220,8 @@ pub fn unknown_page(site: &Site, link: &Link) -> String {
 <h1>A tune shared from Resonance</h1>
 <p class="note">This tune isn't in the server's copy of HVSC yet. Resonance can still look for it in yours.</p>
 <div class="actions">
-  <a class="button primary" href="{}" data-goatcounter-click="share-open">Open in Resonance</a>
-  <a class="button" href="{}" data-goatcounter-click="share-download">Download Resonance</a>
+  <a class="button primary" href="{}" data-goatcounter-click="share-open" data-goatcounter-referrer="{from}">Open in Resonance</a>
+  <a class="button" href="{}" data-goatcounter-click="share-download" data-goatcounter-referrer="{from}">Download Resonance</a>
 </div>"#,
             escape(site.base),
             escape(&app_link(link, None)),
@@ -338,7 +341,7 @@ mod tests {
         let html = tune_page(&SITE, &link, &tune());
         assert!(!html.contains("gc.zgo.at"), "no counting without GOATCOUNTER");
         for event in ["share-open", "share-download", "share-deepsid"] {
-            assert!(html.contains(&format!(r#"data-goatcounter-click="{event}""#)), "{event}");
+            assert!(html.contains(&format!(r#"data-goatcounter-click="{event}" data-goatcounter-referrer="/t/x""#)), "{event}, per tune");
         }
         let counted = Site { goatcounter: Some("https://example.goatcounter.com/count"), ..SITE };
         let html = tune_page(&counted, &link, &tune());
@@ -368,7 +371,7 @@ mod tests {
     fn the_page_links_to_deepsid() {
         let link = Link { key: "x", code: "x", subtune: 1, start: 1, hvsc: None };
         let html = tune_page(&SITE, &link, &tune());
-        assert!(html.contains(r#"href="https://deepsid.chordian.net/?file=/MUSICIANS/H/Hubbard_Rob/Commando%20%26%20Co.sid" data-goatcounter-click="share-deepsid">"#), "the start song left out");
+        assert!(html.contains(r#"href="https://deepsid.chordian.net/?file=/MUSICIANS/H/Hubbard_Rob/Commando%20%26%20Co.sid" data-goatcounter-click="share-deepsid" data-goatcounter-referrer="/t/x">"#), "the start song left out");
         let other = tune_page(&SITE, &Link { subtune: 2, ..link }, &tune());
         assert!(other.contains("Commando%20%26%20Co.sid&amp;subtune=2\""));
     }
