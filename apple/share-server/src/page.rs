@@ -241,9 +241,12 @@ fn query(link: &Link) -> String {
 
 fn page(site: &Site, title: &str, description: &str, url: &str, image: &str, body: &str) -> String {
     let (title, description, url, image) = (escape(title), escape(description), escape(url), escape(image));
-    // GoatCounter's script also counts clicks on the `data-goatcounter-click` links.
+    // GoatCounter's script also counts clicks on the `data-goatcounter-click`
+    // links. A page counts as its path alone: the canonical link's `?s=2&v=85`
+    // would otherwise count one tune once per subtune and HVSC release.
     let counter = site.goatcounter.map_or(String::new(), |count| {
-        format!(r#"<script data-goatcounter="{}" async src="https://gc.zgo.at/count.js"></script>
+        format!(r#"<script>window.goatcounter = {{ path: (p) => p.split('?')[0] }};</script>
+<script data-goatcounter="{}" async src="https://gc.zgo.at/count.js"></script>
 "#, escape(count))
     });
     format!(
@@ -340,6 +343,7 @@ mod tests {
         let counted = Site { goatcounter: Some("https://example.goatcounter.com/count"), ..SITE };
         let html = tune_page(&counted, &link, &tune());
         assert!(html.contains(r#"<script data-goatcounter="https://example.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>"#));
+        assert!(html.contains("p.split('?')[0]"), "counted per tune, not per subtune or HVSC release");
         assert!(unknown_page(&counted, &link).contains("gc.zgo.at"));
     }
 
