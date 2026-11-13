@@ -3235,18 +3235,22 @@ fn now_line(app: &App) -> Line<'static> {
     }
 }
 
+/// The app icon's three voices as a small mark, small, large, small, in their
+/// colors, before the name.
+fn logo() -> Vec<Span<'static>> {
+    let mark = [("•", palette::cyan()), ("●", palette::violet()), ("•", palette::orange())];
+    let mut spans: Vec<Span> = mark.into_iter().map(|(ch, color)| Span::styled(ch, Style::new().fg(color))).collect();
+    spans.push(Span::styled(" RESONANCE", Style::new().fg(palette::frame()).add_modifier(Modifier::BOLD)));
+    spans
+}
+
 /// What's playing, over a slim bar with the time beside it.
 fn draw_now(frame: &mut Frame, app: &App, area: Rect) {
     let [title, bar] = Layout::vertical([Constraint::Length(1), Constraint::Length(1)]).areas(area);
     frame.render_widget(Paragraph::new(now_line(app)), title);
     // Styled as a word, not a paragraph: a paragraph's style would gray the whole
     // line, the playing tune's name with it.
-    // The app icon's three voices as a small mark, small, large, small, in
-    // their colors, before the name.
-    let mark = [("•", palette::cyan()), ("●", palette::violet()), ("•", palette::orange())];
-    let mut spans: Vec<Span> = mark.into_iter().map(|(ch, color)| Span::styled(ch, Style::new().fg(color))).collect();
-    spans.push(Span::styled(" RESONANCE", Style::new().fg(palette::frame()).add_modifier(Modifier::BOLD)));
-    frame.render_widget(Paragraph::new(Line::from(spans)).alignment(Alignment::Right), title);
+    frame.render_widget(Paragraph::new(Line::from(logo())).alignment(Alignment::Right), title);
     draw_progress(frame, app, bar);
 }
 
@@ -3339,20 +3343,16 @@ fn bar_keys(app: &App) -> Vec<(&'static str, &'static str)> {
     }
     match (&app.mode, app.focus) {
         (Mode::Search, _) => vec![("type", "to search"), ("↵", "go to the list"), ("esc", "back")],
-        (_, Focus::Sidebar) => vec![movement, ("↵", "open"), ("tab", "list"), ("/", "search"), ("p", "pause"), ("?", "all keys"), ("q", "quit")],
+        (_, Focus::Sidebar) => vec![("↵", "open"), ("p", "pause"), ("t", "scrub"), ("/", "search"), ("?", "all keys")],
         _ if !app.marked.is_empty() => vec![("a", "add to playlist"), ("n", "new playlist"), (scheme.choose("x", "dd", "⌃D"), "remove"), ("f", "favorite"), ("␣", "mark"), ("?", "all keys")],
+        // Only the most used; `?` has the rest.
         _ => vec![
-            movement,
             ("↵", "play"),
             ("p", "pause"),
+            ("t", "scrub"),
             (scheme.choose("l", "L", "l"), "sounds like"),
-            (scheme.choose("d", "D", "d"), "drift"),
-            ("f", "favorite"),
             ("/", "search"),
-            ("v", "visuals"),
-            ("tab", "library"),
             ("?", "all keys"),
-            ("q", "quit"),
         ],
     }
 }
@@ -3421,8 +3421,8 @@ fn help_lines(scheme: KeyScheme) -> [(&'static str, &'static str); 21] {
         (pick("Tab  ← →", "Tab  h l", "Tab  ⌃B ⌃F"), "Sidebar or list"),
         ("↵", "Open, or play from here"),
         (pick("/", "/", "/  ⌃S"), "Search the collection"),
-        ("p  t", "Pause or resume, or scrub to a point"),
-        (". ,", "Next or previous tune"),
+        ("p  . ,", "Pause or resume; next or previous tune"),
+        (pick("t  ← →  ↵", "t  h l  ↵", "t  ⌃B ⌃F  ↵"), "Scrub: choose a point and jump to it"),
         ("r  S  T", "Surprise Me; Home: shuffle, Top 100"),
         ("␣", "Mark a tune"),
         (pick("l", "L", "l"), "Sounds Like this tune"),
@@ -3466,7 +3466,10 @@ fn draw_help(frame: &mut Frame, choice: Choice) {
         .collect();
     lines.push(Line::styled("Set RESONANCE_KEYS, or use --keys, to change these.", dim()));
     let title = format!(" {} keys, {} ", choice.scheme.name(), choice.reason);
-    let block = pane(title, true);
+    let mut name = vec![Span::raw(" ")];
+    name.extend(logo());
+    name.push(Span::raw(" "));
+    let block = pane(String::new(), true).title(Line::from(name).left_aligned()).title(Line::from(title).right_aligned());
     let inner = block.inner(area);
     frame.render_widget(block, area);
     if beside {
@@ -4297,20 +4300,18 @@ mod tests {
             assert!(matches!(app.view, View::Like(_)), "{scheme:?}");
 
             let mut app = app_with(scheme);
-            press(&mut app, KeyCode::Char(shown("drift").chars().next().unwrap()));
-            assert!(app.outbox.iter().any(|r| r.cmd == "drift"), "{scheme:?}");
+            let mut status = playing("playing");
+            status.can_seek = Some(true);
+            app.status = Some(status);
+            press(&mut app, KeyCode::Char(shown("scrub").chars().next().unwrap()));
+            assert!(matches!(app.mode, Mode::Scrub(_)), "{scheme:?}");
         }
     }
 
     #[test]
-    fn the_bar_names_each_sets_movement_and_removal() {
-        for (scheme, movement, remove) in [
-            (KeyScheme::Normal, "↑ ↓", "x"),
-            (KeyScheme::Vim, "j k", "dd"),
-            (KeyScheme::Emacs, "⌃N ⌃P", "⌃D"),
-        ] {
+    fn the_bar_names_each_sets_removal() {
+        for (scheme, remove) in [(KeyScheme::Normal, "x"), (KeyScheme::Vim, "dd"), (KeyScheme::Emacs, "⌃D")] {
             let mut app = app_with(scheme);
-            assert!(bar_keys(&app).contains(&(movement, "move")), "{scheme:?}");
             press(&mut app, KeyCode::Char(' '));
             assert!(bar_keys(&app).contains(&(remove, "remove")), "{scheme:?}");
         }
