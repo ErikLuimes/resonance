@@ -1678,7 +1678,8 @@ fn draw_screen(frame: &mut Frame, app: &App) {
         Constraint::Length(1),
     ])
     .areas(area);
-    draw_now(frame, app, now);
+    // A space in from the window's sides, like the panes' content.
+    draw_now(frame, app, Rect::new(now.x + 1, now.y, now.width.saturating_sub(2), now.height));
     // A line across the top that the lines between the panes hang from; below,
     // they fade out instead of meeting a frame.
     let _ = lower;
