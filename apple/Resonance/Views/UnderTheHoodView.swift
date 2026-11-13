@@ -242,6 +242,8 @@ private struct TrackerTab: View {
     @Environment(\.voiceTheme) private var theme
     @State private var song: TrackerSong?
     @State private var problem: String?
+    /// The row being heard, set only when it changes.
+    @State private var row = 0
 
     private struct Tune: Hashable {
         let path: String
@@ -257,13 +259,15 @@ private struct TrackerTab: View {
         Group {
             if let song {
                 GeometryReader { space in
-                    TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !store.isPlaying)) { _ in
-                        let row = song.row(atSecs: store.visualizer.heardSecs ?? 0)
-                        let colors = (0..<3).map { theme.voice($0) }
-                        TrackerPage(song: song, tuneID: tune?.path ?? "", row: row, height: space.size.height, width: space.size.width, colors: colors)
-                            .equatable()
-                    }
+                    let colors = (0..<3).map { theme.voice($0) }
+                    TrackerPage(song: song, tuneID: tune?.path ?? "", row: row, height: space.size.height, width: space.size.width, colors: colors)
+                        .equatable()
                 }
+                // The row changes a few times a second; a timeline would
+                // update the window 30 times a second to find out.
+                .background(FrameTicker(framesPerSecond: 30, isActive: store.isPlaying, tick: followRow))
+                .onAppear(perform: followRow)
+                .onChange(of: store.elapsed) { followRow() }
             } else {
                 Text(problem ?? String(localized: "Rebuilding the tune from what its player writes…"))
                     .foregroundStyle(.secondary)
@@ -271,6 +275,12 @@ private struct TrackerTab: View {
             }
         }
         .task(id: tune) { await load() }
+    }
+
+    private func followRow() {
+        guard let song else { return }
+        let now = song.row(atSecs: store.visualizer.heardSecs ?? 0)
+        if now != row { row = now }
     }
 
     private func load() async {
@@ -283,6 +293,7 @@ private struct TrackerTab: View {
             let made = try await store.core.trackerSong(path: tune.path, subtune: UInt16(clamping: tune.song), secs: secs, chip: UInt32(clamping: tune.chip))
             guard !Task.isCancelled else { return }
             song = made
+            followRow()
         } catch {
             guard !Task.isCancelled else { return }
             problem = String(localized: "This tune couldn't be rebuilt.")

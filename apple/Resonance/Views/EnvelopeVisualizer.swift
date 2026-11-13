@@ -6,104 +6,270 @@ import PhosphorCore
 /// envelope plays: up the attack, down the decay, along the sustain, down
 /// the release. The settings sit above it, the current phase lit.
 ///
-/// Multi-SID tunes show their first chip. Drawn into one Canvas (see
-/// VisualizerView).
+/// Multi-SID tunes show their first chip. Made of Core Animation layers in
+/// an AppKit view, not a `Canvas`: see `FrameLinkedNSView` for why.
 struct EnvelopeVisualizer: View {
     /// False pauses it, e.g. while another page or Now Playing covers it.
     var isActive = true
 
     @Environment(PlayerStore.self) private var store
     @Environment(\.voiceTheme) private var theme
-    @State private var releases = ReleaseTracker()
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: VisualizerFeed.frameInterval, paused: !store.isPlaying || !isActive)) { _ in
-            let voices = store.visualizer.latest()?.chips.first?.voices ?? []
-            let _ = releases.update(voices)
-            Canvas { gc, size in
-                draw(voices: voices, in: gc, size: size)
-            }
-        }
-        .accessibilityElement()
-        .accessibilityLabel("Voice envelopes")
+        EnvelopeLayerView(feed: store.visualizer, theme: theme, isAnimating: store.isPlaying && isActive)
+            .accessibilityElement()
+            .accessibilityLabel("Voice envelopes")
+    }
+}
+
+private struct EnvelopeLayerView: NSViewRepresentable {
+    let feed: VisualizerFeed
+    let theme: VoiceTheme
+    let isAnimating: Bool
+
+    func makeNSView(context: Context) -> EnvelopeNSView {
+        let view = EnvelopeNSView()
+        view.apply(feed: feed, theme: theme, isAnimating: isAnimating)
+        return view
     }
 
+    func updateNSView(_ view: EnvelopeNSView, context: Context) {
+        view.apply(feed: feed, theme: theme, isAnimating: isAnimating)
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: EnvelopeNSView, context: Context) -> CGSize? {
+        proposal.replacingUnspecifiedDimensions(by: CGSize(width: 300, height: 166))
+    }
+}
+
+/// The envelopes in layers, a lane per voice: its panel, the shape's fill
+/// and outline (new paths only when the settings change), the dot (moved
+/// every frame), the four settings and the labels. The layers' origin is
+/// the bottom left; everything is worked out from the top left, as the
+/// shape is, and turned over.
+private final class EnvelopeNSView: FrameLinkedNSView {
     private static let gap: CGFloat = 6
-    private static let unlit = Color(red: 0x5E / 255, green: 0x5F / 255, blue: 0x66 / 255)
+    private static let unlit = CGColor(srgbRed: 0x5E / 255, green: 0x5F / 255, blue: 0x66 / 255, alpha: 1)
     private static let settingsSize: CGFloat = 11
     private static let minSettingsSize: CGFloat = 8
     private static let settingsGap: CGFloat = 5
     private static let minSettingsGap: CGFloat = 3
+    private static let dotSize: CGFloat = 9
+    private static let dotStroke: CGFloat = 2.5
 
-    private func draw(voices: [VizVoice], in gc: GraphicsContext, size: CGSize) {
-        let width = (size.width - Self.gap * 2) / 3
-        let laneHeight = size.height - VoiceLabels.height
+    /// What a lane's shape was drawn from.
+    fileprivate struct ShapeKey: Equatable {
+        let attack, decay, sustain, release: Int
+        let area: CGRect
+    }
 
-        for i in 0..<3 {
-            let color = theme.voice(i)
-            let lane = CGRect(x: CGFloat(i) * (width + Self.gap), y: 0, width: width, height: laneHeight)
-            gc.fill(Path(roundedRect: lane, cornerRadius: 6), with: .color(color.opacity(0.08)))
+    private final class Lane {
+        let panel = CALayer()
+        let fill = CAShapeLayer()
+        let outline = CAShapeLayer()
+        let dot = CAShapeLayer()
+        let settings = (0..<4).map { _ in CATextLayer() }
+        let labels: VoiceLabelLayers
+        var shape: ShapeKey?
 
-            let voice = i < voices.count ? voices[i] : nil
-            if let voice {
-                // Below the settings line, clear of the lane's edges.
-                let area = CGRect(x: lane.minX + 6, y: lane.minY + 26, width: lane.width - 12, height: lane.height - 34)
-                let shape = EnvelopeShape(voice, in: area)
-                gc.fill(shape.path(closed: true), with: .color(color.opacity(0.15)))
-                gc.stroke(shape.path(closed: false), with: .color(color.opacity(0.55)), lineWidth: 1.4)
-                if let point = shape.dot(for: voice, releasedFrom: releases.from[i]) {
-                    let dot = Path(ellipseIn: CGRect(x: point.x - 4.5, y: point.y - 4.5, width: 9, height: 9))
-                    gc.fill(dot, with: .color(.white))
-                    gc.stroke(dot, with: .color(color), lineWidth: 2.5)
-                }
-                drawSettings(voice, color: color, at: CGPoint(x: lane.minX + 6, y: lane.minY + 13),
-                             width: lane.width - 12, in: gc)
+        init(in parent: CALayer) {
+            // First: a class sets every stored property before it uses one.
+            labels = VoiceLabelLayers(in: parent)
+            for part in [panel, fill, outline, dot] as [CALayer] {
+                part.actions = VoiceLabelLayers.noActions
+                parent.addSublayer(part)
             }
-            VoiceLabels.draw(voice, color: color, centeredAt: lane.midX, top: laneHeight, in: gc)
+            panel.cornerRadius = 6
+            outline.fillColor = nil
+            outline.lineWidth = 1.4
+            outline.lineJoin = .miter
+            let size = EnvelopeNSView.dotSize + EnvelopeNSView.dotStroke
+            dot.bounds = CGRect(x: 0, y: 0, width: size, height: size)
+            dot.path = CGPath(ellipseIn: dot.bounds.insetBy(dx: EnvelopeNSView.dotStroke / 2, dy: EnvelopeNSView.dotStroke / 2),
+                              transform: nil)
+            dot.fillColor = CGColor(gray: 1, alpha: 1)
+            dot.lineWidth = EnvelopeNSView.dotStroke
+            dot.isHidden = true
+            for text in settings {
+                text.alignmentMode = .left
+                text.foregroundColor = EnvelopeNSView.unlit
+                text.actions = VoiceLabelLayers.noActions
+                parent.addSublayer(text)
+            }
         }
     }
 
-    /// "A0 D9 SA R0", one hex digit per setting as the SID stores them, with
-    /// the phase the voice is in lit in its color. Fits `width`: in a
-    /// narrow inspector the gaps close up first, then the text shrinks.
-    private func drawSettings(_ voice: VizVoice, color: Color, at origin: CGPoint, width: CGFloat,
-                              in gc: GraphicsContext) {
-        let lit: Int? = if voice.gate || voice.envLevel > 0 {
-            switch voice.envPhase {
-            case .attack: 0
-            case .decay: 1
-            case .sustain: 2
-            case .release: 3
-            }
-        } else {
-            nil
-        }
-        let settings = [("A", voice.attack), ("D", voice.decay), ("S", voice.sustain), ("R", voice.release)]
-            .map { $0.0 + String($0.1, radix: 16, uppercase: true) }
-        func resolve(size: CGFloat) -> [GraphicsContext.ResolvedText] {
-            settings.enumerated().map { k, setting in
-                gc.resolve(Text(setting)
-                    .font(.system(size: size, design: .monospaced))
-                    .foregroundStyle(k == lit ? color : Self.unlit))
-            }
-        }
-        func textWidth(_ texts: [GraphicsContext.ResolvedText]) -> CGFloat {
-            texts.reduce(0) { $0 + $1.measure(in: CGSize(width: 100, height: 20)).width }
-        }
+    private var feed: VisualizerFeed?
+    private var theme = VoiceTheme.resonance
+    private let releases = ReleaseTracker()
+    private var voices: [VizVoice] = []
+    private var lanes: [Lane] = []
 
-        var texts = resolve(size: Self.settingsSize)
-        var used = textWidth(texts)
+    init() {
+        super.init(framesPerSecond: VisualizerFeed.framesPerSecond)
+        if let layer { lanes = (0..<3).map { _ in Lane(in: layer) } }
+        paint()
+    }
+
+    func apply(feed: VisualizerFeed, theme: VoiceTheme, isAnimating: Bool) {
+        let first = self.feed == nil
+        self.feed = feed
+        let recolor = theme != self.theme
+        self.theme = theme
+        self.isAnimating = isAnimating
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        if recolor { paint() }
+        // Still: hold what shows.
+        if first { advance() }
+        render()
+        CATransaction.commit()
+    }
+
+    override func scaleChanged(to scale: CGFloat) {
+        for lane in lanes {
+            lane.labels.setScale(scale)
+            for text in lane.settings { text.contentsScale = scale }
+        }
+    }
+
+    override func layout() {
+        super.layout()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        placeLanes()
+        render()
+        CATransaction.commit()
+    }
+
+    override func frame(_ link: CADisplayLink) {
+        advance()
+        render()
+    }
+
+    private func advance() {
+        voices = feed?.latest()?.chips.first?.voices ?? []
+        releases.update(voices)
+    }
+
+    private func color(_ i: Int, _ alpha: Double) -> CGColor {
+        let rgb = theme.voices[i % 3]
+        return CGColor(srgbRed: rgb.red, green: rgb.green, blue: rgb.blue, alpha: alpha)
+    }
+
+    private func paint() {
+        for (i, lane) in lanes.enumerated() {
+            lane.panel.backgroundColor = color(i, 0.08)
+            lane.fill.fillColor = color(i, 0.15)
+            lane.outline.strokeColor = color(i, 0.55)
+            lane.dot.strokeColor = color(i, 1)
+        }
+    }
+
+    /// Voice `i`'s lane, measured from the top left.
+    private func lane(_ i: Int) -> CGRect {
+        let width = (bounds.width - Self.gap * 2) / 3
+        return CGRect(x: CGFloat(i) * (width + Self.gap), y: 0, width: width, height: bounds.height - VoiceLabels.height)
+    }
+
+    private func turned(_ rect: CGRect) -> CGRect {
+        CGRect(x: rect.minX, y: bounds.height - rect.maxY, width: rect.width, height: rect.height)
+    }
+
+    /// Everything that only moves with the size: the panels, the settings'
+    /// size and places, and the labels.
+    private func placeLanes() {
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        // "A0 D9 SA R0" fits the lane: in a narrow inspector the gaps close
+        // up first, then the text shrinks. Every setting is two characters
+        // of a monospaced font, so they're all as wide as one another.
+        let width = lane(0).width - 12
+        func settingWidth(_ font: NSFont) -> CGFloat {
+            ("A0" as NSString).size(withAttributes: [.font: font]).width
+        }
+        var font = NSFont.monospacedSystemFont(ofSize: Self.settingsSize, weight: .regular)
+        var used = 4 * settingWidth(font)
         let minGaps = 3 * Self.minSettingsGap
         if used + minGaps > width {
             let size = max(Self.settingsSize * (width - minGaps) / used, Self.minSettingsSize)
-            texts = resolve(size: size)
-            used = textWidth(texts)
+            font = NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
+            used = 4 * settingWidth(font)
         }
         let gap = min(max((width - used) / 3, Self.minSettingsGap), Self.settingsGap)
-        var x = origin.x
-        for text in texts {
-            gc.draw(text, at: CGPoint(x: x, y: origin.y), anchor: .leading)
-            x += text.measure(in: CGSize(width: 100, height: 20)).width + gap
+        let textWidth = settingWidth(font)
+        let lineHeight = (font.ascender - font.descender + font.leading).rounded(.up)
+
+        for (i, lane) in lanes.enumerated() {
+            let rect = self.lane(i)
+            VoiceLabelLayers.setFrame(lane.panel, turned(rect))
+            VoiceLabelLayers.setFrame(lane.fill, bounds)
+            VoiceLabelLayers.setFrame(lane.outline, bounds)
+            var x = rect.minX + 6
+            for text in lane.settings {
+                if text.font as? NSFont != font {
+                    text.font = font
+                    text.fontSize = font.pointSize
+                }
+                // Centered on a line 13 from the lane's top, as drawn with a leading anchor.
+                let frame = CGRect(x: x, y: rect.minY + 13 - lineHeight / 2, width: textWidth.rounded(.up) + 2, height: lineHeight)
+                VoiceLabelLayers.setFrame(text, turned(frame))
+                x += textWidth + gap
+            }
+            lane.labels.place(centeredAt: rect.midX, top: rect.height, width: rect.width, in: bounds.height)
+        }
+    }
+
+    /// The shapes, dots, settings and labels for what's being heard now.
+    private func render() {
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        var turnOver = CGAffineTransform(translationX: 0, y: bounds.height).scaledBy(x: 1, y: -1)
+        for (i, lane) in lanes.enumerated() {
+            let rect = self.lane(i)
+            let voice = i < voices.count ? voices[i] : nil
+            let shows = voice != nil
+            let parts: [CALayer] = [lane.fill, lane.outline] + lane.settings.map { $0 as CALayer }
+            for part in parts where part.isHidden == shows {
+                part.isHidden = !shows
+            }
+            lane.labels.show(voice, color: color(i, 1))
+            guard let voice else {
+                if !lane.dot.isHidden { lane.dot.isHidden = true }
+                continue
+            }
+
+            // Below the settings line, clear of the lane's edges.
+            let area = CGRect(x: rect.minX + 6, y: rect.minY + 26, width: rect.width - 12, height: rect.height - 34)
+            let shape = EnvelopeShape(voice, in: area)
+            let key = ShapeKey(attack: Int(voice.attack), decay: Int(voice.decay), sustain: Int(voice.sustain),
+                               release: Int(voice.release), area: area)
+            if lane.shape != key {
+                lane.shape = key
+                lane.fill.path = shape.path(closed: true).cgPath.copy(using: &turnOver)
+                lane.outline.path = shape.path(closed: false).cgPath.copy(using: &turnOver)
+            }
+            if let point = shape.dot(for: voice, releasedFrom: releases.from[i]) {
+                let position = CGPoint(x: point.x, y: bounds.height - point.y)
+                if lane.dot.position != position { lane.dot.position = position }
+                if lane.dot.isHidden { lane.dot.isHidden = false }
+            } else if !lane.dot.isHidden {
+                lane.dot.isHidden = true
+            }
+
+            let lit: Int? = if voice.gate || voice.envLevel > 0 {
+                switch voice.envPhase {
+                case .attack: 0
+                case .decay: 1
+                case .sustain: 2
+                case .release: 3
+                }
+            } else {
+                nil
+            }
+            let settings = [("A", voice.attack), ("D", voice.decay), ("S", voice.sustain), ("R", voice.release)]
+                .map { $0.0 + String($0.1, radix: 16, uppercase: true) }
+            for (k, text) in lane.settings.enumerated() {
+                VoiceLabelLayers.set(text, settings[k], color: k == lit ? color(i, 1) : Self.unlit)
+            }
         }
     }
 }

@@ -1208,33 +1208,86 @@ private struct ReferenceRow: View {
 }
 
 /// The hero's backdrop: three slow waves in the voice colors. Its own
-/// view, so its redraws never touch the hero's buttons.
+/// view, so its redraws never touch the hero's buttons. Made of shape
+/// layers moved by a display link, not a `Canvas` in a `TimelineView`:
+/// see `FrameLinkedNSView` for why.
 private struct HeroWaves: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.sectionIsCovered) private var isCovered
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion || isCovered)) { timeline in
-            let phase = reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate
-            Canvas { context, size in
-                let waves: [(y: Double, frequency: Double, color: Color)] = [
-                    (0.62, 1, Palette.teal), (0.5, 1.6, Palette.orange), (0.38, 2.3, Palette.purple),
-                ]
-                for (index, wave) in waves.enumerated() {
-                    var path = Path()
-                    var x = 0.0
-                    while x <= size.width {
-                        let envelope = sin(x / size.width * .pi)
-                        let speed = 0.6 + Double(index) * 0.2
-                        let y = size.height * wave.y
-                            + sin(x / 90 * wave.frequency + phase * speed) * 18 * envelope
-                            + sin(x / 30 + phase * 2 + Double(index)) * 4 * envelope
-                        if x == 0 { path.move(to: CGPoint(x: x, y: y)) } else { path.addLine(to: CGPoint(x: x, y: y)) }
-                        x += 3
-                    }
-                    context.stroke(path, with: .color(wave.color.opacity(0.45)), lineWidth: 1.5)
-                }
+        HeroWavesLayerView(isAnimating: !reduceMotion && !isCovered)
+    }
+}
+
+private struct HeroWavesLayerView: NSViewRepresentable {
+    let isAnimating: Bool
+
+    func makeNSView(context: Context) -> HeroWavesNSView {
+        let view = HeroWavesNSView()
+        view.isAnimating = isAnimating
+        return view
+    }
+
+    func updateNSView(_ view: HeroWavesNSView, context: Context) {
+        view.isAnimating = isAnimating
+    }
+}
+
+/// A shape layer per wave, its path worked out again every frame.
+private final class HeroWavesNSView: FrameLinkedNSView {
+    private static let waves: [(y: Double, frequency: Double, color: Color)] = [
+        (0.62, 1, Palette.teal), (0.5, 1.6, Palette.orange), (0.38, 2.3, Palette.purple),
+    ]
+    private let lines = waves.map { _ in CAShapeLayer() }
+
+    init() {
+        // Decoration, not something to follow: 30 fps is plenty.
+        super.init(framesPerSecond: 30)
+        for (line, wave) in zip(lines, Self.waves) {
+            line.fillColor = nil
+            line.lineWidth = 1.5
+            line.strokeColor = NSColor(wave.color.opacity(0.45)).cgColor
+            line.actions = ["path": NSNull()]
+            layer?.addSublayer(line)
+        }
+    }
+
+    override var isAnimating: Bool {
+        didSet { if !isAnimating { place(phase: 0) } }
+    }
+
+    override func layout() {
+        super.layout()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        for line in lines { line.frame = bounds }
+        place(phase: isAnimating ? Date.now.timeIntervalSinceReferenceDate : 0)
+        CATransaction.commit()
+    }
+
+    override func frame(_ link: CADisplayLink) {
+        place(phase: Date.now.timeIntervalSinceReferenceDate)
+    }
+
+    private func place(phase: Double) {
+        let size = bounds.size
+        guard size.width > 0, size.height > 0 else { return }
+        for (index, wave) in Self.waves.enumerated() {
+            let path = CGMutablePath()
+            var x = 0.0
+            while x <= size.width {
+                let envelope = sin(x / size.width * .pi)
+                let speed = 0.6 + Double(index) * 0.2
+                let y = size.height * wave.y
+                    + sin(x / 90 * wave.frequency + phase * speed) * 18 * envelope
+                    + sin(x / 30 + phase * 2 + Double(index)) * 4 * envelope
+                // Worked out from the top, as the layers' origin is the bottom left.
+                let point = CGPoint(x: x, y: size.height - y)
+                if x == 0 { path.move(to: point) } else { path.addLine(to: point) }
+                x += 3
             }
+            lines[index].path = path
         }
     }
 }

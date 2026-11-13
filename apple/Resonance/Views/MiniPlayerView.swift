@@ -282,31 +282,96 @@ struct MiniPlayerView: View {
 }
 
 /// The tune's three voices, traced over one another in the theme's
-/// colors: the player's artwork.
+/// colors: the player's artwork. Layers moved by a display link, not a
+/// `Canvas` in a `TimelineView` (see `FrameLinkedNSView`).
 private struct MiniScope: View {
     @Environment(PlayerStore.self) private var store
     @Environment(\.voiceTheme) private var theme
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: VisualizerFeed.frameInterval, paused: !store.isPlaying)) { _ in
-            let feed = store.visualizer
-            let voices = feed.latest()?.chips.first?.voices ?? []
-            let scope = voices.isEmpty ? nil : feed.scope(chip: 0, count: 1024)
-            Canvas { gc, size in
-                let rect = CGRect(origin: .zero, size: size).insetBy(dx: 5, dy: 9)
-                guard let scope else { return }
-                for i in 0..<min(3, voices.count, scope.voices.count) {
-                    let window = ScopeTrigger.window(
-                        scope.voices[i], hz: voices[i].hz, sampleRate: scope.sampleRate,
-                        pitched: voices[i].waveform & 0x7 != 0
-                    )
-                    gc.stroke(ScopeVisualizer.trace(window, in: rect), with: .color(theme.voice(i)),
-                              style: StrokeStyle(lineWidth: 1.3, lineJoin: .round))
-                }
+        MiniScopeLayerView(feed: store.visualizer, theme: theme, isAnimating: store.isPlaying)
+            .background(theme.background.color, in: .rect(cornerRadius: 10))
+            .accessibilityHidden(true)
+    }
+}
+
+private struct MiniScopeLayerView: NSViewRepresentable {
+    let feed: VisualizerFeed
+    let theme: VoiceTheme
+    let isAnimating: Bool
+
+    func makeNSView(context: Context) -> MiniScopeNSView {
+        let view = MiniScopeNSView()
+        view.apply(feed: feed, theme: theme, isAnimating: isAnimating)
+        return view
+    }
+
+    func updateNSView(_ view: MiniScopeNSView, context: Context) {
+        view.apply(feed: feed, theme: theme, isAnimating: isAnimating)
+    }
+}
+
+/// A line per voice, its path set every frame.
+private final class MiniScopeNSView: FrameLinkedNSView {
+    private var feed: VisualizerFeed?
+    private var theme: VoiceTheme?
+    private let lines = (0..<3).map { _ in CAShapeLayer() }
+
+    init() {
+        super.init(framesPerSecond: VisualizerFeed.framesPerSecond)
+        for line in lines {
+            line.fillColor = nil
+            line.lineWidth = 1.3
+            line.lineJoin = .round
+            line.actions = ["path": NSNull(), "strokeColor": NSNull()]
+            layer?.addSublayer(line)
+        }
+    }
+
+    func apply(feed: VisualizerFeed, theme: VoiceTheme, isAnimating: Bool) {
+        self.feed = feed
+        if theme != self.theme {
+            self.theme = theme
+            for (i, line) in lines.enumerated() {
+                let rgb = theme.voices[i % 3]
+                line.strokeColor = CGColor(srgbRed: rgb.red, green: rgb.green, blue: rgb.blue, alpha: 1)
             }
         }
-        .background(theme.background.color, in: .rect(cornerRadius: 10))
-        .accessibilityHidden(true)
+        self.isAnimating = isAnimating
+        update()
+    }
+
+    override func layout() {
+        super.layout()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        for line in lines { line.frame = bounds }
+        update()
+        CATransaction.commit()
+    }
+
+    override func frame(_ link: CADisplayLink) {
+        update()
+    }
+
+    private func update() {
+        guard let feed, bounds.width > 0, bounds.height > 0 else { return }
+        let voices = feed.latest()?.chips.first?.voices ?? []
+        let scope = voices.isEmpty ? nil : feed.scope(chip: 0, count: 1024)
+        let rect = bounds.insetBy(dx: 5, dy: 9)
+        // Worked out from the top left, as `trace` does, and turned over.
+        var turnOver = CGAffineTransform(translationX: 0, y: bounds.height).scaledBy(x: 1, y: -1)
+        for i in 0..<3 {
+            var trace: CGPath?
+            if let scope, i < voices.count, i < scope.voices.count {
+                let window = ScopeTrigger.window(
+                    scope.voices[i], hz: voices[i].hz, sampleRate: scope.sampleRate,
+                    pitched: voices[i].waveform & 0x7 != 0
+                )
+                trace = ScopeVisualizer.trace(window, in: rect).cgPath.copy(using: &turnOver)
+            }
+            lines[i].path = trace
+        }
     }
 }
 

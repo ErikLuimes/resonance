@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import PhosphorCore
 
@@ -103,16 +104,18 @@ struct MorphSphere: View {
         let points = MorphSphereShape(fingerprint)
         Group {
             if animated {
-                // Decoration, not something to follow: 30 fps is plenty.
-                TimelineView(.animation(minimumInterval: 1 / 30, paused: !isActive)) { timeline in
-                    canvas(points, angle: timeline.date.timeIntervalSinceReferenceDate * 0.45)
-                }
+                // Layers, not a Canvas in a TimelineView: see `FrameLinkedNSView`.
+                // The view takes the padding itself, so turning points can
+                // reach the rounded edge as they do in the still one.
+                MorphSphereLayerView(shape: points, zoom: zoom, isAnimating: isActive)
+                    .accessibilityElement()
+                    .accessibilityLabel(SoundBarcode.description(fingerprint.traits))
             } else {
                 canvas(points, angle: 0.6)
+                    .padding(4)
             }
         }
         // On the visualizers' backdrop, dark in either appearance.
-        .padding(4)
         .background(theme.background.color, in: .rect(cornerRadius: 8))
         .clipShape(.rect(cornerRadius: 8))
     }
@@ -186,6 +189,18 @@ nonisolated struct MorphSphereShape {
     }
 
     func draw(in context: inout GraphicsContext, size: CGSize, angle: Double, zoom: Double = 1) {
+        let small = size.width < 40
+        for p in project(size: size, angle: angle, zoom: zoom) {
+            let depth = (p.z + 1) / 2
+            let dot = small ? 0.9 : 0.7 + 1.3 * depth
+            let rect = CGRect(x: p.x - dot / 2, y: p.y - dot / 2, width: dot, height: dot)
+            context.fill(Path(rect), with: .color(Self.palette[p.color].opacity(small ? 0.95 : 0.25 + 0.7 * depth)))
+        }
+    }
+
+    /// The points turned by `angle`, seen in perspective and fitted to
+    /// `size` (from the top left), back to front.
+    func project(size: CGSize, angle: Double, zoom: Double = 1) -> [(z: Double, x: Double, y: Double, color: Int)] {
         let (cy, sy) = (cos(angle), sin(angle))
         let tilt = 0.3
         let (cx, sx) = (cos(tilt), sin(tilt))
@@ -202,12 +217,99 @@ nonisolated struct MorphSphereShape {
             return (z, size.width / 2 + x * scale * perspective, size.height / 2 - y * scale * perspective, p.color)
         }
         projected.sort { $0.z < $1.z }
-        let small = size.width < 40
-        for p in projected {
-            let depth = (p.z + 1) / 2
+        return projected
+    }
+}
+
+private struct MorphSphereLayerView: NSViewRepresentable {
+    let shape: MorphSphereShape
+    let zoom: Double
+    let isAnimating: Bool
+
+    func makeNSView(context: Context) -> MorphSphereNSView {
+        let view = MorphSphereNSView()
+        view.apply(shape: shape, zoom: zoom, isAnimating: isAnimating)
+        return view
+    }
+
+    func updateNSView(_ view: MorphSphereNSView, context: Context) {
+        view.apply(shape: shape, zoom: zoom, isAnimating: isAnimating)
+    }
+}
+
+/// The turning sphere in shape layers. A point's opacity and size follow
+/// its depth; the layers split the depth into bands, one layer per band
+/// and waveform color, drawn back to front, so each frame only builds a
+/// few paths of small squares and the window server draws them.
+private final class MorphSphereNSView: FrameLinkedNSView {
+    /// Enough that a band's step in opacity (0.7 / bands) doesn't show.
+    private static let bands = 12
+    private static let inset: CGFloat = 4
+
+    private var shape: MorphSphereShape?
+    private var zoom = 1.0
+    /// Band-major: `layers[band * palette.count + color]`.
+    private let layers: [CAShapeLayer]
+
+    init() {
+        let colors = MorphSphereShape.palette.count
+        layers = (0..<Self.bands * colors).map { _ in CAShapeLayer() }
+        // Decoration, not something to follow: 30 fps is plenty.
+        super.init(framesPerSecond: 30)
+        layer?.masksToBounds = true
+        for (k, part) in layers.enumerated() {
+            part.actions = ["path": NSNull()]
+            part.fillColor = NSColor(MorphSphereShape.palette[k % colors]).cgColor
+            layer?.addSublayer(part)
+        }
+    }
+
+    func apply(shape: MorphSphereShape, zoom: Double, isAnimating: Bool) {
+        self.shape = shape
+        self.zoom = zoom
+        self.isAnimating = isAnimating
+        place()
+    }
+
+    override func layout() {
+        super.layout()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        for part in layers { part.frame = bounds }
+        place()
+        CATransaction.commit()
+    }
+
+    override func frame(_ link: CADisplayLink) {
+        place()
+    }
+
+    /// Where it's turned to now, as the still one would be at 0.6.
+    private var angle: Double {
+        Date.now.timeIntervalSinceReferenceDate * 0.45
+    }
+
+    private func place() {
+        guard let shape else { return }
+        let area = bounds.insetBy(dx: Self.inset, dy: Self.inset)
+        guard area.width > 0, area.height > 0 else { return }
+        let colors = MorphSphereShape.palette.count
+        let small = area.width < 40
+        let paths = layers.map { _ in CGMutablePath() }
+        for p in shape.project(size: area.size, angle: angle, zoom: zoom) {
+            let depth = min(max((p.z + 1) / 2, 0), 1)
+            let band = small ? Self.bands - 1 : min(Int(depth * Double(Self.bands)), Self.bands - 1)
             let dot = small ? 0.9 : 0.7 + 1.3 * depth
-            let rect = CGRect(x: p.x - dot / 2, y: p.y - dot / 2, width: dot, height: dot)
-            context.fill(Path(rect), with: .color(Self.palette[p.color].opacity(small ? 0.95 : 0.25 + 0.7 * depth)))
+            // The layers' origin is the bottom left.
+            let rect = CGRect(x: area.minX + p.x - dot / 2, y: area.maxY - p.y - dot / 2, width: dot, height: dot)
+            paths[band * colors + p.color].addRect(rect)
+        }
+        for (k, part) in layers.enumerated() {
+            let band = k / colors
+            // Each band at its middle depth's opacity, as the Canvas draws a point.
+            let opacity = small ? 0.95 : 0.25 + 0.7 * (Double(band) + 0.5) / Double(Self.bands)
+            if part.opacity != Float(opacity) { part.opacity = Float(opacity) }
+            part.path = paths[k]
         }
     }
 }

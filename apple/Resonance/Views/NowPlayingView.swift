@@ -460,36 +460,60 @@ nonisolated enum NowPlayingVisual: String, CaseIterable, Identifiable {
     }
 }
 
-/// The three voices' waveform and note, redrawn every display frame. Fixed
-/// sizes, so changing notes never move anything.
+/// The three voices' waveform and note. Fixed sizes, so changing notes
+/// never move anything. Sampled every display frame, but the views only
+/// hear of it when a label changes.
 private struct VoiceChips: View {
     var isActive = true
 
     @Environment(PlayerStore.self) private var store
     @Environment(\.voiceTheme) private var theme
+    @State private var labels = Self.labels(nil)
+
+    /// What one chip shows.
+    nonisolated struct ChipLabel: Equatable {
+        var waveform: String
+        var note: String
+        var gate: Bool
+    }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: VisualizerFeed.frameInterval, paused: !store.isPlaying || !isActive)) { _ in
-            let voices = store.visualizer.latest()?.chips.first?.voices ?? []
-            VStack(spacing: 8) {
-                ForEach(0..<3, id: \.self) { i in
-                    chip(i, voice: i < voices.count ? voices[i] : nil)
-                }
+        VStack(spacing: 8) {
+            ForEach(0..<3, id: \.self) { i in
+                chip(i, label: labels[i])
             }
+        }
+        .background(FrameTicker(framesPerSecond: VisualizerFeed.framesPerSecond, isActive: store.isPlaying && isActive) { sample() })
+        .onAppear { sample() }
+        .onChange(of: store.isPlaying) { sample() }
+    }
+
+    private func sample() {
+        let latest = Self.labels(store.visualizer.latest()?.chips.first?.voices)
+        if latest != labels { labels = latest }
+    }
+
+    nonisolated private static func labels(_ voices: [VizVoice]?) -> [ChipLabel] {
+        let voices = voices ?? []
+        return (0..<3).map { i in
+            let voice = i < voices.count ? voices[i] : nil
+            let sounding = voice.map { $0.gate || $0.envLevel > 0 } ?? false
+            let waveform = voice?.waveformName ?? ""
+            return ChipLabel(waveform: waveform.isEmpty ? "—" : waveform,
+                         note: (sounding ? voice?.note : nil) ?? "—",
+                         gate: voice?.gate == true)
         }
     }
 
-    private func chip(_ i: Int, voice: VizVoice?) -> some View {
-        let sounding = voice.map { $0.gate || $0.envLevel > 0 } ?? false
-        let waveform = voice?.waveformName ?? ""
-        return HStack {
-            Text("V\(i + 1) \(waveform.isEmpty ? "—" : waveform)")
+    private func chip(_ i: Int, label: ChipLabel) -> some View {
+        HStack {
+            Text("V\(i + 1) \(label.waveform)")
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(.white.opacity(0.55))
             Spacer(minLength: 8)
-            Text((sounding ? voice?.note : nil) ?? "—")
+            Text(label.note)
                 .font(.system(size: 20, weight: .semibold, design: .monospaced))
-                .foregroundStyle(voice?.gate == true ? theme.voice(i) : .white.opacity(0.35))
+                .foregroundStyle(label.gate ? theme.voice(i) : .white.opacity(0.35))
         }
         .lineLimit(1)
         .padding(.horizontal, 12)
