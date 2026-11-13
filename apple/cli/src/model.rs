@@ -107,6 +107,22 @@ pub struct Status {
     /// The list it's playing from; an app before this didn't say.
     #[serde(default)]
     pub source: Option<String>,
+    /// The engine can scrub within a tune; `None` from an app before scrubbing.
+    #[serde(default)]
+    pub can_seek: Option<bool>,
+    /// A scrub is running: `elapsed` already says where it's going.
+    #[serde(default)]
+    pub seeking: bool,
+    /// While scrubbing: how far the emulation has gotten on its way there.
+    #[serde(default)]
+    pub seek_position: Option<f64>,
+    /// Changes when the playlists, their tunes, Favorites or My Playlist do;
+    /// `None` from an app before it.
+    #[serde(default)]
+    pub lists_revision: Option<String>,
+    /// How many tunes My Playlist has; `None` from an app before it.
+    #[serde(default)]
+    pub my_playlist_count: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -115,6 +131,10 @@ pub struct PlaylistInfo {
     pub name: String,
     pub count: u32,
     pub is_favorites: bool,
+    /// My Playlist, the list the app plays from: the terminal app adds it after
+    /// Favorites, as the app's sidebar has it.
+    #[serde(default)]
+    pub is_mine: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

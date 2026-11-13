@@ -122,6 +122,10 @@ pub fn bar(focused: bool) -> Color {
 pub fn faint() -> Color {
     color(FAINT)
 }
+/// The playhead.
+pub fn white() -> Color {
+    color(WHITE)
+}
 pub fn cyan() -> Color {
     color(CYAN)
 }

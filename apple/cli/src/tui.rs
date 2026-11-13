@@ -65,6 +65,8 @@ pub enum View {
     Search,
     Recent,
     Playlist(String),
+    /// My Playlist, the list the app plays from.
+    MyPlaylist,
     /// Sounds Like, by the seed's title.
     Like(String),
     /// A Smart Playlist from a sentence.
@@ -214,6 +216,8 @@ pub enum Mode {
     DrawerClosing(Instant),
     /// Reading the update announcement, this many lines down.
     Reading(usize),
+    /// Choosing a point in the tune to scrub to, in seconds.
+    Scrub(f64),
 }
 
 /// Under the hood's tune, kept while it's closed as it takes a moment to rebuild.
@@ -374,6 +378,8 @@ pub struct App {
     pub rows: Vec<Tune>,
     pub cursor: usize,
     pub marked: BTreeSet<String>,
+    /// The app's lists revision last seen, to notice changes made there.
+    lists_revision: Option<String>,
     /// The song list's first row on screen, kept between frames so it scrolls
     /// only as far as the cursor needs.
     list_top: std::cell::Cell<usize>,
@@ -436,6 +442,7 @@ impl App {
             rows: Vec::new(),
             cursor: 0,
             marked: BTreeSet::new(),
+            lists_revision: None,
             list_top: std::cell::Cell::new(0),
             focus: Focus::List,
             mode: Mode::Normal,
@@ -776,6 +783,7 @@ impl App {
                 None => return,
             },
             n => match self.lists.get(n - FIXED_ROWS) {
+                Some(list) if list.is_mine => View::MyPlaylist,
                 Some(list) => View::Playlist(list.name.clone()),
                 None => return,
             },
@@ -794,6 +802,7 @@ impl App {
             View::Search => self.send(tag, "search", json!({ "text": self.query, "limit": 200 })),
             View::Recent => self.send(tag, "recent", json!({ "limit": 200 })),
             View::Playlist(name) => self.send(tag, "playlist.show", json!({ "name": name })),
+            View::MyPlaylist => self.send(tag, "myplaylist.show", json!({})),
             View::Like(_) => {}
             View::Describe => {
                 self.rows = self.describing.tunes.clone();
@@ -875,6 +884,7 @@ impl App {
             Tag::Lists => {
                 if let Ok(lists) = serde_json::from_value(value) {
                     self.lists = lists;
+                    self.add_my_playlist();
                 }
             }
             Tag::Rows(generation) if generation == self.generation => {
@@ -888,7 +898,15 @@ impl App {
             Tag::Rows(_) => {}
             Tag::Status => {
                 self.status = serde_json::from_value(value).ok();
+                // For trying the bar of a tune of unknown length, which is rare:
+                // the app learns lengths quickly. `RESONANCE_UNKNOWN_LENGTH=1 resonance`
+                if std::env::var_os("RESONANCE_UNKNOWN_LENGTH").is_some() {
+                    if let Some(status) = self.status.as_mut() {
+                        status.duration = None;
+                    }
+                }
                 self.status_at = self.now;
+                self.follow_lists();
                 self.start_credits_music();
             }
             Tag::CreditsMusic => {}
@@ -972,6 +990,73 @@ impl App {
         };
         let elapsed = status.elapsed + since;
         status.duration.map_or(elapsed, |duration| elapsed.min(duration))
+    }
+
+    /// `t`: the bar takes the keys, with the point to go to where it's playing.
+    fn start_scrub(&mut self) {
+        let Some(status) = self.status.as_ref().filter(|s| s.now.is_some()) else {
+            self.message = Some("Nothing is playing.".into());
+            return;
+        };
+        if status.can_seek.is_none() {
+            self.message = Some("Scrubbing needs a newer Resonance app.".into());
+        } else if status.can_seek == Some(false) {
+            self.message = Some("Scrubbing needs the reSIDfp or SIDLite direct engine, in the app's Settings.".into());
+        } else if status.duration.filter(|d| *d > 0.0).is_none() {
+            self.message = Some("This tune's length isn't known, so there's no point to scrub to.".into());
+        } else {
+            self.mode = Mode::Scrub(self.elapsed());
+        }
+    }
+
+    /// Moving the point to scrub to: ← → by 5 seconds, with ⇧ by 30, a digit
+    /// to that tenth of the tune; ↵ goes there, Esc or `t` lets the bar go.
+    fn key_scrub(&mut self, key: KeyEvent, target: f64) {
+        let Some(duration) = self.status.as_ref().and_then(|s| s.duration).filter(|d| *d > 0.0) else { return };
+        let step = if key.modifiers.contains(KeyModifiers::SHIFT) { 30.0 } else { 5.0 };
+        let target = match key.code {
+            KeyCode::Left => target - step,
+            KeyCode::Right => target + step,
+            KeyCode::Home => 0.0,
+            KeyCode::End => duration,
+            KeyCode::Char(digit @ '0'..='9') => duration * f64::from(digit as u8 - b'0') / 10.0,
+            KeyCode::Char('p') => {
+                self.ack(None, false, "toggle", json!({}));
+                target
+            }
+            KeyCode::Enter => {
+                self.ack(None, false, "seek", json!({ "seconds": target }));
+                return;
+            }
+            KeyCode::Esc | KeyCode::Char('t') | KeyCode::Char('q') => return,
+            _ => target,
+        };
+        self.mode = Mode::Scrub(target.clamp(0.0, duration));
+    }
+
+    /// The bar's picture: a point being chosen, a scrub catching up, or play.
+    fn bar(&self) -> viz::Bar {
+        let duration = self.status.as_ref().and_then(|s| s.duration).filter(|d| *d > 0.0);
+        let share = |seconds: f64| duration.map(|d| (seconds / d).clamp(0.0, 1.0));
+        let sweep = (self.elapsed() / 2.0).fract();
+        match (&self.mode, self.status.as_ref()) {
+            (Mode::Scrub(target), _) => viz::Bar { played: self.progress(), chosen: share(*target), sweep },
+            // As in the app: the point it's going to in gray, the emulation's
+            // real position racing up to it in the accent.
+            (_, Some(status)) if status.seeking => {
+                viz::Bar { played: share(status.seek_position.unwrap_or(0.0)).or(Some(0.0)), chosen: share(status.elapsed), sweep }
+            }
+            _ => viz::Bar { played: self.progress(), chosen: None, sweep },
+        }
+    }
+
+    /// The time beside the bar: the point being chosen, or the scrub's way there.
+    fn bar_time(&self) -> f64 {
+        match (&self.mode, self.status.as_ref()) {
+            (Mode::Scrub(target), _) => *target,
+            (_, Some(status)) if status.seeking => status.seek_position.unwrap_or(0.0),
+            _ => self.elapsed(),
+        }
     }
 
     fn progress(&self) -> Option<f64> {
@@ -1094,6 +1179,33 @@ impl App {
         self.rows.get(self.cursor).map(|t| vec![t.path.clone()]).unwrap_or_default()
     }
 
+    /// My Playlist after Favorites, from an app that tells how long it is.
+    fn add_my_playlist(&mut self) {
+        let Some(count) = self.status.as_ref().and_then(|s| s.my_playlist_count) else { return };
+        match self.lists.iter_mut().find(|l| l.is_mine) {
+            Some(mine) => mine.count = count,
+            None => {
+                let at = self.lists.iter().position(|l| l.is_favorites).map_or(0, |i| i + 1);
+                self.lists.insert(at, PlaylistInfo { name: "My Playlist".into(), count, is_favorites: false, is_mine: true });
+            }
+        }
+    }
+
+    /// When something changed the playlists, Favorites or My Playlist, in the
+    /// app or here: read the lists again, and the one showing if it's one of them.
+    fn follow_lists(&mut self) {
+        self.add_my_playlist();
+        let Some(revision) = self.status.as_ref().and_then(|s| s.lists_revision.clone()) else { return };
+        let changed = self.lists_revision.as_ref().is_some_and(|seen| *seen != revision);
+        self.lists_revision = Some(revision);
+        if changed {
+            self.send(Tag::Lists, "playlist.list", json!({}));
+            if matches!(self.view, View::Playlist(_) | View::MyPlaylist) {
+                self.reload();
+            }
+        }
+    }
+
     fn current_playlist(&self) -> Option<String> {
         match &self.view {
             View::Playlist(name) => Some(name.clone()),
@@ -1154,6 +1266,7 @@ impl App {
             Mode::Visual => self.key_visual(key),
             Mode::Credits(started) => self.key_credits(key, started),
             Mode::Reading(top) => self.key_reading(key, top),
+            Mode::Scrub(target) => self.key_scrub(key, target),
             Mode::Drawer(since) => self.key_drawer(key, since),
             Mode::DrawerClosing(since) => self.mode = Mode::DrawerClosing(since),
             Mode::AddTo(cursor) => self.key_add_to(key, cursor),
@@ -1241,6 +1354,7 @@ impl App {
                 self.marked.clear();
                 self.reload();
             }
+            KeyCode::Char('t') => self.start_scrub(),
             KeyCode::Char('p') => self.ack(None, false, "toggle", json!({})),
             KeyCode::Char('>') | KeyCode::Char('.') => self.ack(None, false, "next", json!({})),
             KeyCode::Char('<') | KeyCode::Char(',') => self.ack(None, false, "prev", json!({})),
@@ -1364,6 +1478,7 @@ impl App {
             View::Playlist(name) => {
                 self.ack(None, false, "playlist.play", json!({ "name": name, "start": start }));
             }
+            View::MyPlaylist => self.ack(None, false, "myplaylist.play", json!({ "count": self.cursor })),
             view => {
                 let paths: Vec<String> = self.rows.iter().map(|t| t.path.clone()).collect();
                 let mut args = json!({ "paths": paths, "start": start });
@@ -1578,7 +1693,7 @@ fn draw_screen(frame: &mut Frame, app: &App) {
         Mode::Reading(top) => draw_announcement(frame, app, *top),
         Mode::Drawer(since) => draw_drawer(frame, app, *since, false),
         Mode::DrawerClosing(since) => draw_drawer(frame, app, *since, true),
-        Mode::Normal | Mode::Search | Mode::Jump(_) | Mode::Describing(_) | Mode::Visual | Mode::Credits(_) => {}
+        Mode::Normal | Mode::Search | Mode::Jump(_) | Mode::Describing(_) | Mode::Visual | Mode::Credits(_) | Mode::Scrub(_) => {}
     }
 }
 
@@ -1993,7 +2108,7 @@ fn draw_transport(frame: &mut Frame, app: &App, area: Rect) {
     .areas(area);
     frame.render_widget(Paragraph::new(Line::styled(controls, Style::new().fg(palette::text()))), left);
     let loudest = app.ears.latest().iter().fold(0.0_f32, |most, voice| most.max(voice.level));
-    viz::progress(frame.buffer_mut(), strip, app.progress().unwrap_or(0.0), loudest, app.ears.heard);
+    viz::progress(frame.buffer_mut(), strip, app.bar(), loudest, app.ears.heard);
     frame.render_widget(Paragraph::new(total).alignment(Alignment::Right), right);
 }
 
@@ -2222,8 +2337,16 @@ fn draw_sidebar(frame: &mut Frame, app: &App, area: Rect) {
         .iter()
         .enumerate()
         .map(|(i, list)| {
-            let mut spans = name(list.name.clone(), app.sidebar == FIXED_ROWS + i);
-            spans.push(Span::styled(format!(" {}", list.count), dim()));
+            // A long name gives way, so its count always shows.
+            let count = format!(" {}", list.count);
+            let room = (lists_area.width as usize).saturating_sub(2 + count.chars().count());
+            let shown = if list.name.chars().count() > room {
+                format!("{}…", list.name.chars().take(room.saturating_sub(1)).collect::<String>())
+            } else {
+                list.name.clone()
+            };
+            let mut spans = name(shown, app.sidebar == FIXED_ROWS + i);
+            spans.push(Span::styled(count, dim()));
             ListItem::new(Line::from(spans))
         })
         .collect();
@@ -2269,6 +2392,7 @@ fn list_title(app: &App) -> String {
         },
         View::Recent => "▓▒░ Recently Played".into(),
         View::Playlist(name) => format!("▓▒░ {name}"),
+        View::MyPlaylist => "▓▒░ My Playlist".into(),
         View::Like(title) => format!("▓▒░ Sounds like {title}"),
         View::Composer { title, .. } => format!("▓▒░ {title}"),
         View::Curated { name, .. } => format!("▓▒░ {name}"),
@@ -3130,12 +3254,13 @@ fn draw_progress(frame: &mut Frame, app: &App, area: Rect) {
     let Some(status) = app.status.as_ref().filter(|s| s.now.is_some()) else { return };
     let [strip, share, _, time] = Layout::horizontal([Constraint::Min(1), Constraint::Length(5), Constraint::Length(2), Constraint::Length(13)]).areas(area);
     let loudest = app.ears.latest().iter().fold(0.0_f32, |most, voice| most.max(voice.level));
-    viz::progress(frame.buffer_mut(), strip, app.progress().unwrap_or(0.0), loudest, app.ears.heard);
-    if let Some(done) = app.progress() {
+    let bar = app.bar();
+    viz::progress(frame.buffer_mut(), strip, bar, loudest, app.ears.heard);
+    if let Some(done) = bar.chosen.or(bar.played) {
         let percent = format!("{:.0}%", (done * 100.0).clamp(0.0, 100.0));
         frame.render_widget(Paragraph::new(Line::styled(percent, dim())).alignment(Alignment::Right), share);
     }
-    let elapsed = app.elapsed();
+    let elapsed = app.bar_time();
     let words = match status.duration {
         Some(duration) => format!("{} / {}", clock(elapsed), clock(duration)),
         None => clock(elapsed),
@@ -3185,6 +3310,9 @@ fn bar_keys(app: &App) -> Vec<(&'static str, &'static str)> {
     let movement = (scheme.choose("↑ ↓", "j k", "⌃N ⌃P"), "move");
     if matches!(app.mode, Mode::Reading(_)) {
         return vec![("↑ ↓", "read"), ("esc", "close")];
+    }
+    if matches!(app.mode, Mode::Scrub(_)) {
+        return vec![(scheme.choose("← →", "h l", "⌃B ⌃F"), "5 s"), ("⇧", "30 s"), ("0–9", "jump"), ("↵", "go there"), ("esc", "cancel")];
     }
     if matches!(app.mode, Mode::Drawer(_) | Mode::DrawerClosing(_)) {
         let mut keys = if app.tracker.tab == 0 {
@@ -3293,7 +3421,7 @@ fn help_lines(scheme: KeyScheme) -> [(&'static str, &'static str); 21] {
         (pick("Tab  ← →", "Tab  h l", "Tab  ⌃B ⌃F"), "Sidebar or list"),
         ("↵", "Open, or play from here"),
         (pick("/", "/", "/  ⌃S"), "Search the collection"),
-        ("p", "Pause or resume"),
+        ("p  t", "Pause or resume, or scrub to a point"),
         (". ,", "Next or previous tune"),
         ("r  S  T", "Surprise Me; Home: shuffle, Top 100"),
         ("␣", "Mark a tune"),
@@ -3499,8 +3627,8 @@ mod tests {
         let mut app = App::new();
         app.outbox.clear();
         app.lists = vec![
-            PlaylistInfo { name: "Favorites".into(), count: 2, is_favorites: true },
-            PlaylistInfo { name: "Late Night".into(), count: 3, is_favorites: false },
+            PlaylistInfo { name: "Favorites".into(), count: 2, is_favorites: true, is_mine: false },
+            PlaylistInfo { name: "Late Night".into(), count: 3, is_favorites: false, is_mine: false },
         ];
         app.view = View::Playlist("Late Night".into());
         app.sidebar = 4;
@@ -3714,6 +3842,11 @@ mod tests {
             has_collection: true,
             favorite: true,
             source: None,
+            can_seek: None,
+            seeking: false,
+            seek_position: None,
+            lists_revision: None,
+            my_playlist_count: None,
         });
         let shown = screen(&app);
         for expected in ["Favorites", "Late Night", "Recently Played", "COMPOSER", "♪ B", "subtune 1 of 3", "1:24 / 4:12", "♥"] {
@@ -3734,6 +3867,11 @@ mod tests {
             has_collection: true,
             favorite: false,
             source: None,
+            can_seek: None,
+            seeking: false,
+            seek_position: None,
+            lists_revision: None,
+            my_playlist_count: None,
         });
         let shown = screen(&app);
         assert!(shown.contains("  ○ A "), "{shown}");
@@ -4418,6 +4556,81 @@ mod tests {
             let all = rail_lines(&app, &tune, 38, 30).iter().map(ToString::to_string).collect::<Vec<_>>().join("\n");
             assert!(all.contains(words), "{scheme:?}\n{all}");
         }
+    }
+
+    #[test]
+    fn t_scrubs_only_where_the_engine_can() {
+        let mut app = app();
+        app.status = Some(playing("playing"));
+        press(&mut app, KeyCode::Char('t'));
+        assert!(matches!(app.mode, Mode::Normal));
+        assert!(app.message.as_deref().is_some_and(|m| m.contains("newer")), "an app before scrubbing");
+        app.status.as_mut().unwrap().can_seek = Some(false);
+        press(&mut app, KeyCode::Char('t'));
+        assert!(app.message.as_deref().is_some_and(|m| m.contains("reSIDfp")));
+    }
+
+    #[test]
+    fn scrubbing_moves_a_point_and_enter_goes_there() {
+        let mut app = app();
+        let mut status = playing("paused");
+        status.can_seek = Some(true);
+        app.status = Some(status);
+        press(&mut app, KeyCode::Char('t'));
+        assert!(matches!(app.mode, Mode::Scrub(t) if t == 10.0));
+        press(&mut app, KeyCode::Right);
+        app.key(KeyEvent::new(KeyCode::Right, KeyModifiers::SHIFT));
+        assert!(matches!(app.mode, Mode::Scrub(t) if t == 45.0));
+        assert_eq!(app.bar().chosen, Some(0.45));
+        press(&mut app, KeyCode::Char('9'));
+        assert!(matches!(app.mode, Mode::Scrub(t) if (t - 90.0).abs() < 1e-9));
+        press(&mut app, KeyCode::Enter);
+        assert!(matches!(app.mode, Mode::Normal));
+        let asked = sent(&mut app);
+        assert_eq!(asked.last().map(|(cmd, args)| (*cmd, args["seconds"].as_f64())), Some(("seek", Some(90.0))));
+    }
+
+    #[test]
+    fn a_running_scrub_fills_gray_to_where_it_goes_and_races_up_in_the_accent() {
+        let mut app = app();
+        let mut status = playing("playing");
+        status.seeking = true;
+        status.elapsed = 80.0;
+        status.seek_position = Some(20.0);
+        app.status = Some(status);
+        let bar = app.bar();
+        assert_eq!((bar.played, bar.chosen), (Some(0.2), Some(0.8)));
+        assert_eq!(app.bar_time(), 20.0);
+    }
+
+    fn status_with(revision: &str, mine: u32) -> Value {
+        json!({ "state": "playing", "elapsed": 0.0, "duration": 100.0, "hasCollection": true, "favorite": false,
+                "listsRevision": revision, "myPlaylistCount": mine })
+    }
+
+    #[test]
+    fn my_playlist_follows_favorites_and_plays_from_its_row() {
+        let mut app = app();
+        app.reply(Tag::Status, Ok(status_with("1.1", 5)));
+        assert_eq!(app.lists.iter().map(|l| l.name.as_str()).collect::<Vec<_>>(), ["Favorites", "My Playlist", "Late Night"]);
+        app.sidebar = FIXED_ROWS + 1;
+        app.open_sidebar();
+        assert_eq!(app.view, View::MyPlaylist);
+        assert_eq!(sent(&mut app).last().map(|s| s.0), Some("myplaylist.show"));
+        app.reply(Tag::Rows(app.generation), Ok(json!([tune("A"), tune("B")])));
+        app.cursor = 1;
+        app.play_cursor();
+        assert_eq!(sent(&mut app).last().map(|s| (s.0, s.1["count"].as_u64())), Some(("myplaylist.play", Some(1))));
+    }
+
+    #[test]
+    fn a_change_in_the_app_reads_the_lists_again() {
+        let mut app = app();
+        app.reply(Tag::Status, Ok(status_with("1.1", 0)));
+        assert!(sent(&mut app).iter().all(|s| s.0 != "playlist.list"), "nothing changed yet");
+        app.reply(Tag::Status, Ok(status_with("2.1", 0)));
+        let asked: Vec<&str> = sent(&mut app).iter().map(|s| s.0).collect();
+        assert_eq!(asked, ["playlist.list", "playlist.show"], "the lists, and the playlist showing");
     }
 
     #[test]

@@ -225,7 +225,8 @@ final class PlayerStore {
     /// Where Download puts the collection, in Resonance's own folder.
     @ObservationIgnored let downloadHvscRoot: String?
     @ObservationIgnored private var isShutDown = false
-    @ObservationIgnored private var playlistRevision: UInt64?
+    /// Goes up when My Playlist changes.
+    @ObservationIgnored private(set) var playlistRevision: UInt64?
     @ObservationIgnored private var pollTask: Task<Void, Never>?
 
     /// Reads the saved settings from `defaults` and starts a core configured

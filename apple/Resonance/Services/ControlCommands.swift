@@ -36,6 +36,7 @@ final class ControlCommands {
         var count: Int?
         var detail: Bool?
         var chip: Int?
+        var seconds: Double?
     }
 
     struct Failure: Error {
@@ -57,6 +58,15 @@ final class ControlCommands {
         var score: Double?
         /// When it was last played, in seconds since 1970, in Recently Played.
         var playedAt: UInt64?
+
+        init(_ item: PlaylistItem) {
+            path = item.path
+            title = item.title
+            author = item.author
+            released = item.released
+            songs = Int(item.songs)
+            secs = item.durationSecs.map(Int.init)
+        }
 
         init(_ item: HvscTuneItem, score: Double? = nil, playedAt: UInt64? = nil) {
             path = item.path
@@ -89,6 +99,17 @@ final class ControlCommands {
         let favorite: Bool
         /// The list it's playing from.
         let source: String?
+        /// The engine can scrub within a tune (reSIDfp and SIDLite direct).
+        let canSeek: Bool
+        /// A scrub is running: `elapsed` already says where it's going.
+        let seeking: Bool
+        /// While scrubbing: how far the emulation has gotten on its way there.
+        let seekPosition: Double?
+        /// Changes when the playlists, their tunes, Favorites or My Playlist
+        /// do, so the terminal app can read them again.
+        let listsRevision: String
+        /// How many tunes My Playlist has.
+        let myPlaylistCount: Int
     }
 
     struct PlaylistInfo: Encodable {
@@ -343,6 +364,13 @@ final class ControlCommands {
         case "pause":
             if player.isPlaying { player.playPause() }
             return done()
+        case "seek":
+            guard player.canSeek else {
+                throw Failure("Scrubbing needs the reSIDfp or SIDLite direct engine, in Settings.")
+            }
+            guard let seconds = args.seconds, seconds.isFinite else { throw Failure("Say where to go, in seconds.") }
+            player.seek(to: player.duration.map { min(seconds, $0) } ?? seconds)
+            return done()
         case "toggle":
             player.playPause()
             return done()
@@ -478,6 +506,14 @@ final class ControlCommands {
             var lists = [PlaylistInfo(name: "Favorites", count: playlists.favorites?.count ?? 0, isFavorites: true)]
             lists += playlists.playlists.map { PlaylistInfo(name: $0.name, count: playlists.read($0).count, isFavorites: false) }
             return answer(lists)
+        case "myplaylist.show":
+            return answer(player.rows.map { Tune($0.item) })
+        case "myplaylist.play":
+            guard let index = args.count, player.rows.indices.contains(index) else {
+                throw Failure("There's no tune there in My Playlist.")
+            }
+            player.play(index: index)
+            return done()
         case "playlist.show":
             return answer(try await tunes(of: try target(args.name)))
         case "playlist.play":
@@ -566,7 +602,12 @@ final class ControlCommands {
             duration: player.duration,
             hasCollection: player.hasCollection,
             favorite: track.map { playlists.isFavorite($0.path) } ?? false,
-            source: player.source?.name
+            source: player.source?.name,
+            canSeek: player.canSeek,
+            seeking: player.seeking,
+            seekPosition: player.seekPosition,
+            listsRevision: "\(playlists.revision).\(player.playlistRevision ?? 0)",
+            myPlaylistCount: player.rows.count
         )
     }
 

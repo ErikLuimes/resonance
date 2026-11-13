@@ -124,21 +124,56 @@ fn put(buffer: &mut Buffer, x: u16, y: u16, ch: char, color: Color) {
     }
 }
 
-/// The bar: ▰ in the accent for what's played, with a glint running along it
-/// and a head that brightens with the music's level, and ▱ in gray for what's left.
-pub fn progress(buffer: &mut Buffer, area: Rect, ratio: f64, level: f32, heard: u64) {
+/// What the bar shows, each as a share of the tune from 0 to 1.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Bar {
+    /// Played, in the accent; `None` when the tune's length isn't known.
+    pub played: Option<f64>,
+    /// A point chosen to scrub to, or one being caught up with: filled in gray
+    /// between it and what's played.
+    pub chosen: Option<f64>,
+    /// For a tune of unknown length: where the sweep is, from 0 to 1.
+    pub sweep: f64,
+}
+
+/// The bar: ▰ in the accent for what's played, with a glint running along it,
+/// ▰ in gray up to a point chosen to scrub to, and ▱ in gray for what's left.
+/// The playhead, or the point being chosen, is a white ●, like the knob on a
+/// Mac slider, so it's easy to find. A tune of unknown length
+/// gets a short run of ▰ in light gray sweeping across instead, as Apple's
+/// indeterminate bar: nothing is played or chosen, so there's no accent.
+pub fn progress(buffer: &mut Buffer, area: Rect, bar: Bar, level: f32, heard: u64) {
     if area.width == 0 || area.height == 0 {
         return;
     }
-    let played = (f64::from(area.width) * ratio.clamp(0.0, 1.0)).round() as u16;
-    let glint = (heard % 40) as i64;
     let y = area.y;
+    let cells = |share: f64| (f64::from(area.width) * share.clamp(0.0, 1.0)).round() as u16;
+    let Some(played) = bar.played else {
+        let run = (area.width / 6).max(3);
+        let start = (f64::from(area.width + run) * bar.sweep.clamp(0.0, 1.0)) as i32 - i32::from(run);
+        for column in 0..area.width {
+            let on = (start..start + i32::from(run)).contains(&i32::from(column));
+            put(buffer, area.x + column, y, if on { '▰' } else { '▱' }, if on { palette::text() } else { palette::muted() });
+        }
+        return;
+    };
+    let _ = level;
+    let played = cells(played);
+    let chosen = bar.chosen.map_or(played, cells);
+    let (blue, gray) = (played.min(chosen), played.max(chosen));
+    // The head: the point being chosen or caught up with, else the playhead,
+    // once anything has played.
+    let mark = if bar.chosen.is_some() { chosen } else { played };
+    let head = (bar.chosen.is_some() || played > 0).then(|| mark.saturating_sub(1).min(area.width - 1));
+    let glint = (heard % 40) as i64;
     for column in 0..area.width {
         let x = area.x + column;
-        if column >= played {
+        if head == Some(column) {
+            put(buffer, x, y, '●', palette::white());
+        } else if column >= gray {
             put(buffer, x, y, '▱', palette::muted());
-        } else if column + 1 == played {
-            put(buffer, x, y, '▰', palette::accent_light(1.0 - 0.6 * level.clamp(0.0, 1.0)));
+        } else if column >= blue {
+            put(buffer, x, y, '▰', palette::muted());
         } else if (i64::from(column) - glint).rem_euclid(40) < 2 {
             put(buffer, x, y, '▰', palette::accent_light(0.7));
         } else {
@@ -208,25 +243,54 @@ mod tests {
         assert_eq!(now[2].level, 0.0);
     }
 
+    fn known(played: f64) -> Bar {
+        Bar { played: Some(played), chosen: None, sweep: 0.0 }
+    }
+
     #[test]
     fn the_bar_draws_in_any_size_with_nothing_heard() {
         for (w, h) in [(0, 0), (1, 1), (4, 1), (80, 2), (3, 40)] {
             let area = Rect::new(0, 0, w, h);
-            progress(&mut Buffer::empty(area), area, 0.5, 0.5, 0);
+            progress(&mut Buffer::empty(area), area, known(0.5), 0.5, 0);
+            progress(&mut Buffer::empty(area), area, Bar { played: None, chosen: None, sweep: 0.5 }, 0.5, 0);
         }
+    }
+
+    #[test]
+    fn a_chosen_point_fills_in_gray_up_to_it() {
+        let area = Rect::new(0, 0, 10, 1);
+        let mut buffer = Buffer::empty(area);
+        progress(&mut buffer, area, Bar { played: Some(0.2), chosen: Some(0.6), sweep: 0.0 }, 1.0, 20);
+        assert_eq!(buffer[(1, 0)].fg, palette::accent());
+        assert_eq!(buffer[(4, 0)].fg, palette::muted());
+        assert_eq!(buffer[(4, 0)].symbol(), "▰");
+        assert_eq!(buffer[(5, 0)].symbol(), "●", "the point being chosen");
+        assert_eq!(buffer[(6, 0)].symbol(), "▱");
+    }
+
+    #[test]
+    fn an_unknown_length_sweeps_a_short_run() {
+        let area = Rect::new(0, 0, 30, 1);
+        let mut buffer = Buffer::empty(area);
+        progress(&mut buffer, area, Bar { played: None, chosen: None, sweep: 0.5 }, 0.0, 0);
+        let filled = (0..30).filter(|&x| buffer[(x, 0)].symbol() == "▰").count();
+        assert_eq!(filled, 5);
+        assert_eq!(buffer[(0, 0)].symbol(), "▱");
     }
 
     #[test]
     fn the_bar_shows_played_and_what_is_left() {
         let area = Rect::new(0, 0, 20, 1);
         let mut buffer = Buffer::empty(area);
-        progress(&mut buffer, area, 0.45, 1.0, 0);
+        progress(&mut buffer, area, known(0.45), 1.0, 0);
         assert_eq!(buffer[(0, 0)].symbol(), "▰");
-        assert_eq!(buffer[(8, 0)].symbol(), "▰");
+        assert_eq!(buffer[(7, 0)].symbol(), "▰");
+        assert_eq!(buffer[(8, 0)].symbol(), "●", "the playhead");
+        assert_eq!(buffer[(8, 0)].fg, palette::white());
         assert_eq!(buffer[(9, 0)].symbol(), "▱");
-        progress(&mut buffer, area, 1.0, 1.0, 0);
-        assert_eq!(buffer[(19, 0)].symbol(), "▰");
-        progress(&mut buffer, area, 0.0, 1.0, 0);
+        progress(&mut buffer, area, known(1.0), 1.0, 0);
+        assert_eq!(buffer[(19, 0)].symbol(), "●");
+        progress(&mut buffer, area, known(0.0), 1.0, 0);
         assert_eq!(buffer[(0, 0)].symbol(), "▱");
     }
 

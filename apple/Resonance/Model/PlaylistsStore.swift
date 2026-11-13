@@ -45,6 +45,9 @@ final class PlaylistsStore {
     private(set) var importing: String?
     /// What an import or a drop couldn't find, until dismissed.
     var importNotice: String?
+    /// Goes up on any change to the playlists, their tunes or Favorites, so
+    /// the terminal app knows to read them again.
+    @ObservationIgnored private(set) var revision: UInt64 = 0
 
     let player: PlayerStore
     /// Where the M3U files are.
@@ -72,6 +75,7 @@ final class PlaylistsStore {
 
     /// Re-read the folder.
     func reload() {
+        revision &+= 1
         let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
         playlists = files
             .filter { $0.pathExtension.lowercased() == "m3u" }
@@ -217,6 +221,7 @@ final class PlaylistsStore {
         }
         paths[playlist.id] = files
         rows[playlist.id] = nil
+        revision &+= 1
         return true
     }
 
@@ -271,6 +276,7 @@ final class PlaylistsStore {
         let found = await core.favoritePaths()
         favorites = found
         favoriteSet = Set(found)
+        revision &+= 1
         rows[Self.favoritesID] = nil
     }
 
