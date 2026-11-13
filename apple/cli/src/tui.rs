@@ -21,7 +21,7 @@ use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifier
 use ratatui::layout::{Alignment, Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Cell, Clear, List, ListItem, ListState, Paragraph, Row, Table, TableState};
+use ratatui::widgets::{Block, Borders, Cell, Clear, HighlightSpacing, List, ListItem, ListState, Paragraph, Row, Table, TableState};
 use ratatui::Frame;
 use serde_json::{json, Value};
 use std::collections::{BTreeSet, HashMap};
@@ -374,6 +374,9 @@ pub struct App {
     pub rows: Vec<Tune>,
     pub cursor: usize,
     pub marked: BTreeSet<String>,
+    /// The song list's first row on screen, kept between frames so it scrolls
+    /// only as far as the cursor needs.
+    list_top: std::cell::Cell<usize>,
     pub focus: Focus,
     pub mode: Mode,
     pub query: String,
@@ -433,6 +436,7 @@ impl App {
             rows: Vec::new(),
             cursor: 0,
             marked: BTreeSet::new(),
+            list_top: std::cell::Cell::new(0),
             focus: Focus::List,
             mode: Mode::Normal,
             query: String::new(),
@@ -1550,7 +1554,8 @@ fn draw_screen(frame: &mut Frame, app: &App) {
         return draw_visual(frame, app);
     }
     let area = frame.area();
-    let [now, upper, main, lower, keys] = Layout::vertical([
+    let [_, now, upper, main, lower, keys] = Layout::vertical([
+        Constraint::Length(TOP_ROWS),
         Constraint::Length(NOW_ROWS),
         Constraint::Length(1),
         Constraint::Min(1),
@@ -1559,9 +1564,11 @@ fn draw_screen(frame: &mut Frame, app: &App) {
     ])
     .areas(area);
     draw_now(frame, app, now);
-    header::draw_frame_edge(frame.buffer_mut(), upper, true);
+    // A line across the top that the lines between the panes hang from; below,
+    // they fade out instead of meeting a frame.
+    let _ = lower;
+    header::draw_top_line(frame.buffer_mut(), upper);
     draw_panes(frame, app, main);
-    header::draw_frame_edge(frame.buffer_mut(), lower, false);
     draw_keys(frame, app, keys);
     match &app.mode {
         Mode::AddTo(cursor) => draw_add_to(frame, app, *cursor),
@@ -1599,7 +1606,7 @@ fn thousands(n: u32) -> String {
 
 /// The collection's front door, as much of it as fits.
 fn draw_home(frame: &mut Frame, app: &App, area: Rect) {
-    let label = Style::new().fg(palette::accent()).add_modifier(Modifier::BOLD);
+    let label = Style::new().fg(palette::text()).add_modifier(Modifier::BOLD);
     let Some(info) = &app.hvsc else {
         let lines = vec![
             Line::styled("▓▒░ High Voltage SID Collection", label),
@@ -1612,12 +1619,12 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect) {
     let focused = app.focus == Focus::List;
     let items = app.home_items();
     let selected = items.get(app.cursor);
-    let band = |on: bool| if on && focused { cursor_style(true) } else { Style::new() };
+    let pointer = |on: bool| vec![chevron(on, focused), Span::raw(" ")];
 
     let mut title = vec![Span::styled("▓▒░ High Voltage SID Collection", label)];
     if let Some(version) = &info.version {
         title.push(Span::raw("  "));
-        title.push(Span::styled(format!(" Release {version} "), Style::new().bg(palette::accent()).fg(palette::background()).add_modifier(Modifier::BOLD)));
+        title.push(Span::styled(format!(" Release {version} "), Style::new().bg(palette::frame()).fg(palette::text()).add_modifier(Modifier::BOLD)));
     }
     let date = info.release_date.as_ref().map_or(String::new(), |d| format!("Released {d} · "));
     let coverage = if info.total_tunes == 0 { 0 } else { (u64::from(info.songlength_entries) * 100 / u64::from(info.total_tunes)).min(100) };
@@ -1629,7 +1636,7 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect) {
 
     let two_columns = area.width >= 76;
     let [head, body] = Layout::vertical([Constraint::Length(top.len() as u16 + 1), Constraint::Min(0)]).areas(area);
-    frame.render_widget(Paragraph::new(top), head);
+    frame.render_widget(Paragraph::new(top), plain(head));
     let [left, _, right] = Layout::horizontal([Constraint::Fill(1), Constraint::Length(u16::from(two_columns) * 2), Constraint::Fill(u16::from(two_columns))]).areas(body);
 
     let mut lines = vec![Line::styled("Browse", label)];
@@ -1638,12 +1645,15 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect) {
         let on = selected == Some(&HomeItem::Section(row));
         let share = if info.total_tunes == 0 { 0.0 } else { f64::from(count) / f64::from(info.total_tunes) };
         let lit = ((share * 12.0).round() as usize).clamp(1, 12);
-        lines.push(Line::from(vec![
-            Span::raw(format!("{name:<10}")),
+        let mut spans = pointer(on);
+        spans.extend([
+            Span::styled(name, underlined(on)),
+            Span::raw(" ".repeat(10 - name.len())),
             Span::styled("█".repeat(lit), Style::new().fg(color)),
             Span::styled("░".repeat(12 - lit), Style::new().fg(palette::faint())),
             Span::styled(format!(" {:>6}  {:>3.0}%", thousands(count), share * 100.0), dim()),
-        ]).style(band(on)));
+        ]);
+        lines.push(Line::from(spans));
     }
     let browse_rows = lines.len();
     if !app.rows.is_empty() {
@@ -1677,7 +1687,9 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect) {
             }
         }
         let on = selected == Some(&HomeItem::Announcement);
-        side.push(Line::styled("↵ read the announcement", if on { dim() } else { Style::new().fg(palette::faint()) }).style(band(on)));
+        let mut spans = pointer(on);
+        spans.push(Span::styled("↵ read the announcement", if on { dim().add_modifier(Modifier::UNDERLINED) } else { Style::new().fg(palette::faint()) }));
+        side.push(Line::from(spans));
         side.push(Line::raw(""));
     }
     if !info.playlists.is_empty() {
@@ -1690,66 +1702,70 @@ fn draw_home(frame: &mut Frame, app: &App, area: Rect) {
         let wide = right.width.max(left.width) as usize;
         for (n, list) in info.playlists.iter().enumerate().skip(first).take(room) {
             let on = selected == Some(&HomeItem::Playlist(n));
-            let name_width = wide.saturating_sub(6).min(40);
+            let name_width = wide.saturating_sub(8).min(40);
             let name: String = list.name.chars().take(name_width).collect();
-            side.push(Line::from(vec![Span::raw(format!("{name:<name_width$}")), Span::styled(format!("{:>5}", list.tracks), dim())]).style(band(on)));
+            let gap = " ".repeat(name_width - name.chars().count());
+            let mut spans = pointer(on);
+            spans.extend([Span::styled(name, underlined(on)), Span::raw(gap), Span::styled(format!("{:>5}", list.tracks), dim())]);
+            side.push(Line::from(spans));
         }
         let hidden = info.playlists.len().saturating_sub(first + room);
         if hidden > 0 {
-            side.push(Line::styled(format!("and {hidden} more below"), dim()));
+            side.push(more_below(hidden));
         }
     }
     if two_columns {
-        frame.render_widget(Paragraph::new(lines), left);
-        frame.render_widget(Paragraph::new(side), right);
+        frame.render_widget(Paragraph::new(plain_lines(lines)), left);
+        frame.render_widget(Paragraph::new(plain_lines(side)), right);
     } else {
         // What can be chosen first, so it's never below the window's edge.
         let rest = lines.split_off(browse_rows);
         lines.push(Line::raw(""));
         lines.extend(side);
         lines.extend(rest);
-        frame.render_widget(Paragraph::new(lines), left);
+        frame.render_widget(Paragraph::new(plain_lines(lines)), left);
     }
 }
 
 /// A section's composers, with the sound of their tunes on average.
 fn draw_composers(frame: &mut Frame, app: &App, area: Rect, section: &str) {
-    let [title, rest] = Layout::vertical([Constraint::Length(1), Constraint::Min(0)]).areas(area);
+    let [title, rest] = Layout::vertical([Constraint::Length(SECTION_ROWS), Constraint::Min(0)]).areas(area);
     let focused = app.focus == Focus::List;
     let heading_text = match &app.mode {
         Mode::Jump(text) => format!("▓▒░ Find: {text}▏"),
         _ => format!("▓▒░ {}", HVSC_ROWS.iter().find(|(_, s)| *s == Some(section)).map_or("HVSC", |(name, _)| *name)),
     };
-    frame.render_widget(self::heading(heading_text, focused), title);
+    heading(frame, heading_text, focused, title);
     if app.rows.is_empty() {
         frame.render_widget(Paragraph::new(Line::styled(" Reading the collection…", dim())), rest);
         return;
     }
     let prints = app.showing_prints();
-    let rows: Vec<Row> = app.rows.iter().map(|row| {
-        let mut cells = vec![Cell::from(row.title.clone()), Cell::from(row.songs.to_string())];
+    let rows: Vec<Row> = app.rows.iter().enumerate().map(|(i, row)| {
+        let mut cells = vec![Cell::from(Span::styled(row.title.clone(), underlined(i == app.cursor))), Cell::from(Span::styled(row.songs.to_string(), dim()))];
         if prints {
             cells.push(Cell::from(app.barcode(&row.path)));
         }
-        cells.push(Cell::from(row.released.clone()));
+        cells.push(Cell::from(Span::styled(row.released.clone(), dim())));
         Row::new(cells)
     }).collect();
     let mut widths = vec![Constraint::Fill(1), Constraint::Length(5)];
-    let mut names = vec!["Name", "Tunes"];
+    let mut names = vec!["NAME", "TUNES"];
     if prints {
         widths.push(Constraint::Length(fingerprint::SMALL_WIDTH));
-        names.push("Sound");
+        names.push("SOUND");
     }
     widths.push(Constraint::Length(9));
-    names.push("Years");
-    let table = Table::new(rows, widths).header(Row::new(names).style(dim())).row_highlight_style(cursor_style(focused));
-    let mut state = TableState::default().with_selected(Some(app.cursor));
-    frame.render_stateful_widget(table, rest, &mut state);
+    names.push("YEARS");
+    let table = Table::new(rows, widths).header(Row::new(names).style(dim()).bottom_margin(1));
+    draw_table(frame, app, table, rest, app.rows.len(), focused);
 }
 
 
 /// What's playing: its name, and a slim bar with the time beside it.
 const NOW_ROWS: u16 = 2;
+/// An empty row above the player's line, so it doesn't sit on the window's edge.
+const TOP_ROWS: u16 = 1;
 /// Seconds without a key before the visuals' extras go, as in the app's Now Playing.
 const EXTRAS_FOR: Duration = Duration::from_secs(3);
 
@@ -1855,7 +1871,7 @@ const PICKER: [(Page, &str); 5] = [
 ];
 
 fn picker_spans(app: &App, width: u16) -> Vec<Span<'static>> {
-    let chosen = Style::new().bg(palette::selection()).fg(palette::accent()).add_modifier(Modifier::BOLD);
+    let chosen = Style::new().bg(palette::selection()).fg(palette::text()).add_modifier(Modifier::BOLD);
     let spans: Vec<Span> = PICKER
         .iter()
         .map(|(page, key)| Span::styled(format!(" {key} {} ", page.name()), if *page == app.page { chosen } else { dim() }))
@@ -1906,7 +1922,7 @@ fn tune_lines(app: &App, rows: u16) -> Vec<Line<'static>> {
     let paused = status.state == "paused";
     let mut title = vec![Span::styled(
         now.title.clone(),
-        Style::new().fg(if paused { palette::muted() } else { palette::accent() }).add_modifier(Modifier::BOLD),
+        Style::new().fg(if paused { palette::muted() } else { palette::text() }).add_modifier(Modifier::BOLD),
     )];
     if status.favorite {
         title.push(Span::styled("  ♥", Style::new().fg(palette::red())));
@@ -2022,7 +2038,7 @@ fn draw_skull(frame: &mut Frame, app: &App, area: Rect) {
 
 fn pane(title: String, focused: bool) -> Block<'static> {
     let block = Block::default().borders(Borders::ALL).title(title);
-    block.border_style(Style::new().fg(if focused { palette::accent() } else { palette::faint() }))
+    block.border_style(Style::new().fg(if focused { palette::muted() } else { palette::faint() }))
 }
 
 fn column_width(window: u16, (percent, least, most): (u16, u16, u16)) -> u16 {
@@ -2030,8 +2046,31 @@ fn column_width(window: u16, (percent, least, most): (u16, u16, u16)) -> u16 {
 }
 
 /// One column between its edges, with a space either side of what's in it.
+/// A column's content: a space after the line on its left, two before the one
+/// on its right. Selectable rows start there with their chevron, ` ❯`; other
+/// content starts a column further in, two spaces from the line (`plain`).
 fn inside(column: Rect) -> Rect {
-    Rect::new(column.x + 1, column.y, column.width.saturating_sub(2), column.height)
+    Rect::new(column.x + 1, column.y, column.width.saturating_sub(3), column.height)
+}
+
+/// Where content that can't be selected starts: two spaces from the line.
+fn plain(area: Rect) -> Rect {
+    Rect::new(area.x + 1, area.y, area.width.saturating_sub(1), area.height)
+}
+
+/// Lines in an area shared with selectable rows: those that don't start with a
+/// chevron move a column in, to start two spaces from the line.
+fn plain_lines(lines: Vec<Line<'static>>) -> Vec<Line<'static>> {
+    lines
+        .into_iter()
+        .map(|mut line| {
+            let selectable = line.spans.first().is_some_and(|s| s.content == "❯" || s.content == " ") && line.spans.get(1).is_some_and(|s| s.content == " ");
+            if !selectable && !line.spans.is_empty() {
+                line.spans.insert(0, Span::raw(" "));
+            }
+            line
+        })
+        .collect()
 }
 
 /// The columns, each framed by shaded edges: as many as the window has room for.
@@ -2066,77 +2105,156 @@ fn draw_panes(frame: &mut Frame, app: &App, area: Rect) {
     }
 }
 
-fn heading(text: String, focused: bool) -> Paragraph<'static> {
-    let color = if focused { palette::accent() } else { palette::text() };
-    Paragraph::new(text).style(Style::new().fg(color).add_modifier(Modifier::BOLD))
+fn heading(frame: &mut Frame, text: String, focused: bool, area: Rect) {
+    heading_bar(frame, vec![Span::raw(text)], focused, area);
 }
 
-/// The cursor: a band that leaves what's under it its colors, brighter when its
-/// pane has the focus.
-fn cursor_style(focused: bool) -> Style {
-    Style::new().bg(if focused { palette::selection() } else { palette::quiet_selection() })
+/// A section's heading: white on a dark gray bar the pane's width, as on a BBS,
+/// a little lighter on the pane with the focus, then a thin line and an empty
+/// row: `SECTION_ROWS` in all.
+fn heading_bar(frame: &mut Frame, mut spans: Vec<Span<'static>>, focused: bool, area: Rect) {
+    if let Some(first) = spans.first_mut() {
+        if let Some(words) = first.content.strip_prefix("▓▒░ ") {
+            first.content = format!(" {words}").into();
+        }
+    }
+    let style = Style::new().bg(palette::bar(focused)).fg(palette::text()).add_modifier(Modifier::BOLD);
+    frame.render_widget(Paragraph::new(Line::from(spans)).style(style), Rect { height: area.height.min(1), ..area });
+    if area.height >= 2 {
+        rule(frame, Rect { y: area.y + 1, height: 1, ..area });
+    }
 }
+
+/// A thin line under a pane's heading, reaching into the pane's margins: it
+/// starts in a half line beside the line between the panes, and fades out
+/// over its last third, as those lines fade at the bottom.
+fn rule(frame: &mut Frame, area: Rect) {
+    let wide = Rect { x: area.x.saturating_sub(1), width: area.width + 2, height: area.height.min(1), ..area }.intersection(frame.area());
+    let fade = (wide.width / 3).max(1);
+    for n in 0..wide.width {
+        let left = wide.width - n;
+        let keep = if left > fade { 1.0 } else { f32::from(left) / f32::from(fade + 1) };
+        let ch = if n == 0 { '╶' } else { '─' };
+        if let Some(cell) = frame.buffer_mut().cell_mut((wide.x + n, wide.y)) {
+            cell.set_char(ch).set_fg(palette::frame_fading(keep));
+        }
+    }
+}
+
+/// The cursor in a list, as `resonance pick` draws it: a chevron, in the accent
+/// while its pane has the focus. One column wide, so put a space after it.
+fn chevron(on: bool, focused: bool) -> Span<'static> {
+    if !on {
+        return Span::raw(" ");
+    }
+    Span::styled("❯", Style::new().fg(if focused { palette::accent() } else { palette::muted() }).add_modifier(Modifier::BOLD))
+}
+
+/// The name under the cursor is underlined.
+fn underlined(on: bool) -> Style {
+    if on { Style::new().add_modifier(Modifier::UNDERLINED) } else { Style::new() }
+}
+
+/// Under a list that goes on past the window's edge.
+fn more_below(hidden: usize) -> Line<'static> {
+    Line::styled(format!("  ↓ {hidden} more"), dim())
+}
+
+/// A table with the chevron for its cursor and how many rows are below it,
+/// scrolled only as far as the cursor needs.
+/// Two spaces between its columns, and an empty row under their names, which
+/// are in capitals, as on a BBS: `HEADER_ROWS` above the first row.
+fn draw_table(frame: &mut Frame, app: &App, table: Table, area: Rect, total: usize, focused: bool) {
+    let fits = (area.height as usize).saturating_sub(HEADER_ROWS);
+    let [table_area, more_area] = Layout::vertical([Constraint::Min(0), Constraint::Length(u16::from(total > fits))]).areas(area);
+    let table = table.column_spacing(2).highlight_symbol(Line::from(vec![chevron(true, focused), Span::raw(" ")])).highlight_spacing(HighlightSpacing::Always);
+    let mut state = TableState::default().with_offset(app.list_top.get().min(total.saturating_sub(1))).with_selected(Some(app.cursor));
+    frame.render_stateful_widget(table, table_area, &mut state);
+    app.list_top.set(state.offset());
+    let hidden = total.saturating_sub(state.offset() + (table_area.height as usize).saturating_sub(HEADER_ROWS));
+    if hidden > 0 {
+        frame.render_widget(Paragraph::new(more_below(hidden)), more_area);
+    }
+}
+
+const SECTION_ROWS: u16 = 3;
+/// The empty rows at the end of a section, before the next one's bar.
+const SECTION_GAP: u16 = 2;
+const HEADER_ROWS: usize = 2;
 
 fn draw_sidebar(frame: &mut Frame, app: &App, area: Rect) {
     // A long list of playlists scrolls, rather than pushing HVSC off the bottom.
     let lists = app.lists.len() as u16;
-    let lists_height = lists.min(area.height.saturating_sub(15)).max(1);
-    let [title, fixed, _, lists_title, _, lists_area, _, hvsc_title, _, hvsc] = Layout::vertical([
-        Constraint::Length(2),
+    let lists_height = lists.min(area.height.saturating_sub(3 * SECTION_ROWS + FIXED_ROWS as u16 + 2 * SECTION_GAP + 4)).max(1);
+    let [title, fixed, _, lists_title, lists_area, _, hvsc_title, hvsc] = Layout::vertical([
+        Constraint::Length(SECTION_ROWS),
         Constraint::Length(FIXED_ROWS as u16),
-        Constraint::Length(1),
-        Constraint::Length(1),
-        Constraint::Length(1),
+        Constraint::Length(SECTION_GAP),
+        Constraint::Length(SECTION_ROWS),
         Constraint::Length(lists_height),
-        Constraint::Length(1),
-        Constraint::Length(1),
-        Constraint::Length(1),
+        Constraint::Length(SECTION_GAP),
+        Constraint::Length(SECTION_ROWS),
         Constraint::Min(0),
     ])
     .areas(area);
     let focused = app.focus == Focus::Sidebar;
-    frame.render_widget(heading("▓▒░ Library".into(), focused), title);
+    heading(frame, "▓▒░ Library".into(), focused, title);
     let entries = app.sidebar_entries();
     let own = app.library_rows();
-    let highlight = if focused { cursor_style(true) } else { Style::new().fg(palette::accent()).add_modifier(Modifier::BOLD) };
-    let section_title = |name: &'static str| Span::styled(name, Style::new().fg(palette::text()).add_modifier(Modifier::BOLD));
+    // The chosen row: a chevron and underline while the sidebar has the focus,
+    // and bold while it doesn't, to show what the list is showing.
+    let name = |text: String, on: bool| {
+        let style = match (on, focused) {
+            (false, _) => Style::new(),
+            (true, true) => underlined(true),
+            (true, false) => Style::new().fg(palette::text()).add_modifier(Modifier::BOLD),
+        };
+        vec![chevron(on, focused), Span::raw(" "), Span::styled(text, style)]
+    };
 
-    let items: Vec<ListItem> = entries[..FIXED_ROWS].iter().map(|name| ListItem::new(format!(" {name}"))).collect();
+    let items: Vec<ListItem> = entries[..FIXED_ROWS].iter().enumerate().map(|(i, entry)| ListItem::new(Line::from(name(entry.to_string(), app.sidebar == i)))).collect();
     let mut state = ListState::default().with_selected((app.sidebar < FIXED_ROWS).then_some(app.sidebar));
-    frame.render_stateful_widget(List::new(items).highlight_style(highlight), fixed, &mut state);
+    frame.render_stateful_widget(List::new(items), fixed, &mut state);
 
-    frame.render_widget(Paragraph::new(Line::from(section_title("▓▒░ Playlists"))), lists_title);
+    heading(frame, "▓▒░ Playlists".into(), false, lists_title);
     let items: Vec<ListItem> = app
         .lists
         .iter()
-        .map(|list| ListItem::new(Line::from(vec![Span::raw(format!(" {}", list.name)), Span::styled(format!("  {}", list.count), dim())])))
+        .enumerate()
+        .map(|(i, list)| {
+            let mut spans = name(list.name.clone(), app.sidebar == FIXED_ROWS + i);
+            spans.push(Span::styled(format!(" {}", list.count), dim()));
+            ListItem::new(Line::from(spans))
+        })
         .collect();
     let in_lists = (FIXED_ROWS..own).contains(&app.sidebar);
     let mut state = ListState::default().with_selected(in_lists.then(|| app.sidebar - FIXED_ROWS));
-    frame.render_stateful_widget(List::new(items).highlight_style(highlight), lists_area, &mut state);
+    frame.render_stateful_widget(List::new(items), lists_area, &mut state);
 
-    let mut hvsc_heading = vec![section_title("▓▒░ HVSC")];
+    let mut hvsc_heading = vec![Span::raw("▓▒░ HVSC")];
     if let Some(info) = &app.hvsc {
         hvsc_heading.push(Span::styled(format!("  {} tunes", thousands(info.total_tunes)), dim()));
     }
-    frame.render_widget(Paragraph::new(Line::from(hvsc_heading)), hvsc_title);
+    heading_bar(frame, hvsc_heading, false, hvsc_title);
     let wide = hvsc.width as usize;
     let rows: Vec<ListItem> = HVSC_ROWS
         .iter()
         .enumerate()
-        .map(|(i, (name, _))| {
+        .map(|(i, (row_name, _))| {
             let count = app.hvsc.as_ref().map_or(String::new(), |info| match i {
                 0 => info.version.as_ref().map_or(String::new(), |v| format!("v{v}")),
                 1 => thousands(info.musician_tunes),
                 2 => thousands(info.demo_tunes),
                 _ => thousands(info.game_tunes),
             });
-            let gap = wide.saturating_sub(name.chars().count() + count.chars().count() + 2);
-            ListItem::new(Line::from(vec![Span::raw(format!(" {name}{}", " ".repeat(gap))), Span::styled(count, dim())]))
+            let gap = wide.saturating_sub(row_name.chars().count() + count.chars().count() + 3);
+            let mut spans = name(row_name.to_string(), app.sidebar == own + i);
+            spans.extend([Span::raw(" ".repeat(gap)), Span::styled(count, dim())]);
+            ListItem::new(Line::from(spans))
         })
         .collect();
     let mut state = ListState::default().with_selected((app.sidebar >= own).then(|| app.sidebar - own));
-    frame.render_stateful_widget(List::new(rows).highlight_style(highlight), hvsc, &mut state);
+    frame.render_stateful_widget(List::new(rows), hvsc, &mut state);
 }
 
 fn list_title(app: &App) -> String {
@@ -2179,9 +2297,9 @@ fn draw_list(frame: &mut Frame, app: &App, area: Rect) {
         _ => {}
     }
     let said = if app.view == View::Describe { describe_line(app, area.width as usize) } else { Vec::new() };
-    let [title, understood, rest] = Layout::vertical([Constraint::Length(1), Constraint::Length(said.len() as u16), Constraint::Min(0)]).areas(area);
+    let [title, understood, rest] = Layout::vertical([Constraint::Length(SECTION_ROWS), Constraint::Length(said.len() as u16), Constraint::Min(0)]).areas(area);
     let focused = app.focus == Focus::List;
-    frame.render_widget(heading(list_title(app), focused), title);
+    heading(frame, list_title(app), focused, title);
     frame.render_widget(Paragraph::new(said), understood);
     if app.view == View::Describe && app.rows.is_empty() {
         return draw_describe_start(frame, app, rest);
@@ -2189,70 +2307,73 @@ fn draw_list(frame: &mut Frame, app: &App, area: Rect) {
     let playing = app.status.as_ref().and_then(|s| s.now.as_ref()).map(|n| n.path.as_str());
     let prints = app.showing_prints();
     let composer = !prints || area.width >= COMPOSER_FROM;
+    // A circle on every tune, filled in the accent for the one playing; the
+    // cursor is a chevron and an underlined title, as in `resonance pick`.
+    let accent = Style::new().fg(palette::accent());
     let rows: Vec<Row> = app
         .rows
         .iter()
-        .map(|t| {
-            let is_playing = playing == Some(t.path.as_str());
-            let mark = if is_playing {
-                "♪"
+        .enumerate()
+        .map(|(i, t)| {
+            let mark = if playing == Some(t.path.as_str()) {
+                Span::styled("●", accent)
             } else if app.marked.contains(&t.path) {
-                "✓"
+                Span::styled("✓", accent)
             } else {
-                " "
+                Span::styled("○", dim())
             };
             let last = match t.score {
                 Some(score) => Line::from(format!("{:.0}%", score * 100.0)),
                 None => Line::from(t.secs.map(|s| clock(f64::from(s))).unwrap_or_default()),
             };
-            let mut cells = vec![Cell::from(mark), Cell::from(t.title.clone())];
+            // The circle shares the title's column, a single space from it.
+            let title = Line::from(vec![mark, Span::raw(" "), Span::styled(t.title.clone(), underlined(i == app.cursor))]);
+            let mut cells = vec![Cell::from(title)];
             if composer {
-                cells.push(Cell::from(t.author.clone()));
+                cells.push(Cell::from(Span::styled(t.author.clone(), dim())));
             }
             if prints {
                 cells.push(Cell::from(app.barcode(&t.path)));
             }
-            cells.push(Cell::from(last));
-            let row = Row::new(cells);
-            if is_playing {
-                row.style(Style::new().fg(palette::accent()))
-            } else {
-                row
-            }
+            cells.push(Cell::from(Line::styled(last.to_string(), dim()).right_aligned()));
+            Row::new(cells)
         })
         .collect();
     let liking = matches!(app.view, View::Like(_));
-    let (last_column, last_width) = if liking { ("Alike", 5) } else { ("Length", 6) };
-    let mut widths = vec![Constraint::Length(1)];
-    let mut header = vec![Cell::from(""), Cell::from("Title")];
-    if prints {
-        widths.push(Constraint::Fill(3));
-    } else {
-        widths.push(Constraint::Percentage(52));
-    }
+    let (last_column, last_width) = if liking { ("MATCH", 5) } else { ("LENGTH", 6) };
+    // Composer as wide as its longest name, so names aren't cut while titles
+    // have room to spare; when both are too long, the room is shared in
+    // proportion to what each needs.
+    let gaps = 2 * (1 + usize::from(composer) + usize::from(prints));
+    let fixed = 2 + gaps + if prints { fingerprint::SMALL_WIDTH as usize } else { 0 } + last_width as usize;
+    let room = (rest.width as usize).saturating_sub(fixed);
+    let titles = app.rows.iter().map(|t| t.title.chars().count() + 2).max().unwrap_or(0).max(7);
+    let authors = app.rows.iter().map(|t| t.author.chars().count()).max().unwrap_or(0).max(8);
+    let composer_width = if titles + authors <= room { authors } else { room * authors / (titles + authors) };
+    let mut widths = vec![Constraint::Fill(1)];
+    let mut header = vec![Cell::from("  TITLE")];
     if composer {
-        widths.push(if prints { Constraint::Fill(2) } else { Constraint::Percentage(36) });
-        header.push(Cell::from("Composer"));
+        widths.push(Constraint::Length(composer_width as u16));
+        header.push(Cell::from("COMPOSER"));
     }
     if prints {
         widths.push(Constraint::Length(fingerprint::SMALL_WIDTH));
         // Over the tunes it's being compared with, where there are some.
         header.push(match app.like_seed.as_deref().filter(|_| liking) {
             Some(seed) => Cell::from(app.barcode(seed)),
-            None => Cell::from("Sound"),
+            None => Cell::from("SOUND"),
         });
     }
     widths.push(Constraint::Length(last_width));
-    header.push(Cell::from(last_column));
-    let table = Table::new(rows, widths).header(Row::new(header).style(dim())).row_highlight_style(cursor_style(focused));
-    let mut state = TableState::default().with_selected(Some(app.cursor));
-    frame.render_stateful_widget(table, rest, &mut state);
+    header.push(Cell::from(Line::from(last_column).right_aligned()));
+    let table = Table::new(rows, widths).header(Row::new(header).style(dim()).bottom_margin(1));
+    draw_table(frame, app, table, rest, app.rows.len(), focused);
 }
 
 /// Under the hood: slides up over everything but the player's line and the keys.
 fn draw_drawer(frame: &mut Frame, app: &App, since: Instant, closing: bool) {
     let full = frame.area();
-    let tall = full.height.saturating_sub(NOW_ROWS + 1);
+    let tall = full.height.saturating_sub(TOP_ROWS + NOW_ROWS + 1);
     // Decided on the height it slides up to, so nothing changes while it does.
     let fits = every_chip_fits(app.tracker.tab, app.tracker.chips() as u16, full.width, tall.saturating_sub(3));
     app.tracker.collapsed.set(!fits);
@@ -2272,7 +2393,7 @@ fn draw_drawer(frame: &mut Frame, app: &App, since: Instant, closing: bool) {
     if height < 5 {
         return;
     }
-    let label = Style::new().fg(palette::accent()).add_modifier(Modifier::BOLD);
+    let label = Style::new().fg(palette::text()).add_modifier(Modifier::BOLD);
     // The title goes first when there's no room: the tabs matter more.
     let mut x = if area.width >= 58 {
         put(buffer, area, 2, 1, "▓▒░ Under the hood", label);
@@ -2345,7 +2466,7 @@ fn draw_drawer(frame: &mut Frame, app: &App, since: Instant, closing: bool) {
         }
         let Some(row) = usize::try_from(number).ok().and_then(|n| song.rows.get(n)) else { continue };
         let band = if here { Style::new().bg(palette::selection()) } else { Style::new() };
-        let number_style = if here { band.fg(palette::accent()).add_modifier(Modifier::BOLD) } else { dim() };
+        let number_style = if here { band.fg(palette::text()).add_modifier(Modifier::BOLD) } else { dim() };
         put(buffer, area, 2, y, &format!("{number:04X}"), number_style);
         for v in 0..3 {
             let (note, instrument, effect) = cell_parts(row.v.get(v).map_or("", String::as_str));
@@ -2381,7 +2502,7 @@ fn draw_registers(buffer: &mut ratatui::buffer::Buffer, app: &App, area: Rect) {
     }
     let colors = VOICE_COLORS();
     let cell = |n: usize| -> Style {
-        if state.lit(n) { Style::new().bg(palette::accent()).fg(palette::background()).add_modifier(Modifier::BOLD) } else { Style::new().fg(palette::text()) }
+        if state.lit(n) { Style::new().bg(palette::frame()).fg(palette::text()).add_modifier(Modifier::BOLD) } else { Style::new().fg(palette::text()) }
     };
     let step = 26u16;
     let columns = (area.width.saturating_sub(2) / step).max(1);
@@ -2398,7 +2519,7 @@ fn draw_registers(buffer: &mut ratatui::buffer::Buffer, app: &App, area: Rect) {
         let control = registers[v * 7 + 4];
         for (bit, name) in CONTROL_BITS.iter().enumerate() {
             let on = control & (1 << bit) != 0;
-            let style = if on { Style::new().fg(palette::accent()).add_modifier(Modifier::BOLD) } else { Style::new().fg(palette::faint()) };
+            let style = if on { Style::new().fg(palette::text()).add_modifier(Modifier::BOLD) } else { Style::new().fg(palette::faint()) };
             put(buffer, area, x + (bit as u16 % 4) * 5, y + 8 + bit as u16 / 4, name, style);
         }
     }
@@ -2481,7 +2602,7 @@ fn draw_voice_lines(buffer: &mut ratatui::buffer::Buffer, state: &TrackerState, 
     let colors = VOICE_COLORS();
     let bold = Style::new().add_modifier(Modifier::BOLD);
     let text = Style::new().fg(palette::text());
-    let lit = bold.fg(palette::accent());
+    let lit = bold.fg(palette::text());
     put(buffer, area, 8, 0, "NOTE", dim());
     if bars {
         put(buffer, area, level, 0, "LEVEL", dim());
@@ -2836,14 +2957,15 @@ fn draw_describe_start(frame: &mut Frame, app: &App, area: Rect) {
     let width = area.width.saturating_sub(2).max(1) as usize;
     let mut lines = vec![Line::raw("")];
     let intro = app.describing.problem.as_deref().unwrap_or("Say what you'd like to hear, like “fast arpeggios from 1987”.");
-    let style = if app.describing.problem.is_some() { Style::new().fg(palette::accent()) } else { dim() };
+    let style = if app.describing.problem.is_some() { Style::new().fg(palette::text()) } else { dim() };
     lines.extend(wrapped(intro, width).into_iter().map(|line| Line::styled(format!(" {line}"), style)));
     lines.push(Line::raw(""));
-    lines.push(Line::styled(" Or start from one of these", Style::new().fg(palette::accent()).add_modifier(Modifier::BOLD)));
+    lines.push(Line::styled(" Or start from one of these", Style::new().fg(palette::text()).add_modifier(Modifier::BOLD)));
     let choosing = app.focus == Focus::List && matches!(app.mode, Mode::Normal);
     for (n, (name, _, what)) in SUGGESTIONS.iter().enumerate() {
-        let line = Line::from(vec![Span::raw(format!(" {name:<20}")), Span::styled(*what, dim())]);
-        lines.push(if choosing && n == app.cursor { line.style(cursor_style(true)) } else { line });
+        let on = choosing && n == app.cursor;
+        let gap = " ".repeat(20usize.saturating_sub(name.chars().count()));
+        lines.push(Line::from(vec![chevron(on, true), Span::raw(" "), Span::styled(*name, underlined(on)), Span::raw(gap), Span::styled(*what, dim())]));
     }
     frame.render_widget(Paragraph::new(lines), area);
 }
@@ -2870,10 +2992,11 @@ fn wrapped(text: &str, width: usize) -> Vec<String> {
 
 /// The tune under the cursor: how it sounds, and what it sounds like.
 fn draw_rail(frame: &mut Frame, app: &App, area: Rect) {
-    let [title, area] = Layout::vertical([Constraint::Length(2), Constraint::Min(0)]).areas(area);
+    let [title, area] = Layout::vertical([Constraint::Length(SECTION_ROWS), Constraint::Min(0)]).areas(area);
     let name = if matches!(app.view, View::Hvsc("musicians")) { "▓▒░ This composer" } else if matches!(app.view, View::Hvsc(_)) { "▓▒░ This folder" } else { "▓▒░ This tune" };
-    frame.render_widget(heading(name.into(), true), title);
+    heading(frame, name.into(), false, title);
     let Some(tune) = app.rows.get(app.cursor) else { return };
+    let area = plain(area);
     let lines = if matches!(app.view, View::Hvsc(_)) { composer_lines(app, tune) } else { rail_lines(app, tune, area.width as usize, area.height as usize) };
     frame.render_widget(Paragraph::new(lines), area);
 }
@@ -2888,7 +3011,7 @@ fn composer_lines(app: &App, composer: &Tune) -> Vec<Line<'static>> {
     lines.push(Line::styled(format!("{} tune{plural}  {}", composer.songs, composer.released), dim()));
     if let Some(Some(traits)) = app.prints.get(&composer.path) {
         lines.push(Line::raw(""));
-        lines.push(Line::styled("Their sound, on average", Style::new().fg(palette::accent()).add_modifier(Modifier::BOLD)));
+        lines.push(Line::styled("Their sound, on average", Style::new().fg(palette::text()).add_modifier(Modifier::BOLD)));
         lines.extend(fingerprint::tall(traits, 3));
     }
     lines.push(Line::raw(""));
@@ -2901,7 +3024,7 @@ fn composer_lines(app: &App, composer: &Tune) -> Vec<Line<'static>> {
 /// the barcode to the voices.
 fn rail_lines(app: &App, tune: &Tune, width: usize, height: usize) -> Vec<Line<'static>> {
     let details = app.details.get(&tune.path);
-    let label = Style::new().fg(palette::accent()).add_modifier(Modifier::BOLD);
+    let label = Style::new().fg(palette::text()).add_modifier(Modifier::BOLD);
     let length = tune.secs.map(|s| format!("  {}", clock(f64::from(s)))).unwrap_or_default();
 
     let mut about: Vec<Line> = wrapped(&tune.title, width)
@@ -2967,7 +3090,7 @@ fn rail_lines(app: &App, tune: &Tune, width: usize, height: usize) -> Vec<Line<'
 fn now_line(app: &App) -> Line<'static> {
     match app.status.as_ref().and_then(|s| s.now.as_ref().map(|n| (s, n))) {
         Some((status, now)) => {
-            let color = if status.state == "paused" { palette::muted() } else { palette::accent() };
+            let color = if status.state == "paused" { palette::muted() } else { palette::text() };
             let mut spans = vec![
                 Span::styled(format!("♪ {}", now.title), Style::new().fg(color).add_modifier(Modifier::BOLD)),
                 Span::raw(format!(" · {}", now.author)),
@@ -2992,15 +3115,26 @@ fn now_line(app: &App) -> Line<'static> {
 fn draw_now(frame: &mut Frame, app: &App, area: Rect) {
     let [title, bar] = Layout::vertical([Constraint::Length(1), Constraint::Length(1)]).areas(area);
     frame.render_widget(Paragraph::new(now_line(app)), title);
-    frame.render_widget(Paragraph::new("RESONANCE").style(Style::new().fg(palette::frame()).add_modifier(Modifier::BOLD)).alignment(Alignment::Right), title);
+    // Styled as a word, not a paragraph: a paragraph's style would gray the whole
+    // line, the playing tune's name with it.
+    // The app icon's three voices as a small mark, small, large, small, in
+    // their colors, before the name.
+    let mark = [("•", palette::cyan()), ("●", palette::violet()), ("•", palette::orange())];
+    let mut spans: Vec<Span> = mark.into_iter().map(|(ch, color)| Span::styled(ch, Style::new().fg(color))).collect();
+    spans.push(Span::styled(" RESONANCE", Style::new().fg(palette::frame()).add_modifier(Modifier::BOLD)));
+    frame.render_widget(Paragraph::new(Line::from(spans)).alignment(Alignment::Right), title);
     draw_progress(frame, app, bar);
 }
 
 fn draw_progress(frame: &mut Frame, app: &App, area: Rect) {
     let Some(status) = app.status.as_ref().filter(|s| s.now.is_some()) else { return };
-    let [strip, _, time] = Layout::horizontal([Constraint::Min(1), Constraint::Length(2), Constraint::Length(13)]).areas(area);
+    let [strip, share, _, time] = Layout::horizontal([Constraint::Min(1), Constraint::Length(5), Constraint::Length(2), Constraint::Length(13)]).areas(area);
     let loudest = app.ears.latest().iter().fold(0.0_f32, |most, voice| most.max(voice.level));
     viz::progress(frame.buffer_mut(), strip, app.progress().unwrap_or(0.0), loudest, app.ears.heard);
+    if let Some(done) = app.progress() {
+        let percent = format!("{:.0}%", (done * 100.0).clamp(0.0, 100.0));
+        frame.render_widget(Paragraph::new(Line::styled(percent, dim())).alignment(Alignment::Right), share);
+    }
     let elapsed = app.elapsed();
     let words = match status.duration {
         Some(duration) => format!("{} / {}", clock(elapsed), clock(duration)),
@@ -3013,10 +3147,10 @@ fn draw_progress(frame: &mut Frame, app: &App, area: Rect) {
 /// Only the keys that matter right now; `?` has them all.
 fn draw_keys(frame: &mut Frame, app: &App, area: Rect) {
     if let Some(message) = &app.message {
-        frame.render_widget(Paragraph::new(Line::styled(message.clone(), Style::new().fg(palette::accent()))), area);
+        frame.render_widget(Paragraph::new(Line::styled(message.clone(), Style::new().fg(palette::text()))), area);
         return;
     }
-    let key_style = Style::new().fg(palette::accent());
+    let key_style = Style::new().fg(palette::text());
     let mut spans = Vec::new();
     for (key, what) in fit_bar(bar_keys(app), area.width, "?") {
         spans.push(Span::styled(key, key_style));
@@ -3104,14 +3238,15 @@ fn centered(area: Rect, width: u16, height: u16) -> Rect {
 fn draw_add_to(frame: &mut Frame, app: &App, cursor: usize) {
     let area = centered(frame.area(), 40, 14);
     frame.render_widget(Clear, area);
-    let items: Vec<ListItem> = app.lists.iter().map(|l| ListItem::new(l.name.clone())).collect();
+    let items: Vec<ListItem> = app
+        .lists
+        .iter()
+        .enumerate()
+        .map(|(i, l)| ListItem::new(Line::from(vec![chevron(i == cursor, true), Span::raw(" "), Span::styled(l.name.clone(), underlined(i == cursor))])))
+        .collect();
     let mut state = ListState::default().with_selected(Some(cursor));
     let title = format!(" Add {} to ", count(app.chosen().len()));
-    frame.render_stateful_widget(
-        List::new(items).block(pane(title, true)).highlight_style(cursor_style(true)),
-        area,
-        &mut state,
-    );
+    frame.render_stateful_widget(List::new(items).block(pane(title, true)), area, &mut state);
 }
 
 fn draw_prompt(frame: &mut Frame, title: &str, text: &str) {
@@ -3126,18 +3261,27 @@ fn draw_browser(frame: &mut Frame, browser: &Browser, scheme: KeyScheme) {
     let items: Vec<ListItem> = browser
         .entries
         .iter()
-        .map(|(name, is_dir)| {
-            let mark = if browser.marked.contains(&browser.dir.join(name)) { "✓ " } else { "  " };
+        .enumerate()
+        .map(|(i, (name, is_dir))| {
+            let on = i == browser.cursor;
+            // Only files can be marked: a circle on each, filled when marked.
+            let mark = if *is_dir {
+                Span::raw("  ")
+            } else if browser.marked.contains(&browser.dir.join(name)) {
+                Span::styled("● ", Style::new().fg(palette::accent()))
+            } else {
+                Span::styled("○ ", dim())
+            };
             let shown = if *is_dir { format!("{name}/") } else { name.clone() };
             let style = if *is_dir { Style::new().fg(palette::cyan()) } else { Style::new() };
-            ListItem::new(Line::from(vec![Span::raw(mark), Span::styled(shown, style)]))
+            ListItem::new(Line::from(vec![chevron(on, true), Span::raw(" "), mark, Span::styled(shown, style.patch(underlined(on)))]))
         })
         .collect();
     let mut state = ListState::default().with_selected(Some(browser.cursor));
     let up = scheme.choose("←", "h", "⌃B");
     let block = pane(format!(" {} ", browser.dir.display()), true)
         .title_bottom(Line::from(format!(" ␣ mark  ↵ open or use  {up} up  esc cancel ")).alignment(Alignment::Right));
-    frame.render_stateful_widget(List::new(items).block(block).highlight_style(cursor_style(true)), area, &mut state);
+    frame.render_stateful_widget(List::new(items).block(block), area, &mut state);
 }
 
 fn help_lines(scheme: KeyScheme) -> [(&'static str, &'static str); 21] {
@@ -3187,7 +3331,7 @@ fn draw_help(frame: &mut Frame, choice: Choice) {
         .map(|(key, what)| {
             Line::from(vec![
                 // By characters, as the keys' symbols are wider in bytes.
-                Span::styled(format!("{key:<19}"), Style::new().fg(palette::accent())),
+                Span::styled(format!("{key:<19}"), Style::new().fg(palette::text())),
                 Span::raw(*what),
             ])
         })
@@ -3572,9 +3716,41 @@ mod tests {
             source: None,
         });
         let shown = screen(&app);
-        for expected in ["Favorites", "Late Night", "Recently Played", "Composer", "♪ B", "subtune 1 of 3", "1:24 / 4:12", "♥"] {
+        for expected in ["Favorites", "Late Night", "Recently Played", "COMPOSER", "♪ B", "subtune 1 of 3", "1:24 / 4:12", "♥"] {
             assert!(shown.contains(expected), "missing {expected}\n{shown}");
         }
+    }
+
+    #[test]
+    fn songs_have_circles_the_playing_one_filled_and_a_chevron() {
+        let mut app = app();
+        app.focus = Focus::List;
+        app.cursor = 2;
+        app.status = Some(Status {
+            state: "playing".into(),
+            now: Some(crate::model::Now { path: "/B.sid".into(), title: "B".into(), author: "".into(), released: "".into(), song: 1, songs: 1 }),
+            elapsed: 0.0,
+            duration: None,
+            has_collection: true,
+            favorite: false,
+            source: None,
+        });
+        let shown = screen(&app);
+        assert!(shown.contains("  ○ A "), "{shown}");
+        assert!(shown.contains("  ● B "), "{shown}");
+        assert!(shown.contains("❯ ○ C "), "{shown}");
+    }
+
+    #[test]
+    fn the_playing_tune_is_not_grayed_out() {
+        let mut app = app();
+        app.status = Some(playing("playing"));
+        let mut terminal = Terminal::new(TestBackend::new(110, 30)).unwrap();
+        terminal.draw(|frame| draw(frame, &app)).unwrap();
+        let buffer = terminal.backend().buffer();
+        let y = TOP_ROWS;
+        let x = (0..110).find(|&x| buffer[(x, y)].symbol() == "C").unwrap();
+        assert_eq!(buffer[(x, y)].fg, palette::text(), "Commando");
     }
 
     #[test]
@@ -3828,8 +4004,8 @@ mod tests {
         let shown: String = terminal.backend().buffer().content.iter().map(|c| c.symbol()).collect();
         assert!(!shown.contains("T H E   S O U N D"), "the player has no startup logo");
         assert!(shown.contains("Tune 9"), "the list should have the room now");
-        assert!(shown.contains("▓▒░ This tune"), "no third column");
-        assert!(shown.contains("in 2000  98"), "a playlist's count was cut off");
+        assert!(shown.contains(" This tune"), "no third column");
+        assert!(shown.contains("in 2000 98"), "a playlist's count was cut off");
     }
 
     /// `cargo test -p resonance-cli show_hvsc -- --ignored --nocapture`, to look at it.
@@ -4230,7 +4406,7 @@ mod tests {
         like.score = Some(0.81);
         app.rows = vec![like];
         let shown = screen_of(&app, 160, 40);
-        let header = shown.lines().find(|l| l.contains("Title")).unwrap();
+        let header = shown.lines().find(|l| l.contains("TITLE")).unwrap();
         assert!(header.contains("▄▁█▁▁▁▁▂▆"), "{header}");
     }
 
@@ -4655,7 +4831,7 @@ mod tests {
         like.score = Some(0.71);
         app.rows = vec![like];
         let shown = screen_of(&app, 160, 40);
-        assert!(shown.contains("Alike") && shown.contains("71%"), "{shown}");
+        assert!(shown.contains("MATCH") && shown.contains("71%"), "{shown}");
         assert!(!shown.contains("███████"), "{shown}");
     }
 
@@ -4792,7 +4968,7 @@ mod tests {
         let app = app();
         let shown = screen_of(&app, 160, 40);
         let at = |what: &str| shown.find(what).unwrap_or_else(|| panic!("no {what}\n{shown}"));
-        let order = ["▓▒░ Library", " Search", " Describe", " Recently Played", "▓▒░ Playlists", " Favorites", "▓▒░ HVSC", " Home"].map(at);
+        let order = [" Library", " Search", " Describe", " Recently Played", " Playlists", " Favorites", " HVSC", " Home"].map(at);
         assert!(order.windows(2).all(|pair| pair[0] < pair[1]), "{shown}");
     }
 

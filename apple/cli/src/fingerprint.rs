@@ -137,7 +137,7 @@ pub fn voice_lines(activity: &[Vec<u8>], width: usize, ink: impl Fn(usize) -> Co
 
 /// What the `?` screen says about all of this.
 pub fn legend() -> Vec<Line<'static>> {
-    let mut lines = vec![Line::styled("Reading a fingerprint", Style::new().fg(palette::accent()).add_modifier(Modifier::BOLD))];
+    let mut lines = vec![Line::styled("Reading a fingerprint", Style::new().fg(palette::text()).add_modifier(Modifier::BOLD))];
     for index in 0..TRAITS {
         lines.push(Line::from(vec![
             Span::styled("█ ", Style::new().fg(palette::trait_color(index))),

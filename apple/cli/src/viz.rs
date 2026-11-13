@@ -2,6 +2,7 @@
 //! becomes a level and an estimated pitch. The visuals and the voices' notes go by
 //! these, and the progress bar's head pulses with the level.
 
+use crate::palette;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Color;
@@ -123,39 +124,25 @@ fn put(buffer: &mut Buffer, x: u16, y: u16, ch: char, color: Color) {
     }
 }
 
-/// A slim bar in the header's grays: a fine line for what's left, a heavier one for
-/// what's played with a glint running along it, and a bright tail to a head that
-/// pulses with the music's level.
+/// The bar: ▰ in the accent for what's played, with a glint running along it
+/// and a head that brightens with the music's level, and ▱ in gray for what's left.
 pub fn progress(buffer: &mut Buffer, area: Rect, ratio: f64, level: f32, heard: u64) {
     if area.width == 0 || area.height == 0 {
         return;
     }
-    let head = (f64::from(area.width - 1) * ratio.clamp(0.0, 1.0)).round() as u16;
+    let played = (f64::from(area.width) * ratio.clamp(0.0, 1.0)).round() as u16;
     let glint = (heard % 40) as i64;
     let y = area.y;
     for column in 0..area.width {
         let x = area.x + column;
-        if column > head {
-            put(buffer, x, y, '─', Color::Indexed(238));
-        } else if column == head {
-            let ch = if level > 0.66 {
-                '█'
-            } else if level > 0.33 {
-                '▓'
-            } else {
-                '▒'
-            };
-            put(buffer, x, y, ch, Color::Indexed(231));
+        if column >= played {
+            put(buffer, x, y, '▱', palette::muted());
+        } else if column + 1 == played {
+            put(buffer, x, y, '▰', palette::accent_light(1.0 - 0.6 * level.clamp(0.0, 1.0)));
+        } else if (i64::from(column) - glint).rem_euclid(40) < 2 {
+            put(buffer, x, y, '▰', palette::accent_light(0.7));
         } else {
-            let color = match head - column {
-                1 => 254,
-                2 => 251,
-                3 => 248,
-                4 => 246,
-                _ if (i64::from(column) - glint).rem_euclid(40) < 2 => 250,
-                _ => 243,
-            };
-            put(buffer, x, y, '━', Color::Indexed(color));
+            put(buffer, x, y, '▰', palette::accent());
         }
     }
 }
@@ -230,17 +217,17 @@ mod tests {
     }
 
     #[test]
-    fn the_bar_shows_played_a_head_and_what_is_left() {
-        let area = Rect::new(0, 0, 21, 1);
+    fn the_bar_shows_played_and_what_is_left() {
+        let area = Rect::new(0, 0, 20, 1);
         let mut buffer = Buffer::empty(area);
-        progress(&mut buffer, area, 0.5, 1.0, 0);
-        assert_eq!(buffer[(0, 0)].symbol(), "━");
-        assert_eq!(buffer[(10, 0)].symbol(), "█");
-        assert_eq!(buffer[(20, 0)].symbol(), "─");
-        progress(&mut buffer, area, 0.5, 0.1, 0);
-        assert_eq!(buffer[(10, 0)].symbol(), "▒", "a quiet moment dims the head");
+        progress(&mut buffer, area, 0.45, 1.0, 0);
+        assert_eq!(buffer[(0, 0)].symbol(), "▰");
+        assert_eq!(buffer[(8, 0)].symbol(), "▰");
+        assert_eq!(buffer[(9, 0)].symbol(), "▱");
         progress(&mut buffer, area, 1.0, 1.0, 0);
-        assert_eq!(buffer[(20, 0)].symbol(), "█");
+        assert_eq!(buffer[(19, 0)].symbol(), "▰");
+        progress(&mut buffer, area, 0.0, 1.0, 0);
+        assert_eq!(buffer[(0, 0)].symbol(), "▱");
     }
 
     #[test]

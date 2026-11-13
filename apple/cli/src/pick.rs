@@ -6,14 +6,16 @@ use crate::client::Client;
 use crate::model::Tune;
 use crate::palette;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+use crossterm::execute;
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::{Constraint, Layout};
-use ratatui::style::Style;
+use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{List, ListItem, ListState, Paragraph};
+use ratatui::widgets::Paragraph;
 use ratatui::{Terminal, TerminalOptions, Viewport};
 use serde_json::json;
+use std::cell::Cell;
 use std::collections::BTreeSet;
 use std::time::{Duration, Instant};
 
@@ -29,6 +31,8 @@ pub struct Picker {
     pub marked: BTreeSet<String>,
     pub multi: bool,
     pub from_playlist: bool,
+    /// The first tune shown, kept between frames.
+    pub top: Cell<usize>,
 }
 
 pub enum Outcome {
@@ -118,10 +122,20 @@ pub fn run(client: &mut Client, multi: bool, playlist: Option<&str>, query: &str
 
     enable_raw_mode().map_err(|e| e.to_string())?;
     let result = (|| -> std::io::Result<Option<Vec<String>>> {
-        let mut terminal = Terminal::with_options(
+        // Inline under the prompt needs the terminal to say where the cursor is;
+        // where it can't (some embedded terminals), the picker takes the screen.
+        let inline = Terminal::with_options(
             CrosstermBackend::new(std::io::stderr()),
             TerminalOptions { viewport: Viewport::Inline(HEIGHT) },
-        )?;
+        );
+        let full_screen = inline.is_err();
+        let mut terminal = match inline {
+            Ok(terminal) => terminal,
+            Err(_) => {
+                execute!(std::io::stderr(), EnterAlternateScreen)?;
+                Terminal::new(CrosstermBackend::new(std::io::stderr()))?
+            }
+        };
         let mut due: Option<Instant> = None;
         let outcome = loop {
             terminal.draw(|frame| draw(frame, &picker))?;
@@ -144,7 +158,11 @@ pub fn run(client: &mut Client, multi: bool, playlist: Option<&str>, query: &str
                 let _ = fetch(client, &mut picker);
             }
         };
-        terminal.clear()?;
+        if full_screen {
+            execute!(std::io::stderr(), LeaveAlternateScreen)?;
+        } else {
+            terminal.clear()?;
+        }
         Ok(outcome)
     })();
     let _ = disable_raw_mode();
@@ -157,28 +175,69 @@ pub fn run(client: &mut Client, multi: bool, playlist: Option<&str>, query: &str
 fn draw(frame: &mut ratatui::Frame, picker: &Picker) {
     let [input, list, hint] =
         Layout::vertical([Constraint::Length(1), Constraint::Min(1), Constraint::Length(1)]).areas(frame.area());
-    frame.render_widget(Paragraph::new(format!("❯ {}▏", picker.query)), input);
-    let items: Vec<ListItem> = picker
-        .tunes
+    let label = Style::new().fg(palette::text()).add_modifier(Modifier::BOLD);
+    frame.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled("Search ", label),
+            Span::raw(format!("{}▏", picker.query)),
+        ])),
+        input,
+    );
+    frame.render_widget(Paragraph::new(lines(picker, list.height as usize)), list);
+    let keys: &[(&str, &str)] =
+        if picker.multi { &[("↵", "choose"), ("␣", "mark"), ("esc", "cancel")] } else { &[("↵", "choose"), ("esc", "cancel")] };
+    let mut spans = Vec::new();
+    for (key, what) in keys {
+        spans.extend([Span::styled(*key, Style::new().fg(palette::text())), Span::styled(format!(" {what}   "), palette::dim())]);
+    }
+    frame.render_widget(Paragraph::new(Line::from(spans)), hint);
+    palette::paint(frame.buffer_mut());
+}
+
+/// The tunes that fit in `rows`, the cursor's with a chevron and underlined,
+/// circles to mark in multi, and how many more are below.
+fn lines(picker: &Picker, rows: usize) -> Vec<Line<'static>> {
+    let total = picker.tunes.len();
+    if total == 0 {
+        let note = if picker.query.is_empty() { "  Type to search the collection" } else { "  No tunes found" };
+        return vec![Line::styled(note, palette::dim())];
+    }
+    let room = if total > rows { rows.saturating_sub(1).max(1) } else { rows };
+    // Scrolls only as far as the cursor needs, so moving back up doesn't jump.
+    let mut top = picker.top.get().min(total.saturating_sub(room));
+    if picker.cursor < top {
+        top = picker.cursor;
+    } else if picker.cursor >= top + room {
+        top = picker.cursor + 1 - room;
+    }
+    picker.top.set(top);
+    let accent = Style::new().fg(palette::accent());
+    let mut lines: Vec<Line> = picker.tunes[top..(top + room).min(total)]
         .iter()
-        .map(|t| {
-            let mark = if picker.marked.contains(&t.path) { "✓ " } else { "  " };
-            ListItem::new(Line::from(vec![
-                Span::raw(mark),
-                Span::raw(t.title.clone()),
-                Span::styled(format!("  {}", t.author), palette::dim()),
-            ]))
+        .enumerate()
+        .map(|(i, t)| {
+            let here = top + i == picker.cursor;
+            let mut spans = vec![if here { Span::styled("❯ ", accent.add_modifier(Modifier::BOLD)) } else { Span::raw("  ") }];
+            if picker.multi {
+                spans.push(if picker.marked.contains(&t.path) {
+                    Span::styled("● ", accent)
+                } else {
+                    Span::styled("○ ", palette::dim())
+                });
+            }
+            let title = Style::new().fg(palette::text());
+            spans.push(Span::styled(t.title.clone(), if here { title.add_modifier(Modifier::UNDERLINED) } else { title }));
+            if !t.author.is_empty() {
+                spans.push(Span::styled(format!(" ({})", t.author), palette::dim()));
+            }
+            Line::from(spans)
         })
         .collect();
-    let mut state = ListState::default().with_selected(Some(picker.cursor));
-    frame.render_stateful_widget(
-        List::new(items).highlight_style(Style::new().bg(palette::selection())),
-        list,
-        &mut state,
-    );
-    let keys = if picker.multi { "↵ choose  ␣ mark  esc cancel" } else { "↵ choose  esc cancel" };
-    frame.render_widget(Paragraph::new(keys).style(palette::dim()), hint);
-    palette::paint(frame.buffer_mut());
+    let below = total - (top + lines.len());
+    if below > 0 {
+        lines.push(Line::styled(format!("  ↓ {below} more"), palette::dim()));
+    }
+    lines
 }
 
 #[cfg(test)]
@@ -252,6 +311,31 @@ mod tests {
             p.key(KeyCode::Up, false);
         }
         assert_eq!(p.cursor, 0);
+    }
+
+    fn text(line: &Line) -> String {
+        line.spans.iter().map(|s| s.content.as_ref()).collect()
+    }
+
+    #[test]
+    fn the_list_says_how_many_more_are_below() {
+        let mut p = picker(true);
+        p.marked.insert("/B.sid".into());
+        let shown: Vec<String> = lines(&p, 2).iter().map(text).collect();
+        assert_eq!(shown, ["❯ ○ A (Rob Hubbard)", "  ↓ 2 more"]);
+        p.cursor = 1;
+        let shown: Vec<String> = lines(&p, 3).iter().map(text).collect();
+        assert_eq!(shown, ["  ○ A (Rob Hubbard)", "❯ ● B (Rob Hubbard)", "  ○ C (Rob Hubbard)"]);
+    }
+
+    #[test]
+    fn scrolling_follows_the_cursor_without_jumping_back() {
+        let mut p = picker(false);
+        p.cursor = 2;
+        assert_eq!(text(&lines(&p, 2)[0]), "❯ C (Rob Hubbard)");
+        p.cursor = 1;
+        assert_eq!(text(&lines(&p, 2)[0]), "❯ B (Rob Hubbard)");
+        assert_eq!(text(&lines(&p, 2)[1]), "  ↓ 1 more");
     }
 
     #[test]
