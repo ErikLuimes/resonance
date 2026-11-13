@@ -25,6 +25,7 @@ enum SongTableStyle {
         method_exchangeImplementations(original, ours)
         swap(NSTableRowView.self, #selector(NSTableRowView.draw(_:)), #selector(NSTableRowView.resonance_draw(_:)))
         swapInherited(NSTableView.self, #selector(NSTableView.viewDidMoveToWindow), #selector(NSTableView.resonance_viewDidMoveToWindow))
+        SeedBarcodeHeader.install()
         NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in
             activateTable(under: event)
             return event
@@ -38,7 +39,7 @@ enum SongTableStyle {
 
     /// For a method `type` gets from its superclass. It gets its own copy first,
     /// or the swap would change the superclass, and every view with it.
-    private static func swapInherited(_ type: AnyClass, _ original: Selector, _ ours: Selector) {
+    static func swapInherited(_ type: AnyClass, _ original: Selector, _ ours: Selector) {
         guard let inherited = class_getInstanceMethod(type, original) else { return }
         class_addMethod(type, original, method_getImplementation(inherited), method_getTypeEncoding(inherited))
         swap(type, original, ours)
@@ -85,7 +86,7 @@ enum SongTableStyle {
 extension NSTableView {
     /// SwiftUI's class for a `Table`, not a `List`. Should it get another name
     /// in a later macOS, these tables simply go back to the system's ways.
-    fileprivate var isSongTable: Bool { String(describing: type(of: self)) == "SwiftUIOutlineTableView" }
+    var isSongTable: Bool { String(describing: type(of: self)) == "SwiftUIOutlineTableView" }
 
     /// Swapped with `viewDidMoveToWindow()` at launch: calling this name runs
     /// AppKit's original.

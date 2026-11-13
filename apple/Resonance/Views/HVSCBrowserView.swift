@@ -623,7 +623,8 @@ struct LibraryTable: View {
             TableColumn("Released", value: \.released)
                 .customizationID("releasedFull")
                 .defaultVisibility(.hidden)
-            TableColumn("Fingerprint") { row in
+            // Sounds Like: the seed's barcode takes the title's place.
+            TableColumn(similarTo == nil ? Text("Fingerprint") : Text("Fingerprint").foregroundColor(.clear)) { row in
                 SoundCell(fingerprints: fingerprints, path: row.id, title: row.title, subtitle: row.author,
                           length: row.item.durationSecs == nil ? nil : row.lengthText,
                           onPlay: { play([row.id]) }, onFindSimilar: { findSimilar(row) })
@@ -662,6 +663,10 @@ struct LibraryTable: View {
             }
         }
         .alternatingRowBackgrounds(.disabled)
+        .background {
+            SeedBarcodeHeader(traits: similarTo.flatMap { fingerprints.fingerprint($0.id)?.traits },
+                              title: String(localized: "Fingerprint"))
+        }
         .contextMenu(forSelectionType: LibraryRow.ID.self) { ids in
             if !ids.isEmpty {
                 Button("Play") { play(ids) }
