@@ -42,6 +42,20 @@
         "."
       ],
       "port": 8644
+    },
+    {
+      "name": "remote-mockups",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8645",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "/Users/erik/Repositories/Personal/resonance-remote/design"
+      ],
+      "port": 8645
     }
   ]
 }
