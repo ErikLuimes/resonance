@@ -1150,8 +1150,8 @@ impl App {
             return;
         }
         self.read_tags();
-        let body = visual_layout(Rect::new(0, 0, width, height)).body;
-        let (width, rows) = (body.width, body.height);
+        let layout = visual_layout(Rect::new(0, 0, width, height));
+        let (width, rows) = (layout.body.width, layout.body.height);
         match self.page {
             Page::Fire => self.fire.advance(now, width, rows),
             Page::Tesla => self.tesla.advance(now, width, rows),
@@ -1159,7 +1159,7 @@ impl App {
             Page::Sphere => self.sphere.advance(now, width, rows),
             Page::Skull => {
                 let playing = self.is_playing();
-                self.skull.advance(now, width, rows, playing);
+                self.skull.advance(now, layout.stage.width, layout.stage.height, playing);
             }
         }
     }
@@ -1942,6 +1942,9 @@ const EXTRAS_FOR: Duration = Duration::from_secs(3);
 struct VisualLayout {
     top: Rect,
     body: Rect,
+    /// All the room between the top row and the tune, without the body's padding:
+    /// the skull keeps its own margin, so it gets this.
+    stage: Rect,
     info: Rect,
     voices: Rect,
     transport: Rect,
@@ -1990,7 +1993,7 @@ fn visual_layout(area: Rect) -> VisualLayout {
         middle.height.saturating_sub(pad_y * 2),
     );
     let [info, voices] = Layout::horizontal([Constraint::Min(0), Constraint::Length(VOICES_WIDTH)]).areas(info_row);
-    VisualLayout { top, body, info, voices, transport, keys, info_rows }
+    VisualLayout { top, body, stage: middle, info, voices, transport, keys, info_rows }
 }
 
 fn draw_visual(frame: &mut Frame, app: &App) {
@@ -2009,7 +2012,7 @@ fn draw_visual(frame: &mut Frame, app: &App) {
             palette::fade_edges(frame.buffer_mut(), body, true);
         }
         Page::Sphere => app.sphere.draw(frame.buffer_mut(), body, truecolor),
-        Page::Skull => draw_skull(frame, app, body),
+        Page::Skull => draw_skull(frame, app, layout.stage),
     }
     frame.render_widget(Paragraph::new(tune_lines(app, layout.info_rows)), layout.info);
     if layout.info_rows >= 3 {
@@ -4365,7 +4368,7 @@ mod tests {
         app.status = Some(playing("playing"));
         press(&mut app, KeyCode::Char('v'));
         app.prepare_visual(Instant::now(), 110, 30);
-        let body = visual_layout(Rect::new(0, 0, 110, 30)).body;
+        let body = visual_layout(Rect::new(0, 0, 110, 30)).stage;
         assert_eq!((app.skull.picture.width, app.skull.picture.height), (body.width, body.height));
         let text = screen(&app);
         let lines: Vec<&str> = text.lines().collect();

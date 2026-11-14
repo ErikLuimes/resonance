@@ -139,8 +139,12 @@ fn distance(x: f32, y: f32, z: f32, open: f32) -> f32 {
 /// Everything around the skull fits inside a sphere this wide, so most rays stop early.
 const BOUND: f32 = 1.75;
 const CAMERA: f32 = 4.2;
-/// The view's half-height at unit distance.
-const VIEW: f32 = 0.42;
+/// The view's half-height at unit distance. Measured over every angle, tilt and an
+/// open jaw, the skull's tallest pose fills 95% of the picture's height.
+const VIEW: f32 = 0.338;
+/// How far the view looks down, at unit distance: the jaw hangs further below the
+/// middle than the cranium rises above it, so this puts the tallest pose in the middle.
+const LOOK_DOWN: f32 = 0.015;
 const MAX_STEPS: u32 = 26;
 const SURFACE: f32 = 0.006;
 /// A terminal cell's width over its height.
@@ -169,7 +173,7 @@ pub fn render(pose: Pose, width: u16, height: u16) -> Picture {
     let origin_sq = ox * ox + oy * oy + oz * oz - BOUND * BOUND;
 
     for row in 0..h {
-        let v = (h as f32 / 2.0 - row as f32 - 0.5) / fit * VIEW;
+        let v = (h as f32 / 2.0 - row as f32 - 0.5) / fit * VIEW - LOOK_DOWN;
         for col in 0..w {
             let u = (col as f32 + 0.5 - w as f32 / 2.0) * CELL / fit * VIEW;
             let length = (u * u + v * v + 1.0).sqrt();
