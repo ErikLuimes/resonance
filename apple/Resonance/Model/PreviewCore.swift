@@ -107,6 +107,8 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
         VizStats(frames: 0, shadowMicros: 0, bufferMs: 100, outputLatencyMs: 12, offsetMs: 0)
     }
 
+    func vizTakeRemote(scope: Bool) -> [RemoteVizFrame] { [] }
+
     func setVizOutputLatencyMs(ms: UInt32) {}
     func setVizOffsetMs(ms: Int32) {}
 

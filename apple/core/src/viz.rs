@@ -48,6 +48,14 @@ pub(crate) const MAX_SCOPE_SAMPLES: usize = 8192;
 /// sid_sidlite.rs) minus the 50 ms `setup_playback` sleeps after it.
 pub(crate) const TRACK_START_LAG: Duration = Duration::from_millis(100);
 
+/// Frames waiting for the remote to collect them: about 5 s at 50 Hz,
+/// for a collector that ticks every 40 ms.
+const REMOTE_FRAMES: usize = 256;
+
+/// The remote's scope keeps every second sample: 22.4 kHz on PAL is still
+/// five samples a period for the highest note a SID plays (about 4 kHz).
+pub(crate) const REMOTE_SCOPE_STEP: usize = 2;
+
 /// Per voice: the buffer lag plus a full scope window, with room to spare.
 const SAMPLE_RING: usize = 16_384;
 /// C64 cycles per scope sample: 44.8 kHz on PAL, 46.5 kHz on NTSC.
@@ -182,6 +190,9 @@ pub(crate) struct VizFeed {
     /// Fine-tuning on top, in milliseconds; positive shows frames later.
     offset_ms: i32,
     stats: Stats,
+    /// Every frame as it's made, for the remote (iPhone and iPad), with
+    /// the listening device's stream sample it starts at, if one listens.
+    remote: VecDeque<(Frame, Option<u64>)>,
 }
 
 impl VizFeed {
@@ -195,7 +206,37 @@ impl VizFeed {
             output_latency: Duration::ZERO,
             offset_ms: 0,
             stats: Stats::default(),
+            remote: VecDeque::with_capacity(REMOTE_FRAMES),
         }
+    }
+
+    /// The frames made since the last call, oldest first, each with the
+    /// listening device's stream sample it starts at (None on the Mac's
+    /// speakers).
+    pub fn take_remote(&mut self) -> Vec<(Frame, Option<u64>)> {
+        self.remote.drain(..).collect()
+    }
+
+    /// A frame's scope for the remote: chip 0's three voices, every
+    /// `REMOTE_SCOPE_STEP`th sample (22.4 kHz on PAL), as signed bytes
+    /// (−127…127), voice after voice. Empty once the ring has moved past
+    /// it, or for a frame from before the current subtune.
+    pub fn remote_scope(&self, frame: &Frame) -> Vec<u8> {
+        let oldest = self.written.saturating_sub(SAMPLE_RING as u64);
+        let end = frame.sample_start + frame.sample_count as u64;
+        if frame.sample_start < oldest || end > self.written || frame.num_chips == 0 {
+            return Vec::new();
+        }
+        let per_voice = (frame.sample_count as usize).div_ceil(REMOTE_SCOPE_STEP);
+        let mut out = Vec::with_capacity(per_voice * 3);
+        for voice in 0..3 {
+            let ring = self.ring(0, voice);
+            for n in (frame.sample_start..end).step_by(REMOTE_SCOPE_STEP) {
+                let s = ring[(n % SAMPLE_RING as u64) as usize];
+                out.push(((s.clamp(-1.0, 1.0) * 127.0).round() as i8) as u8);
+            }
+        }
+        out
     }
 
     pub fn output_latency(&self) -> Duration {
@@ -349,6 +390,7 @@ impl VizFeed {
         }
         self.append(frame, &refs[..samples.len().min(MAX_CHIPS * 3)], took);
         self.schedule(&frame, now);
+        self.keep_for_remote(None);
     }
 
     /// Append a frame an engine rendered itself, whose start plays at
@@ -360,9 +402,20 @@ impl VizFeed {
         samples: &[&[f32]],
         audible_at: Instant,
         took: Duration,
+        stream_start: Option<u64>,
     ) {
         self.append(frame, samples, took);
         self.audible = Some((audible_at, frame.start));
+        self.keep_for_remote(stream_start);
+    }
+
+    /// The frame just appended, as stored: with its place in the sample rings.
+    fn keep_for_remote(&mut self, stream_start: Option<u64>) {
+        let Some(&frame) = self.frames.back() else { return };
+        if self.remote.len() == REMOTE_FRAMES {
+            self.remote.pop_front();
+        }
+        self.remote.push_back((frame, stream_start));
     }
 
     fn append(&mut self, mut frame: Frame, samples: &[&[f32]], took: Duration) {

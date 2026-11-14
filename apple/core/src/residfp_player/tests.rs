@@ -521,7 +521,7 @@ fn listen_for(device: &crate::listen::testing::Device, secs: f64) -> Vec<(u64, V
 fn switch_to_a_listener(rate: u32) {
     let feed = Arc::new(Mutex::new(VizFeed::new()));
     let (cmds, statuses, _device, seeker) = spawn_with(
-        feed,
+        feed.clone(),
         Chip::ReSidFp,
         Output::Fake {
             rate,
@@ -543,10 +543,14 @@ fn switch_to_a_listener(rate: u32) {
     })
     .unwrap();
     let deadline = Instant::now() + Duration::from_secs(5);
+    while rig_statuses.recv_deadline(deadline).expect("a status").elapsed < Duration::from_millis(300) {}
+    // A minute in: building an engine at the new rate and running it here
+    // would take about a second (design/scrubbing/README.md).
+    seeker.targets.send(Duration::from_secs(60)).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
     let mut before = Duration::ZERO;
-    while before < Duration::from_millis(500) {
-        let status = rig_statuses.recv_deadline(deadline).expect("a status");
-        before = status.elapsed;
+    while before < Duration::from_secs(60) || seeker.seeking.load(Ordering::Relaxed) {
+        before = rig_statuses.recv_deadline(deadline).expect("a status").elapsed;
     }
 
     let key = [9u8; 32];
@@ -554,10 +558,49 @@ fn switch_to_a_listener(rate: u32) {
     let mut device = crate::listen::testing::Device::new(&key);
     let hello = device.packet(crate::listen::HELLO, &[]);
     device.send(&hello, listener.port());
+    let switched = Instant::now();
     seeker.listen.send(Some(listener)).unwrap();
+    // The first audible frame, played straight on (or converted).
+    let mut decoder = opus::Decoder::new(crate::listen::RATE, opus::Channels::Stereo).unwrap();
+    let mut pcm = vec![0f32; crate::listen::FRAME * 2];
+    let heard = loop {
+        assert!(switched.elapsed() < Duration::from_secs(3), "nothing audible on the device");
+        let Some((kind, body)) = device.receive() else { continue };
+        if kind != crate::listen::AUDIO {
+            continue;
+        }
+        let n = decoder.decode_float(&body[30..], &mut pcm, false).unwrap();
+        if pcm[..n * 2].iter().any(|s| s.abs() > 0.01) {
+            break switched.elapsed();
+        }
+    };
+    assert!(heard < Duration::from_millis(150), "the switch took {heard:?}");
 
+    crate::viz::lock(&feed).take_remote();
     let frames = listen_for(&device, 1.0);
     assert!((60..=105).contains(&frames.len()), "100 frames a second, at real time: {}", frames.len());
+
+    // The remote's visualizer frames sit on the stream's samples: one per
+    // PAL frame (19.95 ms, 958 samples at 48 kHz), near the audio just sent.
+    let (visuals, scope) = {
+        let mut feed = crate::viz::lock(&feed);
+        let visuals = feed.take_remote();
+        let scope = feed.remote_scope(&visuals.last().unwrap().0);
+        (visuals, scope)
+    };
+    // A frame's scope: three voices, every second sample. A frame is 20 ms
+    // (894 samples) or a buffer more, when the buffers don't divide it.
+    assert!((3 * 440..=3 * 680).contains(&scope.len()), "scope bytes: {}", scope.len());
+    assert!(scope.iter().any(|&b| (b as i8).unsigned_abs() > 2), "the scope has the tune in it");
+    let stamps: Vec<u64> = visuals.iter().filter_map(|(_, at)| *at).collect();
+    assert!(stamps.len() >= 30, "frames stamped while listening: {} of {}", stamps.len(), visuals.len());
+    for pair in stamps.windows(2).skip(1) {
+        let step = pair[1] as i64 - pair[0] as i64;
+        assert!((900..=1500).contains(&step), "a frame's length in stream samples: {step}");
+    }
+    let newest_audio = frames.last().unwrap().0 as i64;
+    let newest_frame = *stamps.last().unwrap() as i64;
+    assert!((newest_frame - newest_audio).abs() < 4_800, "frame at {newest_frame}, audio at {newest_audio}");
     assert!(frames.windows(2).all(|w| w[1].0 == w[0].0 + crate::listen::FRAME as u64), "no gaps once it runs");
     let loud = frames.iter().flat_map(|(_, l)| l).fold(0f32, |m, s| m.max(s.abs()));
     assert!(loud > 0.01, "the tune reached the device: {loud}");
@@ -576,8 +619,104 @@ fn a_playing_tune_moves_to_a_listening_device() {
     switch_to_a_listener(48_000);
 }
 
-/// The speakers at 44.1 kHz: a fresh engine at 48 kHz, run on to the same place.
+/// The speakers at 44.1 kHz: the engine keeps playing, converted to 48 kHz.
 #[test]
 fn a_tune_at_another_rate_moves_to_a_listening_device() {
     switch_to_a_listener(44_100);
+}
+
+/// Paused while listening, then played again: the device hears the tune
+/// again, and a seek made while paused is heard from its new place.
+#[test]
+fn a_listening_device_hears_the_tune_again_after_a_pause() {
+    let feed = Arc::new(Mutex::new(VizFeed::new()));
+    let (cmds, statuses, _device, seeker) = spawn_with(
+        feed,
+        Chip::ReSidFp,
+        Output::Fake { rate: 48_000, block: 480, period: Duration::from_millis(10), tap: None },
+    );
+    cmds.send(PlayerCmd::Play {
+        path: tune_file(1, "listen-pause"),
+        song: 1,
+        force_stereo: false,
+        pseudo_stereo: None,
+        sid4_addr: 0,
+        audio_port: None,
+        restart_usb_on_load: false,
+    })
+    .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while statuses.recv_deadline(deadline).expect("a status").elapsed < Duration::from_millis(300) {}
+
+    let key = [9u8; 32];
+    let listener = crate::listen::Listener::open(&key).unwrap();
+    let mut device = crate::listen::testing::Device::new(&key);
+    let hello = device.packet(crate::listen::HELLO, &[]);
+    device.send(&hello, listener.port());
+    seeker.listen.send(Some(listener)).unwrap();
+    let loudest = |frames: &[(u64, Vec<f32>)]| frames.iter().flat_map(|(_, l)| l).fold(0f32, |m, s| m.max(s.abs()));
+    assert!(loudest(&listen_for(&device, 0.5)) > 0.01, "playing before the pause");
+
+    cmds.send(PlayerCmd::SetPaused(true)).unwrap();
+    listen_for(&device, 0.2);
+    let paused = listen_for(&device, 0.3);
+    assert!(!paused.is_empty(), "silence keeps coming while paused");
+    assert!(loudest(&paused) < 0.001, "quiet while paused: {}", loudest(&paused));
+
+    cmds.send(PlayerCmd::SetPaused(false)).unwrap();
+    listen_for(&device, 0.1);
+    assert!(loudest(&listen_for(&device, 0.5)) > 0.01, "heard again after the pause");
+
+    cmds.send(PlayerCmd::SetPaused(true)).unwrap();
+    listen_for(&device, 0.3);
+    seeker.targets.send(Duration::from_secs(2)).unwrap();
+    listen_for(&device, 0.5);
+    cmds.send(PlayerCmd::SetPaused(false)).unwrap();
+    listen_for(&device, 0.2);
+    assert!(loudest(&listen_for(&device, 0.5)) > 0.01, "heard again after seeking while paused");
+    cmds.send(PlayerCmd::Quit).unwrap();
+}
+
+/// Another tune while listening: its visualizer frames keep coming, on
+/// the stream's samples, after the last tune's.
+#[test]
+fn visualizer_frames_follow_a_new_tune_while_listening() {
+    let feed = Arc::new(Mutex::new(VizFeed::new()));
+    let (cmds, statuses, _device, seeker) = spawn_with(
+        feed.clone(),
+        Chip::ReSidFp,
+        Output::Fake { rate: 48_000, block: 480, period: Duration::from_millis(10), tap: None },
+    );
+    let play = |tag: &str| PlayerCmd::Play {
+        path: tune_file(1, tag),
+        song: 1,
+        force_stereo: false,
+        pseudo_stereo: None,
+        sid4_addr: 0,
+        audio_port: None,
+        restart_usb_on_load: false,
+    };
+    cmds.send(play("viz-a")).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while statuses.recv_deadline(deadline).expect("a status").elapsed < Duration::from_millis(300) {}
+
+    let key = [9u8; 32];
+    let listener = crate::listen::Listener::open(&key).unwrap();
+    let mut device = crate::listen::testing::Device::new(&key);
+    let hello = device.packet(crate::listen::HELLO, &[]);
+    device.send(&hello, listener.port());
+    seeker.listen.send(Some(listener)).unwrap();
+    listen_for(&device, 0.5);
+    let first: Vec<u64> = crate::viz::lock(&feed).take_remote().iter().filter_map(|(_, s)| *s).collect();
+    assert!(!first.is_empty(), "frames stamped for the first tune");
+
+    cmds.send(play("viz-b")).unwrap();
+    let audio = listen_for(&device, 1.0);
+    let after = crate::viz::lock(&feed).take_remote();
+    let stamped: Vec<u64> = after.iter().filter_map(|(_, s)| *s).collect();
+    assert!(stamped.len() >= 30, "frames stamped for the next tune: {} of {}", stamped.len(), after.len());
+    assert!(stamped[0] > *first.last().unwrap(), "after the last tune's");
+    let newest_audio = audio.last().unwrap().0 as i64;
+    assert!((*stamped.last().unwrap() as i64 - newest_audio).abs() < 4_800, "near the audio");
+    cmds.send(PlayerCmd::Quit).unwrap();
 }

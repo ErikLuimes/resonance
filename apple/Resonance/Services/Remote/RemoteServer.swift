@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import Network
+import PhosphorCore
 import Security
 import SystemConfiguration
 
@@ -431,6 +432,7 @@ final class RemoteServer {
         connection.onClose = { [weak self, weak connection] failure in
             guard let self else { return }
             self.connections[key] = nil
+            Log.remote.info("connection closed\(failure.map { ": \(Log.kind($0))" } ?? "", privacy: .public)")
             self.updateConnected()
             if let waiting = self.waiting, waiting.connection === connection { self.endWaiting() }
             if let connection, self.streamConnection === connection { self.streamDeviceLeft() }
@@ -478,6 +480,10 @@ final class RemoteServer {
         var commit: String?
         var nonce: String?
         var install: String?
+        /// `visuals`: start or stop.
+        var on: Bool?
+        /// `visuals`: with the voices' waveforms.
+        var scope: Bool?
     }
 
     private struct Welcome: Encodable {
@@ -526,6 +532,11 @@ final class RemoteServer {
             connection.subscribed = true
             connection.send(Self.success(id: id, Empty()))
             connection.send(Self.event(commands.status()))
+        case "visuals":
+            connection.wantsVisuals = args.on ?? true
+            connection.wantsScope = connection.wantsVisuals && args.scope == true
+            connection.send(Self.success(id: id, Empty()))
+            sendVisualsIfWanted()
         case "listen.start":
             startStream(id: id, device: device, on: connection)
         case "listen.stop":
@@ -562,6 +573,7 @@ final class RemoteServer {
             saveDevices()
         }
         updateConnected()
+        Log.remote.info("device connected")
         connection.send(Self.success(id: id, welcome()))
     }
 
@@ -716,14 +728,17 @@ final class RemoteServer {
                 previous.send(Self.listenEnded)
             }
             streamConnection = connection
+            Log.remote.info("listening on a device, port \(port)")
             touch(device)
             connection.send(Self.success(id: id, Stream(port: port, key: key.base64EncodedString())))
         } catch {
+            Log.remote.error("listening didn't start: \(Log.kind(error))")
             connection.send(Self.failure(id: id, "The Mac couldn't start sending its audio: \(error.localizedDescription)"))
         }
     }
 
     private func endStream() {
+        if streamConnection != nil { Log.remote.info("listening ended") }
         streamConnection = nil
         player.stopListening()
     }
@@ -733,8 +748,63 @@ final class RemoteServer {
     /// Paused first: the player takes commands sent before the switch
     /// ahead of it, so the speakers never get a moment of the tune.
     private func streamDeviceLeft() {
+        Log.remote.info("the listening device's connection closed; pausing")
         if player.isPlaying { player.playPause() }
         endStream()
+    }
+
+    // MARK: Visuals
+
+    /// Collects the visualizer frames every `visualsTick` and sends them to
+    /// the devices that asked, until none does.
+    private var visualsTask: Task<Void, Never>?
+
+    /// 25 batches a second, two frames each at 50 Hz: well inside what a
+    /// listening device buffers (about 150 ms), so frames land before they
+    /// are heard; on the Mac's speakers, a frame shows within 40 ms.
+    private static let visualsTick: Duration = .milliseconds(40)
+
+    private func sendVisualsIfWanted() {
+        guard visualsTask == nil, connections.values.contains(where: \.wantsVisuals) else { return }
+        // Frames from before anyone asked aren't wanted.
+        _ = player.takeRemoteVisuals()
+        visualsTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: Self.visualsTick)
+                guard let self else { return }
+                let wanting = self.connections.values.filter { $0.wantsVisuals && $0.device != nil }
+                guard !wanting.isEmpty else {
+                    self.visualsTask = nil
+                    return
+                }
+                let scope = wanting.contains(where: \.wantsScope)
+                let frames = self.player.takeRemoteVisuals(scope: scope)
+                guard !frames.isEmpty else { continue }
+                let plain = Self.visuals(frames, scope: false)
+                let withScope = scope ? Self.visuals(frames, scope: true) : plain
+                for connection in wanting { connection.send(connection.wantsScope ? withScope : plain) }
+            }
+        }
+    }
+
+    private struct VisualFrame: Encodable {
+        /// Frames since the subtune started.
+        let i: UInt64
+        let pal: Bool
+        /// Per chip 35 bytes (RemoteVizFrame), base64.
+        let chips: String
+        /// The stream sample it starts at, while the device listens.
+        let sample: UInt64?
+        /// Chip 1's voices across the frame, base64 (RemoteVizFrame), when asked.
+        let scope: String?
+    }
+
+    private static func visuals(_ frames: [RemoteVizFrame], scope: Bool) -> Data {
+        let encoded = frames.map {
+            VisualFrame(i: $0.index, pal: $0.isPal, chips: Data($0.chips).base64EncodedString(), sample: $0.streamSample,
+                        scope: scope && !$0.scope.isEmpty ? Data($0.scope).base64EncodedString() : nil)
+        }
+        return (try? JSONEncoder().encode(Event(event: "visuals", result: encoded))) ?? Data()
     }
 
     private static var listenEnded: Data {
@@ -913,6 +983,10 @@ final class RemoteConnection {
     /// Once it has said hello or paired.
     var device: String?
     var subscribed = false
+    /// Sent visualizer frames (`visuals`), while its Now Playing shows.
+    var wantsVisuals = false
+    /// With the voices' waveforms, while its Scope page shows.
+    var wantsScope = false
     /// 32 bytes both ends derive from this TLS session, for proofs.
     private(set) var exporter: Data?
     var onLine: ((Data) -> Void)?

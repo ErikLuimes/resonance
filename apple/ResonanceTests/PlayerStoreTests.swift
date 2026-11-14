@@ -236,6 +236,7 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     }
     func vizScope(chip: UInt32, count: UInt32) -> VizScopeSamples { VizScopeSamples(sampleRate: 44_784, voices: [[], [], []]) }
     func vizStats() -> VizStats { VizStats(frames: 0, shadowMicros: 0, bufferMs: 100, outputLatencyMs: 12, offsetMs: 0) }
+    func vizTakeRemote(scope: Bool) -> [RemoteVizFrame] { [] }
     func setVizOutputLatencyMs(ms: UInt32) {}
     func setVizOffsetMs(ms: Int32) {}
 

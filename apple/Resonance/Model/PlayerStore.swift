@@ -453,6 +453,13 @@ final class PlayerStore {
     }
 
     /// Back to the speakers.
+    /// Every visualizer frame made since the last call, for the remote,
+    /// stamped with the listening device's stream sample while one listens.
+    /// `scope` adds the first chip's voice waveforms to each.
+    func takeRemoteVisuals(scope: Bool = false) -> [RemoteVizFrame] {
+        core.vizTakeRemote(scope: scope)
+    }
+
     func stopListening() {
         guard listening != nil else { return }
         core.stopListening()

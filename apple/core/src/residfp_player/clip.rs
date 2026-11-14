@@ -156,6 +156,7 @@ impl ClipRenderer {
             samples: 0,
             rate: config.sample_rate,
             cpu_hz: started.cpu_hz,
+            out: None,
         });
         let from = Duration::from_millis(config.from_ms);
         if !from.is_zero() {
@@ -341,7 +342,7 @@ impl State {
                 *slot = voice;
             }
             let audible_at = self.base + self.frame_start;
-            self.feed.push_rendered(frame, &refs[..self.chips * 3], audible_at, Duration::ZERO);
+            self.feed.push_rendered(frame, &refs[..self.chips * 3], audible_at, Duration::ZERO, None);
             self.frame_index += 1;
             self.frame_start = elapsed;
             self.frame_scope.iter_mut().for_each(Vec::clear);

@@ -321,6 +321,55 @@ impl VizScopeSamples {
     }
 }
 
+/// A visualizer frame for the remote (iPhone and iPad), packed small: it
+/// crosses the network 50 times a second.
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct RemoteVizFrame {
+    /// Frames since the subtune started.
+    pub index: u64,
+    pub is_pal: bool,
+    /// Per chip, 35 bytes: $00–$1C (29), the three envelope counters
+    /// (0–255), and the three envelope phases (0 attack, 1 decay, 2
+    /// sustain, 3 release).
+    pub chips: Vec<u8>,
+    /// The listening device's stream sample the frame starts at; None while
+    /// the Mac's speakers play.
+    pub stream_sample: Option<u64>,
+    /// When asked for: chip 0's three voices across the frame, every second
+    /// sample of the visualizers' reSID (22.4 kHz on PAL, 23.2 on NTSC), as
+    /// signed bytes, voice after voice. Empty otherwise.
+    pub scope: Vec<u8>,
+}
+
+impl RemoteVizFrame {
+    pub(crate) const CHIP_BYTES: usize = viz::FRAME_REGS + 6;
+
+    fn pack(frame: &viz::Frame, stream_sample: Option<u64>, scope: Vec<u8>) -> Self {
+        let mut chips = Vec::with_capacity(frame.num_chips * Self::CHIP_BYTES);
+        for chip in &frame.chips[..frame.num_chips] {
+            chips.extend_from_slice(&chip.regs);
+            chips.extend_from_slice(&chip.env);
+            for (v, state) in chip.env_state.iter().enumerate() {
+                // As `VizVoice::decode` tells sustain from decay.
+                let sustain = (chip.regs[v * 7 + 6] >> 4) * 0x11;
+                chips.push(match state {
+                    viz::EnvState::Attack => 0,
+                    viz::EnvState::DecaySustain if chip.env[v] == sustain => 2,
+                    viz::EnvState::DecaySustain => 1,
+                    viz::EnvState::Release => 3,
+                });
+            }
+        }
+        RemoteVizFrame {
+            index: frame.index,
+            is_pal: frame.is_pal,
+            chips,
+            stream_sample,
+            scope,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
 pub struct VizStats {
     /// Frames the visualizers' reSID has emulated this subtune.
@@ -1437,6 +1486,21 @@ impl PlayerCore {
         let sample_rate = feed.sample_rate();
         drop(feed);
         VizScopeSamples::pack(sample_rate, &voices)
+    }
+
+    /// Every visualizer frame made since the last call (up to about 5 s
+    /// of them), oldest first, for the remote; with their scope samples
+    /// when `scope`.
+    pub fn viz_take_remote(&self, scope: bool) -> Vec<RemoteVizFrame> {
+        let mut feed = viz::lock(&self.driver.viz);
+        let frames = feed.take_remote();
+        frames
+            .iter()
+            .map(|(frame, at)| {
+                let samples = if scope { feed.remote_scope(frame) } else { Vec::new() };
+                RemoteVizFrame::pack(frame, *at, samples)
+            })
+            .collect()
     }
 
     pub fn viz_stats(&self) -> VizStats {

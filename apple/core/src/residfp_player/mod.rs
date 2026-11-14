@@ -49,6 +49,7 @@ use crate::viz::{
 };
 
 pub(crate) mod clip;
+mod convert;
 #[cfg(test)]
 mod tests;
 
@@ -243,8 +244,12 @@ struct Live {
     chips: usize,
     /// Frames rendered so far.
     samples: u64,
+    /// The engine's rate: `samples` counts its frames.
     rate: u32,
     cpu_hz: f64,
+    /// Converts to the output's rate when that isn't the engine's: a tune
+    /// moved to another output keeps playing (convert.rs).
+    out: Option<convert::Converter>,
 }
 
 impl Live {
@@ -288,12 +293,15 @@ struct Report {
     /// Emulation time.
     took: Duration,
     error: Option<String>,
+    /// On a listening device: the stream sample this buffer ends at.
+    stream_end: Option<u64>,
 }
 
 impl Report {
     fn new() -> Self {
         Self {
             id: 0,
+            stream_end: None,
             samples_end: 0,
             chips: 0,
             state: [RawChip::default(); MAX_CHIPS],
@@ -356,6 +364,9 @@ struct Source {
     silent: Sender<()>,
     /// Whether the app's volume applies. A listening device has its own.
     volume: bool,
+    /// The network output's stream sample at the end of the buffer being
+    /// filled, for the visualizer frames a listening device draws.
+    stream_end: Option<u64>,
 }
 
 impl Source {
@@ -447,7 +458,14 @@ impl Source {
         let mut error = None;
         while done < frames {
             let n = (frames - done).min(CHUNK);
-            let got = live.engine.render(&mut self.scratch[..n * 2]);
+            let (got, used) = match live.out.as_mut() {
+                Some(out) => out.render(&mut live.engine, &mut self.scratch[..n * 2]),
+                None => {
+                    let got = live.engine.render(&mut self.scratch[..n * 2]);
+                    (got, got)
+                }
+            };
+            live.samples += used as u64;
             let out = &mut data[done * 2..(done + got) * 2];
             if !fading_out && self.fade_pos == self.fade_len {
                 for (out, &s) in out.iter_mut().zip(&self.scratch[..got * 2]) {
@@ -472,13 +490,12 @@ impl Source {
                 break;
             }
         }
-        live.samples += done as u64;
-
         let mut report = self
             .pool
             .try_recv()
             .unwrap_or_else(|_| Box::new(Report::new()));
         report.capture(live, at, began.elapsed(), error.clone());
+        report.stream_end = self.stream_end;
         // Full means the control thread is behind; this buffer's frame is
         // lost to the visualizers, nothing else.
         let _ = self.reports.try_send(report);
@@ -627,6 +644,7 @@ fn stream(
     let mut first = listener.next_frame();
     let mut seq: u32 = 0;
     while let Err(crossbeam_channel::TryRecvError::Empty) = stop.try_recv() {
+        source.stream_end = Some(first + frame as u64);
         source.fill(&mut pcm);
         for (i, s) in ints.iter_mut().zip(&pcm) {
             *i = (s * 32767.0).clamp(-32768.0, 32767.0) as i16;
@@ -679,6 +697,8 @@ struct Track {
     frame_took: Duration,
     frame_scope: Vec<Vec<f32>>,
     frame_chips: [ChipState; MAX_CHIPS],
+    /// The last report's `stream_end`.
+    stream_end: Option<u64>,
 }
 
 struct Roms {
@@ -1063,6 +1083,7 @@ impl Control {
             samples: 0,
             rate,
             cpu_hz: started.cpu_hz,
+            out: None,
         });
         self.to_audio
             .try_send(ToAudio::Swap(live))
@@ -1089,6 +1110,7 @@ impl Control {
             frame_took: Duration::ZERO,
             frame_scope: (0..chips * 3).map(|_| Vec::with_capacity(2048)).collect(),
             frame_chips: [ChipState::default(); MAX_CHIPS],
+            stream_end: None,
         });
         self.pending_writes = 0;
         Ok(())
@@ -1180,6 +1202,7 @@ impl Control {
                     samples: 0,
                     rate: track.rate,
                     cpu_hz: built.started.cpu_hz,
+                    out: None,
                 });
                 self.run_seek(live, Duration::ZERO);
             }
@@ -1252,6 +1275,7 @@ impl Control {
         track.frame_scope.iter_mut().for_each(Vec::clear);
         let is_pal = track.is_pal;
         viz::lock(&self.viz).begin_track(is_pal);
+        self.fit(&mut live);
         if self.to_audio.try_send(ToAudio::Swap(live)).is_err() {
             logging::error!(Category::Playback, "seek: the audio output isn't taking commands");
         }
@@ -1318,8 +1342,10 @@ impl Control {
         };
         let Some(track) = self.track.as_mut() else { return };
         match live {
-            // Same rate: the engine goes on as it was.
-            Some(live) if live.rate == rate && live.id == track.id => {
+            // The engine goes on as it was, converted if the new output's
+            // rate is another.
+            Some(mut live) if live.id == track.id => {
+                live.out = (live.rate != rate).then(|| convert::Converter::new(live.rate, rate));
                 if self.to_audio.try_send(ToAudio::Swap(live)).is_err() {
                     eprintln!("[residfp] the audio output isn't taking commands");
                 }
@@ -1327,7 +1353,7 @@ impl Control {
                     let _ = self.to_audio.try_send(ToAudio::Pause(true));
                 }
             }
-            // Another rate: a fresh engine at the new one, run to here.
+            // Nothing playing to keep: a fresh engine at the new rate, run to here.
             live => {
                 drop(live);
                 track.rate = rate;
@@ -1342,6 +1368,13 @@ impl Control {
                 self.seek_fresh();
             }
         }
+    }
+
+    /// A converter on `live` when the output's rate isn't the engine's, a
+    /// fresh one so nothing from before a seek is left in it.
+    fn fit(&self, live: &mut Live) {
+        let rate = self.sink.as_ref().map_or(live.rate, |sink| sink.rate);
+        live.out = (live.rate != rate).then(|| convert::Converter::new(live.rate, rate));
     }
 
     /// Open the output device and start its callback.
@@ -1363,6 +1396,7 @@ impl Control {
             fade_len: 1,
             silent,
             volume: !matches!(self.output, Output::Network(_)),
+            stream_end: None,
         };
         let sink = open_sink(&self.output, source)?;
         let rate = sink.rate;
@@ -1410,6 +1444,7 @@ impl Control {
                 track.frame_chips[c] = chip_state(raw);
             }
             track.frame_at.get_or_insert(report.at);
+            track.stream_end = report.stream_end;
             track.frame_took += report.took;
             // One visualizer frame per video frame, as the other engines
             // produce them, however long the device's buffers are.
@@ -1426,11 +1461,17 @@ impl Control {
                 for (slot, voice) in refs.iter_mut().zip(&track.frame_scope) {
                     *slot = voice;
                 }
+                // Where the frame starts in a listening device's stream.
+                let stream_start = track.stream_end.map(|end| {
+                    let length = track.elapsed.saturating_sub(track.frame_start).as_secs_f64();
+                    end.saturating_sub((length * listen::RATE as f64).round() as u64)
+                });
                 viz::lock(&self.viz).push_rendered(
                     frame,
                     &refs[..track.chips * 3],
                     track.frame_at.unwrap_or(report.at),
                     track.frame_took,
+                    stream_start,
                 );
                 track.frame_index += 1;
                 track.frame_start = track.elapsed;
