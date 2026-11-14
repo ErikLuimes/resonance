@@ -49,7 +49,7 @@ private struct RadialLayerView: NSViewRepresentable {
 /// Per voice: a faint base ring, and a glowing group of four bar layers,
 /// one per brightness step, whose paths change every frame. The group's
 /// shadow is the glow.
-private final class RadialNSView: FrameLinkedNSView {
+final class RadialNSView: FrameLinkedNSView {
     private static let steps = 4
     private static let noActions: [String: any CAAction] = [
         "path": NSNull(), "strokeColor": NSNull(), "lineWidth": NSNull(), "shadowColor": NSNull(),
@@ -128,6 +128,15 @@ private final class RadialNSView: FrameLinkedNSView {
     private func color(_ v: Int, _ alpha: Double) -> CGColor {
         let rgb = (theme ?? .resonance).voices[v % 3]
         return CGColor(srgbRed: rgb.red, green: rgb.green, blue: rgb.blue, alpha: alpha)
+    }
+
+    /// A clip's frame (`LayerClipPainter`): reads the feed as it is at
+    /// `date` and draws, without a display link.
+    func clipFrame(at date: Date) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        update(at: date)
+        CATransaction.commit()
     }
 
     /// Reads the feed, then draws.

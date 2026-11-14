@@ -497,3 +497,87 @@ fn quit_does_not_wait_for_an_output_that_stopped_asking() {
     assert!(took >= FADE_WAIT, "it gave the fade its chance: {took:?}");
     assert!(took < FADE_WAIT + Duration::from_millis(300), "{took:?}");
 }
+
+// ── Listening on a device ──
+
+/// Opus frames from the listener, decoded: (first sample, left channel).
+fn listen_for(device: &crate::listen::testing::Device, secs: f64) -> Vec<(u64, Vec<f32>)> {
+    let mut decoder = opus::Decoder::new(crate::listen::RATE, opus::Channels::Stereo).unwrap();
+    let deadline = Instant::now() + Duration::from_secs_f64(secs);
+    let mut frames = Vec::new();
+    let mut pcm = vec![0f32; crate::listen::FRAME * 2];
+    while Instant::now() < deadline {
+        let Some((kind, body)) = device.receive() else { continue };
+        if kind != crate::listen::AUDIO {
+            continue;
+        }
+        let first = u64::from_le_bytes(body[4..12].try_into().unwrap());
+        let n = decoder.decode_float(&body[30..], &mut pcm, false).unwrap();
+        frames.push((first, pcm[..n * 2].iter().step_by(2).copied().collect()));
+    }
+    frames
+}
+
+fn switch_to_a_listener(rate: u32) {
+    let feed = Arc::new(Mutex::new(VizFeed::new()));
+    let (cmds, statuses, _device, seeker) = spawn_with(
+        feed,
+        Chip::ReSidFp,
+        Output::Fake {
+            rate,
+            block: 480,
+            period: Duration::from_millis(10),
+            tap: None,
+        },
+    );
+    let rig_statuses = statuses.clone();
+    let path = tune_file(1, &format!("listen-{rate}"));
+    cmds.send(PlayerCmd::Play {
+        path,
+        song: 1,
+        force_stereo: false,
+        pseudo_stereo: None,
+        sid4_addr: 0,
+        audio_port: None,
+        restart_usb_on_load: false,
+    })
+    .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let mut before = Duration::ZERO;
+    while before < Duration::from_millis(500) {
+        let status = rig_statuses.recv_deadline(deadline).expect("a status");
+        before = status.elapsed;
+    }
+
+    let key = [9u8; 32];
+    let listener = crate::listen::Listener::open(&key).unwrap();
+    let mut device = crate::listen::testing::Device::new(&key);
+    let hello = device.packet(crate::listen::HELLO, &[]);
+    device.send(&hello, listener.port());
+    seeker.listen.send(Some(listener)).unwrap();
+
+    let frames = listen_for(&device, 1.0);
+    assert!((60..=105).contains(&frames.len()), "100 frames a second, at real time: {}", frames.len());
+    assert!(frames.windows(2).all(|w| w[1].0 == w[0].0 + crate::listen::FRAME as u64), "no gaps once it runs");
+    let loud = frames.iter().flat_map(|(_, l)| l).fold(0f32, |m, s| m.max(s.abs()));
+    assert!(loud > 0.01, "the tune reached the device: {loud}");
+
+    // It kept going from where it was, not from the top.
+    let mut after = Duration::ZERO;
+    while let Ok(status) = rig_statuses.try_recv() {
+        after = status.elapsed;
+    }
+    assert!(after >= before, "{after:?} < {before:?}");
+    cmds.send(PlayerCmd::Quit).unwrap();
+}
+
+#[test]
+fn a_playing_tune_moves_to_a_listening_device() {
+    switch_to_a_listener(48_000);
+}
+
+/// The speakers at 44.1 kHz: a fresh engine at 48 kHz, run on to the same place.
+#[test]
+fn a_tune_at_another_rate_moves_to_a_listening_device() {
+    switch_to_a_listener(44_100);
+}

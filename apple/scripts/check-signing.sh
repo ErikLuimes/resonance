@@ -34,6 +34,17 @@ while IFS= read -r -d '' FILE; do
     fi
 done < <(find "$BUNDLE" -type f -print0)
 
+# The MCP server an assistant runs keeps its sandbox through every re-signing.
+MCP="$BUNDLE/Contents/Helpers/resonance-mcp"
+if [ -f "$MCP" ]; then
+    ENTITLEMENTS="$(codesign -d --entitlements - --xml "$MCP" 2>/dev/null || true)"
+    if ! grep -q 'com.apple.security.app-sandbox' <<<"$ENTITLEMENTS" \
+        || ! grep -q "$TEAM.resonance" <<<"$ENTITLEMENTS"; then
+        echo "Contents/Helpers/resonance-mcp: not in the App Sandbox with the group $TEAM.resonance" >&2
+        FAILED=$((FAILED + 1))
+    fi
+fi
+
 if [ "$BINARIES" -eq 0 ]; then
     echo "error: no binaries in $BUNDLE" >&2
     exit 1

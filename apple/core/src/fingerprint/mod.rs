@@ -7,6 +7,7 @@ mod scan;
 mod similar;
 mod store;
 
+use crate::logging::{self, Category};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -107,11 +108,11 @@ impl Fingerprints {
         let mut slot = self.reader.lock().unwrap_or_else(|p| p.into_inner());
         if slot.is_none() {
             *slot = Store::open(self.scanner.db_path())
-                .map_err(|e| eprintln!("[resonance] fingerprints: {e}"))
+                .map_err(|e| logging::error!(Category::Library, "fingerprints: {e}"))
                 .ok();
         }
         f(slot.as_ref()?)
-            .map_err(|e| eprintln!("[resonance] fingerprints: {e}"))
+            .map_err(|e| logging::error!(Category::Library, "fingerprints: {e}"))
             .ok()
     }
 

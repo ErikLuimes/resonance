@@ -196,7 +196,8 @@ fn paths_or_stdin(files: &[PathBuf]) -> Vec<String> {
 fn print_tunes(tunes: &[Tune]) {
     if !std::io::stdout().is_terminal() {
         for t in tunes {
-            println!("{}\t{}\t{}\t{}", t.path, t.title, t.author, t.released);
+            // The path as it is, so it still names the file.
+            println!("{}\t{}\t{}\t{}", t.path, plain(&t.title), plain(&t.author), plain(&t.released));
         }
         return;
     }
@@ -206,21 +207,28 @@ fn print_tunes(tunes: &[Tune]) {
 }
 
 fn tune_lines(tunes: &[Tune]) -> Vec<String> {
-    let width = |f: fn(&Tune) -> &str| tunes.iter().map(|t| f(t).chars().count()).max().unwrap_or(0);
-    let (title, author) = (width(|t| &t.title).min(40), width(|t| &t.author).min(26));
+    let shown: Vec<[String; 3]> = tunes.iter().map(|t| [plain(&t.title), plain(&t.author), plain(&t.released)]).collect();
+    let width = |i: usize| shown.iter().map(|s| s[i].chars().count()).max().unwrap_or(0);
+    let (title, author) = (width(0).min(40), width(1).min(26));
     tunes
         .iter()
-        .map(|t| {
+        .zip(&shown)
+        .map(|(t, [t_title, t_author, released])| {
             let alike = t.score.map(|s| format!("{:>3.0}%  ", s * 100.0)).unwrap_or_default();
             let line = format!(
-                "{alike}{:title$}  {:author$}  {}",
-                cut(&t.title, title),
-                cut(&t.author, author),
-                t.released
+                "{alike}{:title$}  {:author$}  {released}",
+                cut(t_title, title),
+                cut(t_author, author),
             );
             line.trim_end().to_string()
         })
         .collect()
+}
+
+/// `text` without control characters. Titles come from tune files, which
+/// can carry escape codes that would steer the terminal.
+pub(crate) fn plain(text: &str) -> String {
+    text.chars().filter(|c| !c.is_control()).collect()
 }
 
 pub(crate) fn cut(text: &str, width: usize) -> String {
@@ -235,14 +243,14 @@ fn print_status(status: &Status) {
         println!("Nothing is playing.");
         return;
     };
-    let by = if now.author.is_empty() { String::new() } else { format!(" · {}", now.author) };
+    let by = if now.author.is_empty() { String::new() } else { format!(" · {}", plain(&now.author)) };
     let time = match status.duration {
         Some(duration) => format!("{} / {}", clock(status.elapsed), clock(duration)),
         None => clock(status.elapsed),
     };
     let song = if now.songs > 1 { format!("  ({} of {})", now.song, now.songs) } else { String::new() };
     let paused = if status.state == "paused" { "  paused" } else { "" };
-    println!("♪ {}{by}  {time}{song}{paused}", now.title);
+    println!("♪ {}{by}  {time}{song}{paused}", plain(&now.title));
 }
 
 /// The same text as About Resonance's Acknowledgments, from the app this tool came
@@ -287,9 +295,9 @@ fn run(cli: Cli) -> Result<(), String> {
                 println!("{}", serde_json::to_string(&header).unwrap_or_default());
                 return Ok(());
             }
-            println!("Title     {}", header.title);
-            println!("Composer  {}", header.author);
-            println!("Released  {}", header.released);
+            println!("Title     {}", plain(&header.title));
+            println!("Composer  {}", plain(&header.author));
+            println!("Released  {}", plain(&header.released));
             println!("Subtunes  {}", header.songs);
             if let Some(model) = header.model {
                 println!("Chip      {model}");
@@ -306,7 +314,7 @@ fn run(cli: Cli) -> Result<(), String> {
         Cmd::Tui => return tui::run(keys, false),
         Cmd::Credits => return tui::run(keys, true),
         // Connects when first asked to do something.
-        Cmd::Mcp => return mcp::run(),
+        Cmd::Mcp => return serve_mcp(),
         _ => {}
     }
 
@@ -332,9 +340,9 @@ fn run(cli: Cli) -> Result<(), String> {
             if json_out {
                 println!("{}", serde_json::to_string(&tune).unwrap_or_default());
             } else if off {
-                println!("Took {} out of Favorites.", tune.title);
+                println!("Took {} out of Favorites.", plain(&tune.title));
             } else {
-                println!("Added {} to Favorites.", tune.title);
+                println!("Added {} to Favorites.", plain(&tune.title));
             }
         }
         Cmd::Now => {
@@ -384,9 +392,9 @@ fn run(cli: Cli) -> Result<(), String> {
                 println!("{}", serde_json::to_string(&made).unwrap_or_default());
             } else {
                 if std::io::stdout().is_terminal() {
-                    println!("{}", made.title);
+                    println!("{}", plain(&made.title));
                     if let Some(note) = &made.note {
-                        println!("{note}");
+                        println!("{}", plain(note));
                     }
                 }
                 print_tunes(&made.tunes);
@@ -408,6 +416,22 @@ fn run(cli: Cli) -> Result<(), String> {
     Ok(())
 }
 
+/// The app's copy of `resonance-mcp`, beside this tool, is the same server in
+/// the App Sandbox: become it, so an assistant's server gets no more than the
+/// socket. A copy built by cargo has none beside it and serves itself.
+fn serve_mcp() -> Result<(), String> {
+    use std::os::unix::process::CommandExt;
+    let sandboxed = client::own_app().and_then(|_| {
+        let exe = std::env::current_exe().ok()?.canonicalize().ok()?;
+        Some(exe.with_file_name("resonance-mcp")).filter(|p| p.is_file())
+    });
+    match sandboxed {
+        // Only returns when it couldn't start it.
+        Some(path) => Err(format!("Couldn't start {}: {}", path.display(), std::process::Command::new(&path).exec())),
+        None => mcp::run(),
+    }
+}
+
 fn output(json_out: bool, tunes: &[Tune]) {
     if json_out {
         println!("{}", serde_json::to_string(tunes).unwrap_or_default());
@@ -425,12 +449,12 @@ fn run_playlist(client: &mut Client, cmd: PlaylistCmd, json_out: bool) -> Result
             } else if std::io::stdout().is_terminal() {
                 for list in lists {
                     let unit = if list.count == 1 { "tune" } else { "tunes" };
-                    println!("{}  ({} {unit})", list.name, list.count);
+                    println!("{}  ({} {unit})", plain(&list.name), list.count);
                 }
             } else {
                 // For completions and scripts: names alone.
                 for list in lists {
-                    println!("{}", list.name);
+                    println!("{}", plain(&list.name));
                 }
             }
         }
@@ -442,7 +466,7 @@ fn run_playlist(client: &mut Client, cmd: PlaylistCmd, json_out: bool) -> Result
         PlaylistCmd::New { name, files } => {
             let list: PlaylistInfo = client.get("playlist.new", json!({ "name": name, "paths": paths_or_stdin(&files) }))?;
             if !json_out {
-                println!("Made {}.", list.name);
+                println!("Made {}.", plain(&list.name));
             }
         }
         PlaylistCmd::Add { name, files } => {
@@ -472,7 +496,8 @@ fn main() -> ExitCode {
     match run(Cli::parse()) {
         Ok(()) => ExitCode::SUCCESS,
         Err(message) => {
-            eprintln!("resonance: {message}");
+            // The app's messages can quote names and paths.
+            eprintln!("resonance: {}", plain(&message));
             ExitCode::FAILURE
         }
     }
@@ -510,6 +535,15 @@ mod tests {
     fn sounds_like_shows_how_alike() {
         let lines = tune_lines(&[tune("Ace", "Galway", Some(0.94))]);
         assert_eq!(lines, [" 94%  Ace  Galway  1985"]);
+    }
+
+    /// A tune file's header can hold escape codes; they mustn't reach the terminal.
+    #[test]
+    fn titles_lose_control_characters() {
+        assert_eq!(plain("Evil\u{1b}]0;owned\u{7}\nTune\u{9b}"), "Evil]0;ownedTune");
+        assert_eq!(plain("Ünïcode · fine"), "Ünïcode · fine");
+        let lines = tune_lines(&[tune("A\u{1b}[2J", "B\u{1b}[H", None), tune("Ace", "Galway", None)]);
+        assert_eq!(lines, ["A[2J  B[H     1985", "Ace   Galway  1985"]);
     }
 
     #[test]

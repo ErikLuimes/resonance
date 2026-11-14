@@ -5,6 +5,10 @@
 use std::path::Path;
 
 fn main() {
+    // The unified log's C side (src/logging.rs).
+    println!("cargo:rerun-if-changed=oslog.c");
+    cc::Build::new().file("oslog.c").compile("resonance_oslog");
+
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../Cargo.toml");
     println!("cargo:rerun-if-changed={}", manifest.display());
     let text = std::fs::read_to_string(&manifest)

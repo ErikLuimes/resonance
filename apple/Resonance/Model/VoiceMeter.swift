@@ -16,7 +16,7 @@ nonisolated final class VoiceMeter {
     private static let referenceFPS = 30.0
 
     func update(levels input: [Float], at date: Date) {
-        let dt = lastUpdate.map { min(date.timeIntervalSince($0), 0.25) } ?? 0
+        let dt = lastUpdate.map { min(max(date.timeIntervalSince($0), 0), 0.25) } ?? 0
         lastUpdate = date
         let frames = dt * Self.referenceFPS
         let decay = pow(Self.decayPerFrame, frames)

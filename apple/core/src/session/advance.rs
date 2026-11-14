@@ -1,6 +1,7 @@
 //! Auto-advance: main.rs `poll_status`, from the `PlayState::Playing` check
 //! on (main.rs:4926-5072).
 
+use crate::logging::{self, Category};
 use std::time::{Duration, Instant};
 
 use super::Session;
@@ -60,8 +61,8 @@ impl Session {
         }
         self.last_advance_at = Some(now);
 
-        eprintln!(
-            "[resonance] advance: song {song}/{songs} elapsed={elapsed}s length={duration:?} trigger={}",
+        logging::info!(Category::Playback, 
+            "advance: song {song}/{songs} elapsed={elapsed}s length={duration:?} trigger={}",
             if duration_ended { "duration" } else { "silence" }
         );
 

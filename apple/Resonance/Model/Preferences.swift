@@ -20,6 +20,9 @@ nonisolated enum Pref {
     static let nowPlayingVisualizer = "nowPlayingVisualizer"
     /// The visualizers Now Playing offers (`NowPlayingVisual.lineup`).
     static let nowPlayingLineup = "nowPlayingLineup"
+    /// Share Clip…'s shape and length (design/clip-sharing).
+    static let clipShape = "clipShape"
+    static let clipLength = "clipLength"
     static let theme = "theme"
     static let customTheme = "customTheme"
     static let themeBadge = "themeBadge"
@@ -49,6 +52,19 @@ nonisolated enum Pref {
     /// Whether composer profiles look for a photo on Wikimedia Commons.
     static let composerPhotos = "composerPhotos"
 #endif
+    /// Whether this Mac listens for Resonance Remote.
+    static let remoteEnabled = "remoteEnabled"
+    /// This Mac's ID in Resonance Remote's Bonjour record and QR code.
+    static let remoteMacID = "remoteMacID"
+    /// The paired devices' names and when they were last seen; their keys
+    /// are in the Keychain.
+    static let remoteDevices = "remoteDevices"
+    /// Whether devices on the Mac's Apple Account join without pairing
+    /// (iCloud Keychain). On unless turned off.
+    static let remoteAccountJoin = "remoteAccountJoin"
+    /// Installs of Resonance Remote removed on this Mac, which may not join
+    /// through the Apple Account again.
+    static let remoteRemovedInstalls = "remoteRemovedInstalls"
 }
 
 nonisolated extension PlaybackOptions {

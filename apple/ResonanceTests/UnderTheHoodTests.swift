@@ -116,6 +116,55 @@ struct UnderTheHoodTests {
         #expect(none.row(atSecs: 3) == 0)
     }
 
+    /// A feed at `playhead`, which counts the frames read from it.
+    private final class Feed {
+        var playhead: UInt64 = 0
+        var copied = 0
+        let frame: (UInt64) -> VizSidFrame
+
+        init(frame: @escaping (UInt64) -> VizSidFrame) { self.frame = frame }
+
+        func history(_ count: Int) -> [VizSidFrame] {
+            let from = (playhead + 1) - min(UInt64(count), playhead + 1)
+            copied += Int(playhead - from) + 1
+            return (from...playhead).map(frame)
+        }
+    }
+
+    @Test func aTrailOnlyReadsTheNewFrames() {
+        let feed = Feed { self.frame($0) }
+        let trail = FrameTrail()
+        feed.playhead = 1000
+        #expect(trail.latest(512, fetch: feed.history).map(\.index) == Array(489...1000))
+        feed.copied = 0
+        for _ in 0..<30 {
+            feed.playhead += 2
+            let frames = trail.latest(512, fetch: feed.history)
+            #expect(frames.map(\.index) == Array((feed.playhead - 511)...feed.playhead))
+        }
+        #expect(feed.copied == 30 * FrameTrail.fresh)
+    }
+
+    @Test func aTrailStartsOverWhenItCantRunOn() {
+        let feed = Feed { self.frame($0) }
+        let trail = FrameTrail()
+        feed.playhead = 1000
+        _ = trail.latest(256, fetch: feed.history)
+        // A pause: more went by than a tick reads.
+        feed.playhead = 1100
+        #expect(trail.latest(256, fetch: feed.history).map(\.index) == Array(845...1100))
+        // A new tune: back at the start, with less to show than was asked for.
+        feed.playhead = 3
+        #expect(trail.latest(256, fetch: feed.history).map(\.index) == Array(0...3))
+        feed.playhead = 5
+        #expect(trail.latest(256, fetch: feed.history).map(\.index) == Array(0...5))
+        // A tab that shows fewer, then one that shows more again.
+        feed.playhead = 600
+        #expect(trail.latest(8, fetch: feed.history).map(\.index) == Array(593...600))
+        feed.playhead = 602
+        #expect(trail.latest(512, fetch: feed.history).map(\.index) == Array(91...602))
+    }
+
     @Test func aRegisterStaysLitForAFewFramesThenGoesOut() {
         let flash = RegisterFlash()
         flash.take([frame(1, change: 1), frame(2, change: 2)], chip: 0)

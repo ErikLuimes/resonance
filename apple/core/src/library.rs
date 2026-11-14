@@ -9,6 +9,7 @@
 //! tokio blocking pool, and the lock around the browsers is only held for
 //! cheap steps (directory listings, scoring an index).
 
+use crate::logging::{self, Category};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
@@ -760,8 +761,8 @@ fn load_or_build_index(
         db.stil.clone(),
         db.songlengths.clone(),
     );
-    eprintln!(
-        "[resonance] indexed {} {} tunes in {:.1}s",
+    logging::notice!(Category::Library, 
+        "indexed {} {} tunes in {:.1}s",
         index.len(),
         category.label(),
         started.elapsed().as_secs_f32()

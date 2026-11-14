@@ -255,6 +255,8 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
     func setShuffle(on: Bool) {}
     func setSubtune(song: UInt16) {}
     func seek(positionMs: UInt64) {}
+    func startListening(key: Data) throws -> UInt16 { 0 }
+    func stopListening() {}
     func setVolume(volume: Float) {}
     func shutdown() {}
     func stop() {}

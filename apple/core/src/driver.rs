@@ -9,6 +9,7 @@
 //! A second thread, the loader, parses files in FIFO order (folders and big
 //! playlists can take seconds) and hands entries back to the session thread.
 
+use crate::logging::{self, Category};
 use std::collections::HashSet;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
@@ -75,6 +76,9 @@ pub(crate) enum Command {
     SetEngine(Engine),
     /// Go to this point in the playing subtune (the pull-driven engines).
     Seek(Duration),
+    /// Play into a listening device from now on, or the speakers for None
+    /// (the pull-driven engines). Kept across engine changes.
+    Listen(Option<Arc<crate::listen::Listener>>),
     SetOptions(Options),
     SetHvscRoot(Option<PathBuf>),
     /// Save, stop the player and end the thread; acknowledged on the sender.
@@ -241,7 +245,7 @@ fn spawn_loader(progress: LoadingProgress, library: Library) -> (Sender<Job>, Re
                             Err(e) => {
                                 // Still unblock autosave, or the playlist
                                 // could never be saved again.
-                                eprintln!("[resonance] session restore failed: {e}");
+                                logging::error!(Category::Playback, "session restore failed: {e}");
                                 Loaded::SessionRestored(Vec::new())
                             }
                         }
@@ -312,7 +316,7 @@ fn parse_paths(
             flush(&mut files, &mut out);
             match parse_playlist(path, progress, hvsc_root.as_ref()) {
                 Ok(entries) => out.extend(entries),
-                Err(e) => eprintln!("[resonance] {e}"),
+                Err(e) => logging::error!(Category::Playback, "{e}"),
             }
         } else {
             files.push(path);
@@ -419,7 +423,7 @@ fn pick_tune(
         match PlaylistEntry::from_path(&path) {
             Ok(entry) => return Ok(Some(entry)),
             Err(e) => {
-                eprintln!("[resonance] surprise: skipping {}: {e}", path.display());
+                logging::notice!(Category::Playback, "surprise: skipping {}: {e}", path.display());
                 exclude.insert(path);
             }
         }
@@ -450,7 +454,7 @@ fn next_in_order(
         let Some(path) = order.pop() else { break };
         match PlaylistEntry::from_path(&path) {
             Ok(entry) => return Ok(Some(entry)),
-            Err(e) => eprintln!("[resonance] shuffle: skipping {}: {e}", path.display()),
+            Err(e) => logging::notice!(Category::Playback, "shuffle: skipping {}: {e}", path.display()),
         }
     }
     Ok(None)
@@ -542,6 +546,8 @@ struct State {
     databases: SharedDatabases,
     viz: VizCapture,
     analyzer: Analyzer,
+    /// The listening device, while there is one.
+    listener: Option<Arc<crate::listen::Listener>>,
 }
 
 fn run(
@@ -588,6 +594,7 @@ fn run(
         databases: start.databases,
         viz,
         analyzer: Analyzer::new(start.learned, learned_tx),
+        listener: None,
     };
 
     loop {
@@ -656,7 +663,7 @@ fn run(
                     .cloned()
                     .or_else(|| panic.downcast_ref::<&str>().map(|s| s.to_string()))
                     .unwrap_or_else(|| "unknown panic".into());
-                eprintln!("[resonance] session step panicked: {msg}");
+                logging::fault!(Category::Playback, "session step panicked: {msg}");
                 st.error = Some(format!("Internal error: {msg}"));
             }
         }
@@ -712,6 +719,12 @@ impl State {
                     let _ = seeker.targets.try_send(target);
                 }
             }
+            Command::Listen(listener) => {
+                self.listener = listener;
+                if let Some(seeker) = &self.player.seeker {
+                    let _ = seeker.listen.try_send(self.listener.clone());
+                }
+            }
             Command::SetOptions(options) => s.set_options(options, now),
             Command::SetHvscRoot(root) => s.set_hvsc_root(root),
             Command::Shutdown(_) => unreachable!("handled by the loop"),
@@ -739,6 +752,9 @@ impl State {
         let _ = self.player.commands.try_send(PlayerCmd::Quit);
         self.viz.reset();
         self.player = spawn_player(engine, self.viz.feed());
+        if let (Some(seeker), Some(listener)) = (&self.player.seeker, &self.listener) {
+            let _ = seeker.listen.try_send(Some(listener.clone()));
+        }
         self.session
             .switch_player(self.player.commands.clone(), engine, now);
     }
@@ -794,7 +810,7 @@ impl State {
     /// The player thread died (its status channel disconnected): start a
     /// fresh one on the same engine so the app keeps working.
     fn respawn_player(&mut self) {
-        eprintln!("[resonance] player thread exited — restarting it");
+        logging::fault!(Category::Playback, "player thread exited — restarting it");
         self.player = spawn_player(self.session.engine, self.viz.feed());
         self.session.set_player(self.player.commands.clone());
         self.error = Some("The player stopped unexpectedly and was restarted.".into());
@@ -814,7 +830,7 @@ impl State {
 
     fn save(&mut self) {
         if let Err(e) = persist::save(&self.session.playlist, &self.session_path) {
-            eprintln!("[resonance] session save failed: {e}");
+            logging::error!(Category::Playback, "session save failed: {e}");
         }
         self.saved_revision = self.session.playlist_revision;
         self.dirty_since = None;

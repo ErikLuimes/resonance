@@ -26,6 +26,7 @@
 //! The audio is silent meanwhile, elapsed time shows the target at once,
 //! and `Seeker::seeking` tells the UI. See design/scrubbing/README.md.
 
+use crate::logging::{self, Category};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
@@ -39,6 +40,7 @@ use residfp_sys::{
     Started, TuneInfo,
 };
 
+use crate::listen::{self, Listener};
 use crate::player::sid_file;
 use crate::player::{DeviceConfigEvent, PlayState, PlayerCmd, PlayerStatus, TrackInfo};
 use crate::session;
@@ -46,6 +48,7 @@ use crate::viz::{
     self, ChipState, EnvState, Frame, SharedFeed, CYCLES_PER_SAMPLE, FRAME_REGS, MAX_CHIPS,
 };
 
+pub(crate) mod clip;
 #[cfg(test)]
 mod tests;
 
@@ -114,6 +117,9 @@ fn sampling() -> SamplingMethod {
 pub(crate) enum Output {
     /// The default output device, through cpal.
     Device,
+    /// A device listening over the network (Listen on iPhone): Opus at
+    /// 48 kHz, paced by the Mac's clock. The Mac's speakers stay quiet.
+    Network(Arc<Listener>),
     /// For tests: a thread that asks for `block` frames every `period`, as a
     /// device at `rate` would (faster, with a short period).
     #[allow(dead_code)]
@@ -146,6 +152,9 @@ pub(crate) struct Seeker {
     /// While seeking: where the emulation is, in milliseconds from the
     /// start of the subtune, as the worker runs it toward the target.
     pub position_ms: Arc<AtomicU64>,
+    /// Where the audio goes from now on: a listening device, or the
+    /// speakers. The playing tune keeps going from where it was.
+    pub listen: Sender<Option<Arc<Listener>>>,
 }
 
 /// Start the player thread for `engine` (a pull-driven one). The first
@@ -177,13 +186,15 @@ pub(crate) fn spawn_with(
     let (status_tx, status_rx) = bounded::<PlayerStatus>(16);
     let (device_tx, device_rx) = bounded::<DeviceConfigEvent>(16);
     let (seek_tx, seek_rx) = bounded::<Duration>(16);
+    let (listen_tx, listen_rx) = bounded::<Option<Arc<Listener>>>(4);
     let seeking = Arc::new(AtomicBool::new(false));
     let position_ms = Arc::new(AtomicU64::new(0));
     let (flag, position) = (seeking.clone(), position_ms.clone());
     thread::Builder::new()
         .name("resonance-residfp".into())
         .spawn(move || {
-            Control::new(status_tx, device_tx, viz, chip, output, flag, position).run(cmd_rx, seek_rx)
+            Control::new(status_tx, device_tx, viz, chip, output, flag, position)
+                .run(cmd_rx, seek_rx, listen_rx)
         })
         .expect("failed to spawn the pull-driven player thread");
     (
@@ -194,6 +205,7 @@ pub(crate) fn spawn_with(
             targets: seek_tx,
             seeking,
             position_ms,
+            listen: listen_tx,
         },
     )
 }
@@ -342,6 +354,8 @@ struct Source {
     /// Told after each `Drop` is carried out, so quit knows the output is
     /// silent.
     silent: Sender<()>,
+    /// Whether the app's volume applies. A listening device has its own.
+    volume: bool,
 }
 
 impl Source {
@@ -426,7 +440,7 @@ impl Source {
             return;
         };
 
-        let gain = crate::audio_volume::scale() / 32768.0;
+        let gain = if self.volume { crate::audio_volume::scale() } else { 1.0 } / 32768.0;
         let fading_out = self.held.is_some();
         let began = Instant::now();
         let mut done = 0;
@@ -502,7 +516,7 @@ fn open_sink(output: &Output, mut source: Source) -> Result<Sink, String> {
                             .default_output_config()
                             .map_err(|e| format!("No default output config: {e}"))?;
                         let rate = default.sample_rate().0;
-                        eprintln!("[residfp] Audio device: '{name}', {rate} Hz");
+                        logging::notice!(Category::Playback, "Audio device: '{name}', {rate} Hz");
                         source.set_rate(rate);
                         let config = cpal::StreamConfig {
                             channels: 2,
@@ -515,7 +529,7 @@ fn open_sink(output: &Output, mut source: Source) -> Result<Sink, String> {
                                 move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
                                     source.fill(data)
                                 },
-                                |err| eprintln!("[residfp] Audio error: {err}"),
+                                |err| logging::error!(Category::Playback, "Audio error: {err}"),
                                 None,
                             )
                             .map_err(|e| format!("build_output_stream failed: {e}"))?;
@@ -542,6 +556,23 @@ fn open_sink(output: &Output, mut source: Source) -> Result<Sink, String> {
                 .map_err(|_| "audio thread died before reporting".to_string())??;
             Ok(Sink {
                 rate,
+                _stop: stop_tx,
+            })
+        }
+        Output::Network(listener) => {
+            let listener = Arc::clone(listener);
+            let mut encoder = opus::Encoder::new(listen::RATE, opus::Channels::Stereo, opus::Application::LowDelay)
+                .map_err(|e| format!("Opus encoder: {e}"))?;
+            encoder
+                .set_bitrate(opus::Bitrate::Bits(listen::BITRATE))
+                .map_err(|e| format!("Opus bitrate: {e}"))?;
+            source.set_rate(listen::RATE);
+            thread::Builder::new()
+                .name("residfp-listen".into())
+                .spawn(move || stream(source, encoder, &listener, &stop_rx))
+                .map_err(|e| format!("spawn listening thread: {e}"))?;
+            Ok(Sink {
+                rate: listen::RATE,
                 _stop: stop_tx,
             })
         }
@@ -572,6 +603,56 @@ fn open_sink(output: &Output, mut source: Source) -> Result<Sink, String> {
                 _stop: stop_tx,
             })
         }
+    }
+}
+
+/// The network output's thread: renders a frame ahead, encodes it, and
+/// sends it when its last sample is due, as a device's callback would ask
+/// for it. Runs until the sink is dropped.
+fn stream(
+    mut source: Source,
+    mut encoder: opus::Encoder,
+    listener: &Listener,
+    stop: &Receiver<()>,
+) {
+    // The audio thread's priority, as cpal gives its callback.
+    unsafe {
+        libc::pthread_set_qos_class_self_np(libc::qos_class_t::QOS_CLASS_USER_INTERACTIVE, 0);
+    }
+    let frame = listen::FRAME;
+    let mut pcm = vec![0f32; frame * 2];
+    let mut ints = vec![0i16; frame * 2];
+    let mut opus = vec![0u8; 4000];
+    let mut packet = Vec::with_capacity(4096);
+    let mut first = listener.next_frame();
+    let mut seq: u32 = 0;
+    while let Err(crossbeam_channel::TryRecvError::Empty) = stop.try_recv() {
+        source.fill(&mut pcm);
+        for (i, s) in ints.iter_mut().zip(&pcm) {
+            *i = (s * 32767.0).clamp(-32768.0, 32767.0) as i16;
+        }
+        let len = match encoder.encode(&ints, &mut opus) {
+            Ok(len) => len,
+            Err(e) => {
+                eprintln!("[residfp] Opus: {e}");
+                0
+            }
+        };
+        // Leaves when its last sample is due.
+        let deadline = Listener::due_ns(first + frame as u64);
+        let now = listener.now_ns();
+        if deadline > now {
+            thread::sleep(Duration::from_nanos(deadline - now));
+        } else if now - deadline > 100_000_000 {
+            // Held up (the Mac slept): pick up from the clock, not in a burst.
+            first = listener.next_frame();
+            continue;
+        }
+        if len > 0 {
+            listener.send_audio(seq, first, &opus[..len], &mut packet);
+        }
+        seq = seq.wrapping_add(1);
+        first += frame as u64;
     }
 }
 
@@ -638,6 +719,9 @@ struct Control {
     returned_rx: Receiver<Option<Box<Live>>>,
     seek_done_tx: Sender<SeekDone>,
     seek_done_rx: Receiver<SeekDone>,
+    /// Waiting for the old output to hand back the playing engine, to go on
+    /// in `output`.
+    switching: bool,
 }
 
 /// A seek in flight.
@@ -712,17 +796,24 @@ impl Control {
             returned_rx,
             seek_done_tx,
             seek_done_rx,
+            switching: false,
         }
     }
 
-    fn run(mut self, commands: Receiver<PlayerCmd>, seeks: Receiver<Duration>) {
+    fn run(
+        mut self,
+        commands: Receiver<PlayerCmd>,
+        seeks: Receiver<Duration>,
+        listens: Receiver<Option<Arc<Listener>>>,
+    ) {
         let reports = self.reports_rx.clone();
         let retired = self.retired_rx.clone();
         let returned = self.returned_rx.clone();
         let seek_done = self.seek_done_rx.clone();
         let mut seeks = seeks;
+        let mut listens = listens;
         let idle = tick(Duration::from_millis(100));
-        loop {
+        'run: loop {
             select! {
                 recv(commands) -> msg => match msg {
                     Ok(PlayerCmd::Quit) | Err(_) => break,
@@ -733,9 +824,28 @@ impl Control {
                     // The seeker was dropped; the thread ends with the commands.
                     Err(_) => seeks = crossbeam_channel::never(),
                 },
+                recv(listens) -> listener => match listener {
+                    Ok(listener) => {
+                        // Commands sent before the switch go first: a pause
+                        // sent with it (the device left) mustn't reach the
+                        // speakers after the tune does.
+                        while let Ok(cmd) = commands.try_recv() {
+                            match cmd {
+                                PlayerCmd::Quit => break 'run,
+                                cmd => self.handle(cmd),
+                            }
+                        }
+                        self.set_output(listener);
+                    }
+                    Err(_) => listens = crossbeam_channel::never(),
+                },
                 recv(returned) -> live => {
                     if let Ok(live) = live {
-                        self.seek_from_live(live);
+                        if self.switching {
+                            self.finish_switch(live);
+                        } else {
+                            self.seek_from_live(live);
+                        }
                     }
                 }
                 recv(seek_done) -> done => {
@@ -757,7 +867,7 @@ impl Control {
             }
         }
         self.wind_down();
-        eprintln!("[residfp] Player thread exiting");
+        logging::info!(Category::Playback, "Player thread exiting");
     }
 
     /// Stop and close the output, without a click: the callback fades the
@@ -786,7 +896,7 @@ impl Control {
             } => {
                 self.last_error = None;
                 if pseudo_stereo.is_some() && !self.warned_pseudo {
-                    eprintln!("[residfp] pseudo-stereo isn't supported on this engine");
+                    logging::info!(Category::Playback, "pseudo-stereo isn't supported on this engine");
                     self.warned_pseudo = true;
                 }
                 self.begin(path, song, force_stereo);
@@ -822,7 +932,7 @@ impl Control {
                 match name.as_str() {
                     "residfp" => self.chip = Chip::ReSidFp,
                     "sidlite-direct" => self.chip = Chip::SidLite,
-                    other => eprintln!("[residfp] not an engine of this player: {other}"),
+                    other => logging::error!(Category::Playback, "not an engine of this player: {other}"),
                 }
                 self.stop_playback();
                 self.send_status();
@@ -846,7 +956,7 @@ impl Control {
         match self.start(&path, song, mono_2sid) {
             Ok(()) => self.state = PlayState::Playing,
             Err(e) => {
-                eprintln!("[residfp] {e}");
+                logging::error!(Category::Playback, "{e}");
                 self.stop_playback();
                 self.last_error = Some(e);
             }
@@ -864,42 +974,7 @@ impl Control {
         rate: u32,
         power_on_delay: Option<u16>,
     ) -> Result<Built, String> {
-        let data =
-            std::fs::read(path).map_err(|e| format!("Cannot read {}: {e}", path.display()))?;
-        let is_mus = path
-            .extension()
-            .and_then(|e| e.to_str())
-            .is_some_and(|e| e.eq_ignore_ascii_case("mus"));
-
-        let mut engine = Engine::new()?;
-        engine.set_roms(
-            self.roms.kernal.as_deref(),
-            self.roms.basic.as_deref(),
-            self.roms.chargen.as_deref(),
-        );
-        // By path for MUS, so the companion .str is found.
-        let tune = if is_mus {
-            engine.load_path(path)?
-        } else {
-            engine.load_bytes(&data)?
-        };
-        let cfg = Config {
-            sample_rate: rate,
-            sampling: sampling(),
-            mono_2sid: mono_2sid && tune.chips == 2,
-            scope_cycles: CYCLES_PER_SAMPLE as u8,
-            chip: self.chip,
-            power_on_delay,
-            ..Config::default()
-        };
-        let started = engine.start(song, &cfg)?;
-        Ok(Built {
-            engine,
-            tune,
-            started,
-            data,
-            is_mus,
-        })
+        build(&self.roms, self.chip, path, song, mono_2sid, rate, power_on_delay)
     }
 
     fn start(&mut self, path: &Path, song: u16, mono_2sid: bool) -> Result<(), String> {
@@ -955,8 +1030,8 @@ impl Control {
             md5,
             mus_comments: tune.comments.clone(),
         };
-        eprintln!(
-            "[residfp] Loading: \"{}\" by {} — song {}/{} [{}] {} {}, {} at {} Hz on {}",
+        logging::notice!(Category::Playback, 
+            "Loading: \"{}\" by {} — song {}/{} [{}] {} {}, {} at {} Hz on {}",
             info.name,
             info.author,
             info.current_song,
@@ -994,6 +1069,7 @@ impl Control {
             .map_err(|_| "the audio output isn't taking commands".to_string())?;
 
         self.cancel_seek();
+        clip::remember_start(path, started.song, started.power_on_delay);
         viz::lock(&self.viz).begin_track(started.is_pal);
         let chips = started.chips.min(MAX_CHIPS);
         self.track = Some(Track {
@@ -1108,7 +1184,7 @@ impl Control {
                 self.run_seek(live, Duration::ZERO);
             }
             Err(e) => {
-                eprintln!("[residfp] seek: {e}");
+                logging::error!(Category::Playback, "seek: {e}");
                 self.cancel_seek();
             }
         }
@@ -1136,7 +1212,7 @@ impl Control {
                 });
             });
         if let Err(e) = spawned {
-            eprintln!("[residfp] seek thread: {e}");
+            logging::error!(Category::Playback, "seek thread: {e}");
             self.cancel_seek();
         }
     }
@@ -1149,8 +1225,8 @@ impl Control {
         }
         let seek = self.seek.take().expect("checked above");
         self.seeking.store(false, Ordering::Relaxed);
-        eprintln!(
-            "[residfp] seek to {:.1} s took {} ms",
+        logging::info!(Category::Playback, 
+            "seek to {:.1} s took {} ms",
             done.target.as_secs_f64(),
             seek.started.elapsed().as_millis()
         );
@@ -1177,7 +1253,7 @@ impl Control {
         let is_pal = track.is_pal;
         viz::lock(&self.viz).begin_track(is_pal);
         if self.to_audio.try_send(ToAudio::Swap(live)).is_err() {
-            eprintln!("[residfp] seek: the audio output isn't taking commands");
+            logging::error!(Category::Playback, "seek: the audio output isn't taking commands");
         }
         if self.state == PlayState::Paused {
             let _ = self.to_audio.try_send(ToAudio::Pause(true));
@@ -1192,6 +1268,80 @@ impl Control {
     fn cancel_seek(&mut self) {
         self.seek = None;
         self.seeking.store(false, Ordering::Relaxed);
+    }
+
+    // ── Switching outputs ──
+
+    /// Play into `listener` from now on, or the speakers for None. With a
+    /// tune playing, the old output fades it out and hands its engine back
+    /// (`finish_switch`); with none, the new output opens with the next one.
+    fn set_output(&mut self, listener: Option<Arc<Listener>>) {
+        let same = match (&self.output, &listener) {
+            (Output::Network(a), Some(b)) => Arc::ptr_eq(a, b),
+            (Output::Device, None) => true,
+            _ => false,
+        };
+        self.output = match listener {
+            Some(listener) => Output::Network(listener),
+            None => Output::Device,
+        };
+        if same || self.switching || self.sink.is_none() {
+            return;
+        }
+        if self.track.is_none() || self.state == PlayState::Stopped {
+            self.sink = None;
+            return;
+        }
+        // A seek in flight starts again on the new output.
+        self.cancel_seek();
+        self.switching = self.to_audio.try_send(ToAudio::Return).is_ok();
+        if !self.switching {
+            self.finish_switch(None);
+        }
+    }
+
+    /// The old output's engine is back (or it had none): open the new
+    /// output and keep going there, from the same place.
+    fn finish_switch(&mut self, live: Option<Box<Live>>) {
+        self.switching = false;
+        self.sink = None;
+        let rate = match self.open_output() {
+            Ok(rate) => rate,
+            Err(e) => {
+                eprintln!("[residfp] {e}");
+                drop(live);
+                self.stop_playback();
+                self.last_error = Some(e);
+                self.send_status();
+                return;
+            }
+        };
+        let Some(track) = self.track.as_mut() else { return };
+        match live {
+            // Same rate: the engine goes on as it was.
+            Some(live) if live.rate == rate && live.id == track.id => {
+                if self.to_audio.try_send(ToAudio::Swap(live)).is_err() {
+                    eprintln!("[residfp] the audio output isn't taking commands");
+                }
+                if self.state == PlayState::Paused {
+                    let _ = self.to_audio.try_send(ToAudio::Pause(true));
+                }
+            }
+            // Another rate: a fresh engine at the new one, run to here.
+            live => {
+                drop(live);
+                track.rate = rate;
+                let target = track.elapsed;
+                self.seek = Some(Seek {
+                    target,
+                    started: Instant::now(),
+                    for_track: track.id,
+                    pending: None,
+                });
+                self.seeking.store(true, Ordering::Relaxed);
+                self.seek_fresh();
+            }
+        }
     }
 
     /// Open the output device and start its callback.
@@ -1212,6 +1362,7 @@ impl Control {
             fade_pos: 0,
             fade_len: 1,
             silent,
+            volume: !matches!(self.output, Output::Network(_)),
         };
         let sink = open_sink(&self.output, source)?;
         let rate = sink.rate;
@@ -1235,7 +1386,7 @@ impl Control {
         let seeking = self.seek.is_some();
         if let Some(error) = report.error.take() {
             if self.track.as_ref().is_some_and(|t| t.id == report.id) {
-                eprintln!("[residfp] playback stopped: {error}");
+                logging::error!(Category::Playback, "playback stopped: {error}");
                 self.stop_playback();
                 self.last_error = Some(error);
                 self.send_status();
@@ -1342,6 +1493,51 @@ fn chip_state(raw: &RawChip) -> ChipState {
 /// C64 ROM images, if the user has put them where Phosphor's libsidplayfp
 /// path looks (plus Resonance's own `ROMs` folder). Without them
 /// libsidplayfp's built-in stubs play PSIDs and nearly every RSID.
+/// Load the tune at `path` and start `song` on a fresh engine through
+/// `chip`, with `power_on_delay` or a random one. The player's tracks and
+/// clips (`clip.rs`) are built the same way.
+fn build(
+    roms: &Roms,
+    chip: Chip,
+    path: &Path,
+    song: u16,
+    mono_2sid: bool,
+    rate: u32,
+    power_on_delay: Option<u16>,
+) -> Result<Built, String> {
+    let data = std::fs::read(path).map_err(|e| format!("Cannot read {}: {e}", path.display()))?;
+    let is_mus = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("mus"));
+
+    let mut engine = Engine::new()?;
+    engine.set_roms(roms.kernal.as_deref(), roms.basic.as_deref(), roms.chargen.as_deref());
+    // By path for MUS, so the companion .str is found.
+    let tune = if is_mus {
+        engine.load_path(path)?
+    } else {
+        engine.load_bytes(&data)?
+    };
+    let cfg = Config {
+        sample_rate: rate,
+        sampling: sampling(),
+        mono_2sid: mono_2sid && tune.chips == 2,
+        scope_cycles: CYCLES_PER_SAMPLE as u8,
+        chip,
+        power_on_delay,
+        ..Config::default()
+    };
+    let started = engine.start(song, &cfg)?;
+    Ok(Built {
+        engine,
+        tune,
+        started,
+        data,
+        is_mus,
+    })
+}
+
 fn find_roms() -> Roms {
     let mut dirs: Vec<PathBuf> = Vec::new();
     if let Some(data) = crate::config::config_dir() {
@@ -1365,7 +1561,7 @@ fn find_roms() -> Roms {
         chargen: find(&["chargen", "chargen.rom", "chargen.bin"], 4096),
     };
     if roms.kernal.is_some() {
-        eprintln!("[residfp] C64 ROM images found");
+        logging::info!(Category::Playback, "C64 ROM images found");
     }
     roms
 }

@@ -78,6 +78,7 @@ final class SpotlightIndex {
             defaults.set(mark, forKey: Pref.spotlightIndexed)
         } catch {
             // Quietly: Spotlight is a nicety, and the next launch tries again.
+            Log.app.error("Indexing tunes for Spotlight failed: \(Log.kind(error), privacy: .public) \(error.localizedDescription, privacy: .private)")
         }
     }
 }

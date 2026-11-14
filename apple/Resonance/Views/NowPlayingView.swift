@@ -30,6 +30,9 @@ struct NowPlayingView: View {
     @State private var isChoosing = false
     /// Not observed: restarting it on every mouse move redraws nothing.
     @State private var idle = IdleTimer()
+    /// Now Playing's width: below `clipButtonRoom` Share Clip… moves from
+    /// the top row to the tune's, so the centered picker never meets it.
+    @State private var width: CGFloat = 0
 
     var body: some View {
         ZStack {
@@ -42,6 +45,12 @@ struct NowPlayingView: View {
                     surpriseMe
                         .extra(showsExtras, hovering: $isHoveringExtras)
                     Spacer(minLength: 10)
+                    #if ALPHA
+                    if width >= Self.clipButtonRoom {
+                        shareClipButton
+                            .extra(showsExtras || store.isShowingClipSheet, hovering: $isHoveringExtras)
+                    }
+                    #endif
                     // At the row's end, so it stays put whatever the
                     // picker beside it offers.
                     chooseButton
@@ -78,6 +87,15 @@ struct NowPlayingView: View {
         .onContinuousHover { phase in
             if case .active = phase { wake() }
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+        // Opened only by Share Clip…, which the clipSharing flag keeps out
+        // of beta and final builds.
+        .sheet(isPresented: Bindable(store).isShowingClipSheet) {
+            ClipSheet(visual: shown)
+                .environment(store)
+                .voiceThemed()
+        }
+        .onChange(of: store.isShowingClipSheet) { wake() }
         .onChange(of: isHoveringExtras) { wake() }
         .onChange(of: isChoosing) { wake() }
         .onAppear {
@@ -104,7 +122,7 @@ struct NowPlayingView: View {
         idle.task?.cancel()
         idle.task = Task {
             try? await Task.sleep(for: .seconds(Self.idleDelay))
-            guard !Task.isCancelled, !isHoveringExtras, !isChoosing else { return }
+            guard !Task.isCancelled, !isHoveringExtras, !isChoosing, !store.isShowingClipSheet else { return }
             withAnimation(.easeInOut(duration: 0.6)) { showsExtras = false }
             // Full screen, the pointer goes too, until the mouse moves.
             if NSApp.keyWindow?.styleMask.contains(.fullScreen) == true {
@@ -181,6 +199,27 @@ struct NowPlayingView: View {
                     .voiceThemed()
             }
     }
+
+    /// Below this width the centered picker would meet Share Clip… and
+    /// Visualizers… (design/clip-sharing: half the picker, both buttons, the
+    /// gaps and the margin, each side of the middle).
+    private static let clipButtonRoom: CGFloat = 920
+
+    #if ALPHA
+
+    /// Opens the Share Clip… sheet; only for a visualizer that can make
+    /// clips, and while a tune is playing.
+    @ViewBuilder
+    private var shareClipButton: some View {
+        if ClipPainters.canClip(shown), store.nowPlaying != nil {
+            Button("Share Clip…") { store.isShowingClipSheet = true }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .controlSize(.large)
+                .help("Share a video clip of this visualizer")
+        }
+    }
+    #endif
 
     // MARK: Tune
 
@@ -267,6 +306,17 @@ struct NowPlayingView: View {
                 .padding(.horizontal, 12)
                 .frame(height: 28)
                 .background(.white.opacity(0.1), in: .capsule)
+            #if ALPHA
+            if width < Self.clipButtonRoom, ClipPainters.canClip(shown) {
+                Button("Share Clip…") { store.isShowingClipSheet = true }
+                    .help("Share a video clip of this visualizer")
+                    .buttonStyle(.plain)
+                    .font(.callout.weight(.semibold))
+                    .padding(.horizontal, 12)
+                    .frame(height: 28)
+                    .background(.white.opacity(0.1), in: .capsule)
+            }
+            #endif
         }
     }
 

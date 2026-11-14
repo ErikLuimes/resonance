@@ -160,8 +160,48 @@ final class ControlCommandsTests {
         #expect((reply["error"] as? String)?.contains("/nowhere/a.sid") == true)
     }
 
+    /// Any program of the user's can ask, so the answer mustn't say whether
+    /// a file it can't see is there.
+    @Test func aMissingFileAndOneThatIsntATuneGetTheSameAnswer() async throws {
+        let notes = folder.appending(path: "notes.sid")
+        try Data("Dear diary".utf8).write(to: notes)
+        let missing = folder.appending(path: "gone.sid")
+        let there = try await ask("play", ["paths": [notes.path]])["error"] as? String
+        let gone = try await ask("play", ["paths": [missing.path]])["error"] as? String
+        #expect(there == ControlCommands.cannotOpen(notes.path).message)
+        #expect(gone == ControlCommands.cannotOpen(missing.path).message)
+    }
+
+    @Test func aTuneIsKnownByItsHeader() throws {
+        let tune = folder.appending(path: "a.dat")
+        try Data("PSID".utf8 + [0, 2]).write(to: tune)
+        let mus = folder.appending(path: "b.mus")
+        try Data([0, 1]).write(to: mus)
+        #expect(ControlCommands.isTune(at: tune.path))
+        #expect(ControlCommands.isTune(at: mus.path))
+        #expect(!ControlCommands.isTune(at: folder.appending(path: "c.mus").path))
+    }
+
     @Test func favoritingNeedsSomethingPlaying() async throws {
         #expect(try await ask("fav")["error"] as? String == "Nothing is playing.")
+    }
+
+    /// `UInt32(_:)` traps past its range, and a tune has three SIDs at most.
+    @Test func aChipFromOutsideStaysInRange() async throws {
+        #expect(ControlCommands.chip(nil) == 0)
+        #expect(ControlCommands.chip(-1) == 0)
+        #expect(ControlCommands.chip(2) == 2)
+        #expect(ControlCommands.chip(5_000_000_000) == 2)
+        let reply = try await ask("tracker.position", ["chip": 5_000_000_000])
+        #expect((reply["result"] as? [String: Any])?["chip"] as? Int == 2)
+    }
+}
+
+struct PromptStatusTests {
+    /// A prompt prints the line as it is.
+    @Test func escapeCodesInATitleDontReachThePrompt() {
+        #expect(PromptStatus.plain("Evil\u{1b}]0;owned\u{7}\nTune\u{9b}") == "Evil]0;ownedTune")
+        #expect(PromptStatus.plain("Commando · Rob Hubbard") == "Commando · Rob Hubbard")
     }
 }
 
@@ -220,6 +260,32 @@ struct ControlServerSocketTests {
         _ = "one\ntwo\n".withCString { write(socket, $0, 8) }
         #expect(readLine(socket) == "echo one")
         #expect(readLine(socket) == "echo two")
+    }
+
+    /// A flood of empty lines is skipped cheaply, and a line split across
+    /// reads is answered whole.
+    @Test func manyShortLinesAndASplitLine() throws {
+        let path = path()
+        let server = ControlServer(path: path) { line in Data("echo \(String(decoding: line, as: UTF8.self))".utf8) }
+        try server.start()
+        defer { server.stop() }
+        let socket = try connect(path)
+        defer { close(socket) }
+        let flood = [UInt8](repeating: 10, count: 256 * 1024) + Array("one".utf8)
+        let started = Date()
+        flood.withUnsafeBytes { buffer in
+            var sent = 0
+            while sent < buffer.count {
+                let count = write(socket, buffer.baseAddress! + sent, buffer.count - sent)
+                guard count > 0 else { return }
+                sent += count
+            }
+        }
+        usleep(50_000)
+        _ = "-two\n".withCString { write(socket, $0, 5) }
+        #expect(readLine(socket) == "echo one-two")
+        // Copying the rest of the buffer for each line would be about 8 GB here.
+        #expect(Date().timeIntervalSince(started) < 5)
     }
 
     @Test func onlyItsOwnerCanReachIt() throws {

@@ -6,6 +6,7 @@
 //! in the store, so a scan picks up where the last one stopped: after a
 //! pause, a quit or a crash.
 
+use crate::logging::{self, Category};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering};
@@ -169,11 +170,11 @@ impl Scanner {
 
 fn coordinate(shared: &Arc<Shared>, db_path: &Path, tunes: Vec<ScanTune>, databases: &Databases) {
     let fail = |e: String| {
-        eprintln!("[resonance] fingerprint scan: {e}");
+        logging::error!(Category::Library, "fingerprint scan: {e}");
         *shared.error.lock().unwrap() = Some(e);
     };
     if let Some(e) = shared.error.lock().unwrap().clone() {
-        eprintln!("[resonance] fingerprint scan: {e}");
+        logging::error!(Category::Library, "fingerprint scan: {e}");
         return;
     }
 

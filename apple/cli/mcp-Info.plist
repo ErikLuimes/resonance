@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Linked into resonance-mcp (build.rs): a sandboxed command line tool
+     without one traps at launch. -->
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>app.useresonance.resonance.mcp</string>
+	<key>CFBundleName</key>
+	<string>resonance-mcp</string>
+</dict>
+</plist>

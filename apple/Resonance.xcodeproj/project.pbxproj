@@ -594,6 +594,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Resonance;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Resonance © 2026 Erik Luimes. Powered by Phosphor © 2026 Marcin Spoczynski.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Resonance Remote on your iPhone and iPad finds this Mac and connects to it over your network.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -659,6 +660,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Resonance;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Resonance © 2026 Erik Luimes. Powered by Phosphor © 2026 Marcin Spoczynski.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Resonance Remote on your iPhone and iPad finds this Mac and connects to it over your network.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

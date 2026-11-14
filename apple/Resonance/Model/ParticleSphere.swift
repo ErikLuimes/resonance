@@ -29,7 +29,7 @@ nonisolated final class ParticleSphere {
     /// first, ending with the one being heard: any note started in a frame
     /// not seen yet sets off that voice's wave.
     func update(history: [VizSidFrame], at date: Date) {
-        let dt = lastUpdate.map { min(date.timeIntervalSince($0), 0.1) } ?? 0
+        let dt = lastUpdate.map { min(max(date.timeIntervalSince($0), 0), 0.1) } ?? 0
         lastUpdate = date
         time += dt
 

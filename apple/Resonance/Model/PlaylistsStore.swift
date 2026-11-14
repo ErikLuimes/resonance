@@ -124,6 +124,7 @@ final class PlaylistsStore {
         do {
             try FileManager.default.moveItem(at: playlist.url, to: renamed.url)
         } catch {
+            Log.library.error("Renaming a playlist failed: \(Log.kind(error), privacy: .public) \(error.localizedDescription, privacy: .private)")
             self.error = error.localizedDescription
             return nil
         }
@@ -166,6 +167,7 @@ final class PlaylistsStore {
             try text.write(to: url, atomically: true, encoding: .utf8)
             return true
         } catch {
+            Log.library.error("Exporting a playlist failed: \(Log.kind(error), privacy: .public) \(error.localizedDescription, privacy: .private)")
             importNotice = String(localized: "Couldn't export \(url.lastPathComponent): \(error.localizedDescription)")
             return false
         }
@@ -190,6 +192,7 @@ final class PlaylistsStore {
         do {
             try FileManager.default.trashItem(at: playlist.url, resultingItemURL: nil)
         } catch {
+            Log.library.error("Moving a playlist to the Trash failed: \(Log.kind(error), privacy: .public) \(error.localizedDescription, privacy: .private)")
             self.error = error.localizedDescription
         }
         paths[playlist.id] = nil
@@ -216,6 +219,7 @@ final class PlaylistsStore {
             try (["#EXTM3U"] + files).joined(separator: "\n").appending("\n")
                 .write(to: playlist.url, atomically: true, encoding: .utf8)
         } catch {
+            Log.library.error("Saving a playlist failed: \(Log.kind(error), privacy: .public) \(error.localizedDescription, privacy: .private)")
             self.error = error.localizedDescription
             return false
         }
@@ -284,6 +288,7 @@ final class PlaylistsStore {
         do {
             try await core.setFavorite(path: path, favorite: favorite)
         } catch {
+            Log.library.error("Changing a favorite failed: \(Log.kind(error), privacy: .public) \(error.localizedDescription, privacy: .private)")
             self.error = LibraryStore.message(for: error)
         }
         await loadFavorites()

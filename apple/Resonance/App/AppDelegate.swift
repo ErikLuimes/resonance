@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 #if CSDB
     let csdb: CSDbStore
 #endif
+    let remote: RemoteServer
     let updater: Updater
     private var nowPlaying: NowPlayingController?
     private var activity: PlaybackActivity?
@@ -44,6 +45,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         library = LibraryStore(player: store)
         fingerprints = FingerprintStore(player: store)
         playlists = PlaylistsStore(player: store)
+        remote = RemoteServer(
+            commands: ControlCommands(player: store, library: library, fingerprints: fingerprints, playlists: playlists),
+            player: store
+        )
         super.init()
         // For the actions Siri and Shortcuts run (ResonanceIntents.swift).
         AppDependencyManager.shared.add(dependency: self.store)
@@ -65,6 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         store.startPolling()
         guard !Self.isRunningTests else { return }
+        Log.app.notice("Launched \(Updater.appVersion(), privacy: .public)")
         TuneDrag.install()
         SongTableStyle.install()
         AppKeys.start(store: store, library: library)
@@ -83,9 +89,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         spotlight = SpotlightIndex(store: store)
         spotlight?.start()
         startControl()
+        remote.start()
         #if DEBUG
         VisualizerPictures.openIfAsked(store: store)
         VisualizerStage.openIfAsked(store: store)
+        // To measure the drawer's tabs without a click; choose the tab
+        // with the launch argument `-underTheHoodTab sweeps`.
+        if ProcessInfo.processInfo.environment["RESONANCE_UNDER_THE_HOOD"] != nil {
+            store.isShowingUnderTheHood = true
+        }
         #endif
     }
 
@@ -98,6 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             control = server
         } catch {
             // Quietly: only the command line tool misses it, and says so.
+            Log.control.error("The control socket didn't start: \(Log.kind(error), privacy: .public) \(error.localizedDescription, privacy: .private)")
         }
         promptStatus = PromptStatus(store: store)
         promptStatus?.start()
@@ -113,6 +126,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// else goes to My Playlist and plays.
     func application(_ application: NSApplication, open urls: [URL]) {
         let files = urls.filter(\.isFileURL)
+        Log.app.notice("Opening \(files.count, privacy: .public) files and \(urls.count - files.count, privacy: .public) links: \(urls.map(\.absoluteString), privacy: .private)")
         FileAccess.shared.keep(files)
         let tunes = files.filter { !PlaylistsStore.isPlaylistFile($0) }
         if !tunes.isEmpty {
@@ -135,6 +149,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func application(_ application: NSApplication, continue userActivity: NSUserActivity,
                      restorationHandler: @escaping ([any NSUserActivityRestoring]) -> Void) -> Bool {
         if let link = SharedTuneLink(activity: userActivity) {
+            Log.sharing.notice("Opening a shared tune link")
             store.openShared(link)
             NSApp.activate()
             MiniPlayer.openMainWindow?()
@@ -158,6 +173,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        Log.app.notice("Quitting")
         control?.stop()
         promptStatus?.stop()
         store.shutdown()

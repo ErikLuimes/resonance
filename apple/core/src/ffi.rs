@@ -303,6 +303,24 @@ pub struct VizScopeSamples {
     pub samples: Vec<u8>,
 }
 
+impl VizScopeSamples {
+    /// Three voices' samples, packed voice after voice.
+    pub(crate) fn pack(sample_rate: f32, voices: &[Vec<f32>; 3]) -> Self {
+        let count = voices[0].len();
+        let mut samples = Vec::with_capacity(voices.len() * count * 4);
+        for voice in voices {
+            for s in voice {
+                samples.extend_from_slice(&s.to_ne_bytes());
+            }
+        }
+        VizScopeSamples {
+            sample_rate,
+            count: count as u32,
+            samples,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
 pub struct VizStats {
     /// Frames the visualizers' reSID has emulated this subtune.
@@ -434,6 +452,22 @@ impl std::fmt::Display for HvscError {
 }
 
 impl std::error::Error for HvscError {}
+
+/// Why listening on a device couldn't start.
+#[derive(Debug, Clone, PartialEq, uniffi::Error)]
+pub enum ListenError {
+    Failed { message: String },
+}
+
+impl std::fmt::Display for ListenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ListenError::Failed { message } => f.write_str(message),
+        }
+    }
+}
+
+impl std::error::Error for ListenError {}
 
 /// What a tune's sound is known for, from its fingerprint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Enum)]
@@ -1152,6 +1186,25 @@ impl PlayerCore {
         self.send(Command::Seek(Duration::from_millis(position_ms)));
     }
 
+    // ── Listening on a device ──
+
+    /// Play into a device over the network instead of the speakers, until
+    /// `stop_listening`. Opens a UDP port and returns it; every packet is
+    /// sealed with `key` (32 bytes), which the device got over its TLS
+    /// connection. The playing tune keeps going from where it was. Only the
+    /// engines with `can_seek` can; check before calling.
+    pub fn start_listening(&self, key: Vec<u8>) -> Result<u16, ListenError> {
+        let listener = crate::listen::Listener::open(&key).map_err(|message| ListenError::Failed { message })?;
+        let port = listener.port();
+        self.send(Command::Listen(Some(listener)));
+        Ok(port)
+    }
+
+    /// Back to the speakers; closes the port.
+    pub fn stop_listening(&self) {
+        self.send(Command::Listen(None));
+    }
+
     // ── Modes and settings ──
 
     pub fn set_shuffle(&self, on: bool) {
@@ -1383,18 +1436,7 @@ impl PlayerCore {
         let voices = feed.scope(Instant::now(), chip as usize, count as usize);
         let sample_rate = feed.sample_rate();
         drop(feed);
-        let count = voices[0].len();
-        let mut samples = Vec::with_capacity(voices.len() * count * 4);
-        for voice in &voices {
-            for s in voice {
-                samples.extend_from_slice(&s.to_ne_bytes());
-            }
-        }
-        VizScopeSamples {
-            sample_rate,
-            count: count as u32,
-            samples,
-        }
+        VizScopeSamples::pack(sample_rate, &voices)
     }
 
     pub fn viz_stats(&self) -> VizStats {

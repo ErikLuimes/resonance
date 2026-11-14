@@ -74,6 +74,8 @@ struct SettingsView: View {
 #endif
         case .integrations:
             IntegrationSettings()
+        case .remote:
+            RemoteSettings()
         case .crashes:
             CrashSettings()
         case .storage:
@@ -91,7 +93,9 @@ nonisolated enum SettingsPage: String, CaseIterable, Identifiable {
 #if CSDB
     case csdb
 #endif
-    case integrations, crashes, storage
+    case integrations
+    case remote
+    case crashes, storage
 
     var id: Self { self }
 
@@ -109,6 +113,7 @@ nonisolated enum SettingsPage: String, CaseIterable, Identifiable {
         case .csdb: "CSDb"
 #endif
         case .integrations: String(localized: "Integrations")
+        case .remote: String(localized: "Remote")
         case .crashes: String(localized: "Crashes")
         case .storage: String(localized: "Storage and Reset")
         }
@@ -128,6 +133,7 @@ nonisolated enum SettingsPage: String, CaseIterable, Identifiable {
         case .csdb: "antenna.radiowaves.left.and.right"
 #endif
         case .integrations: "puzzlepiece.extension"
+        case .remote: "iphone"
         case .crashes: "waveform.path.ecg"
         case .storage: "internaldrive"
         }
@@ -144,11 +150,12 @@ nonisolated enum SettingsPage: String, CaseIterable, Identifiable {
 #if CSDB
         library.append(.csdb)
 #endif
+        let mac: [SettingsPage] = [.integrations, .remote, .crashes, .storage]
         return [
             Group(title: "Resonance", pages: [.updates, .general, .appearance]),
             Group(title: String(localized: "Sound"), pages: [.engine, .playback]),
             Group(title: String(localized: "Library"), pages: library),
-            Group(title: String(localized: "Your Mac"), pages: [.integrations, .crashes, .storage]),
+            Group(title: String(localized: "Your Mac"), pages: mac),
         ]
     }
 }

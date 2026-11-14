@@ -4,7 +4,7 @@ import OSLog
 /// Switch, tube, hatch, disk drive and keyboard sounds for the About desk.
 final class MonitorSounds {
     static let shared = MonitorSounds()
-    private static let log = Logger(subsystem: "app.useresonance.resonance", category: "MonitorSounds")
+    private static let log = Logger(subsystem: Log.subsystem, category: "MonitorSounds")
 
     private let switchOn = MonitorSounds.player(named: "CRTPowerOn")
     private let switchOff = MonitorSounds.player(named: "CRTPowerOff")

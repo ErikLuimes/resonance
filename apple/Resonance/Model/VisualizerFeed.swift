@@ -9,8 +9,10 @@ import PhosphorCore
 /// inside a `TimelineView(.animation)`; every read copies, except that
 /// `latest()` is shared by every visualizer ticking in the same frame.
 nonisolated struct VisualizerFeed {
-    let core: any PlayerCoreProtocol
-    var frames = FrameCache()
+    let core: any VizSource
+    /// Nil reads every time: a clip renders frames closer together in wall
+    /// time than the cache's window, each at a different point in the tune.
+    var frames: FrameCache? = FrameCache()
 
     /// The visualizers' rate: 60 fps looks the same as a ProMotion
     /// display's 120 and costs half as much.
@@ -19,7 +21,8 @@ nonisolated struct VisualizerFeed {
 
     /// The frame being heard now; nil before the first one and while stopped.
     func latest() -> VizSidFrame? {
-        frames.read { core.vizLatest() }
+        guard let frames else { return core.vizLatest() }
+        return frames.read { core.vizLatest() }
     }
 
     /// How far into the subtune what's being heard is, in seconds.
@@ -50,6 +53,36 @@ nonisolated struct VisualizerFeed {
     func setOffset(milliseconds: Int) {
         core.setVizOffsetMs(ms: Int32(clamping: milliseconds))
     }
+}
+
+/// What a feed reads from: the player, or a clip rendering offline
+/// (`ClipRenderer`), whose reads are on the clip's own clock. Both have
+/// these methods from the core.
+nonisolated protocol VizSource: Sendable {
+    func vizLatest() -> VizSidFrame?
+    func vizHeardSecs() -> Double?
+    func vizHistory(count: UInt32) -> [VizSidFrame]
+    func vizScope(chip: UInt32, count: UInt32) -> VizScopeSamples
+    func vizStats() -> VizStats
+    func setVizOutputLatencyMs(ms: UInt32)
+    func setVizOffsetMs(ms: Int32)
+}
+
+extension ClipRenderer: VizSource {}
+
+/// The player as a feed's source. The store's core is any
+/// `PlayerCoreProtocol` (previews and tests have their own), so it's
+/// passed on rather than conformed.
+nonisolated struct PlayerVizSource: VizSource {
+    let core: any PlayerCoreProtocol
+
+    func vizLatest() -> VizSidFrame? { core.vizLatest() }
+    func vizHeardSecs() -> Double? { core.vizHeardSecs() }
+    func vizHistory(count: UInt32) -> [VizSidFrame] { core.vizHistory(count: count) }
+    func vizScope(chip: UInt32, count: UInt32) -> VizScopeSamples { core.vizScope(chip: chip, count: count) }
+    func vizStats() -> VizStats { core.vizStats() }
+    func setVizOutputLatencyMs(ms: UInt32) { core.setVizOutputLatencyMs(ms: ms) }
+    func setVizOffsetMs(ms: Int32) { core.setVizOffsetMs(ms: ms) }
 }
 
 /// A scope read: three voices' samples, −1…1 (waveform × envelope), oldest
@@ -121,7 +154,7 @@ nonisolated final class FrameCache: @unchecked Sendable {
 
 extension PlayerStore {
     var visualizer: VisualizerFeed {
-        VisualizerFeed(core: core, frames: vizFrames)
+        VisualizerFeed(core: PlayerVizSource(core: core), frames: vizFrames)
     }
 }
 

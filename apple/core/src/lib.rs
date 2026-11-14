@@ -11,6 +11,23 @@
 //! `usb` feature is never enabled, so `sid_device::create_engine` can't reach
 //! the bridge daemon or its osascript install prompt.
 
+// ── Logging ──────────────────────────────────────────────────────────────────
+
+/// The unified log (design/logging/README.md). Declared before everything
+/// below so its macros are in scope there.
+pub(crate) mod logging;
+
+/// The Phosphor sources print their diagnostics with `eprintln!`, and a GUI
+/// app's stderr goes nowhere. A crate's own macro shadows the standard
+/// library's for everything after it, so their lines go to the unified log
+/// without touching `src/`. Tests keep the real one.
+#[cfg(not(test))]
+macro_rules! eprintln {
+    ($fmt:literal $(, $($arg:tt)*)?) => {
+        $crate::logging::engine_line($fmt, ::std::format_args!($fmt $(, $($arg)*)?))
+    };
+}
+
 // ── Upstream engine sources ──────────────────────────────────────────────────
 
 #[allow(dead_code, unused, clippy::all)]
@@ -88,6 +105,7 @@ mod history;
 mod hvsc_info;
 mod learned;
 mod library;
+mod listen;
 mod residfp_player;
 pub(crate) mod session;
 mod share;

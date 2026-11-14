@@ -209,7 +209,7 @@ private struct SpectrumLayerView: NSViewRepresentable {
 ///
 /// A layer's origin is its bottom left, so heights here run up from the
 /// bottom, where `SpectrumView.Plot` counts down from the top.
-private final class SpectrumNSView: FrameLinkedNSView {
+final class SpectrumNSView: FrameLinkedNSView {
     /// Where the plot is in a view of one size, as `Plot.draw` has it.
     private struct Metrics {
         var size: CGSize
@@ -470,6 +470,15 @@ private final class SpectrumNSView: FrameLinkedNSView {
     private func color(_ v: Int, _ alpha: Double) -> CGColor {
         let rgb = (theme ?? .resonance).voices[v % 3]
         return CGColor(srgbRed: rgb.red, green: rgb.green, blue: rgb.blue, alpha: alpha)
+    }
+
+    /// A clip's frame (`LayerClipPainter`): reads the feed as it is at
+    /// `date` and draws, without a display link.
+    func clipFrame(at date: Date) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        update(at: date)
+        CATransaction.commit()
     }
 
     /// Reads the feed, then draws.

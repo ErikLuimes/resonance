@@ -260,6 +260,8 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     func shutdown() { record("shutdown") }
     func stop() { record("stop") }
     func seek(positionMs: UInt64) { record("seek") }
+    func startListening(key: Data) throws -> UInt16 { record("startListening"); return 47_000 }
+    func stopListening() { record("stopListening") }
 }
 
 @MainActor

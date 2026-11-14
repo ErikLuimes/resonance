@@ -296,6 +296,7 @@ final class CSDbStore {
             self.updated = [releases.fetched, events.fetched, news.fetched].min()
             state = .idle
         } catch {
+            Log.sharing.error("Loading CSDb's feeds failed: \(Log.kind(error), privacy: .public) \(error.localizedDescription, privacy: .private)")
             state = .failed(error.localizedDescription)
         }
         // Never forced: Refresh is for the news, and this page is large.

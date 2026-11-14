@@ -180,20 +180,20 @@ pub fn run(client: &mut Client, practice: bool, clip_scale: f64) -> Result<(), S
         }
         if !game.over() {
             if let Some(clue) = hint(game.tries.len(), sound.as_deref(), &answer) {
-                println!("{clue}");
+                println!("{}", crate::plain(&clue));
             }
             println!();
         }
     }
 
-    println!("\nIt's {} by {} ({}).", answer.title, answer.author, answer.released);
+    println!("\nIt's {} by {} ({}).", crate::plain(&answer.title), crate::plain(&answer.author), crate::plain(&answer.released));
     println!("{}", game.share(day));
     client.call("play", json!({ "paths": [answer.path] }))?;
     if let Ok(alike) = client.get::<Vec<Tune>>("like", json!({ "path": answer.path, "limit": 3 })) {
         if !alike.is_empty() {
             println!("\nIf you like it, these sound alike:");
             for tune in alike {
-                println!("  {}  {}", tune.title, tune.author);
+                println!("  {}  {}", crate::plain(&tune.title), crate::plain(&tune.author));
             }
         }
     }

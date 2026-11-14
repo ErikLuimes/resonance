@@ -110,6 +110,9 @@ final class ControlCommands {
         let listsRevision: String
         /// How many tunes My Playlist has.
         let myPlaylistCount: Int
+        /// The device playing instead of the Mac's speakers (Listen on
+        /// iPhone), if one is.
+        let listening: PlayerStore.Listening?
     }
 
     struct PlaylistInfo: Encodable {
@@ -403,7 +406,7 @@ final class ControlCommands {
             return answer(Scope(voices: scope.voices))
 
         case "tracker.position":
-            let chip = max(args.chip ?? 0, 0)
+            let chip = Self.chip(args.chip)
             let history = player.visualizer.history(min(max(args.count ?? 1, 1), 512))
             let voices = history.last.flatMap { $0.chips.indices.contains(chip) ? $0.chips[chip].voices : nil } ?? []
             return answer(TrackerPosition(
@@ -420,7 +423,7 @@ final class ControlCommands {
             guard let track = player.nowPlaying else { throw Failure("Nothing is playing.") }
             // Its known length, else the longest a tune with none usually gets.
             let secs = min((player.duration ?? 300) + 2, 900)
-            let chip = max(args.chip ?? 0, 0)
+            let chip = Self.chip(args.chip)
             let song = try await player.core.trackerSong(path: track.path, subtune: UInt16(clamping: track.currentSong), secs: secs, chip: UInt32(chip))
             return answer(TrackerAnswer(
                 path: track.path, song: Int(track.currentSong), chip: chip, frameRate: song.frameRate, framesPerRow: song.framesPerRow,
@@ -433,10 +436,10 @@ final class ControlCommands {
         case "search":
             let text = args.text ?? ""
             guard !text.isEmpty else { return answer([Tune]()) }
-            return answer(try await search(text).prefix(args.limit ?? 50).map { Tune($0) })
+            return answer(try await search(text).prefix(Self.limit(args.limit, or: 50)).map { Tune($0) })
         case "like":
             let seed = try args.path ?? playing().path
-            let found = try await player.core.similarTunes(path: seed, subtune: nil, limit: UInt32(clamping: args.limit ?? 20))
+            let found = try await player.core.similarTunes(path: seed, subtune: nil, limit: UInt32(Self.limit(args.limit, or: 20)))
             guard !found.isEmpty else { throw Failure("Resonance hasn't fingerprinted this tune yet.") }
             if args.play == true {
                 library.play(found.map { LibraryRow(item: $0.item) },
@@ -472,7 +475,7 @@ final class ControlCommands {
             return answer(try await describePlaying())
         case "recent":
             let recent = try await player.core.recentlyPlayed()
-            return answer(recent.prefix(args.limit ?? 100).map { Tune($0.item, playedAt: $0.playedAt) })
+            return answer(recent.prefix(Self.limit(args.limit, or: 100)).map { Tune($0.item, playedAt: $0.playedAt) })
 
         // MARK: HVSC
         case "hvsc.info":
@@ -564,6 +567,18 @@ final class ControlCommands {
 
     // MARK: Helpers
 
+    /// A list's length as asked, within 0...500: `prefix` traps on a negative
+    /// count, and these come from outside the app.
+    nonisolated static func limit(_ asked: Int?, or fallback: Int) -> Int {
+        min(max(asked ?? fallback, 0), 500)
+    }
+
+    /// Which SID, within 0...2: a tune has three at most, and `UInt32(_:)`
+    /// traps on a count past its range.
+    nonisolated static func chip(_ asked: Int?) -> Int {
+        min(max(asked ?? 0, 0), 2)
+    }
+
     /// The collection's search looks at one field at a time, so "hubbard
     /// commando" finds nothing. Then: the longest word, narrowed by the others.
     private func search(_ text: String) async throws -> [HvscTuneItem] {
@@ -585,7 +600,8 @@ final class ControlCommands {
         return track
     }
 
-    private func status() -> Status {
+    /// Also Resonance Remote's status event.
+    func status() -> Status {
         let track = player.nowPlaying
         let state = switch player.state {
         case .playing: "playing"
@@ -607,7 +623,8 @@ final class ControlCommands {
             seeking: player.seeking,
             seekPosition: player.seekPosition,
             listsRevision: "\(playlists.revision).\(player.playlistRevision ?? 0)",
-            myPlaylistCount: player.rows.count
+            myPlaylistCount: player.rows.count,
+            listening: player.listening
         )
     }
 
@@ -664,15 +681,32 @@ final class ControlCommands {
             let file = open(path, O_RDONLY)
             if file >= 0 { close(file) }
             guard file < 0, errno == EPERM || errno == EACCES else { continue }
-            let folder = (path as NSString).deletingLastPathComponent
-            throw Failure("Resonance isn't allowed into \(folder) yet. Open the tune with Resonance from Finder, or drop it on the window, once; after that it can.")
+            throw cannotOpen(path)
         }
+    }
+
+    /// One answer whether the file is missing, out of the sandbox's reach or
+    /// not a tune. Any program of the user's can ask, including one that
+    /// isn't allowed into a folder Resonance was given, and it mustn't learn
+    /// what's in there by which answer it gets.
+    static func cannotOpen(_ path: String) -> Failure {
+        Failure("Resonance can't play \(path): it isn't there or isn't a tune, or Resonance isn't allowed into its folder yet. To allow it, open the tune with Resonance from Finder, or drop it on the window, once.")
+    }
+
+    /// Whether `path` opens and starts like something the player takes: a
+    /// PSID or RSID header, or a Compute's Gazette .mus.
+    static func isTune(at path: String) -> Bool {
+        guard let handle = FileHandle(forReadingAtPath: path) else { return false }
+        defer { try? handle.close() }
+        let magic = (try? handle.read(upToCount: 4)) ?? Data()
+        return magic.elementsEqual("PSID".utf8) || magic.elementsEqual("RSID".utf8)
+            || (path as NSString).pathExtension.lowercased() == "mus"
     }
 
     private func play(_ paths: [String], start: String?, from source: PlaybackSource) throws {
         let urls = paths.map { URL(filePath: $0) }
         guard let first = start.map({ URL(filePath: $0) }) ?? urls.first else { return }
-        guard FileManager.default.fileExists(atPath: first.path) else { throw Failure("There's no tune at \(first.path).") }
+        guard Self.isTune(at: first.path) else { throw Self.cannotOpen(first.path) }
         player.playQueue(urls, startAt: first, from: source)
     }
 

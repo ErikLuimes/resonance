@@ -1,10 +1,12 @@
 import Darwin
 import Foundation
 import PhosphorCore
+import Security
 
 /// The socket the `resonance` command line tool talks to: one JSON object per
 /// line each way (ControlCommands.swift has what they say). It lives in the
-/// app's folder, is only readable by its owner, and turns away anyone else.
+/// app group's container, where the sandboxed `resonance-mcp` can reach it,
+/// is only readable by its owner, and turns away anyone else.
 nonisolated final class ControlServer: @unchecked Sendable {
     /// More than any request needs: a whole playlist's paths fit well within.
     private static let maxLine = 8 << 20
@@ -15,15 +17,29 @@ nonisolated final class ControlServer: @unchecked Sendable {
         // socket.
         if let path = ProcessInfo.processInfo.environment["RESONANCE_SOCKET"] { return path }
 #endif
-        // The sandbox's home, the container, and not its Application Support:
-        // a socket's whole path has to fit in 104 bytes, and that one is 112
-        // for a short user name.
-        return (NSHomeDirectory() as NSString).appendingPathComponent("control.sock")
+        // The group's container, not its Library: a socket's whole path has
+        // to fit in 104 bytes. Without a team there's no group, and then the
+        // sandbox's home, the app's own container.
+        let folder = appGroup.flatMap { FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: $0)?.path }
+        return ((folder ?? NSHomeDirectory()) as NSString).appendingPathComponent("control.sock")
+    }
+
+    /// "<team>.resonance", as the app was signed: Config/Resonance.entitlements
+    /// has it as `$(TeamIdentifierPrefix)resonance`, which a build signed
+    /// without a team turns into a plain "resonance".
+    static var appGroup: String? {
+        guard let task = SecTaskCreateFromSelf(nil),
+              let groups = SecTaskCopyValueForEntitlement(task, "com.apple.security.application-groups" as CFString, nil) as? [String]
+        else { return nil }
+        return groups.first { $0.hasSuffix(".resonance") }
     }
 
     private let path: String
     private let handle: @Sendable (Data) async -> Data
     private var listener: Int32 = -1
+    /// Numbers connections in the log (ControlAudit). Only the accept loop
+    /// touches it.
+    private var connections = 0
 
     init(path: String = ControlServer.defaultPath, handle: @escaping @Sendable (Data) async -> Data) {
         self.path = path
@@ -86,30 +102,43 @@ nonisolated final class ControlServer: @unchecked Sendable {
     private func serve(_ connection: Int32) {
         var peer = uid_t(), group = gid_t()
         guard getpeereid(connection, &peer, &group) == 0, peer == getuid() else {
+            ControlAudit.refused(uid: peer)
             close(connection)
             return
         }
         var on: Int32 = 1
         setsockopt(connection, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
+        connections += 1
+        let number = connections
+        ControlAudit.connected(number, socket: connection)
 
         // One blocking thread per client, answering in the order it asks.
         let handle = handle
         Thread.detachNewThread {
-            defer { close(connection) }
+            defer { close(connection); ControlAudit.closed(number) }
             var pending = Data()
             var chunk = [UInt8](repeating: 0, count: 64 * 1024)
             while true {
                 let count = read(connection, &chunk, chunk.count)
                 guard count > 0 else { return }
+                // Only the new bytes can hold a newline: what came before was
+                // looked through already.
+                var from = pending.endIndex
                 pending.append(contentsOf: chunk[0..<count])
-                guard pending.count <= Self.maxLine else { return }
-                while let newline = pending.firstIndex(of: 10) {
-                    let line = Data(pending[pending.startIndex..<newline])
-                    pending = Data(pending[(newline + 1)...])
+                // Walk the buffer once and drop what was read at the end, so a
+                // flood of short lines doesn't copy the rest for each one.
+                var start = pending.startIndex
+                while let newline = pending[from...].firstIndex(of: 10) {
+                    let line = Data(pending[start..<newline])
+                    start = newline + 1
+                    from = start
                     guard !line.isEmpty else { continue }
+                    ControlAudit.request(number, line: line)
                     let reply = Self.wait { await handle(line) }
                     guard Self.write(reply + [10], to: connection) else { return }
                 }
+                if start != pending.startIndex { pending = Data(pending[start...]) }
+                guard pending.count <= Self.maxLine else { return }
             }
         }
     }
@@ -191,6 +220,14 @@ final class PromptStatus {
         let title = track.title.isEmpty
             ? URL(filePath: track.path).deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
             : track.title
-        return track.author.isEmpty ? title : "\(title) · \(track.author)"
+        return plain(track.author.isEmpty ? title : "\(title) · \(track.author)")
+    }
+
+    /// Without control characters: a prompt prints this as it is, and a tune
+    /// file's header can hold escape codes that would steer the terminal.
+    nonisolated static func plain(_ text: String) -> String {
+        String(String.UnicodeScalarView(text.unicodeScalars.filter {
+            $0.properties.generalCategory != .control && !CharacterSet.newlines.contains($0)
+        }))
     }
 }

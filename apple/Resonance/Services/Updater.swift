@@ -381,13 +381,20 @@ final class UpdaterEvents: NSObject, SPUUpdaterDelegate {
 
     func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
         updateVersion = item.displayVersionString
+        Log.updates.notice("Found update \(item.displayVersionString, privacy: .public)")
     }
 
     func updater(_ updater: SPUUpdater, willInstallUpdate item: SUAppcastItem) {
+        Log.updates.notice("Installing update \(item.displayVersionString, privacy: .public)")
         onWillInstall(item.displayVersionString)
     }
 
     func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: (any Error)?) {
+        if let error {
+            Log.updates.error("Update check failed: \(Log.kind(error), privacy: .public) \(error.localizedDescription, privacy: .private)")
+        } else {
+            Log.updates.info("Update check finished")
+        }
         onCycleFinished(updateCheck == .updatesInBackground, error, updateVersion)
         updateVersion = nil
     }

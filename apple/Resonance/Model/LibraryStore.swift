@@ -107,6 +107,7 @@ final class LibraryStore {
             authors[category] = list
             errors[category] = nil
         } catch {
+            Log.library.error("Listing HVSC composers failed: \(Log.kind(error), privacy: .public) \(error.localizedDescription, privacy: .private)")
             errors[category] = Self.message(for: error)
         }
     }
@@ -119,6 +120,7 @@ final class LibraryStore {
             dropCachesIfStale()
             tunes[authorPath] = list.map(LibraryRow.init)
         } catch {
+            Log.library.error("Listing a composer's tunes failed: \(Log.kind(error), privacy: .public) \(error.localizedDescription, privacy: .private)")
             tunes[authorPath] = []
         }
     }

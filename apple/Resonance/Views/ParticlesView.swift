@@ -105,16 +105,36 @@ final class ParticleRenderer: NSObject, MTKViewDelegate {
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
 
     func draw(in view: MTKView) {
-        guard let queue, let pipeline, let settle, let points, let offsets,
-              let pass = view.currentRenderPassDescriptor, let drawable = view.currentDrawable,
+        guard let queue, let pass = view.currentRenderPassDescriptor, let drawable = view.currentDrawable,
               let commands = queue.makeCommandBuffer()
         else { return }
+        encode(pass: pass, commands: commands, size: view.drawableSize,
+               backing: Float(view.window?.backingScaleFactor ?? 2), at: .now)
+        commands.present(drawable)
+        commands.commit()
+    }
 
+    /// Draws the sphere into `target` (bgra8Unorm), cleared first, as the
+    /// feed has it at `date`: a clip's frames (`ParticlesClipPainter`).
+    func encode(into target: MTLTexture, commands: MTLCommandBuffer, backing: Float, at date: Date) {
+        let pass = MTLRenderPassDescriptor()
+        pass.colorAttachments[0].texture = target
+        pass.colorAttachments[0].loadAction = .clear
+        pass.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
+        pass.colorAttachments[0].storeAction = .store
+        encode(pass: pass, commands: commands, size: CGSize(width: target.width, height: target.height),
+               backing: backing, at: date)
+    }
+
+    var commandQueue: MTLCommandQueue? { queue }
+
+    private func encode(pass: MTLRenderPassDescriptor, commands: MTLCommandBuffer, size: CGSize, backing: Float, at date: Date) {
+        guard let pipeline, let settle, let points, let offsets else { return }
         let history = feed?.history(8) ?? []
-        sphere.update(history: history, at: .now)
+        sphere.update(history: history, at: date)
         let dt = lastTime.map { sphere.time - $0 } ?? 0
         lastTime = sphere.time
-        var uniforms = makeUniforms(view: view, frame: history.last?.index ?? 0,
+        var uniforms = makeUniforms(size: size, backing: backing, frame: history.last?.index ?? 0,
                                     follow: Float(1 - exp(-dt / Self.easing)))
         var count = UInt32(Self.count)
 
@@ -135,8 +155,6 @@ final class ParticleRenderer: NSObject, MTKViewDelegate {
         encoder.setVertexBuffer(offsets, offset: 0, index: 2)
         encoder.drawPrimitives(type: .point, vertexStart: 0, vertexCount: Self.count)
         encoder.endEncoding()
-        commands.present(drawable)
-        commands.commit()
     }
 
     // MARK: Data
@@ -159,9 +177,7 @@ final class ParticleRenderer: NSObject, MTKViewDelegate {
     /// How long a point takes to (mostly) reach a new place, in seconds.
     private static let easing = 0.08
 
-    private func makeUniforms(view: MTKView, frame: UInt64, follow: Float) -> Uniforms {
-        let size = view.drawableSize
-        let backing = Float(view.window?.backingScaleFactor ?? 2)
+    private func makeUniforms(size: CGSize, backing: Float, frame: UInt64, follow: Float) -> Uniforms {
         let t = sphere.time
         // The mockup's 205 px sphere in a 640 px high view.
         let radius = Float(min(size.width, size.height)) * 0.32

@@ -3,3 +3,4 @@
 # It lives here rather than in Swift because the list would otherwise put these
 # strings into every build.
 csdb	restricted	csdb\.dk|wikipedia\.org|wikimedia\.org
+clipSharing	experimental	Share a video clip of this visualizer

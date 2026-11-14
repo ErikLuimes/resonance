@@ -183,6 +183,9 @@ final class PlayerStore {
     /// over the whole window, instead of the library.
     var isShowingNowPlaying = false
 
+    /// Now Playing's Share Clip… sheet, which View › Share Clip… opens too.
+    var isShowingClipSheet = false
+
     /// Into or out of Now Playing; the window animates the change.
     func toggleNowPlaying() {
         isShowingNowPlaying.toggle()
@@ -428,6 +431,34 @@ final class PlayerStore {
     func nextSubtune() { core.nextSubtune() }
     func previousSubtune() { core.prevSubtune() }
 
+    // MARK: Listening on a device
+
+    /// A paired device playing instead of the Mac's speakers.
+    struct Listening: Encodable, Equatable {
+        /// The device's ID, from pairing.
+        let device: String
+        let name: String
+    }
+
+    /// The device listening, while one is (Listen on iPhone).
+    private(set) var listening: Listening?
+
+    /// Play into `device` over the network from now on; the speakers go
+    /// quiet and the tune keeps playing from where it was. Returns the UDP port
+    /// the stream comes from; `key` seals every packet.
+    func startListening(_ device: Listening, key: Data) throws -> UInt16 {
+        let port = try core.startListening(key: key)
+        listening = device
+        return port
+    }
+
+    /// Back to the speakers.
+    func stopListening() {
+        guard listening != nil else { return }
+        core.stopListening()
+        listening = nil
+    }
+
     func setSubtune(_ song: Int) {
         core.setSubtune(song: UInt16(clamping: song))
     }
@@ -435,7 +466,9 @@ final class PlayerStore {
     /// Go to `seconds` into the tune (on the engines with `canSeek`; the
     /// others ignore it).
     func seek(to seconds: TimeInterval) {
-        core.seek(positionMs: UInt64(max(seconds, 0) * 1000))
+        // Clamped first: a huge or odd value would trap converting to UInt64.
+        let bounded = seconds.isFinite ? min(max(seconds, 0), 24 * 3600) : 0
+        core.seek(positionMs: UInt64(bounded * 1000))
     }
 
     /// `delta` seconds ahead or back, within the tune.
@@ -487,6 +520,7 @@ final class PlayerStore {
             try core.startHvscSync()
             hvscSyncError = nil
         } catch {
+            Log.library.error("Starting the HVSC download failed: \(Log.kind(error), privacy: .public) \(error.localizedDescription, privacy: .private)")
             hvscSyncError = LibraryStore.message(for: error)
         }
     }
@@ -516,6 +550,7 @@ final class PlayerStore {
             checkedHvsc = check.installed
             hvscUpdateError = nil
         } catch {
+            Log.library.error("Checking for an HVSC update failed: \(Log.kind(error), privacy: .public) \(error.localizedDescription, privacy: .private)")
             hvscUpdateError = LibraryStore.message(for: error)
         }
     }

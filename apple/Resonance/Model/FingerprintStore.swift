@@ -186,6 +186,7 @@ final class FingerprintStore {
             status = core.fingerprintScanStatus()
             setDownload = .added(Int(added))
         } catch {
+            Log.library.error("Downloading the fingerprint set failed: \(Log.kind(error), privacy: .public) \(error.localizedDescription, privacy: .private)")
             setDownload = quietly ? .idle : .failed(LibraryStore.message(for: error))
         }
     }

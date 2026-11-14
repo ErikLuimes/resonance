@@ -15,18 +15,21 @@ nonisolated enum FeatureTier: String {
 
 nonisolated enum Feature: String, CaseIterable, Identifiable {
     case csdb
+    case clipSharing
 
     var id: Self { self }
 
     var title: String {
         switch self {
         case .csdb: "CSDb and composer photos"
+        case .clipSharing: "Clip sharing"
         }
     }
 
     var tier: FeatureTier {
         switch self {
         case .csdb: .restricted
+        case .clipSharing: .experimental
         }
     }
 
@@ -34,6 +37,7 @@ nonisolated enum Feature: String, CaseIterable, Identifiable {
     var shipsWhen: String {
         switch self {
         case .csdb: "CSDb's admins agree to how the app uses their site."
+        case .clipSharing: "Clips of every offered visualizer pass the bitrate and lead-in checks on a slow Mac, and Erik has click-tested the sheet."
         }
     }
 
@@ -42,6 +46,12 @@ nonisolated enum Feature: String, CaseIterable, Identifiable {
         switch self {
         case .csdb:
             #if CSDB
+            true
+            #else
+            false
+            #endif
+        case .clipSharing:
+            #if ALPHA
             true
             #else
             false

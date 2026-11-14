@@ -16,6 +16,9 @@ struct PlaybackCommands: Commands {
         // ⇧⌘F: ⌃⌘F is the system's Enter Full Screen.
         CommandGroup(before: .sidebar) {
             NowPlayingItem(store: store)
+            #if ALPHA
+            ShareClipItem(store: store)
+            #endif
             UnderTheHoodItem(store: store)
         }
 
@@ -77,6 +80,21 @@ private struct NowPlayingItem: View {
         .keyboardShortcut("f", modifiers: [.command, .shift])
     }
 }
+
+#if ALPHA
+/// Opens Now Playing's Share Clip… sheet, for the visualizer it shows.
+private struct ShareClipItem: View {
+    let store: PlayerStore
+
+    var body: some View {
+        Button("Share Clip…") {
+            store.isShowingClipSheet = true
+        }
+        .keyboardShortcut("e", modifiers: [.command, .shift])
+        .disabled(!store.isShowingNowPlaying || store.nowPlaying == nil)
+    }
+}
+#endif
 
 private struct UnderTheHoodItem: View {
     let store: PlayerStore

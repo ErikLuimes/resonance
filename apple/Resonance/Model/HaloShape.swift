@@ -31,7 +31,7 @@ nonisolated final class HaloShape {
     /// Advance to `date` and rebuild the rings from `voices` (missing ones
     /// fade out). `frame` seeds the noise, so it changes once per SID frame.
     func update(voices: [VizVoice], frame: UInt64?, at date: Date) {
-        let dt = lastUpdate.map { min(date.timeIntervalSince($0), 0.1) } ?? 0
+        let dt = lastUpdate.map { min(max(date.timeIntervalSince($0), 0), 0.1) } ?? 0
         lastUpdate = date
         time += dt
         // Envelope smoothing: ~75 ms to settle, like the mockup at 60 fps.

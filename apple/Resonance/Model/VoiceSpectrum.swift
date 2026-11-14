@@ -44,7 +44,7 @@ nonisolated final class VoiceSpectrum {
     /// Advance to `date` with each voice's latest samples (−1…1, oldest
     /// first, any length; missing voices fall silent).
     func update(voices: [[Float]], sampleRate: Float, at date: Date) {
-        let dt = lastUpdate.map { min(date.timeIntervalSince($0), 0.1) } ?? 0
+        let dt = lastUpdate.map { min(max(date.timeIntervalSince($0), 0), 0.1) } ?? 0
         lastUpdate = date
         // The mockup's per-frame factors (0.45 up, 0.12 down) at 60 fps.
         let rise = Float(1 - pow(1 - 0.45, dt * 60))

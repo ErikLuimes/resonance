@@ -46,7 +46,11 @@ Store would question. Each is narrow:
 
 Other entitlements: `network.client` (sharing, HVSC downloads, updates,
 photos), `files.user-selected.read-write` (choosing folders, exporting
-playlists).
+playlists), `application-groups` (the socket, below).
+
+`network.server` is for Resonance Remote: the Mac takes the iPhone and iPad's
+connections. It listens only while Settings, Remote is on, and macOS asks about
+the local network the first time (`NSLocalNetworkUsageDescription`).
 
 Import from Phosphor was removed rather than given an exception for
 Phosphor's folder: few people come from Phosphor, and Phosphor's HVSC folder
@@ -57,13 +61,41 @@ the sandbox `HOME` and `NSHomeDirectory()` are the container.
 
 ## The command line tool, Raycast and the prompt
 
-They stay unsandboxed and look in the container first, then the old folder
-(`cli/src/client.rs`, `raycast/src/lib/client.ts`, the zsh plugin).
+The socket is in the container of the app group `<team>.resonance`
+(`application-groups`, as `$(TeamIdentifierPrefix)resonance`), at its top:
+`~/Library/Group Containers/R4D8QN85WK.resonance/control.sock`. A Unix
+socket's whole path must fit in 104 bytes; this one is 70 for the user name
+`erik`, which leaves room for a user name of 37 characters. A build signed
+without the team has no such group, and the app listens at the top of its own
+container, `Data/control.sock`, instead (`ControlServer.defaultPath`). The
+tool, Raycast and the zsh plugin look in the group first, then there
+(`cli/src/client.rs`, `raycast/src/lib/client.ts`).
 
-The socket is at the container's top, `Data/control.sock`, not in its
-Application Support with the rest: a Unix socket's whole path must fit in 104
-bytes, and that one is 112 for the user name `erik`. This one is 74, which
-leaves room for a user name of 29 characters.
+The MCP server an assistant runs is `resonance-mcp`, in the App Sandbox with
+nothing but the group (Config/ResonanceMCP.entitlements, signed by
+scripts/build-cli.sh; `resonance mcp` hands over to it). Tune text reaches the
+assistant, so the part it drives gets no more than the socket. The rest of the
+tool stays unsandboxed: in the sandbox the terminal app can't set raw mode
+(`tcsetattr` is refused, even with a `/dev/tty` exception), `resonance info`
+can't read the file it's given, and a helper can't read the app's Resources.
+A sandboxed tool also needs an Info.plist linked in (`cli/build.rs`), or it
+traps at launch.
+
+The group doesn't decide who connects. On macOS 27 a group container turns
+away other teams' programs from its files, but not from connecting to a socket
+in it; any program of the user's can. The socket's own checks (owner only, the
+peer's user ID) are what keep other users out.
+
+Who can use it: the socket is the owner's only (mode 600, and the app checks
+the peer's user ID), but any unsandboxed program of that user can connect, not
+only these three. That's the usual trust for a local control socket, and such
+a program can already do more than the socket allows. One thing it couldn't do
+alone: look into a folder macOS protects (Documents, Desktop, Downloads) that
+the user handed Resonance but not that program. So the socket answers the same
+whether a file is missing, out of the sandbox's reach or not a tune
+(`ControlCommands.cannotOpen`), and a tune there is all it can learn about.
+The remote is stricter: only the collection and My Playlist
+(`RemoteServer.pathsAllowed`).
 
 ## Sparkle
 

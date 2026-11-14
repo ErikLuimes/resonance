@@ -162,6 +162,11 @@ take tunes out of them, but it can't delete a playlist.
 claude mcp add resonance -- resonance mcp
 ```
 
+The server runs in the App Sandbox: `resonance mcp` hands over to
+`resonance-mcp`, beside it in the app, which can reach the app's socket and
+nothing else of yours. The rest of the tool can't be sandboxed: the terminal
+app needs raw mode, which the sandbox refuses.
+
 ## Licenses
 
 `resonance --licenses` prints the licenses of the open-source software in Resonance and
@@ -170,8 +175,9 @@ this tool, the same text as Acknowledgments in About Resonance.
 ## How it talks to the app
 
 One JSON object per line over a Unix socket that only you can reach, in the
-sandboxed app's folder:
-`~/Library/Containers/app.useresonance.resonance/Data/control.sock`
-(builds before alpha.6 used `~/Library/Application Support/Resonance`, which
-the tool still tries). The commands are in
+container of the app group Resonance and `resonance-mcp` share:
+`~/Library/Group Containers/R4D8QN85WK.resonance/control.sock`. A build
+signed without the team has no group and uses the app's own container,
+`~/Library/Containers/app.useresonance.resonance/Data/control.sock`, which
+the tool tries next. The commands are in
 `Resonance/Services/ControlCommands.swift`.

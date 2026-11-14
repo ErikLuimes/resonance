@@ -21,6 +21,10 @@ doctest = false
 # the build fails loudly instead of silently pulling in the bridge daemon.
 usb = []
 
+[build-dependencies]
+# The unified log's C shim (oslog.c); already in the lockfile via residfp-sys.
+cc = "1"
+
 [dependencies]
 # tokio: async FFI methods run on UniFFI's tokio runtime (library queries
 # do blocking disk work via spawn_blocking).
@@ -35,6 +39,12 @@ libc = "0.2"
 # The reSIDfp engine: libsidplayfp + libresidfp, rendered from the audio
 # callback (see ../residfp-sys).
 residfp-sys = { path = "../residfp-sys" }
+
+# Listen on iPhone (src/listen.rs): Opus for the stream, built from source
+# (libopus, BSD), and ChaCha20-Poly1305 to seal it. aws-lc-rs is already
+# here through rustls.
+opus = "0.4"
+aws-lc-rs = "1.19"
 
 # ── Mirrors of the root Cargo.toml ───────────────────────────────────────────
 # Same versions and features as ../../Cargo.toml for the engine sources this

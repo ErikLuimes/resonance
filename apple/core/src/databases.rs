@@ -3,6 +3,7 @@
 //! search-index cache). Loaded once from the collection's DOCUMENTS
 //! folder on the loader thread, then published through a shared slot.
 
+use crate::logging::{self, Category};
 use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
@@ -186,7 +187,7 @@ pub(crate) fn hvsc_path(path: &Path, hvsc_root: Option<&Path>) -> Option<String>
 
 fn log_err<T>(what: &str, path: &Path, result: Result<T, String>) -> Option<T> {
     result
-        .map_err(|e| eprintln!("[resonance] {what} at {}: {e}", path.display()))
+        .map_err(|e| logging::error!(Category::Library, "{what} at {}: {e}", path.display()))
         .ok()
 }
 

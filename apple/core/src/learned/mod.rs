@@ -11,6 +11,7 @@ mod detect;
 
 pub use detect::{estimate_length, LengthEstimate, LengthMethod};
 
+use crate::logging::{self, Category};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
@@ -83,7 +84,7 @@ impl LearnedLengths {
         // Written whole after every subtune, so a quit loses at most the one
         // running; these files stay small.
         if let Err(e) = save(path, &render(&tunes)) {
-            eprintln!("[resonance] saving learned song lengths: {e}");
+            logging::error!(Category::Library, "saving learned song lengths: {e}");
         }
     }
 
@@ -227,7 +228,7 @@ impl Analyzer {
                 .name("resonance-song-lengths".into())
                 .spawn(move || work(&store, &shared, &done));
             if let Err(e) = spawned {
-                eprintln!("[resonance] starting the song length thread: {e}");
+                logging::error!(Category::Library, "starting the song length thread: {e}");
                 queue.running = false;
             }
         }
@@ -264,7 +265,7 @@ fn work(store: &LearnedLengths, shared: &Shared, done: &Sender<String>) {
         // A tune the engine can't take is only that tune's problem.
         let outcome = catch_unwind(AssertUnwindSafe(|| run_job(&job, store, done, &canceled)));
         if outcome.is_err() {
-            eprintln!("[resonance] figuring out the length of {} panicked", job.path.display());
+            logging::fault!(Category::Library, "figuring out the length of {} panicked", job.path.display());
         }
         if let Ok(mut queue) = shared.queue.lock() {
             queue.taken.remove(&job.md5);
@@ -280,7 +281,7 @@ fn run_job(job: &LengthJob, store: &LearnedLengths, done: &Sender<String>, cance
         let secs = match estimate_length(&data, song, canceled) {
             Ok(estimate) => estimate.map(playable_secs),
             Err(e) => {
-                eprintln!("[resonance] figuring out the length of {}: {e}", job.path.display());
+                logging::notice!(Category::Library, "figuring out the length of {}: {e}", job.path.display());
                 None
             }
         };

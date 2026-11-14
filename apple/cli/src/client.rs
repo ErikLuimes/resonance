@@ -9,6 +9,9 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 const BUNDLE_ID: &str = "app.useresonance.resonance";
+/// The app group the app and the sandboxed `resonance-mcp` share; the socket
+/// is in its container. The team's ID first, as macOS app groups are named.
+const APP_GROUP: &str = "R4D8QN85WK.resonance";
 /// A cold launch, with the collection's indexes, can take this long.
 const LAUNCH_WAIT: Duration = Duration::from_secs(20);
 
@@ -18,18 +21,34 @@ pub struct Client {
     next_id: u64,
 }
 
-/// Where the app listens, the sandboxed build's folder as well as the plain one.
+/// Where the app listens: the app group's container, which `resonance-mcp`
+/// can reach from its sandbox, else where builds without a team put it.
 fn socket_paths() -> Vec<PathBuf> {
     if let Some(path) = std::env::var_os("RESONANCE_SOCKET") {
         return vec![PathBuf::from(path)];
     }
-    let home = PathBuf::from(std::env::var_os("HOME").unwrap_or_default());
+    let home = real_home();
     vec![
-        // The sandboxed app's (alpha.6 on): the container itself, as a
-        // socket's path must fit in 104 bytes.
+        home.join("Library/Group Containers").join(APP_GROUP).join("control.sock"),
+        // A build signed without the team has no group: the app's container
+        // itself, as a socket's path must fit in 104 bytes.
         home.join("Library/Containers").join(BUNDLE_ID).join("Data/control.sock"),
-        home.join("Library/Application Support/Resonance/control.sock"),
     ]
+}
+
+/// The user's home. In `resonance-mcp`'s sandbox `HOME` is its own container,
+/// so ask the user database, as the app does.
+fn real_home() -> PathBuf {
+    use std::os::unix::ffi::OsStrExt;
+    // SAFETY: getpwuid gives static storage or null, read at once here.
+    unsafe {
+        let entry = libc::getpwuid(libc::getuid());
+        if !entry.is_null() && !(*entry).pw_dir.is_null() {
+            let dir = std::ffi::CStr::from_ptr((*entry).pw_dir);
+            return PathBuf::from(std::ffi::OsStr::from_bytes(dir.to_bytes()));
+        }
+    }
+    PathBuf::from(std::env::var_os("HOME").unwrap_or_default())
 }
 
 /// This tool's own app, when it's the copy inside one.

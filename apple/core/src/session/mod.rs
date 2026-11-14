@@ -15,6 +15,7 @@ pub(crate) mod persist;
 #[cfg(test)]
 mod tests;
 
+use crate::logging::{self, Category};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -245,7 +246,7 @@ impl Session {
     /// freezing the caller.
     fn send(&self, cmd: PlayerCmd) {
         if let Err(e) = self.cmd_tx.try_send(cmd) {
-            eprintln!("[resonance] player command dropped (player stalled?): {e:?}");
+            logging::error!(Category::Playback, "player command dropped (player stalled?): {e:?}");
         }
     }
 
@@ -328,7 +329,7 @@ impl Session {
         };
         self.handled_failure = Some(error.clone());
         self.failed_in_a_row += 1;
-        eprintln!("[resonance] tune failed: {error}");
+        logging::error!(Category::Playback, "tune failed: {error}");
 
         let cur = self.active().current;
         let next = if self.failed_in_a_row < self.active().len() {
@@ -455,7 +456,7 @@ impl Session {
             };
             let (path, song, is_rsid) = (entry.path.clone(), entry.selected_song, entry.is_rsid);
             if self.options.skip_rsid && is_rsid {
-                eprintln!("[resonance] Skipping RSID tune: \"{}\"", entry.title);
+                logging::notice!(Category::Playback, "Skipping RSID tune: \"{}\"", entry.title);
                 let list = self.active_mut();
                 list.current = Some(idx);
                 match list.next() {

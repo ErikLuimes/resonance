@@ -86,6 +86,43 @@ final class RegisterFlash {
     }
 }
 
+/// The feed's last frames, kept between ticks so that each tick only asks for the new
+/// ones. Asked afresh every time, the Sweeps tab's 512 frames are all copied out of the
+/// core 30 times a second, when two or three of them are new.
+@MainActor
+final class FrameTrail {
+    /// How many to ask for on a tick: 2 arrive between ticks, and this many covers a
+    /// tick a quarter of a second late.
+    static let fresh = 16
+
+    private var frames: [VizSidFrame] = []
+
+    /// The last `count` frames, oldest first, as `fetch(count)` would give them.
+    /// `fetch` reads that many from the feed.
+    func latest(_ count: Int, fetch: (Int) -> [VizSidFrame]) -> [VizSidFrame] {
+        guard count > Self.fresh else {
+            frames = fetch(count)
+            return frames
+        }
+        let new = fetch(Self.fresh)
+        guard let oldest = new.first, let newest = new.last else {
+            frames = []
+            return frames
+        }
+        // What's kept has to run on into the new ones, and reach as far back as the feed
+        // could: not after a new tune, a rewind, a pause, or a tab that asked for fewer.
+        let wanted = min(count, Int(clamping: newest.index) + 1)
+        if let last = frames.last, last.index <= newest.index, oldest.index <= last.index + 1,
+           frames.count + Int(newest.index - last.index) >= wanted {
+            frames.append(contentsOf: new.drop { $0.index <= last.index })
+            frames.removeFirst(max(frames.count - count, 0))
+        } else {
+            frames = fetch(count)
+        }
+        return frames
+    }
+}
+
 /// The tracker, registers, sweeps and pitch trail, in a drawer over the list. Reads the
 /// same feed as the visualizers, and only while it's open.
 struct UnderTheHoodView: View {
@@ -98,6 +135,7 @@ struct UnderTheHoodView: View {
     @State private var selectedChip = 0
     /// One for each chip a tune can have.
     @State private var flashes = (0..<3).map { _ in RegisterFlash() }
+    @State private var trail = FrameTrail()
 
     /// The whole drawer's size, so that the picker coming and going can't change the answer.
     @State private var size = CGSize.zero
@@ -228,7 +266,8 @@ struct UnderTheHoodView: View {
     /// Everything that changes per frame is one Canvas, so text changing can't resize anything.
     private func live<Content: View>(frames count: Int, @ViewBuilder content: @escaping ([VizSidFrame], [Color]) -> Content) -> some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !store.isPlaying)) { _ in
-            content(store.visualizer.history(count), (0..<3).map { theme.voice($0) })
+            let feed = store.visualizer
+            content(trail.latest(count) { feed.history($0) }, (0..<3).map { theme.voice($0) })
         }
     }
 }

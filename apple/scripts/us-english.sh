@@ -17,9 +17,9 @@ PHRASES="(has|have|it's) got([^a-z]|\$)|carr(y|ies|ied|ying) on([^a-z]|\$)|strai
 ISE='(capital|central|custom|final|initial|maxim|memo|minim|neutral|normal|notar|optim|organ|raster|real|recogn|sanit|serial|standard|styl|synchron|virtual|visual|character)is(e|es|ed|er|ers|ing|ation|ations)([^a-z]|$)'
 PATTERN="$STEMS|$WORDS|$ISE|$PHRASES"
 
-# Apple's names; an HTML attribute; and names people may type, which are
-# accepted in either spelling.
-ALLOWED='isCancelled|NSURLErrorCancelled|labelledby|\["favourites", "favorites"\]|"favorite", "favourite"\]'
+# Apple's names, Network's .cancelled state among them; an HTML attribute;
+# and names people may type, which are accepted in either spelling.
+ALLOWED='isCancelled|\.cancelled([^a-z]|$)|NSURLErrorCancelled|labelledby|\["favourites", "favorites"\]|"favorite", "favourite"\]'
 
 found="$(git grep --untracked -nIiE "$PATTERN" -- apple design README.md .github/README.md \
     ':!apple/residfp-sys/csrc' ':!apple/release-notes/0.1.0-alpha.[1-7].md' ':!apple/site/appcast.xml' \
