@@ -13,21 +13,24 @@ import Metal
 /// three times as much (the Ferrofluid's does), and 15% × 3 is still
 /// under 60%, so it never bounces between two levels. It stays at least
 /// a step down in Low Power Mode and when the Mac is hot.
-nonisolated final class VisualizerQuality: @unchecked Sendable {
-    enum Level: Int, Comparable {
+public nonisolated final class VisualizerQuality: @unchecked Sendable {
+    public enum Level: Int, Comparable {
         case full, reduced, low
 
-        static func < (a: Level, b: Level) -> Bool { a.rawValue < b.rawValue }
+        public static func < (a: Level, b: Level) -> Bool { a.rawValue < b.rawValue }
     }
 
-    /// A frame's time at the visualizers' full rate.
-    static let frame = VisualizerFeed.frameInterval
+    /// The visualizers' full rate: 60 fps looks the same as a ProMotion
+    /// display's 120 and costs half as much (the Mac's `VisualizerFeed`).
+    public static let framesPerSecond = 60
+    /// A frame's time at that rate.
+    public static let frame = 1.0 / Double(framesPerSecond)
     /// The GPU's share of a frame that's too much, and that leaves room.
-    static let tooMuch = 0.6
-    static let room = 0.15
+    public static let tooMuch = 0.6
+    public static let room = 0.15
     /// Seconds a level is kept before it may drop again, or rise.
-    static let dropAfter = 1.5
-    static let riseAfter = 8.0
+    public static let dropAfter = 1.5
+    public static let riseAfter = 8.0
 
     private let lock = NSLock()
     private var current: Level
@@ -35,18 +38,18 @@ nonisolated final class VisualizerQuality: @unchecked Sendable {
     private var load = 0.0
     private var frames = 0
     /// Frames to see before judging: the first few include setting up.
-    static let settle = 20
+    public static let settle = 20
     private var lastChange = -Double.infinity
     /// The best level allowed right now: a step down while saving power.
     private let ceiling: @Sendable () -> Level
 
-    init(startingAt level: Level, ceiling: @escaping @Sendable () -> Level = { .full }) {
+    public init(startingAt level: Level, ceiling: @escaping @Sendable () -> Level = { .full }) {
         current = max(level, ceiling())
         self.ceiling = ceiling
     }
 
     /// For a visualizer on this Mac as it is now.
-    convenience init() {
+    public convenience init() {
         self.init(startingAt: .full) {
             let process = ProcessInfo.processInfo
             let hot = process.thermalState == .serious || process.thermalState == .critical
@@ -54,7 +57,7 @@ nonisolated final class VisualizerQuality: @unchecked Sendable {
         }
     }
 
-    var level: Level {
+    public var level: Level {
         lock.lock()
         defer { lock.unlock() }
         return current
@@ -62,13 +65,13 @@ nonisolated final class VisualizerQuality: @unchecked Sendable {
 
     /// The rate to draw at: half at the lowest level, where each frame
     /// then has twice as long.
-    var framesPerSecond: Int {
-        level == .low ? VisualizerFeed.framesPerSecond / 2 : VisualizerFeed.framesPerSecond
+    public var framesPerSecond: Int {
+        level == .low ? Self.framesPerSecond / 2 : Self.framesPerSecond
     }
 
     /// Call before committing a frame's commands: its GPU time is counted
     /// when it finishes.
-    func track(_ commands: MTLCommandBuffer) {
+    public func track(_ commands: MTLCommandBuffer) {
         commands.addCompletedHandler { [weak self] finished in
             let seconds = finished.gpuEndTime - finished.gpuStartTime
             guard seconds > 0 else { return }
@@ -77,7 +80,7 @@ nonisolated final class VisualizerQuality: @unchecked Sendable {
     }
 
     /// One frame took the GPU `gpuSeconds`, at `now` (any steady clock).
-    func record(gpuSeconds: Double, at now: Double) {
+    public func record(gpuSeconds: Double, at now: Double) {
         lock.lock()
         defer { lock.unlock() }
         let share = gpuSeconds / Self.frame

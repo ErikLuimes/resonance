@@ -88,6 +88,12 @@ final class ControlCommands {
             let released: String
             let song: Int
             let songs: Int
+            /// Now Playing's tags, as the Mac shows them: "PSID", the chip
+            /// ("6581", "8580", "Either"; nil when the file doesn't say)
+            /// and whether it's a PAL tune.
+            let sidType: String
+            let chip: String?
+            let pal: Bool
         }
 
         /// "playing", "paused" or "stopped".
@@ -612,7 +618,8 @@ final class ControlCommands {
             state: state,
             now: track.map {
                 Status.Now(path: $0.path, title: $0.displayTitle, author: $0.author, released: $0.released,
-                           song: Int($0.currentSong), songs: Int($0.songs))
+                           song: Int($0.currentSong), songs: Int($0.songs), sidType: $0.sidType,
+                           chip: $0.sidModel == 0 ? nil : $0.chipModel.short, pal: $0.isPal)
             },
             elapsed: player.elapsedNow,
             duration: player.duration,

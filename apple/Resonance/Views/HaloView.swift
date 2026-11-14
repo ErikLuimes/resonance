@@ -1,5 +1,6 @@
 import SwiftUI
 import PhosphorCore
+import ResonanceVisuals
 
 /// The Halo: a glowing ring per voice that swells with its envelope and
 /// wobbles with its waveform's harmonics. `HaloShape` works out the rings on
@@ -18,7 +19,8 @@ struct HaloView: View {
     var body: some View {
         TimelineView(.animation(minimumInterval: VisualizerFeed.frameInterval, paused: !isActive)) { context in
             let frame = store.visualizer.latest()
-            let _ = shape.update(voices: frame?.chips.first?.voices ?? [], frame: frame?.index, at: context.date)
+            let _ = shape.update(voices: (frame?.chips.first?.voices ?? []).map(HaloVoice.init), frame: frame?.index,
+                                 at: context.date)
             // Copied out as values: an effect that only captured `shape`
             // (the same object every frame) looked unchanged to SwiftUI and
             // was never redrawn.
@@ -27,7 +29,7 @@ struct HaloView: View {
             let colors = (0..<3).map(theme.voice)
             Rectangle()
                 .visualEffect { content, proxy in
-                    content.colorEffect(ShaderLibrary.halo(
+                    content.colorEffect(HaloShape.shaders.halo(
                         .float2(proxy.size),
                         .floatArray(radii),
                         .floatArray(levels),
@@ -39,6 +41,13 @@ struct HaloView: View {
         }
         .accessibilityElement()
         .accessibilityLabel("Halo visualizer")
+    }
+}
+
+nonisolated extension HaloVoice {
+    /// What the Halo needs from a voice of the feed.
+    init(_ voice: VizVoice) {
+        self.init(envLevel: voice.envLevel, midi: voice.midi, waveform: voice.waveform, pulseWidth: voice.pulseWidth)
     }
 }
 

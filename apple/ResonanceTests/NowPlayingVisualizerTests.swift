@@ -7,6 +7,7 @@ import Testing
 import UniformTypeIdentifiers
 import PhosphorCore
 @testable import Resonance
+import ResonanceVisuals
 
 private let rate: Float = 44_784
 

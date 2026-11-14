@@ -1,6 +1,7 @@
 import simd
 import MetalKit
 import MetalPerformanceShaders
+import ResonanceVisuals
 
 /// Draws the Terrain visualizer (`TerrainView`) into an MTKView's drawable
 /// or any texture: the last few seconds of the spectrum as a landscape of

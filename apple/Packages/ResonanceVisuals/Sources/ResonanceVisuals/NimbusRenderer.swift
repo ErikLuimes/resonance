@@ -13,35 +13,37 @@ import MetalPerformanceShaders
 /// - Its glow follows the level and flares on every new note.
 /// - The cloud's churning runs on at a pace set by how loud all three
 ///   are: nearly still in a silence, fast in a loud passage.
-nonisolated struct NimbusVoices {
-    private(set) var swell = SIMD3<Float>(0, 0, 0)
-    private(set) var glow = SIMD3<Float>(0, 0, 0)
+public nonisolated struct NimbusVoices {
+    public init() {}
+
+    public private(set) var swell = SIMD3<Float>(0, 0, 0)
+    public private(set) var glow = SIMD3<Float>(0, 0, 0)
     /// Each billow's height for its voice's pitch, −1…1.
-    private(set) var lift = SIMD3<Float>(0, 0, 0)
+    public private(set) var lift = SIMD3<Float>(0, 0, 0)
     /// How far the cloud has churned, in seconds of its fastest pace.
-    private(set) var churn = 0.0
+    public private(set) var churn = 0.0
 
     /// Seconds for a billow to (mostly) swell, and to sink back.
-    static let swelling = 0.1
-    static let sinking = 0.8
+    public static let swelling = 0.1
+    public static let sinking = 0.8
     /// What a new note adds to its billow's size, and how long that lasts.
-    static let kick: Float = 0.3
-    static let kickFades = 0.3
+    public static let kick: Float = 0.3
+    public static let kickFades = 0.3
     /// The notes that put a billow at its lowest and highest, and the
     /// seconds it takes to get to a new note's height.
-    static let notes: ClosedRange<Float> = 30...90
-    static let lifting = 0.25
+    public static let notes: ClosedRange<Float> = 30...90
+    public static let lifting = 0.25
     /// The churn's pace in silence and at full level, in seconds a second.
-    static let pace: ClosedRange<Double> = 0.5...3.4
+    public static let pace: ClosedRange<Double> = 0.5...3.4
     /// How far back along its way a ball's smoke trails, in churned seconds.
-    static let trail = 1.6
+    public static let trail = 1.6
 
     /// Where ball `i` (0–5; a voice's two are `i` and `i + 3`) is once the
     /// cloud has churned `churn` far: its place and how far it reaches.
     /// Each goes round the middle its own way, at its own pace and tilt,
     /// and in and out as it goes, so they part and meet; and a voice's
     /// pair rides higher the higher it plays.
-    func ball(_ i: Int, churn: Double) -> SIMD4<Float> {
+    public func ball(_ i: Int, churn: Double) -> SIMD4<Float> {
         let v = i % 3, k = Float(i), t = Float(churn)
         let turn = k * 1.047 + t * (0.16 + 0.045 * k) * (i % 2 == 0 ? 1 : -1)
         let out = 1.7 + 1.15 * sin(t * (0.21 + 0.03 * k) + k * 2.1)
@@ -57,10 +59,10 @@ nonisolated struct NimbusVoices {
     private var lastMidi: [Float?] = [nil, nil, nil]
     private var wasSounding = [false, false, false]
 
-    var level: Float { (glow.x + glow.y + glow.z) / 3 }
+    public var level: Float { (glow.x + glow.y + glow.z) / 3 }
 
     /// Advance by `dt` seconds with what the voices are playing.
-    mutating func update(voices: [InkJets.Voice], dt: Double) {
+    public mutating func update(voices: [InkJets.Voice], dt: Double) {
         var loud: Float = 0
         for v in 0..<3 {
             let voice = v < voices.count ? voices[v] : InkJets.Voice(level: 0, midi: 0)
@@ -92,16 +94,16 @@ nonisolated struct NimbusVoices {
 /// and glowing with the voices (Shaders/Nimbus.metal). The bloom is the
 /// Notes visualizer's. The camera circles it, rising, sinking and coming
 /// in as it goes.
-final class NimbusRenderer {
-    let device: MTLDevice?
+public final class NimbusRenderer {
+    public let device: MTLDevice?
     /// Voices 1–3, from the theme.
-    var voiceColors: [SIMD3<Float>] = Array(repeating: SIMD3(1, 1, 1), count: 3)
+    public var voiceColors: [SIMD3<Float>] = Array(repeating: SIMD3(1, 1, 1), count: 3)
 
-    static let bloom: Float = 0.3
+    public static let bloom: Float = 0.3
 
     /// How finely the scene is found at each quality level: points a
     /// sample, and steps through the cloud.
-    static func detail(_ quality: VisualizerQuality.Level) -> (pointsPerSample: Float, steps: Int) {
+    public static func detail(_ quality: VisualizerQuality.Level) -> (pointsPerSample: Float, steps: Int) {
         switch quality {
         case .full: (1, 56)
         case .reduced: (1.5, 44)
@@ -121,10 +123,10 @@ final class NimbusRenderer {
 
     /// `library` is the app's own unless given, as a harness outside the
     /// app does.
-    init(device: MTLDevice? = MTLCreateSystemDefaultDevice(), library: MTLLibrary? = nil) {
+    public init(device: MTLDevice? = MTLCreateSystemDefaultDevice(), library: MTLLibrary? = nil) {
         self.device = device
         queue = device?.makeCommandQueue()
-        let library = library ?? device?.makeDefaultLibrary()
+        let library = library ?? (try? device?.makeDefaultLibrary(bundle: .module))
         func make(_ vertex: String, _ fragment: String, _ format: MTLPixelFormat) -> MTLRenderPipelineState? {
             guard let device else { return nil }
             let descriptor = MTLRenderPipelineDescriptor()
@@ -165,12 +167,12 @@ final class NimbusRenderer {
         return texture
     }
 
-    var commandQueue: MTLCommandQueue? { queue }
+    public var commandQueue: MTLCommandQueue? { queue }
 
     /// Where the camera is at `clock`: circling the cloud about once in
     /// two minutes, now above it and now below, now and then coming in,
     /// as several slow movements drift in and out of step.
-    static func camera(clock: Double) -> (position: SIMD3<Float>, target: SIMD3<Float>) {
+    public static func camera(clock: Double) -> (position: SIMD3<Float>, target: SIMD3<Float>) {
         let t = clock
         let around = Float(t * 0.05 + 0.45 * sin(t * 0.063) + 2.4)
         let height = Float(0.3 + 1.3 * sin(t * 0.057 + 1) + 0.25 * sin(t * 0.21))
@@ -180,7 +182,7 @@ final class NimbusRenderer {
 
     /// Renders the cloud into `target` (bgra8Unorm) as `voices` has it.
     /// `clock` moves the camera and the water; `scale` is pixels a point.
-    func encode(into target: MTLTexture, commands: MTLCommandBuffer, voices: NimbusVoices, clock: Double, scale: Float,
+    public func encode(into target: MTLTexture, commands: MTLCommandBuffer, voices: NimbusVoices, clock: Double, scale: Float,
                 quality: VisualizerQuality.Level = .full) {
         guard let pipeline, let compositePipeline, let noise else { return }
         let detail = Self.detail(quality)
@@ -190,8 +192,9 @@ final class NimbusRenderer {
 
         let size = SIMD2(Float(scene.width), Float(scene.height))
         let (eye, lookAt) = Self.camera(clock: clock)
-        // A narrow view stands farther back, so the cloud stays in it.
-        let back = max(1, 1.45 / max(size.x / size.y, 0.2))
+        // A narrow view stands farther back, so the cloud stays in it; a
+        // portrait one widens the lens instead (Framing).
+        let (focal, back) = Framing.lens(size: size, focal: 1.35, standBack: 1.45)
         let position = lookAt + (eye - lookAt) * back
         let forward = simd_normalize(lookAt - position)
         let right = simd_normalize(simd_cross(forward, SIMD3(0, 1, 0)))
@@ -199,7 +202,7 @@ final class NimbusRenderer {
         func color(_ i: Int) -> SIMD4<Float> { SIMD4(voiceColors[i % voiceColors.count], voices.glow[i]) }
         let values: [SIMD4<Float>] = [
             SIMD4(position, 0), SIMD4(right, Float(clock.truncatingRemainder(dividingBy: 3600))), SIMD4(up, 0),
-            SIMD4(forward, size.y * 1.35), SIMD4(size.x, size.y, Float(detail.steps), voices.level),
+            SIMD4(forward, focal), SIMD4(size.x, size.y, Float(detail.steps), voices.level),
             color(0), color(1), color(2), SIMD4(voices.swell, Float(voices.churn.truncatingRemainder(dividingBy: 3600))),
             SIMD4(voices.lift, 0),
         ] + (0..<6).map { voices.ball($0, churn: voices.churn) }
@@ -252,7 +255,7 @@ final class NimbusRenderer {
     // MARK: Offscreen
 
     /// Renders the cloud offscreen and waits for the GPU.
-    func render(width: Int, height: Int, voices: NimbusVoices, clock: Double, scale: Float = 2,
+    public func render(width: Int, height: Int, voices: NimbusVoices, clock: Double, scale: Float = 2,
                 quality: VisualizerQuality.Level = .full) -> MTLTexture? {
         guard let device, let commands = queue?.makeCommandBuffer() else { return nil }
         let d = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm, width: width, height: height, mipmapped: false)
@@ -266,7 +269,7 @@ final class NimbusRenderer {
     }
 
     /// The same as an image, for tests and checks.
-    func image(width: Int, height: Int, voices: NimbusVoices, clock: Double, scale: Float = 2) -> CGImage? {
+    public func image(width: Int, height: Int, voices: NimbusVoices, clock: Double, scale: Float = 2) -> CGImage? {
         render(width: width, height: height, voices: voices, clock: clock, scale: scale)
             .flatMap { VisualizerSnapshot.image(of: $0, background: .zero) }
     }

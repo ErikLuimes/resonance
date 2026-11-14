@@ -2,6 +2,7 @@ import AppKit
 import simd
 import MetalKit
 import MetalPerformanceShaders
+import ResonanceVisuals
 
 /// The copper bars of the Rasters visualizer: for each voice, a bar at
 /// the line its note belongs on (low notes low, high notes high), as tall

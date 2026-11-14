@@ -1,6 +1,7 @@
 import MetalKit
 import SwiftUI
 import PhosphorCore
+import ResonanceVisuals
 
 /// Ink and Liquid Light: each voice pours a stream of dye in its color
 /// into a fluid, from a ring around the middle. The voice's level is how

@@ -1,6 +1,7 @@
 import MetalKit
 import SwiftUI
 import PhosphorCore
+import ResonanceVisuals
 
 /// Nimbus: metaballs of smoke in a pale morning sky. Six soft balls, two
 /// a voice, roam round each other, parting and meeting, each trailing

@@ -7,36 +7,38 @@ import MetalPerformanceShaders
 /// like something with weight. A voice's level is its pull, rising fast
 /// and sinking slowly; a new note kicks it; and the note within its
 /// octave slides the magnet in and out from the pool's middle.
-nonisolated struct FerroField {
-    struct Magnet: Equatable {
+public nonisolated struct FerroField {
+    public init() {}
+
+    public struct Magnet: Equatable {
         /// On the pool's floor, from its middle.
-        var position: SIMD2<Float>
+        public var position: SIMD2<Float>
         /// 0–1 and a little over on a note's start.
-        var pull: Float
+        public var pull: Float
     }
 
-    private(set) var magnets = [Magnet](repeating: Magnet(position: .zero, pull: 0), count: 3)
+    public private(set) var magnets = [Magnet](repeating: Magnet(position: .zero, pull: 0), count: 3)
 
     /// How far from the middle a magnet goes, for the lowest and highest
     /// note of an octave, and how far its pull reaches.
-    static let nearest: Float = 0.38
-    static let farthest: Float = 1.0
-    static let reach: Float = 0.32
+    public static let nearest: Float = 0.38
+    public static let farthest: Float = 1.0
+    public static let reach: Float = 0.32
     /// The magnets turn slowly round the middle, a turn in two minutes.
-    static let drift = -0.05
+    public static let drift = -0.05
     /// Seconds for the pull to (mostly) rise and to sink, and for a
     /// magnet to slide to a new note's place.
-    static let rise = 0.03
-    static let sink = 0.28
-    static let slide = 0.12
-    static let kick: Float = 0.3
+    public static let rise = 0.03
+    public static let sink = 0.28
+    public static let slide = 0.12
+    public static let kick: Float = 0.3
 
     private var lastMidi: [Float?] = [nil, nil, nil]
     private var wasSounding = [false, false, false]
     private var started = false
 
     /// Advance by `dt` seconds with what the voices are playing.
-    mutating func update(voices: [InkJets.Voice], dt: Double, clock: Double) {
+    public mutating func update(voices: [InkJets.Voice], dt: Double, clock: Double) {
         for v in 0..<3 {
             let voice = v < voices.count ? voices[v] : InkJets.Voice(level: 0, midi: 0)
             let sounding = voice.level > 0.04
@@ -67,20 +69,20 @@ nonisolated struct FerroField {
 /// Shaders/Ferro.metal finds and lights the surface for every pixel; the
 /// bloom is the Notes visualizer's. The camera circles the pool slowly,
 /// rising, sinking and leaning in as it goes.
-final class FerroRenderer {
-    let device: MTLDevice?
+public final class FerroRenderer {
+    public let device: MTLDevice?
     /// Voices 1–3, from the theme.
-    var voiceColors: [SIMD3<Float>] = Array(repeating: SIMD3(1, 1, 1), count: 3)
+    public var voiceColors: [SIMD3<Float>] = Array(repeating: SIMD3(1, 1, 1), count: 3)
 
-    static let bloom: Float = 0.7
-    static let poolRadius: Float = 1.7
-    static let spacing: Float = 0.125
+    public static let bloom: Float = 0.7
+    public static let poolRadius: Float = 1.7
+    public static let spacing: Float = 0.125
     /// How finely the surface is found at each quality level: points a
     /// sample, and steps along each line of sight. At full quality it's
     /// one sample a point, not a pixel: on a Retina display that's a
     /// quarter of the work, and it's a soft, glossy thing anyway. Each
     /// level down costs about a third of the one above.
-    static func detail(_ quality: VisualizerQuality.Level) -> (pointsPerSample: Float, steps: Int) {
+    public static func detail(_ quality: VisualizerQuality.Level) -> (pointsPerSample: Float, steps: Int) {
         switch quality {
         case .full: (1, 88)
         case .reduced: (1.5, 64)
@@ -99,10 +101,10 @@ final class FerroRenderer {
 
     /// `library` is the app's own unless given, as a harness outside the
     /// app does.
-    init(device: MTLDevice? = MTLCreateSystemDefaultDevice(), library: MTLLibrary? = nil) {
+    public init(device: MTLDevice? = MTLCreateSystemDefaultDevice(), library: MTLLibrary? = nil) {
         self.device = device
         queue = device?.makeCommandQueue()
-        let library = library ?? device?.makeDefaultLibrary()
+        let library = library ?? (try? device?.makeDefaultLibrary(bundle: .module))
         func make(_ vertex: String, _ fragment: String, _ format: MTLPixelFormat) -> MTLRenderPipelineState? {
             guard let device else { return nil }
             let descriptor = MTLRenderPipelineDescriptor()
@@ -117,23 +119,23 @@ final class FerroRenderer {
         blur = device.map { MPSImageGaussianBlur(device: $0, sigma: 3) }
     }
 
-    var commandQueue: MTLCommandQueue? { queue }
+    public var commandQueue: MTLCommandQueue? { queue }
 
     /// Matches `FerroUniforms` in Ferro.metal.
     private struct Uniforms {
-        var cameraPosition: SIMD4<Float>
-        var cameraRight: SIMD4<Float>
-        var cameraUp: SIMD4<Float>
-        var cameraForward: SIMD4<Float>
-        var view: SIMD4<Float>
-        var magnets: (SIMD4<Float>, SIMD4<Float>, SIMD4<Float>)
-        var colors: (SIMD4<Float>, SIMD4<Float>, SIMD4<Float>)
+        public var cameraPosition: SIMD4<Float>
+        public var cameraRight: SIMD4<Float>
+        public var cameraUp: SIMD4<Float>
+        public var cameraForward: SIMD4<Float>
+        public var view: SIMD4<Float>
+        public var magnets: (SIMD4<Float>, SIMD4<Float>, SIMD4<Float>)
+        public var colors: (SIMD4<Float>, SIMD4<Float>, SIMD4<Float>)
     }
 
     /// Where the camera is at `clock`: circling the pool about once in
     /// two minutes, and now and then swinging wider, higher or closer,
     /// as several slow movements drift in and out of step.
-    static func camera(clock: Double) -> (position: SIMD3<Float>, target: SIMD3<Float>) {
+    public static func camera(clock: Double) -> (position: SIMD3<Float>, target: SIMD3<Float>) {
         let t = clock
         let around = Float(t * 0.055 + 0.5 * sin(t * 0.071) + 0.25 * sin(t * 0.19 + 1))
         let height = Float(1.55 + 0.38 * sin(t * 0.083 + 2) + 0.14 * sin(t * 0.23))
@@ -144,7 +146,7 @@ final class FerroRenderer {
 
     /// Renders the pool into `target` (bgra8Unorm) with the magnets as
     /// they are. `clock` moves the camera; `scale` is pixels per point.
-    func encode(into target: MTLTexture, commands: MTLCommandBuffer, magnets: [FerroField.Magnet], clock: Double, scale: Float,
+    public func encode(into target: MTLTexture, commands: MTLCommandBuffer, magnets: [FerroField.Magnet], clock: Double, scale: Float,
                 quality: VisualizerQuality.Level = .full) {
         guard let pipeline, let compositePipeline, magnets.count >= 3 else { return }
         let detail = Self.detail(quality)
@@ -154,8 +156,9 @@ final class FerroRenderer {
 
         let size = SIMD2(Float(scene.width), Float(scene.height))
         let (eye, lookAt) = Self.camera(clock: clock)
-        // A narrow view stands farther back, so the pool stays in it.
-        let back = max(1, 1.5 / max(size.x / size.y, 0.2))
+        // A narrow view stands farther back, so the pool stays in it; a
+        // portrait one widens the lens instead (Framing).
+        let (focal, back) = Framing.lens(size: size, focal: 1.3, standBack: 1.5)
         let position = lookAt + (eye - lookAt) * back
         let forward = simd_normalize(lookAt - position)
         let right = simd_normalize(simd_cross(forward, SIMD3(0, 1, 0)))
@@ -166,7 +169,7 @@ final class FerroRenderer {
         func color(_ i: Int) -> SIMD4<Float> { SIMD4(voiceColors[i % voiceColors.count], 1) }
         var uniforms = Uniforms(
             cameraPosition: SIMD4(position, Float(detail.steps)), cameraRight: SIMD4(right, 0), cameraUp: SIMD4(up, 0),
-            cameraForward: SIMD4(forward, size.y * 1.3),
+            cameraForward: SIMD4(forward, focal),
             view: SIMD4(size.x, size.y, Self.poolRadius, Self.spacing),
             magnets: (magnet(0), magnet(1), magnet(2)), colors: (color(0), color(1), color(2)))
 
@@ -216,7 +219,7 @@ final class FerroRenderer {
     // MARK: Offscreen
 
     /// Renders the pool offscreen and waits for the GPU.
-    func render(width: Int, height: Int, magnets: [FerroField.Magnet], clock: Double, scale: Float = 2,
+    public func render(width: Int, height: Int, magnets: [FerroField.Magnet], clock: Double, scale: Float = 2,
                 quality: VisualizerQuality.Level = .full) -> MTLTexture? {
         guard let device, let commands = queue?.makeCommandBuffer() else { return nil }
         let d = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm, width: width, height: height, mipmapped: false)
@@ -230,7 +233,7 @@ final class FerroRenderer {
     }
 
     /// The same as an image over `background`, for tests and checks.
-    func image(width: Int, height: Int, magnets: [FerroField.Magnet], clock: Double, scale: Float = 2,
+    public func image(width: Int, height: Int, magnets: [FerroField.Magnet], clock: Double, scale: Float = 2,
                quality: VisualizerQuality.Level = .full, background: SIMD3<Float> = SIMD3(14, 14, 16) / 255) -> CGImage? {
         render(width: width, height: height, magnets: magnets, clock: clock, scale: scale, quality: quality)
             .flatMap { VisualizerSnapshot.image(of: $0, background: background) }

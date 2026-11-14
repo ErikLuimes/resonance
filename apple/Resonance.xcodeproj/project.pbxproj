@@ -11,6 +11,7 @@
 		0BC0465548DDA9FA7F88FFB1 /* PhosphorCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 9B9C33D12A5C41DFB519CD97 /* PhosphorCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		0E07FDAAF4E88A1E0C881555 /* PhosphorCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D3083881103BCAC2EE1BC2C /* PhosphorCore.swift */; };
 		5C1A7E0B2D9F4E3A8B6C0D11 /* STILKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5C1A7E0B2D9F4E3A8B6C0D12 /* STILKit */; };
+		5C1A7E0B2D9F4E3A8B6C0D31 /* ResonanceVisuals in Frameworks */ = {isa = PBXBuildFile; productRef = 5C1A7E0B2D9F4E3A8B6C0D32 /* ResonanceVisuals */; };
 		5C1A7E0B2D9F4E3A8B6C0D21 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5C1A7E0B2D9F4E3A8B6C0D22 /* Sparkle */; };
 		A1C0DE5100000000000000A9 /* ResonanceQuickLook.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A1C0DE5100000000000000A2 /* ResonanceQuickLook.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D1A2B3C4D5E6F70819203A02 /* playlists in Resources */ = {isa = PBXBuildFile; fileRef = D1A2B3C4D5E6F70819203A01 /* playlists */; };
@@ -124,6 +125,7 @@
 			files = (
 				E836E96C5BC45F7A1EFF5F86 /* PhosphorCore.framework in Frameworks */,
 				5C1A7E0B2D9F4E3A8B6C0D11 /* STILKit in Frameworks */,
+				5C1A7E0B2D9F4E3A8B6C0D31 /* ResonanceVisuals in Frameworks */,
 				03B99C8C30A28AC400C50012 /* Installations in Frameworks */,
 				5C1A7E0B2D9F4E3A8B6C0D21 /* Sparkle in Frameworks */,
 			);
@@ -302,6 +304,7 @@
 			name = Resonance;
 			packageProductDependencies = (
 				5C1A7E0B2D9F4E3A8B6C0D12 /* STILKit */,
+				5C1A7E0B2D9F4E3A8B6C0D32 /* ResonanceVisuals */,
 				5C1A7E0B2D9F4E3A8B6C0D22 /* Sparkle */,
 				03B99C8B30A28AC400C50012 /* Installations */,
 			);
@@ -345,6 +348,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				5C1A7E0B2D9F4E3A8B6C0D13 /* XCLocalSwiftPackageReference "Packages/STILKit" */,
+				5C1A7E0B2D9F4E3A8B6C0D33 /* XCLocalSwiftPackageReference "Packages/ResonanceVisuals" */,
 				5C1A7E0B2D9F4E3A8B6C0D23 /* XCRemoteSwiftPackageReference "Sparkle" */,
 				03B99C8A30A28AC400C50012 /* XCRemoteSwiftPackageReference "KSCrash" */,
 			);
@@ -876,6 +880,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/STILKit;
 		};
+		5C1A7E0B2D9F4E3A8B6C0D33 /* XCLocalSwiftPackageReference "Packages/ResonanceVisuals" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/ResonanceVisuals;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -906,6 +914,10 @@
 		5C1A7E0B2D9F4E3A8B6C0D12 /* STILKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = STILKit;
+		};
+		5C1A7E0B2D9F4E3A8B6C0D32 /* ResonanceVisuals */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ResonanceVisuals;
 		};
 		5C1A7E0B2D9F4E3A8B6C0D22 /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;

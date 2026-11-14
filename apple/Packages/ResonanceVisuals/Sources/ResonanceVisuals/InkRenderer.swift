@@ -2,16 +2,16 @@ import simd
 import MetalKit
 
 /// What one voice pours into the Ink visualizer's fluid in a frame.
-nonisolated struct InkPour: Equatable {
+public nonisolated struct InkPour: Equatable {
     /// Where, across and down the view, 0–1.
-    var position: SIMD2<Float>
+    public var position: SIMD2<Float>
     /// Which way it pushes: a unit vector, y down.
-    var direction: SIMD2<Float>
-    var color: SIMD3<Float>
+    public var direction: SIMD2<Float>
+    public var color: SIMD3<Float>
     /// How hard it's pouring, 0–1: the voice's level.
-    var flow: Float
+    public var flow: Float
     /// 1 on the frame a note starts, for a puff; else 0.
-    var burst: Float
+    public var burst: Float
 }
 
 /// Where the three voices pour from and which way, worked out from what
@@ -19,28 +19,36 @@ nonisolated struct InkPour: Equatable {
 /// turn apart, drifting slowly round it, and aim across it: the note
 /// within its octave steers the jet from side to side, so a melody sweeps
 /// its stream about, and each voice's level is how hard it pours.
-nonisolated struct InkJets {
-    struct Voice {
-        var level: Float
-        var midi: Float
+public nonisolated struct InkJets {
+    public init() {}
+
+    public struct Voice {
+        public var level: Float
+        public var midi: Float
         /// Noise has no pitch: its jet wavers instead of steering.
-        var isNoise = false
+        public var isNoise = false
+
+        public init(level: Float, midi: Float, isNoise: Bool = false) {
+            self.level = level
+            self.midi = midi
+            self.isNoise = isNoise
+        }
     }
 
     /// The ring's middle and radius, in view heights (x from the middle).
-    static let center = SIMD2<Float>(0.5, 0.46)
-    static let radius: Float = 0.33
+    public static let center = SIMD2<Float>(0.5, 0.46)
+    public static let radius: Float = 0.33
     /// A full turn of the ring takes about two minutes.
-    static let drift = 0.05
+    public static let drift = 0.05
     /// The widest a jet steers off the middle, in radians.
-    static let steer: Float = 0.75
+    public static let steer: Float = 0.75
 
     private var lastMidi: [Float?] = [nil, nil, nil]
     private var wasSounding = [false, false, false]
 
     /// The pours for this frame. `aspect` is the view's width over its
     /// height; `clock` is any steady clock, in seconds.
-    mutating func pours(voices: [Voice], colors: [SIMD3<Float>], aspect: Float, clock: Double) -> [InkPour] {
+    public mutating func pours(voices: [Voice], colors: [SIMD3<Float>], aspect: Float, clock: Double) -> [InkPour] {
         (0..<3).compactMap { v -> InkPour? in
             guard v < voices.count, v < colors.count else { return nil }
             let voice = voices[v]
@@ -58,7 +66,9 @@ nonisolated struct InkJets {
             let within = voice.midi / 12 - (voice.midi / 12).rounded(.down)
             let turn = voice.isNoise ? Float(sin(clock * 23 + Double(v))) * Self.steer : (within - 0.5) * 2 * Self.steer
             let aim = SIMD2(-out.x * cos(turn) + out.y * sin(turn), -out.x * sin(turn) - out.y * cos(turn))
-            let place = Self.center + SIMD2(out.x * Self.radius / max(aspect, 0.3), out.y * Self.radius)
+            // In portrait the ring is sized to the width, so it stays on screen.
+            let radius = Self.radius * min(1, aspect)
+            let place = Self.center + SIMD2(out.x * radius / max(aspect, 0.3), out.y * radius)
             return InkPour(position: place, direction: aim, color: colors[v], flow: min(1, voice.level),
                            burst: started ? 1 : 0)
         }
@@ -71,50 +81,50 @@ nonisolated struct InkJets {
 /// solver run on the GPU each frame (Shaders/Ink.metal): a coarse grid of
 /// velocities carries a finer one of dye, which is lit like the surface
 /// of a liquid.
-final class InkRenderer {
-    let device: MTLDevice?
+public final class InkRenderer {
+    public let device: MTLDevice?
 
     /// Which visualizer this is: the same fluid, poured and shown two ways.
-    let style: Style
+    public let style: Style
 
-    struct Style {
+    public struct Style {
         /// How much dye a voice at full level pours a second, and the
         /// blot a note's start adds.
-        var pour: Float
-        var burstDye: Float
+        public var pour: Float
+        public var burstDye: Float
         /// A stream's width, in view heights.
-        var nozzle: Float
+        public var nozzle: Float
         /// How fast the dye fades, per second.
-        var dyeFade: Float
+        public var dyeFade: Float
         /// How strongly whirls are kept up.
-        var swirl: Float
-        var exposure: Float
-        var shine: Float
+        public var swirl: Float
+        public var exposure: Float
+        public var shine: Float
         /// The fragment function that shows the dye.
-        var display: String
+        public var display: String
 
         /// Wisps of dye in dark water: thin streams that curl and are
         /// gone in a few seconds (the dye halves in about three).
-        static let ink = Style(pour: 1.5, burstDye: 0.4, nozzle: 0.018, dyeFade: 0.24, swirl: 14,
+        public static let ink = Style(pour: 1.5, burstDye: 0.4, nozzle: 0.018, dyeFade: 0.24, swirl: 14,
                                exposure: 1.3, shine: 0.1, display: "inkDisplayFragment")
         /// Thick oil that stays: it halves in about eight seconds, so
         /// the glass fills and marbles.
-        static let liquidLight = Style(pour: 2.6, burstDye: 0.55, nozzle: 0.024, dyeFade: 0.085, swirl: 22,
+        public static let liquidLight = Style(pour: 2.6, burstDye: 0.55, nozzle: 0.024, dyeFade: 0.085, swirl: 22,
                                        exposure: 1.5, shine: 0.85, display: "inkLiquidLightFragment")
     }
 
     // The fluid.
     /// Cells down the velocity grid; the dye has four times as many.
-    static let cells = 176
-    static let dyeScale = 4
+    public static let cells = 176
+    public static let dyeScale = 4
     /// How hard a voice at full level pushes, in cells a second squared.
-    static let push: Float = 5200
+    public static let push: Float = 5200
     /// The shove a note's start gives, in cells a second.
-    static let burstPush: Float = 170
-    static let velocityFade: Float = 0.35
+    public static let burstPush: Float = 170
+    public static let velocityFade: Float = 0.35
     /// Rounds of working the pressure out at each quality level: most of
     /// the fluid's cost. Fewer leave it a little springier, not broken.
-    static func pressureRounds(_ quality: VisualizerQuality.Level) -> Int {
+    public static func pressureRounds(_ quality: VisualizerQuality.Level) -> Int {
         switch quality {
         case .full: 22
         case .reduced: 14
@@ -134,18 +144,18 @@ final class InkRenderer {
     /// Two textures to go back and forth between: a pass reads one and
     /// writes the other.
     private struct Pair {
-        var read: MTLTexture
-        var write: MTLTexture
-        mutating func swap() { (read, write) = (write, read) }
+        public var read: MTLTexture
+        public var write: MTLTexture
+        public mutating func swap() { (read, write) = (write, read) }
     }
 
     /// `library` is the app's own unless given, as a harness outside the
     /// app does.
-    init(style: Style = .ink, device: MTLDevice? = MTLCreateSystemDefaultDevice(), library: MTLLibrary? = nil) {
+    public init(style: Style = .ink, device: MTLDevice? = MTLCreateSystemDefaultDevice(), library: MTLLibrary? = nil) {
         self.style = style
         self.device = device
         queue = device?.makeCommandQueue()
-        guard let device, let library = library ?? device.makeDefaultLibrary() else { return }
+        guard let device, let library = library ?? (try? device.makeDefaultLibrary(bundle: .module)) else { return }
         func make(_ name: String, vertex: String = "inkVertex", fragment: String, format: MTLPixelFormat, adds: Bool = false) {
             let descriptor = MTLRenderPipelineDescriptor()
             descriptor.vertexFunction = library.makeFunction(name: vertex)
@@ -174,22 +184,22 @@ final class InkRenderer {
         make("display", fragment: style.display, format: .bgra8Unorm)
     }
 
-    var commandQueue: MTLCommandQueue? { queue }
+    public var commandQueue: MTLCommandQueue? { queue }
 
     /// Matches `InkUniforms` in Ink.metal.
     private struct Uniforms {
-        var texel: SIMD2<Float>
-        var dt: Float
-        var a: Float = 0
-        var b: Float = 0
-        var c: Float = 0
-        var d: Float = 0
-        var e: Float = 0
+        public var texel: SIMD2<Float>
+        public var dt: Float
+        public var a: Float = 0
+        public var b: Float = 0
+        public var c: Float = 0
+        public var d: Float = 0
+        public var e: Float = 0
     }
 
     /// Moves the fluid on by `dt` seconds with what the voices pour in,
     /// and draws it into `target` (bgra8Unorm).
-    func encode(into target: MTLTexture, commands: MTLCommandBuffer, pours: [InkPour], dt: Double,
+    public func encode(into target: MTLTexture, commands: MTLCommandBuffer, pours: [InkPour], dt: Double,
                 quality: VisualizerQuality.Level = .full) {
         prepare(width: target.width, height: target.height)
         guard pipelines.count == 11, var velocity, var pressure, var dye, let divergence, let curl else { return }
@@ -318,7 +328,7 @@ final class InkRenderer {
     // MARK: Offscreen
 
     /// Moves the fluid on a step and renders it offscreen, waiting for the GPU.
-    func render(width: Int, height: Int, pours: [InkPour], dt: Double) -> MTLTexture? {
+    public func render(width: Int, height: Int, pours: [InkPour], dt: Double) -> MTLTexture? {
         guard let device, let commands = queue?.makeCommandBuffer() else { return nil }
         let d = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm, width: width, height: height, mipmapped: false)
         d.usage = [.renderTarget, .shaderRead]
@@ -331,7 +341,7 @@ final class InkRenderer {
     }
 
     /// The same as an image over `background`, for tests and checks.
-    func image(width: Int, height: Int, pours: [InkPour], dt: Double,
+    public func image(width: Int, height: Int, pours: [InkPour], dt: Double,
                background: SIMD3<Float> = SIMD3(14, 14, 16) / 255) -> CGImage? {
         render(width: width, height: height, pours: pours, dt: dt)
             .flatMap { VisualizerSnapshot.image(of: $0, background: background) }

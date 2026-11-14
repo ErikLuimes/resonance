@@ -1,5 +1,24 @@
 import Foundation
-import PhosphorCore
+
+/// What the Halo needs to know about a voice: each app fills it from its own
+/// frames (the Mac from `VizVoice`, the remote from the Mac's frames).
+public struct HaloVoice: Sendable {
+    /// The envelope, 0–1.
+    public var envLevel: Float
+    /// Fractional MIDI note number; 0 while the frequency is 0.
+    public var midi: Double
+    /// The control register's high nibble.
+    public var waveform: UInt8
+    /// 12-bit.
+    public var pulseWidth: UInt16
+
+    public init(envLevel: Float, midi: Double, waveform: UInt8, pulseWidth: UInt16) {
+        self.envLevel = envLevel
+        self.midi = midi
+        self.waveform = waveform
+        self.pulseWidth = pulseWidth
+    }
+}
 
 /// The Halo's rings: each voice's radius at `samples` angles around the
 /// center, rebuilt every display frame from its waveform, pulse width, note
@@ -10,27 +29,27 @@ import PhosphorCore
 /// harmonic at 1/k; pulse: odd ones weighted by |sin(πk·pw)|/k; triangle:
 /// odd ones at 1/k²; noise: random, re-rolled each SID frame — scaled by
 /// the envelope, so a silent voice settles to a plain circle.
-nonisolated final class HaloShape {
-    static let samples = 256
+public nonisolated final class HaloShape {
+    public static let samples = 256
     /// Ring radii at rest, in units of half the view's shorter side.
-    static let baseRadii: [Float] = [0.50, 0.55, 0.60]
+    public static let baseRadii: [Float] = [0.50, 0.55, 0.60]
 
     /// `samples` radii per voice, voice after voice, starting at −π.
-    private(set) var radii: [Float]
+    public private(set) var radii: [Float]
     /// Each voice's smoothed envelope, 0–1.
-    private(set) var levels: [Float] = [0, 0, 0]
+    public private(set) var levels: [Float] = [0, 0, 0]
 
     private var rotation: [Double] = [0, 0, 0]
     private var time: Double = 0
     private var lastUpdate: Date?
 
-    init() {
+    public init() {
         radii = Self.baseRadii.flatMap { Array(repeating: $0, count: Self.samples) }
     }
 
     /// Advance to `date` and rebuild the rings from `voices` (missing ones
     /// fade out). `frame` seeds the noise, so it changes once per SID frame.
-    func update(voices: [VizVoice], frame: UInt64?, at date: Date) {
+    public func update(voices: [HaloVoice], frame: UInt64?, at date: Date) {
         let dt = lastUpdate.map { min(max(date.timeIntervalSince($0), 0), 0.1) } ?? 0
         lastUpdate = date
         time += dt
@@ -57,26 +76,26 @@ nonisolated final class HaloShape {
     }
 
     /// One voice's waveform as a function of angle.
-    struct Wave {
-        let waveform: UInt8
+    public struct Wave {
+        public let waveform: UInt8
         /// 0–1.
-        let pulseWidth: Double
-        let noisePhases: [Double]
+        public let pulseWidth: Double
+        public let noisePhases: [Double]
 
-        init(waveform: UInt8, pulseWidth: Double, noiseSeed: UInt64) {
+        public init(waveform: UInt8, pulseWidth: Double, noiseSeed: UInt64) {
             self.waveform = waveform
             self.pulseWidth = pulseWidth
             noisePhases = (0..<5).map { Self.random(noiseSeed &* 31 &+ UInt64($0)) * 2 * .pi }
         }
 
-        init(voice: VizVoice?, noiseSeed: UInt64) {
+        public init(voice: HaloVoice?, noiseSeed: UInt64) {
             self.init(waveform: voice?.waveform ?? 0, pulseWidth: Double(voice?.pulseWidth ?? 2048) / 4096,
                       noiseSeed: noiseSeed)
         }
 
         /// The ring's offset at angle `theta`, roughly −1…1. Each harmonic
         /// drifts at its own speed, so the shape keeps morphing.
-        func shape(at theta: Double, time t: Double) -> Float {
+        public func shape(at theta: Double, time t: Double) -> Float {
             var s = 0.0
             if waveform & 0x2 != 0 {
                 for k in 2...10 {
@@ -103,7 +122,7 @@ nonisolated final class HaloShape {
         }
 
         /// 0..<1, the same for the same seed.
-        static func random(_ seed: UInt64) -> Double {
+        public static func random(_ seed: UInt64) -> Double {
             let x = sin(Double(seed % 100_000) * 12.9898) * 43_758.5453
             return x - x.rounded(.down)
         }

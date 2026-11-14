@@ -1,6 +1,7 @@
 import MetalKit
 import SwiftUI
 import PhosphorCore
+import ResonanceVisuals
 
 /// The Particle sphere: 24,000 points over a turning sphere, a third per
 /// voice, rippling with each voice's envelope and sending a wave across from

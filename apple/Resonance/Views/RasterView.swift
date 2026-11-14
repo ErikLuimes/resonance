@@ -1,6 +1,7 @@
 import MetalKit
 import SwiftUI
 import PhosphorCore
+import ResonanceVisuals
 
 /// Rasters: a C64 demo's screen, in the C64's own 384 × 272 blocks with
 /// its blue screen and light blue border. Each voice is a copper bar the

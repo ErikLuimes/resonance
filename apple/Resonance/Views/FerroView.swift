@@ -1,6 +1,7 @@
 import MetalKit
 import SwiftUI
 import PhosphorCore
+import ResonanceVisuals
 
 /// Ferrofluid: a pool of black, glossy liquid with a magnet under it for
 /// each voice. Where a voice sounds, the liquid stands up in spikes, as

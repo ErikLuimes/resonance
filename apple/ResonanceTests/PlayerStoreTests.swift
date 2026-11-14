@@ -3,6 +3,7 @@ import Testing
 import PhosphorCore
 import STILKit
 @testable import Resonance
+import ResonanceVisuals
 
 /// Records what the store sends to the core and serves canned snapshots.
 nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
@@ -1060,7 +1061,7 @@ struct VisualizerFeedTests {
         saw.waveform = 0x2
         // Half a second at 60 fps.
         for n in 1...30 {
-            halo.update(voices: [saw], frame: UInt64(n), at: start + Double(n) / 60)
+            halo.update(voices: [HaloVoice(saw)], frame: UInt64(n), at: start + Double(n) / 60)
         }
         let ring = halo.radii.prefix(HaloShape.samples)
         #expect(ring.max()! - ring.min()! > 0.1)

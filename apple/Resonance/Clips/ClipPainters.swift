@@ -3,6 +3,7 @@ import MetalKit
 import PhosphorCore
 import SceneKit
 import SwiftUI
+import ResonanceVisuals
 
 
 /// What a clip's frame is drawn from: the clip's feed at one point in the
@@ -369,13 +370,13 @@ final class HaloClipPainter: ClipPainter {
 
     func paint(_ moment: ClipMoment) async -> MTLTexture? {
         let frame = moment.feed.latest()
-        shape.update(voices: frame?.chips.first?.voices ?? [], frame: frame?.index,
+        shape.update(voices: (frame?.chips.first?.voices ?? []).map(HaloVoice.init), frame: frame?.index,
                      at: Date(timeIntervalSinceReferenceDate: moment.clock))
         let radii = shape.radii, levels = shape.levels, colors = colors
         let points = CGSize(width: size.width / clipBackingScale, height: size.height / clipBackingScale)
         let picture = Rectangle()
             .visualEffect { content, proxy in
-                content.colorEffect(ShaderLibrary.halo(
+                content.colorEffect(HaloShape.shaders.halo(
                     .float2(proxy.size), .floatArray(radii), .floatArray(levels),
                     .color(colors[0]), .color(colors[1]), .color(colors[2])))
             }
