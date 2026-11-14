@@ -47,8 +47,14 @@ struct PlaylistView: View {
             .customizationID("number")
 
             TableColumn("Title", value: \.title) { row in
-                TuneTitleCell(library: library, path: row.id, title: row.title, author: row.author,
-                              isCurrent: row.index == store.currentIndex)
+                HStack(spacing: 6) {
+                    TuneTitleCell(library: library, path: row.id, title: row.title, author: row.author,
+                                  isCurrent: row.index == store.currentIndex)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if let seed = similarSeed, seed.path == row.id {
+                        RowFindSimilarButton(title: row.title) { library.findSimilar(seed) }
+                    }
+                }
             }
             .width(min: 160, ideal: 320)
             .customizationID("title")
@@ -61,7 +67,8 @@ struct PlaylistView: View {
             TableColumn("Fingerprint") { row in
                 SoundCell(fingerprints: fingerprints, path: row.id, title: row.title, subtitle: row.author,
                           length: row.item.durationSecs == nil ? nil : row.lengthText,
-                          onPlay: { store.play(index: row.index) })
+                          onPlay: { store.play(index: row.index) },
+                          onFindSimilar: { library.findSimilar(.init(path: row.id, title: row.title, author: row.author)) })
             }
             .width(84)
             .customizationID("sound")
@@ -110,6 +117,10 @@ struct PlaylistView: View {
                 Button("Play") { play(ids) }
                 if ids.count == 1, let row = rows(for: ids).first {
                     ShareMenu(path: row.url.path)
+                    if fingerprints.fingerprint(row.id) != nil {
+                        Button("Find Similar") { library.findSimilar(.init(path: row.id, title: row.title, author: row.author)) }
+                            .keyboardShortcut("l")
+                    }
                 }
                 Button("Show in Finder") {
                     NSWorkspace.shared.activateFileViewerSelecting(rows(for: ids).map(\.url))
@@ -128,6 +139,8 @@ struct PlaylistView: View {
             }
         }
         .onDeleteCommand { remove(selection) }
+        // For the menu bar's Find Similar.
+        .focusedValue(\.similarSeed, similarSeed)
         .onKeyPress(.space) {
             store.playPause(fallback: rows(for: selection).first?.index)
             return .handled
@@ -168,6 +181,13 @@ struct PlaylistView: View {
     /// Reordering is only meaningful when the view shows playlist order.
     private var isInPlaylistOrder: Bool {
         query.isEmpty && sound.isEmpty && sortOrder.first?.keyPath == \TrackRow.index && sortOrder.first?.order == .forward
+    }
+
+    /// The one selected tune, when it has a fingerprint, for Find Similar.
+    private var similarSeed: SmartSettings.Seed? {
+        guard selection.count == 1, let row = rows(for: selection).first,
+              fingerprints.fingerprint(row.id) != nil else { return nil }
+        return .init(path: row.id, title: row.title, author: row.author)
     }
 
     private func rows(for ids: Set<TrackRow.ID>) -> [TrackRow] {

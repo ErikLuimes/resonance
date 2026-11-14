@@ -223,7 +223,7 @@ fn tune_lines(tunes: &[Tune]) -> Vec<String> {
         .collect()
 }
 
-fn cut(text: &str, width: usize) -> String {
+pub(crate) fn cut(text: &str, width: usize) -> String {
     if text.chars().count() <= width {
         return text.to_string();
     }

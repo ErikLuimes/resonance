@@ -163,8 +163,10 @@ extension HelpTopic {
                 .paragraph(String(localized: "Resonance plays every tune in the collection silently in the background and learns how it sounds: its waveforms, its arpeggios and filter sweeps, its drums and its bass. That fingerprint is what it compares, across all of HVSC, along with an embedding of each tune's sound, made in advance and downloaded once.")),
                 .heading(String(localized: "What sounds like this?")),
                 .bullets([
+                    String(localized: "**Sounds Like** in the sidebar shows the tunes across the collection that sound most like the one playing, closest first, with how alike each is. **Close**, **Very Close** and **Loose** set how far down the list goes."),
+                    String(localized: "Select any tune and click **Find Similar** at the end of its row, or press **⌘L**, to show what sounds like it instead. Do it again on one of those to go on from there: the way you came stays above the list, each tune a link back, and **Follow What's Playing** starts over from the music."),
                     String(localized: "Play a tune. The inspector's **Sounds Like** card shows its fingerprint as a sphere, its sound in a sentence, and the closest tunes, each with how alike it is as a percentage."),
-                    String(localized: "Click a match to show it in the library, or click **Play These** to play them all, most alike first."),
+                    String(localized: "Click a match to show it in the library, **Find Similar** for the rest of the collection, or **Play These** to play them all, most alike first."),
                     String(localized: "Until the scan has reached the tune, the card says how far the scan has gotten."),
                 ]),
                 .heading(String(localized: "Sound Drift")),
@@ -172,7 +174,7 @@ extension HelpTopic {
                 .heading(String(localized: "In any tune list")),
                 .bullets([
                     String(localized: "The **Fingerprint** column shows each tune's fingerprint as a barcode. Hover it for a card with the tune's sphere and sound, to play it or find similar tunes."),
-                    String(localized: "Control-click a tune and choose **Find Similar** to sort the list by how alike the others sound to it. Click **Clear** above the list, or sort by a column, to undo it."),
+                    String(localized: "Control-click a tune and choose **Sort by Likeness** to sort just that list by how alike the others sound to it. Click **Clear** above the list, or sort by a column, to undo it."),
                     String(localized: "The **Sound** chips above a list keep only the tunes that have all the sounds you pick: Arpeggios, Filter sweeps, Noise drums, Ring mod, Sync leads and Digi samples."),
                 ]),
                 .link(.topic(.readingFingerprints)),
@@ -357,7 +359,7 @@ extension HelpTopic {
                     String(localized: "Several at once: “Tel, Hubbard and Follin”, “like Sanxion and Delta”."),
                     String(localized: "Facts: “from 1985 and 1986”, “the eighties”, “game music”, “never heard”, “longer than 3 minutes”, “for 2 hours”, “until 9 PM”."),
                 ]),
-                .paragraph(String(localized: "It reacts as you type. When it isn't sure, it says what it did instead. You can also pick **Make a Playlist Like This** from a tune's menu, or **Make a Playlist** in search.")),
+                .paragraph(String(localized: "It reacts as you type. When it isn't sure, it says what it did instead. You can also pick **Make a Playlist** in search, or type “like” and a tune's name.")),
                 .heading(String(localized: "Keeping a list")),
                 .paragraph(String(localized: "**Save** keeps the tunes as one of your playlists. It stays as it is then, and **Refresh** makes a new pick.")),
             ],
@@ -448,6 +450,7 @@ extension HelpTopic {
                 .bullets([
                     String(localized: "The sidebar has your library, then HVSC. Home has the release, what's new, the curated playlists and what you played last: **S** shuffles the whole collection and **T** plays the Top 100."),
                     String(localized: "Musicians, Demos and Games list the folders with how each sounds on average. **/** finds one as you type, **Return** opens its tunes and **Esc** comes back to the same row."),
+                    String(localized: "**l** shows what sounds like the tune under the cursor, across the collection. Press it again on one of those to go on from there; the title keeps the way you came, and **Esc** goes back along it to where you started."),
                     String(localized: "Every tune has the same nine-bar barcode as in the app. In Sounds Like, the tune being compared sits over the column, so you can see why each one matched. A row of dots means no fingerprint yet."),
                     String(localized: "Downloading the collection happens in the app."),
                 ]),

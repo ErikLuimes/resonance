@@ -397,6 +397,17 @@ private struct CreditedTunes: View {
 
 // MARK: - Tune table
 
+/// How alike a list's tunes sound to one, 0–1, by path.
+struct TuneMatches: Equatable {
+    let seed: String
+    let scores: [String: Double]
+}
+
+extension FocusedValues {
+    /// The selected tune in the focused list, for Find Similar.
+    @Entry var similarSeed: SmartSettings.Seed?
+}
+
 /// The columns a pane has room for. A wide sidebar or inspector can leave too
 /// little for any window minimum to cover, and what doesn't fit runs under the
 /// inspector. Year goes first, then Length: the title and how a tune sounds stay.
@@ -445,6 +456,9 @@ struct LibraryTable: View {
     var actions: AnyView? = nil
     /// A playlist: a # column shows each row's `position`, and sorts by it.
     var numbered = false
+    /// How alike each row sounds to a tune (Sounds Like), for the Match
+    /// column and the tune's barcode over the Fingerprint column.
+    var matches: TuneMatches? = nil
 
     @Environment(LibraryStore.self) private var library
     @Environment(PlayerStore.self) private var player
@@ -453,7 +467,7 @@ struct LibraryTable: View {
     @State private var sortOrder: [KeyPathComparator<LibraryRow>] = []
     /// The sounds that are on; a tune must have them all.
     @State private var soundFilter = Set<SoundTag>()
-    /// Find Similar's tune, which the list is sorted by likeness to, and
+    /// Sort by Likeness's tune, which the list is sorted by likeness to, and
     /// how alike each row sounds to it (0–1).
     @State private var similarTo: LibraryRow?
     @State private var likeness: [LibraryRow.ID: Double] = [:]
@@ -493,7 +507,7 @@ struct LibraryTable: View {
 
     // MARK: Sound
 
-    /// The Sound menu and what the list does, and while Find Similar or a
+    /// The Sound menu and what the list does, and while Sort by Likeness or a
     /// column sorts the list, what it's sorted by and the way back: a header
     /// only turns a sort around, so a list's own order (a Top 100's ranking)
     /// would otherwise be lost. Sound only once any row has a fingerprint.
@@ -528,7 +542,32 @@ struct LibraryTable: View {
         \.songs: String(localized: "Songs"), \.length: String(localized: "Length"), \.stilSort: "STIL", \.position: "#",
     ]
 
+    /// The tune the rows are compared with: Sort by Likeness's, else the
+    /// page's own.
+    private var seedPath: String? { similarTo?.id ?? matches?.seed }
+
+    private func match(_ id: LibraryRow.ID) -> Double? {
+        similarTo != nil ? likeness[id] : matches?.scores[id]
+    }
+
+    /// The one selected tune, when it has a fingerprint to compare by.
+    private var similarCandidate: LibraryRow? {
+        guard selection.count == 1, let row = chosen(selection).first,
+              fingerprints.fingerprint(row.id) != nil else { return nil }
+        return row
+    }
+
+    private func seed(_ row: LibraryRow) -> SmartSettings.Seed {
+        .init(path: row.id, title: row.title, author: row.author)
+    }
+
+    /// The tunes across the collection that sound like `row`.
     private func findSimilar(_ row: LibraryRow) {
+        library.findSimilar(seed(row))
+    }
+
+    /// This list, most alike to `row` first.
+    private func sortByLikeness(_ row: LibraryRow) {
         likeness = [:]
         sortOrder = []
         similarTo = row
@@ -604,8 +643,14 @@ struct LibraryTable: View {
                 .customizationID("playing")
             }
             TableColumn("Title", value: \.title) { row in
-                TuneTitleCell(library: library, path: row.id, title: row.title, author: row.author,
-                              isCurrent: isCurrent(row), mayHaveStil: row.item.hasStil)
+                HStack(spacing: 6) {
+                    TuneTitleCell(library: library, path: row.id, title: row.title, author: row.author,
+                                  isCurrent: isCurrent(row), mayHaveStil: row.item.hasStil)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if similarCandidate?.id == row.id {
+                        RowFindSimilarButton(title: row.title) { findSimilar(row) }
+                    }
+                }
             }
             .width(min: 100, ideal: 320)
             .customizationID("title")
@@ -624,16 +669,16 @@ struct LibraryTable: View {
                 .customizationID("releasedFull")
                 .defaultVisibility(.hidden)
             // Sounds Like: the seed's barcode takes the title's place.
-            TableColumn(similarTo == nil ? Text("Fingerprint") : Text("Fingerprint").foregroundColor(.clear)) { row in
+            TableColumn(seedPath == nil ? Text("Fingerprint") : Text("Fingerprint").foregroundColor(.clear)) { row in
                 SoundCell(fingerprints: fingerprints, path: row.id, title: row.title, subtitle: row.author,
                           length: row.item.durationSecs == nil ? nil : row.lengthText,
                           onPlay: { play([row.id]) }, onFindSimilar: { findSimilar(row) })
             }
             .width(84)
             .customizationID("sound")
-            if similarTo != nil {
+            if seedPath != nil {
                 TableColumn("Match") { row in
-                    if row.id != similarTo?.id, let score = likeness[row.id] {
+                    if row.id != seedPath, let score = match(row.id) {
                         Text(score, format: .percent.precision(.fractionLength(0)))
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
@@ -664,7 +709,7 @@ struct LibraryTable: View {
         }
         .alternatingRowBackgrounds(.disabled)
         .background {
-            SeedBarcodeHeader(traits: similarTo.flatMap { fingerprints.fingerprint($0.id)?.traits },
+            SeedBarcodeHeader(traits: seedPath.flatMap { fingerprints.fingerprint($0)?.traits },
                               title: String(localized: "Fingerprint"))
         }
         .contextMenu(forSelectionType: LibraryRow.ID.self) { ids in
@@ -679,10 +724,8 @@ struct LibraryTable: View {
                 }
                 if ids.count == 1, let row = chosen(ids).first, fingerprints.fingerprint(row.id) != nil {
                     Button("Find Similar") { findSimilar(row) }
-                    Button("Make a Playlist Like This") {
-                        library.describeTune(.init(path: row.id, title: row.title, author: row.author))
-                        library.shownSection = .smartPlaylist
-                    }
+                        .keyboardShortcut("l")
+                    Button("Sort by Likeness") { sortByLikeness(row) }
                 }
                 Divider()
                 if ids.count == 1, let id = ids.first, let link = webLink?(id) {
@@ -696,6 +739,8 @@ struct LibraryTable: View {
             play(ids)
         }
         .onDeleteCommand(perform: removesOnDeleteKey && onRemove != nil && !selection.isEmpty ? { onRemove?(selection) } : nil)
+        // For the menu bar's Find Similar.
+        .focusedValue(\.similarSeed, similarCandidate.map(seed))
     }
 
     private func playCell(_ row: LibraryRow, number: Int?) -> some View {

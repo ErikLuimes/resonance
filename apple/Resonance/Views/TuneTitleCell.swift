@@ -97,3 +97,26 @@ nonisolated struct Teaser: Equatable {
         return Text("\(quote)\(by.map { " \u{2014} \($0)" } ?? "")")
     }
 }
+
+/// Find Similar on the selected row, at the end of its title: where the
+/// tune it acts on is. A small bordered button in the row's own text color,
+/// so it shows on the accent selection and on the gray one alike.
+struct RowFindSimilarButton: View {
+    let title: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text("Find Similar")
+                .font(.caption)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 1)
+                .background(.primary.opacity(0.12), in: .rect(cornerRadius: 5))
+                .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(.primary.opacity(0.6), lineWidth: 1))
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .fixedSize()
+        .help(String(localized: "Tunes across the collection that sound like \u{201C}\(title)\u{201D} (⌘L)"))
+    }
+}

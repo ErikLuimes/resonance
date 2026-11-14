@@ -155,7 +155,7 @@ followed by Radial spectrum, Particles and Spectrogram. Keep one MTKView and swi
 - [x] Batch scanner over HVSC computing a feature vector per subtune (Phase 2's pre-scan didn't exist yet, so this is the first one)
 - [x] Store in SQLite next to the library index (MD5 + subtune)
 - [x] Sound column with mini fingerprint in the list — `reference/AppFingerprints.dc.html`. Built as a nine-bar trait barcode (`SoundBarcode`), not voice lanes: every trait sits in the same place, so tunes that sound alike look alike down a column.
-- [x] Hover card (fingerprint, waveform mix, tags, Play / Find similar). The card shows the tune's `MorphSphere`, a particle sphere that bulges toward its traits. Find Similar sorts the list by likeness, with a Match column.
+- [x] Hover card (fingerprint, waveform mix, tags, Play / Find similar). The card shows the tune's `MorphSphere`, a particle sphere that bulges toward its traits. Find Similar opens the closest tunes across the collection on the Sounds Like page; the context menu's Sort by Likeness sorts the list, with a Match column.
 - [x] Filter chips (Arpeggios, Filter sweeps, Noise drums, Ring mod, Sync leads, Digi samples). A tune needs every chip that's on.
 - [x] "Sounds like" panel in the inspector (cosine similarity on the feature vector): the sphere, the sound in a sentence, seven matches as links, Play These. Scan progress and Pause are in Settings › Sound Fingerprints.
 

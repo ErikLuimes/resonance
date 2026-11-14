@@ -23,6 +23,8 @@ enum SidebarItem: Hashable {
     case favorites
     /// Making a playlist from a recipe.
     case smartPlaylist
+    /// What sounds like a tune, across the collection, and the way there.
+    case soundsLike
     /// One of your playlists, by its file name.
     case userPlaylist(String)
 }
@@ -388,6 +390,9 @@ struct ContentView: View {
                 SidebarLabel(String(localized: "Recently Played"), systemImage: "clock", playing: playing(.recent))
                     .modifier(RefusesFiles())
                     .tag(SidebarItem.recent)
+                SidebarLabel(String(localized: "Sounds Like"), systemImage: "waveform.badge.magnifyingglass", playing: playing(.soundsLike))
+                    .modifier(RefusesFiles())
+                    .tag(SidebarItem.soundsLike)
             }
             Section {
                 Label("Smart Playlist", systemImage: "wand.and.stars")
@@ -603,6 +608,8 @@ struct ContentView: View {
 #endif
         case .smartPlaylist:
             SmartPlaylistView()
+        case .soundsLike:
+            SoundsLikeView()
         case .favorites:
             UserPlaylistView(playlist: nil)
         case .userPlaylist(let id):

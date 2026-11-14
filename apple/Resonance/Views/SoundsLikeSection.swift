@@ -18,6 +18,11 @@ struct SoundsLikeSection: View {
         return URL(filePath: path).deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")
     }
 
+    private var seedAuthor: String {
+        if let track = player.nowPlaying, track.path == path { return track.author }
+        return ""
+    }
+
     var body: some View {
         let fp = fingerprints.fingerprint(path)
         VStack(alignment: .leading, spacing: 6) {
@@ -73,6 +78,13 @@ struct SoundsLikeSection: View {
                         }
                     }
                 }
+                // The 7 here are the start: the rest of the collection,
+                // closest first, is a click away.
+                Button("Find Similar") {
+                    library.findSimilar(.init(path: path, title: seedTitle, author: seedAuthor))
+                }
+                .controlSize(.small)
+                .help("Tunes across the collection that sound like this one, closest first")
                 Button("Play These") {
                     library.play(similar.map { LibraryRow(item: $0.item) }, from: .soundsLike(title: seedTitle))
                 }

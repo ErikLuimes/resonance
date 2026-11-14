@@ -58,6 +58,15 @@ final class LibraryStore {
     var shownSection: SidebarItem?
     /// The Smart Playlist pane's recipe.
     var smartSettings = SmartSettings()
+    /// Sounds Like's way so far: the tunes found similar to, oldest first, the
+    /// last the one it shows. Empty while it follows what's playing.
+    var likeTrail: [SmartSettings.Seed] = []
+    /// The playing tune while Sounds Like follows it, so a hop from there keeps
+    /// it as the trail's start.
+    var likeFollowed: SmartSettings.Seed?
+    /// Whether the Sounds Like page is on screen: Find Similar hops on from
+    /// it, and starts a new trail anywhere else.
+    var isShowingSoundsLike = false
     /// Built the first time a sentence is read, from the collection's names.
     var smartParser: SmartSentenceParser?
     /// How often Surprise Me was started; the toolbar's dice wiggles on each.

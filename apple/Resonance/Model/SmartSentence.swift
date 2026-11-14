@@ -908,6 +908,20 @@ extension LibraryStore {
         smartSettings = next
     }
 
+    /// Find Similar: the Sounds Like page, with the tunes across the
+    /// collection that sound most like `seed`, closest first. From the page
+    /// itself it's a hop along the trail; from anywhere else a new start, or
+    /// following what's playing when `seed` is that.
+    func findSimilar(_ seed: SmartSettings.Seed) {
+        if isShowingSoundsLike {
+            if likeTrail.isEmpty, let followed = likeFollowed, followed.path != seed.path { likeTrail = [followed] }
+            if likeTrail.last?.path != seed.path { likeTrail.append(seed) }
+        } else {
+            likeTrail = player.nowPlaying?.path == seed.path ? [] : [seed]
+        }
+        shownSection = .soundsLike
+    }
+
     /// Back to the empty field and its suggestions.
     func clearSmartSentence() {
         var next = smartSettings

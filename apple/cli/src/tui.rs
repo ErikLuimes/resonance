@@ -4,6 +4,7 @@
 
 use crate::client::Client;
 use crate::credits;
+use crate::cut;
 use crate::fingerprint;
 use crate::fire::Fire;
 use crate::header;
@@ -79,6 +80,14 @@ pub enum View {
     Composer { section: &'static str, path: String, title: String, back_to: usize },
     /// A curated playlist, by its file.
     Curated { file: String, name: String },
+}
+
+/// A tune Sounds Like showed tunes like, and the row it left from.
+#[derive(Debug, Clone, PartialEq)]
+struct LikeStep {
+    path: String,
+    title: String,
+    cursor: usize,
 }
 
 /// Search, Describe and Recently Played, in a section of their own above the playlists.
@@ -422,6 +431,12 @@ pub struct App {
     prints_off: bool,
     /// What Sounds Like is showing tunes like.
     like_seed: Option<String>,
+    /// The tunes Sounds Like went through to get here, oldest first, each with
+    /// the row it left from: Esc goes back through them.
+    like_trail: Vec<LikeStep>,
+    /// The list Sounds Like was opened from, and its row, for Esc at the start
+    /// of the trail.
+    like_origin: Option<(View, usize)>,
     details_for: Option<String>,
     details_due: Option<Instant>,
     now: Option<Instant>,
@@ -476,6 +491,8 @@ impl App {
             prints_next: None,
             prints_off: false,
             like_seed: None,
+            like_trail: Vec::new(),
+            like_origin: None,
             details_for: None,
             details_due: None,
             now: None,
@@ -734,6 +751,7 @@ impl App {
                 self.cursor = 0;
             }
             View::Describe if !self.describing.sentence.is_empty() || self.describing.problem.is_some() => self.clear_describe(),
+            View::Like(_) => self.like_back(),
             _ => self.quit = true,
         }
     }
@@ -1495,13 +1513,45 @@ impl App {
 
     fn sounds_like(&mut self) {
         let Some(tune) = self.rows.get(self.cursor).cloned() else { return };
-        self.like_seed = Some(tune.path.clone());
-        self.view = View::Like(tune.title);
+        // A hop from one Sounds Like to the next joins the trail; from
+        // anywhere else it starts one.
+        match (&self.view, self.like_seed.clone()) {
+            (View::Like(title), Some(path)) => self.like_trail.push(LikeStep { path, title: title.clone(), cursor: self.cursor }),
+            _ => {
+                self.like_trail.clear();
+                self.like_origin = Some((self.view.clone(), self.cursor));
+            }
+        }
+        self.show_like(tune.path, tune.title, 0);
+    }
+
+    fn show_like(&mut self, path: String, title: String, cursor: usize) {
+        self.like_seed = Some(path.clone());
+        self.view = View::Like(title);
         self.rows.clear();
-        self.cursor = 0;
+        self.cursor = cursor;
         self.marked.clear();
         self.generation += 1;
-        self.send(Tag::Rows(self.generation), "like", json!({ "path": tune.path, "limit": 30 }));
+        self.send(Tag::Rows(self.generation), "like", json!({ "path": path, "limit": 30 }));
+    }
+
+    /// Esc in Sounds Like: the tune before on the trail, else the list it was
+    /// opened from, each on the row it left from.
+    fn like_back(&mut self) {
+        if let Some(step) = self.like_trail.pop() {
+            self.show_like(step.path, step.title, step.cursor);
+            return;
+        }
+        self.like_seed = None;
+        match self.like_origin.take() {
+            Some((view, cursor)) => {
+                self.view = view;
+                self.marked.clear();
+                self.reload();
+                self.cursor = cursor;
+            }
+            None => self.quit = true,
+        }
     }
 
     fn remove_chosen(&mut self) {
@@ -2394,7 +2444,17 @@ fn list_title(app: &App) -> String {
         View::Recent => "▓▒░ Recently Played".into(),
         View::Playlist(name) => format!("▓▒░ {name}"),
         View::MyPlaylist => "▓▒░ My Playlist".into(),
-        View::Like(title) => format!("▓▒░ Sounds like {title}"),
+        View::Like(title) => {
+            // The way here, the latest few: the start, then the hops.
+            let trail = &app.like_trail;
+            let shown = &trail[trail.len().saturating_sub(2)..];
+            let mut way: Vec<&str> = shown.iter().map(|step| step.title.as_str()).collect();
+            if trail.len() > shown.len() {
+                way.insert(0, "…");
+            }
+            way.push(title);
+            format!("▓▒░ Sounds like {}", way.join(" › "))
+        }
         View::Composer { title, .. } => format!("▓▒░ {title}"),
         View::Curated { name, .. } => format!("▓▒░ {name}"),
         View::HvscHome | View::Hvsc(_) => String::new(),
@@ -2432,6 +2492,27 @@ fn draw_list(frame: &mut Frame, app: &App, area: Rect) {
     let playing = app.status.as_ref().and_then(|s| s.now.as_ref()).map(|n| n.path.as_str());
     let prints = app.showing_prints();
     let composer = !prints || area.width >= COMPOSER_FROM;
+    let liking = matches!(app.view, View::Like(_));
+    let (last_column, last_width) = if liking { ("MATCH", 5) } else { ("LENGTH", 6) };
+    // Composer as wide as its longest name, so names aren't cut while titles
+    // have room to spare; when both are too long, the room is shared in
+    // proportion to what each needs.
+    let gaps = 2 * (1 + usize::from(composer) + usize::from(prints));
+    let fixed = 2 + gaps + if prints { fingerprint::SMALL_WIDTH as usize } else { 0 } + last_width as usize;
+    let room = (rest.width as usize).saturating_sub(fixed);
+    // Find Similar on the cursor's line, a chip at the end of the title's
+    // column, like the button on the app's selected row. It matters more than
+    // the end of a long title, which gives way to it. The composer's column
+    // doesn't: on a list too narrow for both, the panel beside it says l.
+    let like_key = app.keys.scheme.choose("l", "L", "l");
+    let chip = Style::new().bg(palette::selection()).fg(palette::text());
+    let like_badge = [Span::styled(format!(" {like_key}"), chip.add_modifier(Modifier::BOLD)), Span::styled(" find similar ", chip)];
+    let badge_width = 1 + like_key.chars().count() + " find similar ".len();
+    let shows_badge = focused && app.marked.is_empty();
+    let titles = app.rows.iter().map(|t| t.title.chars().count() + 2).max().unwrap_or(0).max(7);
+    let authors = app.rows.iter().map(|t| t.author.chars().count()).max().unwrap_or(0).max(8);
+    let composer_width = if titles + authors <= room { authors } else { room * authors / (titles + authors) };
+    let title_room = room.saturating_sub(if composer { composer_width } else { 0 });
     // A circle on every tune, filled in the accent for the one playing; the
     // cursor is a chevron and an underlined title, as in `resonance pick`.
     let accent = Style::new().fg(palette::accent());
@@ -2452,7 +2533,17 @@ fn draw_list(frame: &mut Frame, app: &App, area: Rect) {
                 None => Line::from(t.secs.map(|s| clock(f64::from(s))).unwrap_or_default()),
             };
             // The circle shares the title's column, a single space from it.
-            let title = Line::from(vec![mark, Span::raw(" "), Span::styled(t.title.clone(), underlined(i == app.cursor))]);
+            // The circle and its space, and a space before the badge.
+            let text_room = title_room.saturating_sub(2 + badge_width + 1);
+            let title = if i == app.cursor && shows_badge && text_room >= 4 {
+                let shown = cut(&t.title, text_room);
+                let pad = " ".repeat(text_room - shown.chars().count() + 1);
+                let mut spans = vec![mark, Span::raw(" "), Span::styled(shown, underlined(true)), Span::raw(pad)];
+                spans.extend(like_badge.iter().cloned());
+                Line::from(spans)
+            } else {
+                Line::from(vec![mark, Span::raw(" "), Span::styled(t.title.clone(), underlined(i == app.cursor))])
+            };
             let mut cells = vec![Cell::from(title)];
             if composer {
                 cells.push(Cell::from(Span::styled(t.author.clone(), dim())));
@@ -2464,17 +2555,6 @@ fn draw_list(frame: &mut Frame, app: &App, area: Rect) {
             Row::new(cells)
         })
         .collect();
-    let liking = matches!(app.view, View::Like(_));
-    let (last_column, last_width) = if liking { ("MATCH", 5) } else { ("LENGTH", 6) };
-    // Composer as wide as its longest name, so names aren't cut while titles
-    // have room to spare; when both are too long, the room is shared in
-    // proportion to what each needs.
-    let gaps = 2 * (1 + usize::from(composer) + usize::from(prints));
-    let fixed = 2 + gaps + if prints { fingerprint::SMALL_WIDTH as usize } else { 0 } + last_width as usize;
-    let room = (rest.width as usize).saturating_sub(fixed);
-    let titles = app.rows.iter().map(|t| t.title.chars().count() + 2).max().unwrap_or(0).max(7);
-    let authors = app.rows.iter().map(|t| t.author.chars().count()).max().unwrap_or(0).max(8);
-    let composer_width = if titles + authors <= room { authors } else { room * authors / (titles + authors) };
     let mut widths = vec![Constraint::Fill(1)];
     let mut header = vec![Cell::from("  TITLE")];
     if composer {
@@ -3337,8 +3417,9 @@ fn bar_keys(app: &App) -> Vec<(&'static str, &'static str)> {
             View::Hvsc(_) => return vec![movement, ("↵", "open"), ("/", "find"), ("p", "pause"), ("tab", "library"), ("?", "all keys"), ("q", "quit")],
             View::Describe if matches!(app.mode, Mode::Describing(_)) => return vec![("type", "what you'd like to hear"), ("↵", "make the list"), ("↓", "suggestions"), ("esc", "done")],
             View::Describe if app.rows.is_empty() => return vec![movement, ("↵", "try it"), ("/", "say it"), ("tab", "library"), ("?", "all keys"), ("q", "quit")],
-            View::Describe if app.marked.is_empty() => return vec![movement, ("↵", "play"), ("/", "change it"), ("n", "save as playlist"), (scheme.choose("l", "L", "l"), "sounds like"), ("esc", "start over"), ("?", "all keys"), ("q", "quit")],
-            View::Composer { .. } | View::Curated { .. } => return vec![movement, ("↵", "play"), (scheme.choose("l", "L", "l"), "sounds like"), ("f", "favorite"), ("esc", "back"), ("?", "all keys"), ("q", "quit")],
+            View::Describe if app.marked.is_empty() => return vec![movement, ("↵", "play"), ("/", "change it"), ("n", "save as playlist"), (scheme.choose("l", "L", "l"), "find similar"), ("esc", "start over"), ("?", "all keys"), ("q", "quit")],
+            View::Composer { .. } | View::Curated { .. } => return vec![movement, ("↵", "play"), (scheme.choose("l", "L", "l"), "find similar"), ("f", "favorite"), ("esc", "back"), ("?", "all keys"), ("q", "quit")],
+            View::Like(_) if app.marked.is_empty() => return vec![movement, ("↵", "play"), (scheme.choose("l", "L", "l"), "find similar"), ("f", "favorite"), ("esc", "back"), ("?", "all keys"), ("q", "quit")],
             _ => {}
         }
     }
@@ -3351,7 +3432,7 @@ fn bar_keys(app: &App) -> Vec<(&'static str, &'static str)> {
             ("↵", "play"),
             ("p", "pause"),
             ("t", "scrub"),
-            (scheme.choose("l", "L", "l"), "sounds like"),
+            (scheme.choose("l", "L", "l"), "find similar"),
             ("/", "search"),
             ("?", "all keys"),
         ],
@@ -3426,7 +3507,7 @@ fn help_lines(scheme: KeyScheme) -> [(&'static str, &'static str); 21] {
         (pick("t  ← →  ↵", "t  h l  ↵", "t  ⌃B ⌃F  ↵"), "Scrub: choose a point and jump to it"),
         ("r  S  T", "Surprise Me; Home: shuffle, Top 100"),
         ("␣", "Mark a tune"),
-        (pick("l", "L", "l"), "Sounds Like this tune"),
+        (pick("l", "L", "l"), "Find similar tunes; Esc goes back"),
         (pick("d", "D", "d"), "Sound Drift from this tune"),
         ("f", "Add to Favorites"),
         ("a", "Add to a playlist"),
@@ -3784,6 +3865,77 @@ mod tests {
         press(&mut app, KeyCode::Char('l'));
         assert_eq!(app.view, View::Like("A".into()));
         assert_eq!(sent(&mut app), [("like", json!({ "path": "/A.sid", "limit": 30 }))]);
+    }
+
+    /// Sounds Like's answer: these tunes, as the app sends them.
+    fn like_answer(app: &mut App, names: &[&str]) {
+        let tunes: Vec<Tune> = names.iter().map(|name| tune(name)).collect();
+        app.reply(Tag::Rows(app.generation), Ok(serde_json::to_value(tunes).unwrap()));
+    }
+
+    #[test]
+    fn sounds_like_hops_and_esc_comes_back_the_same_way() {
+        let mut app = app();
+        app.cursor = 2;
+        press(&mut app, KeyCode::Char('l'));
+        assert_eq!(app.view, View::Like("C".into()));
+        like_answer(&mut app, &["D", "E", "F"]);
+        app.cursor = 1;
+        press(&mut app, KeyCode::Char('l'));
+        assert_eq!(app.view, View::Like("E".into()));
+        assert_eq!(list_title(&app), "▓▒░ Sounds like C › E");
+        let shown = screen(&app);
+        assert!(shown.contains("Sounds like C › E") && shown.contains("back"), "{shown}");
+        sent(&mut app);
+
+        // Back to C, on the row of E, asking for C's tunes again.
+        press(&mut app, KeyCode::Esc);
+        assert_eq!(app.view, View::Like("C".into()));
+        assert_eq!(sent(&mut app), [("like", json!({ "path": "/C.sid", "limit": 30 }))]);
+        like_answer(&mut app, &["D", "E", "F"]);
+        assert_eq!(app.cursor, 1);
+        assert_eq!(list_title(&app), "▓▒░ Sounds like C");
+
+        // Then the playlist it started from, on C's row, and nothing quits.
+        press(&mut app, KeyCode::Esc);
+        assert_eq!(app.view, View::Playlist("Late Night".into()));
+        assert_eq!(app.cursor, 2);
+        assert!(!app.quit);
+    }
+
+    #[test]
+    fn the_cursors_line_has_find_similar_even_if_the_title_gives_way() {
+        let mut app = app();
+        app.focus = Focus::List;
+        app.cursor = 1;
+        let line_of = |shown: &str, title: &str| shown.lines().find(|l| l.contains(&format!("○ {title}"))).unwrap().to_string();
+        for width in [130, 160] {
+            let shown = screen_of(&app, width, 30);
+            assert!(line_of(&shown, "B").contains(" l find similar "), "{shown}");
+            assert!(!line_of(&shown, "A").contains("find similar"), "{shown}");
+        }
+
+        // Only where the list has the focus.
+        app.focus = Focus::Sidebar;
+        assert!(!line_of(&screen_of(&app, 160, 30), "B").contains("find similar"));
+
+        // A long title is cut short for it.
+        app.focus = Focus::List;
+        app.rows[1].title = "A Title Long Enough To Fill The Column Without Any Room To Spare".into();
+        let shown = screen_of(&app, 130, 30);
+        let line = line_of(&shown, "A Title");
+        assert!(line.contains("Enou…") && line.contains(" l find similar "), "{shown}");
+    }
+
+    #[test]
+    fn a_long_sounds_like_trail_shows_its_latest_hops() {
+        let mut app = app();
+        press(&mut app, KeyCode::Char('l'));
+        for name in ["B", "C", "D"] {
+            like_answer(&mut app, &[name]);
+            press(&mut app, KeyCode::Char('l'));
+        }
+        assert_eq!(list_title(&app), "▓▒░ Sounds like … › B › C › D");
     }
 
     #[test]
@@ -4297,7 +4449,7 @@ mod tests {
             let shown = |what: &str| bar.iter().find(|(_, w)| *w == what).unwrap().0;
 
             let mut app = app_with(scheme);
-            press(&mut app, KeyCode::Char(shown("sounds like").chars().next().unwrap()));
+            press(&mut app, KeyCode::Char(shown("find similar").chars().next().unwrap()));
             assert!(matches!(app.view, View::Like(_)), "{scheme:?}");
 
             let mut app = app_with(scheme);

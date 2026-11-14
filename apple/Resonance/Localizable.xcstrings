@@ -543,6 +543,9 @@
     "**Sounds Like This**: tunes that sound like the one playing." : {
 
     },
+    "**Sounds Like** in the sidebar shows the tunes across the collection that sound most like the one playing, closest first, with how alike each is. **Close**, **Very Close** and **Loose** set how far down the list goes." : {
+
+    },
     "**Spectrum**: an analyzer with a curve per voice from 30 Hz to 16 kHz, a line holding each one's peaks, a white line for all three together, and each voice's note marked at its pitch." : {
 
     },
@@ -562,6 +565,9 @@
 
     },
     "**f**: fire, where each voice feeds its own part of the flames and hits throw sparks." : {
+
+    },
+    "**l** shows what sounds like the tune under the cursor, across the collection. Press it again on one of those to go on from there; the title keeps the way you came, and **Esc** goes back along it to where you started." : {
 
     },
     "**o**: the app's Particles sphere." : {
@@ -853,6 +859,9 @@
     "Back to the list that played before" : {
 
     },
+    "Back to what sounds like “%@”" : {
+
+    },
     "Background" : {
 
     },
@@ -1064,7 +1073,7 @@
     "Click a column header to sort, and **Back to Original Order** above the list to undo it. Control-click the header to choose which columns show." : {
 
     },
-    "Click a match to show it in the library, or click **Play These** to play them all, most alike first." : {
+    "Click a match to show it in the library, **Find Similar** for the rest of the collection, or **Play These** to play them all, most alike first." : {
 
     },
     "Click the heart in the inspector or Now Playing to make a tune a favorite, and again to undo it. Favorites keep the order you hearted them in." : {
@@ -1089,6 +1098,9 @@
 
     },
     "Close the Panel, or What's Open" : {
+
+    },
+    "Closeness" : {
 
     },
     "Closes this panel. Pressed again, it closes Now Playing or Under the Hood." : {
@@ -1160,7 +1172,7 @@
     "Control-click a playlist in the sidebar to play, rename, duplicate, export or delete it, or show its file in Finder. A deleted playlist goes to the Trash; its tunes stay where they are." : {
 
     },
-    "Control-click a tune and choose **Find Similar** to sort the list by how alike the others sound to it. Click **Clear** above the list, or sort by a column, to undo it." : {
+    "Control-click a tune and choose **Sort by Likeness** to sort just that list by how alike the others sound to it. Click **Clear** above the list, or sort by a column, to undo it." : {
 
     },
     "Control-click a tune to play it, add it to a playlist, find similar tunes or show it in Finder." : {
@@ -1403,6 +1415,9 @@
 
     },
     "Download and install automatically" : {
+
+    },
+    "Download it first, then play a tune or choose Find Similar on one." : {
 
     },
     "Download it first, then say what you'd like to hear." : {
@@ -1676,10 +1691,16 @@
     "Fire: red, orange and gold" : {
 
     },
+    "Follow What's Playing" : {
+
+    },
     "Follow the Scene" : {
 
     },
     "Follow the download on the Home, which the Collection row opens. Elsewhere in the window a pill at the top shows it, with **Cancel**." : {
+
+    },
+    "Following what's playing" : {
 
     },
     "For another assistant that speaks the protocol, give it the tool's full path, with **mcp** after it, as the command to run." : {
@@ -1852,6 +1873,9 @@
     "How close" : {
 
     },
+    "How far down the closest tunes the list goes" : {
+
+    },
     "How far down the closest tunes to go, and whether to add tunes with the same name" : {
 
     },
@@ -1985,7 +2009,7 @@
     "It compares what you've played with everything else. You've played %@ so far, so it would mostly be guessing." : {
 
     },
-    "It reacts as you type. When it isn't sure, it says what it did instead. You can also pick **Make a Playlist Like This** from a tune's menu, or **Make a Playlist** in search." : {
+    "It reacts as you type. When it isn't sure, it says what it did instead. You can also pick **Make a Playlist** in search, or type “like” and a tune's name." : {
 
     },
     "It's also in %@, and will be taken out of there too." : {
@@ -2107,9 +2131,6 @@
 
     },
     "Make a Playlist" : {
-
-    },
-    "Make a Playlist Like This" : {
 
     },
     "Make a new pick, or a new order, with the same words" : {
@@ -2422,6 +2443,9 @@
     "Notes visualizer" : {
 
     },
+    "Nothing Else Fingerprinted Yet" : {
+
+    },
     "Nothing Played Yet" : {
 
     },
@@ -2641,6 +2665,9 @@
     "Play Again" : {
 
     },
+    "Play All" : {
+
+    },
     "Play Playlist" : {
 
     },
@@ -2651,6 +2678,9 @@
 
     },
     "Play These" : {
+
+    },
+    "Play a tune and this follows it, or choose Find Similar on any tune." : {
 
     },
     "Play a tune. The inspector's **Sounds Like** card shows its fingerprint as a sphere, its sound in a sentence, and the closest tunes, each with how alike it is as a percentage." : {
@@ -3139,6 +3169,9 @@
       "comment" : "Title of a dialog that allows the user to save a crash report to their desktop.",
       "isCommentAutoGenerated" : true
     },
+    "Save as Playlist" : {
+
+    },
     "Saved" : {
 
     },
@@ -3216,6 +3249,9 @@
 
     },
     "Select a composer to see their card and their tunes: **Add to…** or **Play**, in the row above the list, takes them all, and the player bar's shuffle decides the order. At the top is what %@ about them: swipe the cards, or use the dots under them, for more. Composers without a folder of their own still get a list of the tunes credited to them. The sections of **Games** and **Demos** have the same header, about their tunes: when they were made, how they sound, and the longest, oldest and newest." : {
+
+    },
+    "Select any tune and click **Find Similar** at the end of its row, or press **⌘L**, to show what sounds like it instead. Do it again on one of those to go on from there: the way you came stays above the list, each tune a link back, and **Follow What's Playing** starts over from the music." : {
 
     },
     "Send a friend a link to the tune you're listening to." : {
@@ -3470,6 +3506,9 @@
     "Songs" : {
 
     },
+    "Sort by Likeness" : {
+
+    },
     "Sort this list by how alike the tunes sound to this one" : {
 
     },
@@ -3507,6 +3546,12 @@
 
     },
     "Sounds Like Is Ready" : {
+
+    },
+    "Sounds Like Searches the Collection" : {
+
+    },
+    "Sounds Like fills in as the scan goes on." : {
 
     },
     "Sounds Like now covers your whole collection." : {
@@ -3986,6 +4031,12 @@
     "Tunes" : {
 
     },
+    "Tunes across the collection that sound like this one, closest first" : {
+
+    },
+    "Tunes across the collection that sound like “%@” (⌘L)" : {
+
+    },
     "Tunes are missing or won't play" : {
 
     },
@@ -4193,6 +4244,9 @@
 
     },
     "What Resonance shows when it opens." : {
+
+    },
+    "What Should It Sound Like?" : {
 
     },
     "What each page of Settings does." : {
@@ -4454,6 +4508,9 @@
 
     },
     "…" : {
+
+    },
+    "›" : {
 
     },
     "−%@" : {

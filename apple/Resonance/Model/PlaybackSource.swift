@@ -119,6 +119,7 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .playlist(let id, _): .userPlaylist(id)
         case .curated(let playlist): .curated(playlist.file)
         case .smart: .smartPlaylist
+        case .soundsLike: .soundsLike
         case .recentlyPlayed: .recent
 #if CSDB
         case .scene: .scene

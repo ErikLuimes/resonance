@@ -45,6 +45,7 @@ struct PlaybackCommands: Commands {
             Divider()
 
             CollectionItems(library: library)
+            FindSimilarItem(store: store, library: library)
 
             Divider()
 
@@ -122,5 +123,26 @@ private struct CollectionItems: View {
             guard library.hasRoot else { return }
             Task { await library.shuffleCollection() }
         }
+    }
+}
+
+/// The tunes across the collection that sound like the selected tune, or
+/// without one the tune playing.
+private struct FindSimilarItem: View {
+    let store: PlayerStore
+    let library: LibraryStore
+    @FocusedValue(\.similarSeed) private var selected
+
+    var body: some View {
+        Button("Find Similar") {
+            if let selected {
+                library.findSimilar(selected)
+            } else if let track = store.nowPlaying, library.category(of: track.path) != nil {
+                // Only HVSC is fingerprinted. Its fingerprint may not be
+                // loaded here (the inspector loads it), so not asked for.
+                library.findSimilar(.init(path: track.path, title: track.displayTitle, author: track.author))
+            }
+        }
+        .keyboardShortcut("l")
     }
 }
