@@ -422,6 +422,8 @@ pub struct App {
     pub details: HashMap<String, Details>,
     /// Whether the Sounds Like panel is on screen, so worth asking for.
     pub rail_showing: bool,
+    /// `i` puts the panel beside the list away, and brings it back.
+    pub rail_hidden: bool,
     /// Whether to draw barcodes, and so ask for them.
     pub prints_wanted: bool,
     /// What's known: nothing yet, once asked, or no fingerprint.
@@ -484,6 +486,7 @@ impl App {
             page: Page::Skull,
             details: HashMap::new(),
             rail_showing: false,
+            rail_hidden: false,
             prints_wanted: false,
             last_key: None,
             tags: None,
@@ -1411,6 +1414,7 @@ impl App {
                 self.mode = Mode::Browser(Browser::open(start));
             }
             KeyCode::Char('?') => self.mode = Mode::Help,
+            KeyCode::Char('i') => self.rail_hidden = !self.rail_hidden,
             KeyCode::Char('u') => self.mode = Mode::Drawer(self.now.unwrap_or_else(Instant::now)),
             KeyCode::Char('v') => self.mode = Mode::Visual,
             KeyCode::Char('c') => self.open_credits(),
@@ -2242,11 +2246,17 @@ fn plain_lines(lines: Vec<Line<'static>>) -> Vec<Line<'static>> {
         .collect()
 }
 
+/// Whether this view has a panel beside its list in a window this wide. Home
+/// and Describe before it has a list use the room themselves.
+fn rail_fits(app: &App, width: u16) -> bool {
+    let nothing_to_show = app.view == View::Describe && app.rows.is_empty();
+    width >= RAIL_FROM && app.view != View::HvscHome && !nothing_to_show
+}
+
 /// The columns, each framed by shaded edges: as many as the window has room for.
 fn draw_panes(frame: &mut Frame, app: &App, area: Rect) {
     let single = area.width < SIDEBAR_FROM;
-    let nothing_to_show = app.view == View::Describe && app.rows.is_empty();
-    let with_rail = area.width >= RAIL_FROM && app.view != View::HvscHome && !nothing_to_show;
+    let with_rail = rail_fits(app, area.width) && !app.rail_hidden;
     let mut widths = vec![Constraint::Length(1)];
     if !single {
         widths.extend([Constraint::Length(column_width(area.width, SIDEBAR_SHARE)), Constraint::Length(1)]);
@@ -2280,7 +2290,9 @@ fn heading(frame: &mut Frame, text: String, focused: bool, area: Rect) {
 
 /// A section's heading: white on a dark gray bar the pane's width, as on a BBS,
 /// a little lighter on the pane with the focus, then a thin line and an empty
-/// row: `SECTION_ROWS` in all.
+/// row: `SECTION_ROWS` in all. The bar has a space either side of it: it ends
+/// a column past the content under it, which keeps two from the line on its
+/// right (`inside`).
 fn heading_bar(frame: &mut Frame, mut spans: Vec<Span<'static>>, focused: bool, area: Rect) {
     if let Some(first) = spans.first_mut() {
         if let Some(words) = first.content.strip_prefix("▓▒░ ") {
@@ -2288,7 +2300,8 @@ fn heading_bar(frame: &mut Frame, mut spans: Vec<Span<'static>>, focused: bool, 
         }
     }
     let style = Style::new().bg(palette::bar(focused)).fg(palette::text()).add_modifier(Modifier::BOLD);
-    frame.render_widget(Paragraph::new(Line::from(spans)).style(style), Rect { height: area.height.min(1), ..area });
+    let bar = Rect { width: area.width + 1, height: area.height.min(1), ..area }.intersection(frame.area());
+    frame.render_widget(Paragraph::new(Line::from(spans)).style(style), bar);
     if area.height >= 2 {
         rule(frame, Rect { y: area.y + 1, height: 1, ..area });
     }
@@ -2467,6 +2480,12 @@ fn list_title(app: &App) -> String {
 impl App {
     fn showing_prints(&self) -> bool {
         self.prints_wanted && !self.prints_off
+    }
+
+    /// Whether the panel is there to fill in: not in a narrow window, behind
+    /// another screen, or put away.
+    fn shows_rail(&self, width: u16) -> bool {
+        width >= RAIL_FROM && !self.rail_hidden && matches!(self.mode, Mode::Normal | Mode::Search | Mode::Describing(_))
     }
 
     /// A tune's barcode, or the place for it.
@@ -3365,7 +3384,7 @@ fn draw_keys(frame: &mut Frame, app: &App, area: Rect) {
     }
     let key_style = Style::new().fg(palette::text());
     let mut spans = Vec::new();
-    for (key, what) in fit_bar(bar_keys(app), area.width, "?") {
+    for (key, what) in fit_bar(bar_for(app, area.width), area.width, "?") {
         spans.push(Span::styled(key, key_style));
         spans.push(Span::styled(format!(" {what}  "), dim()));
     }
@@ -3375,7 +3394,7 @@ fn draw_keys(frame: &mut Frame, app: &App, area: Rect) {
 /// As many whole hints as fit, in the order given, and always the one for the
 /// `keep` key: `?` is how to find those left out, Esc the way back.
 fn fit_bar(keys: Vec<(&'static str, &'static str)>, width: u16, keep: &str) -> Vec<(&'static str, &'static str)> {
-    let wide = |(key, what): &(&str, &str)| key.chars().count() + what.chars().count() + 3;
+    let wide = hint_width;
     let mut room = (width as usize).saturating_sub(keys.iter().filter(|k| k.0 == keep).map(wide).sum());
     let mut fits = true;
     keys.into_iter()
@@ -3390,6 +3409,26 @@ fn fit_bar(keys: Vec<(&'static str, &'static str)>, width: u16, keep: &str) -> V
             fits
         })
         .collect()
+}
+
+/// A hint's columns in the bar: its key, a space, what it does, two spaces.
+fn hint_width((key, what): &(&'static str, &'static str)) -> usize {
+    key.chars().count() + what.chars().count() + 3
+}
+
+/// The bar in a window this wide. Where the panel beside the list fits, the key
+/// that puts it away or brings it back goes before `?`, but only with room to
+/// spare: it never takes another hint's place.
+fn bar_for(app: &App, width: u16) -> Vec<(&'static str, &'static str)> {
+    let mut keys = bar_keys(app);
+    let hint = ("i", if app.rail_hidden { "show panel" } else { "hide panel" });
+    let taken: usize = keys.iter().map(hint_width).sum();
+    if matches!(app.mode, Mode::Normal) && rail_fits(app, width) && taken + hint_width(&hint) <= width as usize {
+        if let Some(at) = keys.iter().position(|k| k.0 == "?") {
+            keys.insert(at, hint);
+        }
+    }
+    keys
 }
 
 /// The bottom bar, in the keys of the set in use, the most useful first.
@@ -3512,13 +3551,13 @@ fn help_lines(scheme: KeyScheme) -> [(&'static str, &'static str); 21] {
         ("␣", "Mark a tune"),
         (pick("l", "L", "l"), "Find similar tunes; Esc goes back"),
         (pick("d", "D", "d"), "Sound Drift from this tune"),
-        ("f", "Add to Favorites"),
-        ("a", "Add to a playlist"),
+        ("f  a", "Add to Favorites, or to a playlist"),
         ("n", "New playlist, with what's marked"),
         (pick("x", "x  dd", "x  ⌃D"), "Take out of this playlist"),
         ("⇧↑ ⇧↓  K J", "Move a tune in the playlist"),
         ("o", "Find files: add or play them"),
         ("s", "Show in the Resonance window"),
+        ("i", "Hide or show the panel beside the list"),
         ("v  u", "Visuals, or Under the hood: the tracker"),
         ("?  c", "This help, or the credits"),
         ("q", "Quit; the music plays on"),
@@ -3641,7 +3680,7 @@ fn event_loop(
     let (mut status_pending, mut scope_pending, mut position_pending) = (false, false, false);
     while !app.quit {
         let size = terminal.size()?;
-        app.rail_showing = size.width >= RAIL_FROM && matches!(app.mode, Mode::Normal | Mode::Search | Mode::Describing(_));
+        app.rail_showing = app.shows_rail(size.width);
         app.prepare_visual(Instant::now(), size.width, size.height);
         terminal.draw(|frame| draw(frame, &app))?;
         if event::poll(Duration::from_millis(16))? {
@@ -5340,6 +5379,108 @@ mod tests {
         let at = |what: &str| shown.find(what).unwrap_or_else(|| panic!("no {what}\n{shown}"));
         let order = [" Library", " Search", " Describe", " Recently Played", " Playlists", " Favorites", " HVSC", " Home"].map(at);
         assert!(order.windows(2).all(|pair| pair[0] < pair[1]), "{shown}");
+    }
+
+    #[test]
+    fn i_puts_the_panel_away_and_brings_it_back() {
+        let mut app = app();
+        assert!(screen_of(&app, 160, 40).contains(" This tune"));
+        assert!(app.shows_rail(160));
+        press(&mut app, KeyCode::Char('i'));
+        let hidden = screen_of(&app, 160, 40);
+        assert!(!hidden.contains(" This tune"), "{hidden}");
+        assert!(hidden.contains(" Late Night") && hidden.contains(" Library"), "{hidden}");
+        // Nothing is asked about a tune for a panel that isn't there.
+        assert!(!app.shows_rail(160));
+        press(&mut app, KeyCode::Char('i'));
+        assert!(screen_of(&app, 160, 40).contains(" This tune"));
+        assert!(app.shows_rail(160));
+    }
+
+    #[test]
+    fn the_list_takes_the_room_of_a_panel_put_away() {
+        let mut app = app();
+        // The line right of the list: the last one with the panel away.
+        let edges = |app: &App| screen_of(app, 160, 40).lines().nth(20).unwrap().chars().filter(|c| *c == '│').count();
+        assert_eq!(edges(&app), 4);
+        press(&mut app, KeyCode::Char('i'));
+        assert_eq!(edges(&app), 3);
+    }
+
+    #[test]
+    fn the_bar_says_how_to_hide_the_panel_only_where_it_fits() {
+        for scheme in [KeyScheme::Normal, KeyScheme::Vim, KeyScheme::Emacs] {
+            let mut app = app_with(scheme);
+            let hint = |app: &App, width: u16| bar_for(app, width).into_iter().find(|(key, _)| *key == "i").map(|(_, what)| what);
+            assert_eq!(hint(&app, 160), Some("hide panel"), "{scheme:?}");
+            assert_eq!(hint(&app, 109), None, "no panel in a window this narrow");
+            let before = bar_for(&app, 160);
+            assert_eq!(before[before.len() - 2].0, "i", "{before:?}");
+            press(&mut app, KeyCode::Char('i'));
+            assert!(app.rail_hidden, "{scheme:?}");
+            assert_eq!(hint(&app, 160), Some("show panel"), "{scheme:?}");
+            // Home has no panel, and typing a search has no keys but its own.
+            app.view = View::HvscHome;
+            assert_eq!(hint(&app, 160), None);
+            app.view = View::Search;
+            app.mode = Mode::Search;
+            assert_eq!(hint(&app, 160), None);
+        }
+    }
+
+    #[test]
+    fn the_panels_hint_never_takes_another_hints_place() {
+        let mut app = app();
+        app.view = View::Describe;
+        app.focus = Focus::List;
+        for width in 110..=140_u16 {
+            let with = fit_bar(bar_for(&app, width), width, "?");
+            let without: Vec<_> = fit_bar(bar_keys(&app), width, "?");
+            assert_eq!(with.iter().filter(|k| k.0 != "i").copied().collect::<Vec<_>>(), without, "at {width}");
+        }
+        assert!(bar_for(&app, 140).iter().any(|k| k.0 == "i"));
+    }
+
+    #[test]
+    fn the_help_fits_a_window_of_24_rows() {
+        for scheme in [KeyScheme::Normal, KeyScheme::Vim, KeyScheme::Emacs] {
+            let lines = help_lines(scheme);
+            // The frame's two rows and the line about RESONANCE_KEYS.
+            assert_eq!(lines.len() as u16 + 3, HELP_HEIGHT);
+            assert!(lines.iter().all(|(key, what)| key.chars().count() < 19 && what.chars().count() <= (HELP_WIDTH - 2 - 19) as usize), "{scheme:?}");
+            assert!(lines.iter().any(|(key, _)| *key == "i"));
+        }
+    }
+
+    #[test]
+    fn a_heading_bar_keeps_one_space_from_the_lines_either_side() {
+        for (width, height, hidden) in [(60_u16, 24_u16, false), (110, 30, false), (160, 40, false), (240, 60, false), (160, 40, true)] {
+            let mut app = app();
+            app.rail_hidden = hidden;
+            app.status = Some(playing("playing"));
+            let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+            terminal.draw(|frame| draw(frame, &app)).unwrap();
+            let buffer = terminal.backend().buffer();
+            let bars = [palette::bar(true), palette::bar(false)];
+            let is_bar = |x: u16, y: u16| buffer.cell((x, y)).is_some_and(|c| bars.contains(&c.bg));
+            let symbol = |x: u16, y: u16| buffer.cell((x, y)).map_or("", |c| c.symbol());
+            let mut seen = 0;
+            for y in 0..height {
+                for x in 2..width {
+                    if !is_bar(x, y) {
+                        continue;
+                    }
+                    if !is_bar(x - 1, y) {
+                        seen += 1;
+                        assert_eq!(symbol(x - 2, y), "│", "left of the bar at {x},{y} in {width}x{height}");
+                    }
+                    if !is_bar(x + 1, y) {
+                        assert_eq!(symbol(x + 2, y), "│", "right of the bar at {x},{y} in {width}x{height}");
+                    }
+                }
+            }
+            assert!(seen > 0, "no heading at {width}x{height}");
+        }
     }
 
     fn tracker_song() -> Value {

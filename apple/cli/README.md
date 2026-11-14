@@ -12,7 +12,7 @@ Install it from **Resonance → Settings → Integrations → Command Line Tool*
 
 The header and columns scale with the window: at least 120 columns by 38 rows shows the
 large header, and it keeps growing in bigger windows, leaving the player over a third. From 110 columns, a panel beside the list says how the tune under the cursor
-sounds and what it sounds like.
+sounds and what it sounds like. `i` puts it away, giving the list its room, and brings it back.
 
 ### Fingerprints
 
