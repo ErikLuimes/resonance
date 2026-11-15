@@ -79,7 +79,23 @@ fn read_be_u32(d: &[u8], o: usize) -> u32 {
 fn read_string(d: &[u8], o: usize, len: usize) -> String {
     let s = &d[o..o + len];
     let end = s.iter().position(|&b| b == 0).unwrap_or(len);
-    s[..end].iter().map(|&b| b as char).collect()
+    hvsc_field(&s[..end].iter().map(|&b| b as char).collect::<String>())
+}
+
+/// A title, author or released field without HVSC's "<?>", its mark for
+/// what isn't known. A whole field of it comes out empty, so each app says
+/// "Unknown" its own way; one inside a field ("Michael (Misfit) <?>", a
+/// surname nobody knows) is left out. Years known in part ("198?") stay:
+/// they say something.
+pub fn hvsc_field(text: &str) -> String {
+    let trimmed = text.trim();
+    if trimmed == "<?>" {
+        return String::new();
+    }
+    if !trimmed.contains("<?>") {
+        return trimmed.to_string();
+    }
+    trimmed.replace("<?>", " ").split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 /// Decode a SID address byte (from header offset $7A or $7B).
@@ -245,6 +261,17 @@ pub fn compute_hvsc_md5(sid: &SidFile) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn an_unknown_field_is_empty_and_a_partial_one_drops_the_mark() {
+        use super::hvsc_field;
+        assert_eq!(hvsc_field("<?>"), "");
+        assert_eq!(hvsc_field(" <?> "), "");
+        assert_eq!(hvsc_field("Michael (Misfit) <?>"), "Michael (Misfit)");
+        assert_eq!(hvsc_field("<?> Hewson"), "Hewson");
+        assert_eq!(hvsc_field("198? Ocean"), "198? Ocean");
+        assert_eq!(hvsc_field("Rob Hubbard"), "Rob Hubbard");
+    }
+
     use super::*;
 
     /// Build the smallest legal PSID v2 header carrying the given flags

@@ -53,7 +53,7 @@ struct MiniPlayerView: View {
                 Text(track.title)
                     .font(.headline)
                     .lineLimit(1)
-                Text([track.author, NowPlayingInspector.releasedParts(track.released).year]
+                Text([track.shownAuthor, NowPlayingInspector.releasedParts(track.released).year]
                     .compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · "))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

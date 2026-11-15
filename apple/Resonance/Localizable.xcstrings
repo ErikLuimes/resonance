@@ -1131,6 +1131,9 @@
     "Commands stay on your network and are encrypted. The first time you turn this on, macOS asks to let Resonance find devices on your local network." : {
 
     },
+    "Commodore 64 tune" : {
+
+    },
     "Compact model, the original player." : {
 
     },
@@ -1827,6 +1830,9 @@
 
     },
     "HVSC in Resonance's folder · %@" : {
+
+    },
+    "HVSC knows" : {
 
     },
     "HVSC notes" : {
@@ -4197,6 +4203,9 @@
 
     },
     "Unknown" : {
+
+    },
+    "Unknown Composer" : {
 
     },
     "Unknown Composers" : {

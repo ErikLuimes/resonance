@@ -580,7 +580,18 @@ unsafe fn cstr(p: *const c_char) -> String {
     if p.is_null() {
         String::new()
     } else {
-        CStr::from_ptr(p).to_string_lossy().into_owned()
+        text(CStr::from_ptr(p).to_bytes())
+    }
+}
+
+/// A SID file's text as Rust's UTF-8. The PSID header's title, author and
+/// released fields are Latin-1 (ISO 8859-1), as HVSC's STIL.txt is: decoded
+/// as UTF-8 an "ö" came out as "�". Text that already is UTF-8 stays as it
+/// is (some tools write it).
+pub fn text(bytes: &[u8]) -> String {
+    match std::str::from_utf8(bytes) {
+        Ok(text) => text.to_string(),
+        Err(_) => bytes.iter().map(|&b| char::from(b)).collect(),
     }
 }
 
@@ -677,6 +688,20 @@ mod tests {
         assert_eq!(info.compatibility, Compatibility::C64);
         let s = p.start(song, cfg).unwrap();
         (p, s)
+    }
+
+    /// The header's text is Latin-1: "Metin Göktay" has its ö as the one
+    /// byte 0xF6, and comes out as itself, not "G�ktay".
+    #[test]
+    fn a_latin1_author_comes_out_as_itself() {
+        let mut data = tiny_psid(1);
+        let author = b"Metin G\xF6ktay";
+        data[0x36..0x36 + 32].fill(0);
+        data[0x36..0x36 + author.len()].copy_from_slice(author);
+        let mut p = Player::new().unwrap();
+        let info = p.load_bytes(&data).unwrap();
+        assert_eq!(info.author, "Metin Göktay");
+        assert_eq!(text("Jörg".as_bytes()), "Jörg", "UTF-8 stays as it is");
     }
 
     fn render_secs(p: &mut Player, rate: u32, secs: f32) -> Vec<i16> {

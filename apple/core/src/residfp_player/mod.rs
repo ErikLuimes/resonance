@@ -1024,7 +1024,7 @@ impl Control {
                 .map(|s| s.to_string_lossy().into_owned())
                 .unwrap_or_default()
         } else {
-            tune.title.clone()
+            sid_file::hvsc_field(&tune.title)
         };
         let sid_type = if mono_2sid {
             "2SID → Stereo (forced mono)".to_string()
@@ -1038,8 +1038,8 @@ impl Control {
         let info = TrackInfo {
             path: path.to_path_buf(),
             name,
-            author: tune.author.clone(),
-            released: tune.released.clone(),
+            author: sid_file::hvsc_field(&tune.author),
+            released: sid_file::hvsc_field(&tune.released),
             songs: tune.songs,
             current_song: started.song,
             is_pal: started.is_pal,

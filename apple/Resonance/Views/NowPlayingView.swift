@@ -235,7 +235,7 @@ struct NowPlayingView: View {
                     .font(.system(size: 56, weight: .bold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
-                Text(track.author)
+                Text(track.shownAuthor)
                     .font(.title2)
                     .foregroundStyle(.white.opacity(0.85))
                     .lineLimit(1)

@@ -112,7 +112,7 @@ struct NowPlayingBar: View {
                     } label: {
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
                             Text(track.title).font(.headline)
-                            Text(track.author).foregroundStyle(.secondary)
+                            Text(track.shownAuthor).foregroundStyle(.secondary)
                         }
                     }
                     .buttonStyle(.plain)

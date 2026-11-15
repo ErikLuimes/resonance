@@ -15,9 +15,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::hvsc_browser::{HvscCategory, HvscIndexEntry};
 
-/// Bump on ANY change to the stored shape. An older cache is then discarded
-/// rather than misread.
-const SCHEMA_VERSION: u32 = 1;
+/// Bump on ANY change to the stored shape, or to how its text is read (2:
+/// HVSC's "<?>" is left out, a whole field of it empty). An older cache is then
+/// discarded rather than misread.
+const SCHEMA_VERSION: u32 = 2;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct CacheHeader {

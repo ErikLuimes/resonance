@@ -76,7 +76,7 @@ struct NowPlayingInspector: View {
             Text(track.title)
                 .font(.title2.weight(.semibold))
             if showsAuthor {
-                Text(track.author)
+                Text(track.shownAuthor)
             }
             if let released = Self.released(track.released) {
                 Text(released)
@@ -189,6 +189,12 @@ struct NowPlayingInspector: View {
 }
 
 nonisolated extension TrackDetails {
+    /// The composer for a line of its own. The core leaves HVSC's "<?>" out,
+    /// so an unknown composer is empty; this says so.
+    var shownAuthor: String {
+        author.isEmpty ? String(localized: "Unknown Composer") : author
+    }
+
     /// The SID chip the tune's header asks for: short for labels, in full
     /// for help text.
     var chipModel: (short: String, full: String) {
