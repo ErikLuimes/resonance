@@ -487,6 +487,37 @@ final class ControlCommands {
                 sid: track.chipModel.short,
                 chips: Int(track.numSids)
             ))
+        case "share.link":
+            // The link to share for a tune, what's playing by default, at
+            // the song that's on.
+            let path = try args.path ?? playing().path
+            let subtune = player.nowPlaying?.path == path ? player.nowPlaying.map { Int($0.currentSong) } : nil
+            guard let share = await player.prepareShare(path: path, subtune: subtune) else {
+                throw Failure("This tune can't be shared: sharing is off in this build, or HVSC doesn't list it.")
+            }
+            return answer(ShareLink(url: share.url.absoluteString, title: share.title, author: share.author, subject: share.subject))
+        case "share.open":
+            // A link someone shared, opened on Resonance Remote: which tune
+            // it is in this collection, and with `play`, playing it.
+            guard let text = args.text, let url = URL(string: text),
+                  let link = SharedTuneLink(url: url) ?? SharedTuneLink(url: url, shareBase: SharedTuneLink.universalLinkBase)
+            else { throw Failure("That isn't a link to a tune.") }
+            let (outcome, _) = await player.resolve(link)
+            switch outcome {
+            case .play(let path, _, _):
+                let item = await player.core.tunesFromFiles(paths: [path]).first
+                if args.play == true { player.playShared(path: path, subtune: link.subtune) }
+                return answer(OpenedShare(path: path, title: item?.title ?? link.title ?? URL(filePath: path).deletingPathExtension().lastPathComponent,
+                                          author: item?.author ?? link.author ?? "", subtune: link.subtune))
+            case .download:
+                throw Failure("This Mac has no collection yet. Download HVSC in Resonance first.")
+            case .update(let release):
+                throw Failure("This Mac's collection doesn't have this tune. HVSC \(release) does: update the collection in Resonance on the Mac.")
+            case .checkForUpdate(let release):
+                throw Failure("This tune was shared from HVSC \(release), newer than this Mac's collection. Check for an update in Resonance on the Mac.")
+            case .notFound:
+                throw Failure("This Mac's collection doesn't have this tune.")
+            }
         case "prints":
             // Only tunes with a fingerprint are in the answer.
             let paths = args.paths ?? []
@@ -624,6 +655,23 @@ final class ControlCommands {
     nonisolated static func holds(_ words: [String], _ item: HvscTuneItem) -> Bool {
         let haystack = "\(item.title) \(item.author) \(item.path)"
         return words.allSatisfy { haystack.range(of: $0, options: [.caseInsensitive, .diacriticInsensitive]) != nil }
+    }
+
+    /// `share.link`'s answer.
+    struct ShareLink: Encodable {
+        let url: String
+        let title: String
+        let author: String
+        /// "Commando by Rob Hubbard", for a message's subject.
+        let subject: String
+    }
+
+    /// `share.open`'s answer: the shared tune in this collection.
+    struct OpenedShare: Encodable {
+        let path: String
+        let title: String
+        let author: String
+        let subtune: Int?
     }
 
     /// `tune.info`'s answer.
