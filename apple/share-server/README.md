@@ -23,6 +23,8 @@ for the start song:
   `/t/*` links directly. Apple's servers fetch it, and don't follow redirects,
   so a proxy or firewall must not redirect or challenge them there. A new
   version can take a day to reach Macs, through Apple's cache.
+- `GET /remote` — redirects (307) to Resonance Remote's page on the website,
+  `<DOWNLOAD_URL>/remote/`.
 - `GET /healthz`. Everything else (`/`, `/download`, …) redirects to the website (`DOWNLOAD_URL`), so the domain leads there.
 
 Everything it shows comes from the tune index; it fetches nothing.

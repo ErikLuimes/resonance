@@ -94,11 +94,20 @@ fn router(app: Arc<App>) -> Router {
         .route("/healthz", get(|| async { "ok" }))
         // Answered here, not redirected: Apple's fetch doesn't follow redirects.
         .route("/.well-known/apple-app-site-association", get(app_site_association))
+        // Resonance Remote's page, a folder of the website; its subdomain
+        // (remote.useresonance.app) leads there too, from Apache.
+        .route("/remote", get(remote_page))
+        .route("/remote/", get(remote_page))
         // The domain's other addresses lead to the website: its root, and
         // anything else typed or linked there. Temporary, so a site of its
         // own can take the root later.
         .fallback(|State(app): State<Arc<App>>| async move { Redirect::temporary(&app.download) })
         .with_state(app)
+}
+
+/// The website's page for Resonance Remote. Temporary, like the fallback.
+async fn remote_page(State(app): State<Arc<App>>) -> Redirect {
+    Redirect::temporary(&format!("{}/remote/", app.download.trim_end_matches('/')))
 }
 
 /// Tells macOS that Resonance opens this server's tune links, and only those.
@@ -224,6 +233,15 @@ mod tests {
             let response = get(path).await;
             assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT, "{path}");
             assert_eq!(response.headers()[header::LOCATION], "https://erikluimes.github.io/resonance/");
+        }
+    }
+
+    #[tokio::test]
+    async fn the_remote_goes_to_its_page_on_the_website() {
+        for path in ["/remote", "/remote/"] {
+            let response = get(path).await;
+            assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT, "{path}");
+            assert_eq!(response.headers()[header::LOCATION], "https://erikluimes.github.io/resonance/remote/");
         }
     }
 

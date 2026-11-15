@@ -1,0 +1,205 @@
+/* Resonance Remote's page (remote/index.html), on top of styles.css.
+   The phone screens are recordings of the app in the iPhone simulator,
+   1320 × 2868; a drawn frame grows around each one. */
+
+.rm-hero-icon {
+  display: block;
+  width: clamp(88px, 10vw, 112px);
+  height: auto;
+  margin: 0 auto 26px;
+  filter: drop-shadow(0 18px 34px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 40px rgba(155, 107, 255, 0.25));
+}
+
+/* An iPhone: a frame around a recording, which keeps its exact shape so
+   nothing is cropped. */
+.device {
+  position: relative;
+  flex: none;
+  background: linear-gradient(145deg, #2a2c36, #111219 45%, #1d1f28);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.10),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 50px 90px -30px rgba(0, 0, 0, 0.85),
+    0 20px 40px -20px rgba(0, 0, 0, 0.6);
+}
+.device-phone { border-radius: 15% / 7%; padding: 3.2%; }
+.screen {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1320 / 2868;
+  overflow: hidden;
+  border-radius: 12.5% / 5.8%;
+  background: #000;
+  isolation: isolate;
+}
+.screen video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+/* Liquid Glass */
+.glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.07));
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 8px 30px rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  backdrop-filter: blur(18px) saturate(180%);
+}
+
+/* No store link until there is one. */
+.rm-soon {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: 50px;
+  padding: 0 22px;
+  border-radius: 999px;
+  border: 1px dashed var(--line-2);
+  color: var(--muted);
+  font-weight: 600;
+}
+.rm-soon .i { font-size: 18px; color: var(--v1); }
+
+/* Hero: three phones, the middle one in front. */
+.rm-hero-stage { position: relative; display: flex; justify-content: center; align-items: center; margin: 76px auto 0; width: min(900px, 100%); }
+.rm-hero-stage .device-phone { width: 30%; }
+.rm-hero-stage .device-phone:nth-child(2) { rotate: -6deg; translate: 0 6%; }
+.rm-hero-stage .device-phone:nth-child(3) { width: 36%; z-index: 2; margin: 0 -4%; }
+.rm-hero-stage .device-phone:nth-child(4) { rotate: 6deg; translate: 0 6%; }
+.rm-hero-stage .stage-glow { inset: 10% 0; }
+
+/* Smart Search: one large phone, what the Mac understood floating beside it. */
+.rm-ss-stage { position: relative; display: grid; place-items: center; margin: 0 auto; width: min(980px, 100%); padding: 20px 0 10px; }
+.rm-ss-stage .device-phone { width: min(410px, 62%); z-index: 2; }
+.rm-ss-stage .stage-glow { inset: 8% 14%; }
+.rm-ss-said {
+  position: absolute;
+  left: 0;
+  top: 18%;
+  z-index: 3;
+  margin: 0;
+  max-width: 270px;
+  font: 600 clamp(1.15rem, 2vw, 1.5rem)/1.3 var(--display);
+  letter-spacing: -0.02em;
+}
+.rm-ss-said span { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.rm-ss-chips { position: absolute; right: 0; top: 22%; z-index: 3; display: grid; justify-items: start; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.rm-ss-chips li {
+  padding: 9px 16px;
+  border-radius: 999px;
+  color: var(--text);
+  font: 600 15px/1 var(--font);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c, #fff) 45%, transparent), 0 10px 30px rgba(0, 0, 0, 0.35);
+  animation: rm-float 6s ease-in-out infinite;
+}
+.rm-ss-chips li:nth-child(2) { margin-left: 28px; animation-delay: -1.5s; }
+.rm-ss-chips li:nth-child(3) { margin-left: 8px; animation-delay: -3s; }
+.rm-ss-chips .rm-ss-facts { margin-left: 40px; color: var(--muted); font: 500 13px/1 var(--mono); animation-delay: -4.5s; }
+@keyframes rm-float { 50% { translate: 0 -6px; } }
+
+/* A showcase with a phone in place of a 16:10 recording. */
+.rm-phone-figure { display: flex; justify-content: center; position: relative; margin: 0; }
+.rm-phone-figure .device-phone { width: min(320px, 72%); }
+.rm-phone-figure .stage-glow { inset: 8% 4%; }
+/* The home page has no flipped showcase yet: the wide column follows the picture. */
+@media (min-width: 981px) {
+  .showcase-flip { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+}
+
+/* The visualizers, a row of phones. */
+.rm-vis-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: clamp(14px, 2vw, 26px); align-items: end; }
+.rm-vis-row figure { margin: 0; text-align: center; }
+.rm-vis-row figure:nth-child(2n) { translate: 0 -28px; }
+.rm-vis-row figcaption { margin-top: 16px; font: 600 15px/1.2 var(--display); color: var(--c); }
+.rm-vis-row figcaption small { display: block; margin-top: 4px; font: 400 13px/1.4 var(--font); color: var(--muted); }
+
+/* Listen: the Mac, the sound in flight, the phone. */
+.rm-listen {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  margin: 0;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid var(--line-2);
+  background:
+    radial-gradient(90% 80% at 80% 60%, color-mix(in srgb, var(--v2) 22%, transparent), transparent 65%),
+    radial-gradient(70% 70% at 15% 30%, color-mix(in srgb, var(--v1) 16%, transparent), transparent 65%),
+    linear-gradient(180deg, #11131d, #0a0b12);
+  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+.rm-listen svg.flow { position: absolute; inset: 0; width: 100%; height: 100%; }
+.rm-listen .packet { fill: #fff; filter: drop-shadow(0 0 4px var(--v1)); }
+.rm-listen .mac { position: absolute; left: 7%; top: 24%; width: 44%; }
+.rm-listen .mac-lid {
+  aspect-ratio: 16 / 10.4;
+  border-radius: 4% / 6%;
+  padding: 2.4%;
+  background: linear-gradient(145deg, #2a2c36, #111219);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 30px 60px -20px rgba(0, 0, 0, 0.8);
+}
+.rm-listen .mac-lid > div { position: relative; width: 100%; height: 100%; border-radius: 2% / 3%; overflow: hidden; background: #000; }
+.rm-listen .mac-lid video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.55; }
+.rm-listen .mac-base { height: 12px; margin: 0 -6%; border-radius: 0 0 40% 40% / 0 0 100% 100%; background: linear-gradient(180deg, #3a3c47, #1a1b22); }
+.rm-listen .muted {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px;
+  border-radius: 99px;
+  font: 600 13px/1 var(--font);
+  color: #fff;
+  white-space: nowrap;
+}
+.rm-listen .muted .i { width: 16px; height: 16px; }
+.rm-listen .device-phone { position: absolute; right: 9%; top: 11%; width: 22%; }
+.rm-specs { display: flex; flex-wrap: wrap; gap: 8px; margin: 26px 0 0; padding: 0; list-style: none; }
+.rm-specs li { padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font: 500 12px/1.3 var(--mono); }
+
+/* Private by design */
+.rm-private { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 28px; }
+.rm-private div { padding: 20px 20px 18px; border-radius: 20px; border: 1px solid var(--line); background: var(--surface); }
+.rm-private h3 { margin: 0 0 6px; font-size: 1.02rem; }
+.rm-private p { margin: 0; color: var(--muted); font-size: 14.5px; line-height: 1.5; }
+
+/* The closing panel */
+.rm-icons { position: relative; flex: none; width: clamp(110px, 17vw, 170px); }
+.rm-icons img { width: 100%; height: auto; filter: drop-shadow(0 24px 40px rgba(0, 0, 0, 0.55)); animation: float 6s ease-in-out infinite; }
+
+@media (max-width: 980px) {
+  .rm-vis-row {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 42%;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding: 34px 4px 10px;
+    margin: 0 -4px;
+    scrollbar-width: none;
+  }
+  .rm-vis-row::-webkit-scrollbar { display: none; }
+  .rm-vis-row figure { scroll-snap-align: center; }
+  .rm-private { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 900px) {
+  .rm-ss-stage { padding-top: 0; }
+  .rm-ss-said { position: static; max-width: none; margin: 0 0 18px; text-align: center; }
+  .rm-ss-chips { position: static; order: 3; display: flex; flex-wrap: wrap; justify-content: center; margin-top: 22px; }
+  .rm-ss-chips li,
+  .rm-ss-chips li:nth-child(n) { margin-left: 0; }
+  .rm-ss-stage .device-phone { width: min(300px, 72%); }
+}
+@media (max-width: 620px) {
+  .rm-hero-stage { margin-top: 48px; }
+  .rm-hero-stage .device-phone { width: 31%; }
+  .rm-hero-stage .device-phone:nth-child(3) { width: 38%; }
+  .rm-vis-row { grid-auto-columns: 46%; }
+  .rm-vis-row figure:nth-child(2n) { translate: none; }
+  .rm-listen { aspect-ratio: 4 / 3; }
+  .rm-listen .mac { left: 5%; top: 27%; width: 54%; }
+  .rm-listen .device-phone { right: 6%; top: 7%; width: 28%; }
+  .rm-listen .muted { font-size: 11px; padding: 5px 9px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rm-ss-chips li { animation: none; }
+}

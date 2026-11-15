@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Resonance Remote — your Mac's music, in your hand</title>
+  <meta name="description" content="Resonance Remote is the iPhone and iPad companion to Resonance for Mac. Find music by describing it, browse and play from the sofa, watch the visualizers in your hand, listen in another room, and share tunes.">
+  <meta name="theme-color" content="#07080d">
+  <meta name="color-scheme" content="dark">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Resonance Remote — your Mac's music, in your hand">
+  <meta property="og:description" content="The iPhone and iPad companion to Resonance for Mac. Say what you'd like to hear, watch the visualizers up close, or take the sound to another room.">
+  <meta property="og:url" content="https://erikluimes.github.io/resonance/remote/">
+  <meta property="og:image" content="https://erikluimes.github.io/resonance/assets/og-card.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="icon" type="image/png" sizes="256x256" href="../assets/remote-icon-256.png">
+  <link rel="apple-touch-icon" href="../assets/remote-icon-256.png">
+  <!-- ?v= changes with each site update, so a browser that cached the last
+       one fetches the new files instead of mixing old and new. -->
+  <link rel="stylesheet" href="../styles.css?v=20261115a">
+  <link rel="stylesheet" href="../remote.css?v=20261115a">
+  <script>
+    // Sections fade in as remote.js reveals them. If it never runs, show
+    // everything rather than an empty page.
+    document.documentElement.classList.add('js');
+    setTimeout(() => { if (!window.resonanceReady) document.documentElement.classList.remove('js'); }, 4000);
+  </script>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3.5v12M7 10.5l5 5 5-5M5 20h14"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9z"/><path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M3.5 9.2h3.2L11.4 5v14l-4.7-4.2H3.5z"/><path d="m15 9.5 5 5M20 9.5l-5 5"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  </svg>
+
+  <a class="skip" href="#main">Skip to content</a>
+
+  <div class="aurora" aria-hidden="true">
+    <i class="orb orb-1"></i><i class="orb orb-2"></i><i class="orb orb-3"></i>
+  </div>
+
+  <header class="nav-wrap">
+    <nav class="nav" aria-label="Main">
+      <a class="nav-brand" href="#top" aria-label="Resonance Remote, top of the page">
+        <img src="../assets/remote-icon-256.png" alt="" width="28" height="28">
+        <span style="white-space:nowrap">Resonance <span class="dim" style="font-weight:500">Remote</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="#smart-search">Smart Search</a>
+        <a href="#control">Control</a>
+        <a href="#now-playing">Now Playing</a>
+        <a href="#listen">Listen</a>
+        <a href="#sounds-like">Sounds Like</a>
+        <a href="#share">Sharing</a>
+      </div>
+      <a class="nav-cta" href="../">Mac app</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <!-- Hero -->
+    <section class="hero" id="top">
+      <div class="container hero-copy">
+        <img class="rm-hero-icon" src="../assets/remote-icon-256.png" alt="Resonance Remote's icon" width="112" height="112" data-reveal>
+        <p class="eyebrow" data-reveal>
+          <span class="eyebrow-dot"></span> Resonance Remote, for iPhone and iPad
+        </p>
+        <h1 class="hero-title" data-reveal>Your Mac's music.<br><span class="grad">In your hand.</span></h1>
+        <p class="lede" data-reveal>
+          The player on your Mac, on the phone in your pocket. Browse and play from the sofa,
+          watch the visualizers up close, or take the sound with you to another room.
+        </p>
+        <div class="hero-cta" data-reveal>
+          <span class="rm-soon"><svg class="i"><use href="#i-sparkle"/></svg>Coming soon to the App Store</span>
+          <a class="btn btn-glass" href="../"><span>Get Resonance for Mac</span><svg class="i"><use href="#i-arrow-right"/></svg></a>
+        </div>
+        <p class="fine" data-reveal>iOS 27 and iPadOS 27 · Works with Resonance on your Mac</p>
+      </div>
+
+      <div class="container container-wide" data-reveal>
+        <div class="rm-hero-stage">
+          <div class="stage-glow" aria-hidden="true"></div>
+          <div class="device device-phone"><div class="screen"><video data-vis muted loop playsinline preload="metadata" poster="../media/remote-ink.jpg" aria-label="Now Playing with the Ink visualizer"><source src="../media/remote-ink.mp4" type="video/mp4"></video></div></div>
+          <div class="device device-phone"><div class="screen"><video data-vis muted loop playsinline preload="metadata" poster="../media/remote-liquid-light.jpg" aria-label="Now Playing with the Liquid Light visualizer"><source src="../media/remote-liquid-light.mp4" type="video/mp4"></video></div></div>
+          <div class="device device-phone"><div class="screen"><video data-vis muted loop playsinline preload="metadata" poster="../media/remote-halo.jpg" aria-label="Now Playing with the Halo visualizer"><source src="../media/remote-halo.mp4" type="video/mp4"></video></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Smart Search: the flow, large -->
+    <section class="section" id="smart-search">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="kicker">Smart Search</p>
+          <h2>Say what you'd like to hear.<br><span class="grad">Get the playlist.</span></h2>
+          <p class="section-lede">
+            Type a mood, a feeling, a year, a composer, in your own words. The Mac reads it, shows you
+            what it understood, and lines up the tunes. One tap, and it plays.
+          </p>
+        </div>
+        <div class="rm-ss-stage" data-reveal>
+          <div class="stage-glow" aria-hidden="true"></div>
+          <p class="rm-ss-said"><span>“fast and intense with big drums from 1987”</span></p>
+          <ul class="rm-ss-chips" aria-hidden="true">
+            <li class="glass" style="--c:var(--v1)">Intense</li>
+            <li class="glass" style="--c:var(--v2)">with plenty of drums</li>
+            <li class="glass" style="--c:var(--v3)">from 1987</li>
+            <li class="glass rm-ss-facts">18 tunes · 62 minutes</li>
+          </ul>
+          <div class="device device-phone"><div class="screen"><video data-vis muted loop playsinline preload="metadata" poster="../media/remote-smart-search.jpg" aria-label="Smart Search in Resonance Remote: typing a mood, seeing what the Mac understood, and playing the tunes it found"><source src="../media/remote-smart-search.mp4" type="video/mp4"></video></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Control -->
+    <section class="section" id="control">
+      <div class="container showcase">
+        <div class="showcase-copy" data-reveal>
+          <p class="kicker">Control</p>
+          <h2>The whole collection.<br><span class="grad">From the sofa.</span></h2>
+          <p class="section-lede">
+            Everything the Mac can play, a tap away. Search for a title or a composer, or just say what
+            you're in the mood for and get a playlist. The music keeps playing on the Mac's speakers;
+            the phone is the remote.
+          </p>
+          <ul class="checks">
+            <li><svg class="i"><use href="#i-check"/></svg>Play, pause, skip and scrub, with the Mac answering at once</li>
+            <li><svg class="i"><use href="#i-check"/></svg>Search by name, or describe a mood: "fast and happy, with drums"</li>
+            <li><svg class="i"><use href="#i-check"/></svg>Your playlists, favorites and recently played, from the Mac</li>
+            <li><svg class="i"><use href="#i-check"/></svg>Lock Screen and Control Center, without opening the app</li>
+          </ul>
+        </div>
+        <figure class="rm-phone-figure" data-reveal>
+          <div class="stage-glow" aria-hidden="true"></div>
+          <div class="device device-phone"><div class="screen"><video data-vis muted loop playsinline preload="none" poster="../media/remote-for-you.jpg" aria-label="For You in Resonance Remote"><source src="../media/remote-for-you.mp4" type="video/mp4"></video></div></div>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Now Playing -->
+    <section class="section" id="now-playing">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="kicker">Now Playing</p>
+          <h2>The visualizers,<br><span class="grad">a screen away from your eyes.</span></h2>
+          <p class="section-lede">
+            Now Playing fills the screen with the same visualizers as the Mac, drawn on your phone or
+            iPad and moving with the music. Swipe to change. On an iPad by the TV, it's the best seat
+            in the house.
+          </p>
+        </div>
+        <div class="rm-vis-row" data-reveal>
+          <figure style="--c:var(--v1)">
+            <div class="device device-phone"><div class="screen"><video data-vis muted loop playsinline preload="none" poster="../media/remote-ink.jpg" aria-label="The Ink visualizer in Resonance Remote"><source src="../media/remote-ink.mp4" type="video/mp4"></video></div></div>
+            <figcaption>Ink<small>Color blooming in water</small></figcaption>
+          </figure>
+          <figure style="--c:var(--v2)">
+            <div class="device device-phone"><div class="screen"><video data-vis muted loop playsinline preload="none" poster="../media/remote-liquid-light.jpg" aria-label="The Liquid Light visualizer in Resonance Remote"><source src="../media/remote-liquid-light.mp4" type="video/mp4"></video></div></div>
+            <figcaption>Liquid Light<small>An oil-and-light show</small></figcaption>
+          </figure>
+          <figure style="--c:var(--v3)">
+            <div class="device device-phone"><div class="screen"><video data-vis muted loop playsinline preload="none" poster="../media/remote-ferrofluid.jpg" aria-label="The Ferrofluid visualizer in Resonance Remote"><source src="../media/remote-ferrofluid.mp4" type="video/mp4"></video></div></div>
+            <figcaption>Ferrofluid<small>Metal pulled by the beat</small></figcaption>
+          </figure>
+          <figure style="--c:var(--v1)">
+            <div class="device device-phone"><div class="screen"><video data-vis muted loop playsinline preload="none" poster="../media/remote-nimbus.jpg" aria-label="The Nimbus visualizer in Resonance Remote"><source src="../media/remote-nimbus.mp4" type="video/mp4"></video></div></div>
+            <figcaption>Nimbus<small>Clouds lit from inside</small></figcaption>
+          </figure>
+          <figure style="--c:var(--v2)">
+            <div class="device device-phone"><div class="screen"><video data-vis muted loop playsinline preload="none" poster="../media/remote-halo.jpg" aria-label="The Halo visualizer in Resonance Remote"><source src="../media/remote-halo.mp4" type="video/mp4"></video></div></div>
+            <figcaption>Halo<small>Rings of light, one per voice</small></figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- Listen -->
+    <section class="section" id="listen">
+      <div class="container showcase showcase-flip">
+        <div class="showcase-copy" data-reveal>
+          <p class="kicker">Listen</p>
+          <h2>Take the music<br><span class="grad">to another room.</span></h2>
+          <p class="section-lede">
+            Tap Listen, and the sound moves from the Mac to your iPhone or iPad over your own Wi-Fi.
+            The Mac goes quiet, your headphones take over, and the visualizer stays in step with
+            what you hear. Put the phone away; it keeps playing.
+          </p>
+          <ul class="rm-specs">
+            <li>Studio-quality Opus, 256 kbit/s</li>
+            <li>Encrypted</li>
+            <li>Never leaves your network</li>
+            <li>Plays with the phone locked</li>
+          </ul>
+        </div>
+        <figure class="rm-listen" data-reveal aria-label="The Mac goes quiet while the phone plays the sound">
+          <svg class="flow" viewBox="0 0 1000 625" preserveAspectRatio="none" aria-hidden="true">
+            <path id="flowpath" d="M470 300 C 580 300, 620 250, 760 250" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="2" stroke-dasharray="3 9"/>
+            <circle class="packet" r="4"><animateMotion dur="1.6s" repeatCount="indefinite"><mpath href="#flowpath"/></animateMotion></circle>
+            <circle class="packet" r="4"><animateMotion dur="1.6s" begin="0.4s" repeatCount="indefinite"><mpath href="#flowpath"/></animateMotion></circle>
+            <circle class="packet" r="4"><animateMotion dur="1.6s" begin="0.8s" repeatCount="indefinite"><mpath href="#flowpath"/></animateMotion></circle>
+            <circle class="packet" r="4"><animateMotion dur="1.6s" begin="1.2s" repeatCount="indefinite"><mpath href="#flowpath"/></animateMotion></circle>
+          </svg>
+          <div class="mac">
+            <div class="mac-lid"><div>
+              <video data-vis muted loop playsinline preload="none" poster="../media/vis-nimbus.jpg"><source src="../media/vis-nimbus.mp4" type="video/mp4"></video>
+              <span class="muted glass"><svg class="i"><use href="#i-mute"/></svg>Listening on iPhone</span>
+            </div></div>
+            <div class="mac-base"></div>
+          </div>
+          <div class="device device-phone"><div class="screen"><video data-vis muted loop playsinline preload="none" poster="../media/remote-listen.jpg" aria-label="Switching the sound to the iPhone in Resonance Remote"><source src="../media/remote-listen.mp4" type="video/mp4"></video></div></div>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Sounds Like -->
+    <section class="section" id="sounds-like">
+      <div class="container showcase">
+        <div class="showcase-copy" data-reveal>
+          <p class="kicker">Discover by sound</p>
+          <h2>Love this one?<br><span class="grad">Hop to the next by how it sounds.</span></h2>
+          <p class="section-lede">
+            Resonance knows how every tune sounds, from a fingerprint it takes of each one. Ask for the
+            tunes that sound like the one playing, pick one, and ask again. It's the best way to wander
+            through 60,000 tunes, and now it fits in one hand.
+          </p>
+          <ul class="checks">
+            <li><svg class="i"><use href="#i-check"/></svg>Sounds Like from Now Playing or any tune in a list</li>
+            <li><svg class="i"><use href="#i-check"/></svg>The story behind a tune, where its composer left one</li>
+            <li><svg class="i"><use href="#i-check"/></svg>Save a run of finds as a playlist on the Mac</li>
+          </ul>
+        </div>
+        <figure class="rm-phone-figure" data-reveal>
+          <div class="stage-glow" aria-hidden="true"></div>
+          <div class="device device-phone"><div class="screen"><video data-vis muted loop playsinline preload="none" poster="../media/remote-sounds-like.jpg" aria-label="Sounds Like in Resonance Remote, then playing one of the tunes"><source src="../media/remote-sounds-like.mp4" type="video/mp4"></video></div></div>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Sharing -->
+    <section class="section" id="share">
+      <div class="container showcase showcase-flip">
+        <div class="showcase-copy" data-reveal>
+          <p class="kicker">Sharing</p>
+          <h2>Found a good one?<br><span class="grad">Send it.</span></h2>
+          <p class="section-lede">
+            Share any tune from the phone. In Messages it shows up with its title, composer and a
+            picture of how it sounds. Your friend taps it and it plays in Resonance, or they get a page
+            that shows them where to find it. Links friends send you open in the Remote.
+          </p>
+        </div>
+        <figure class="rm-phone-figure" data-reveal>
+          <div class="stage-glow" aria-hidden="true"></div>
+          <div class="device device-phone"><div class="screen"><video data-vis muted loop playsinline preload="none" poster="../media/remote-share.jpg" aria-label="Sharing a tune from Resonance Remote"><source src="../media/remote-share.mp4" type="video/mp4"></video></div></div>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Getting started and privacy -->
+    <section class="section" id="start">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="kicker">Getting started</p>
+          <h2>Paired in seconds.<br><span class="grad">Private by design.</span></h2>
+        </div>
+        <ol class="steps" data-reveal style="border-top:0;padding-top:0;margin-top:0">
+          <li><span class="step-n">1</span><h3>Turn on Remote</h3><p>In Resonance on your Mac, open Settings, then Remote. It shows a QR code.</p></li>
+          <li><span class="step-n">2</span><h3>Scan it</h3><p>Point the Remote, or the iPhone's camera, at the code. That's the whole pairing.</p></li>
+          <li><span class="step-n">3</span><h3>Play</h3><p>From then on the Remote finds your Mac by itself whenever it's nearby.</p></li>
+        </ol>
+        <div class="rm-private" data-reveal>
+          <div><h3>Stays at home</h3><p>The phone talks to your Mac directly, over your own network. No cloud, no account, no server in between.</p></div>
+          <div><h3>Encrypted</h3><p>Commands and sound are encrypted with a key only your Mac and your phone hold.</p></div>
+          <div><h3>Yours to remove</h3><p>The Mac lists every paired device. Remove one, and it can't connect again without a new pairing.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Closing -->
+    <section class="section" id="get">
+      <div class="container container-narrow">
+        <div class="glass-panel download" data-reveal>
+          <div class="dl-main">
+            <div class="rm-icons"><img src="../assets/remote-icon-512.png" alt="" width="170" height="170"></div>
+            <div>
+              <p class="kicker">Resonance Remote</p>
+              <h2 style="font-size:clamp(1.9rem,4vw,2.8rem)">Coming soon for iPhone and iPad.</h2>
+              <p class="dl-status">The Remote needs Resonance on your Mac, which is free and open source. Get it now, and the Remote will find it.</p>
+              <div class="dl-actions">
+                <a class="btn btn-primary" href="../#download"><svg class="i"><use href="#i-download"/></svg><span>Download for Mac</span></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section" id="faq">
+      <div class="container container-narrow">
+        <div class="section-head" data-reveal><p class="kicker">Questions</p><h2>Good to know</h2></div>
+        <div class="faq" data-reveal>
+          <details><summary>Do I need a Mac?</summary><p>Yes. The Remote plays what Resonance on your Mac plays: the music, the collection and the fingerprints all live there. The phone controls it, shows it, and can play its sound.</p></details>
+          <details><summary>Does it work away from home?</summary><p>It works wherever your phone can reach your Mac directly: on the same Wi-Fi, or close by without one. It doesn't go over the internet.</p></details>
+          <details><summary>Will it play through my headphones?</summary><p>With Listen, yes: the sound comes to the phone and plays through whatever it's connected to, and the Mac goes quiet. Without Listen, the Mac keeps playing on its own speakers.</p></details>
+          <details><summary>What music does it play?</summary><p>The music of the Commodore 64: all 60,000 tunes of the High Voltage SID Collection, the home computer's soundtrack from the 1980s to today. More machines are planned for Resonance.</p></details>
+          <details><summary>Does it work on iPad?</summary><p>Yes, with a layout made for the bigger screen: a sidebar, the library beside Now Playing, and the visualizers full screen.</p></details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <img src="../assets/icon-256.png" alt="" width="40" height="40">
+        <div><strong>Resonance</strong><span>The SID, played and seen</span></div>
+      </div>
+      <div class="footer-links">
+        <a href="../">Resonance for Mac</a>
+        <a href="https://github.com/ErikLuimes/resonance">GitHub</a>
+        <a href="https://hvsc.c64.org">HVSC</a>
+      </div>
+      <p class="footer-legal">
+        Resonance © <span data-year>2026</span> Erik Luimes. Tunes shown are from the High Voltage SID Collection; their music belongs to their composers.
+        iPhone and iPad are trademarks of Apple Inc.
+      </p>
+    </div>
+  </footer>
+
+  <script type="module" src="../js/remote.js?v=20261115a"></script>
+  <!-- Visits, counted without cookies by GoatCounter (it skips localhost). -->
+  <script data-goatcounter="https://erikluimes.goatcounter.com/count"
+          async src="https://gc.zgo.at/count.js"></script>
+</body>
+</html>
