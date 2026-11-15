@@ -5,7 +5,8 @@ import PackageDescription
 
 let package = Package(
     name: "STILKit",
-    platforms: [.macOS(.v13)],
+    // iOS for Resonance Remote, which shows the notes the Mac sends.
+    platforms: [.macOS(.v13), .iOS(.v17)],
     products: [.library(name: "STILKit", targets: ["STILKit"])],
     targets: [
         .target(name: "STILKit"),

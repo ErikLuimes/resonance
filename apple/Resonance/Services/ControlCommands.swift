@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import PhosphorCore
+import STILKit
 
 /// What the `resonance` command line tool can ask of the app. A request is
 /// `{"id": 1, "cmd": "search", "args": {"text": "commando"}}`; its answer is
@@ -462,6 +463,30 @@ final class ControlCommands {
                 throw Failure("Resonance hasn't fingerprinted this tune yet.")
             }
             return answer(Sound(summary: print.summary, tags: print.tags.map(\.name)))
+        case "tune.info":
+            // What the Now Playing details show, for Resonance Remote's
+            // Info: STIL's notes, the composer card, HVSC's known bugs and
+            // the length. Always about what's playing; `path` says which.
+            let track = try playing()
+            await library.loadAuthors(.musicians)
+            await library.loadStil(path: track.path, sidAuthor: track.author)
+            await library.loadBugs(path: track.path)
+            let composer = library.composer(of: track)
+            if let folder = composer?.authorPath { await library.loadStil(path: folder) }
+            return answer(TuneInfo(
+                path: track.path,
+                stil: library.stil[track.path] ?? nil,
+                composer: composer.map { composer in
+                    TuneInfo.Composer(name: composer.name, subtitle: composer.subtitle, path: composer.authorPath,
+                                      note: composer.authorPath.flatMap { library.stil[$0] ?? nil })
+                },
+                bugs: (library.bugs[track.path] ?? []).map { TuneInfo.Bug(text: $0.text, reporter: $0.reporter, subtune: $0.subtune.map(Int.init)) },
+                secs: player.duration.map { Int($0.rounded()) },
+                secsEstimated: player.durationIsEstimate,
+                format: track.isRsid ? "RSID" : "PSID",
+                sid: track.chipModel.short,
+                chips: Int(track.numSids)
+            ))
         case "prints":
             // Only tunes with a fingerprint are in the answer.
             let paths = args.paths ?? []
@@ -599,6 +624,35 @@ final class ControlCommands {
     nonisolated static func holds(_ words: [String], _ item: HvscTuneItem) -> Bool {
         let haystack = "\(item.title) \(item.author) \(item.path)"
         return words.allSatisfy { haystack.range(of: $0, options: [.caseInsensitive, .diacriticInsensitive]) != nil }
+    }
+
+    /// `tune.info`'s answer.
+    struct TuneInfo: Encodable {
+        struct Composer: Encodable {
+            let name: String
+            let subtitle: String?
+            /// Their MUSICIANS folder, when they have one.
+            let path: String?
+            /// What STIL says about the folder.
+            let note: STILEntry?
+        }
+
+        struct Bug: Encodable {
+            let text: String
+            let reporter: String?
+            let subtune: Int?
+        }
+
+        let path: String
+        let stil: STILEntry?
+        let composer: Composer?
+        let bugs: [Bug]
+        let secs: Int?
+        /// Resonance worked the length out: the tune isn't in HVSC's song lengths.
+        let secsEstimated: Bool
+        let format: String
+        let sid: String
+        let chips: Int
     }
 
     private func playing() throws -> TrackDetails {

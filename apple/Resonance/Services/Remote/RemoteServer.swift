@@ -834,7 +834,7 @@ final class RemoteServer {
     /// playlists or opening files.
     nonisolated static let allowed: Set<String> = [
         "status", "play", "pause", "toggle", "stop", "next", "prev", "seek", "surprise", "fav", "scope",
-        "search", "like", "drift", "sound", "describe", "describe.playing", "recent",
+        "search", "like", "drift", "sound", "tune.info", "describe", "describe.playing", "recent",
         "hvsc.info", "hvsc.authors", "hvsc.tunes", "hvsc.playlist", "hvsc.playlist.play", "hvsc.shuffle",
         "playlist.list", "playlist.show", "playlist.play", "playlist.add", "myplaylist.show", "myplaylist.play",
     ]
