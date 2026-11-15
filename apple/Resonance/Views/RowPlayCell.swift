@@ -1,5 +1,6 @@
 import AppKit
 import PhosphorCore
+import ResonanceVisuals
 import SwiftUI
 
 /// A song table's first cell: under the pointer a play button, or pause on the
@@ -123,7 +124,7 @@ private struct VoiceBarsLayerView: NSViewRepresentable {
 /// A bar and a peak per voice, each a layer that's moved every frame.
 private final class VoiceBarsNSView: FrameLinkedNSView {
     private var feed: VisualizerFeed?
-    private let meter = RowVoiceMeter()
+    private let meter = VoiceMarkMeter()
     private let bars = (0..<3).map { _ in CALayer() }
     private let peaks = (0..<3).map { _ in CALayer() }
 
@@ -151,78 +152,19 @@ private final class VoiceBarsNSView: FrameLinkedNSView {
         place(meter.update(levels: voices?.map { Double($0.envLevel) }, at: .now))
     }
 
-    /// Proportions from the mark (Assets: MenuBarIcon): bars 150 wide with
-    /// gaps of 70, in 590, and the peak's line 34 tall in 622. The layers'
-    /// origin is the bottom left.
-    private func place(_ reading: RowVoiceMeter.Reading) {
-        let size = bounds.size
-        guard size.width > 0, size.height > 0 else { return }
-        let barWidth = size.width * 150 / 590
-        let step = size.width * 220 / 590
-        let peakHeight = max(size.height * 34 / 622, 1)
-        let gap = size.height * 48 / 622
-        let room = size.height - peakHeight - gap
+    /// The layers' origin is the bottom left, as `VoiceMarkLayout` gives it.
+    private func place(_ reading: VoiceMarkMeter.Reading) {
+        let parts = VoiceMarkLayout.parts(in: bounds.size, reading: reading)
+        guard !parts.isEmpty else { return }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        for voice in reading.bars.indices.prefix(3) {
-            let x = CGFloat(voice) * step
-            let barHeight = max(room * reading.bars[voice], 1)
-            bars[voice].frame = CGRect(x: x, y: 0, width: barWidth, height: barHeight)
-            bars[voice].cornerRadius = min(barWidth * 0.24, barHeight / 2)
-            peaks[voice].frame = CGRect(x: x, y: room * reading.peaks[voice] + gap, width: barWidth, height: peakHeight)
-            peaks[voice].cornerRadius = peakHeight / 2
+        for (voice, part) in parts.enumerated() {
+            bars[voice].frame = part.bar
+            bars[voice].cornerRadius = part.barRadius
+            peaks[voice].frame = part.peak
+            peaks[voice].cornerRadius = part.peak.height / 2
         }
         CATransaction.commit()
-    }
-}
-
-/// Bars that rise at once and fall smoothly, and peaks that hold, then fall.
-nonisolated final class RowVoiceMeter {
-    nonisolated struct Reading: Equatable {
-        var bars: [Double]
-        var peaks: [Double]
-    }
-
-    /// The mark as it's drawn in the icon, for when there's nothing to show.
-    static let rest = Reading(bars: [380.0 / 540, 1, 300.0 / 540], peaks: [380.0 / 540, 1, 300.0 / 540])
-
-    private static let floor = 0.08
-    private static let barFallPerSecond = 2.4
-    private static let peakFallPerSecond = 0.7
-    private static let peakHold = 0.35
-
-    private var reading: Reading?
-    private var heldSince: [Date] = []
-    private var last: Date?
-
-    /// The reading at `date` for voice `levels`, 0–1; nil levels mean there's
-    /// nothing playing to follow, and the mark rests.
-    func update(levels: [Double]?, at date: Date) -> Reading {
-        guard let levels, !levels.isEmpty else {
-            reading = nil
-            last = nil
-            return Self.rest
-        }
-        let voices = (0..<3).map { $0 < levels.count ? max(Self.floor, min(levels[$0], 1)) : Self.floor }
-        guard var now = reading, let last else {
-            reading = Reading(bars: voices, peaks: voices)
-            heldSince = Array(repeating: date, count: 3)
-            self.last = date
-            return reading!
-        }
-        let elapsed = max(date.timeIntervalSince(last), 0)
-        for voice in 0..<3 {
-            now.bars[voice] = max(voices[voice], now.bars[voice] - Self.barFallPerSecond * elapsed)
-            if now.bars[voice] >= now.peaks[voice] {
-                now.peaks[voice] = now.bars[voice]
-                heldSince[voice] = date
-            } else if date.timeIntervalSince(heldSince[voice]) > Self.peakHold {
-                now.peaks[voice] = max(now.bars[voice], now.peaks[voice] - Self.peakFallPerSecond * elapsed)
-            }
-        }
-        reading = now
-        self.last = date
-        return now
     }
 }
 
