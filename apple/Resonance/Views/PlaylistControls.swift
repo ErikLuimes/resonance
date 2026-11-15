@@ -326,6 +326,20 @@ struct SoundMenu: View {
 }
 
 /// A list's Play: small, and the same everywhere.
+/// Left of the filter in a list that takes files from disk (My Playlist,
+/// the person's own playlists): opens the file picker.
+struct ListAddFilesButton: View {
+    let add: () -> Void
+
+    var body: some View {
+        Button("Add Files", systemImage: "plus", action: add)
+            .labelStyle(.iconOnly)
+            .buttonStyle(.glass)
+            .buttonBorderShape(.circle)
+            .help("Add SID files, folders or playlists")
+    }
+}
+
 struct ListPlayButton: View {
     var title = String(localized: "Play")
     var isDisabled = false

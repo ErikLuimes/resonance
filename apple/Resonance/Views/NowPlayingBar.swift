@@ -18,6 +18,12 @@ struct NowPlayingBar: View {
     /// The volume slider is slid open next to its speaker button.
     @State private var showsVolume = false
     @State private var volumeClosing: Task<Void, Never>?
+    /// How far the title follows two fingers: negative toward the next tune.
+    @State private var drag: CGFloat = 0
+    @State private var titleWidth: CGFloat = 200
+    /// The tune a swipe left, until the next one is in.
+    @State private var leaving: String?
+
     /// Bumped as the pointer reaches the Now Playing button, to bounce it.
     @State private var nowPlayingHovers = 0
 
@@ -31,14 +37,14 @@ struct NowPlayingBar: View {
                     subtunes
                 }
                 volume
-                if width >= 420 {
-                    underTheHood
-                }
                 nowPlaying
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             .glassEffect(.regular, in: .rect(cornerRadius: 18))
+            // Two fingers sideways anywhere on the bar: the next or last
+            // tune, the title sliding with them.
+            .background { TwoFingerSwipe(swiped: swiped) }
         }
         .frame(minWidth: 0, maxWidth: .infinity)
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
@@ -75,16 +81,6 @@ struct NowPlayingBar: View {
         .buttonStyle(.borderless)
     }
 
-    /// Beside Now Playing, until the bar gets narrow; View › Under the Hood stays.
-    private var underTheHood: some View {
-        Button("Under the Hood", systemImage: "memorychip") { store.toggleUnderTheHood() }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.borderless)
-            .font(.title3.weight(.semibold))
-            .foregroundStyle(store.isShowingUnderTheHood ? Color.accentColor : Color.primary)
-            .help("Show the tracker, registers, sweeps and pitch trail")
-    }
-
     /// At the bar's far end, where players keep their full-screen button.
     /// Never drops out as the bar narrows: it's one of the ways into Now
     /// Playing, along with the track title and View › Now Playing.
@@ -99,6 +95,34 @@ struct NowPlayingBar: View {
             .help("Show Now Playing")
     }
 
+    private func swiped(_ swipe: TwoFingerSwipe.Swipe) {
+        switch swipe {
+        case .moved(let x):
+            guard leaving == nil else { return }
+            // Past the last tune, a rubber band.
+            let open = x < 0 ? store.nextUp != nil : store.previousUp != nil
+            drag = open ? x : x / 4
+        case .ended(let x):
+            let toNext = x < 0
+            let there = toNext ? store.nextUp != nil : store.previousUp != nil
+            guard leaving == nil, there, abs(x) > titleWidth * 0.25, let track = store.nowPlaying else {
+                withAnimation(.spring(duration: 0.3)) { drag = 0 }
+                return
+            }
+            leaving = track.path
+            withAnimation(.snappy(duration: 0.25)) { drag = toNext ? -titleWidth : titleWidth }
+            NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+            if toNext { store.next() } else { store.previousTune() }
+            // Should the tune not change, the title comes back.
+            Task {
+                try? await Task.sleep(for: .seconds(3))
+                guard leaving == track.path else { return }
+                leaving = nil
+                withAnimation(.spring(duration: 0.3)) { drag = 0 }
+            }
+        }
+    }
+
     private var trackInfo: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let track = store.nowPlaying {
@@ -106,14 +130,18 @@ struct NowPlayingBar: View {
                     if store.surpriseActive {
                         SurpriseBadge(compact: width < 560)
                     }
-                    // Like clicking the artwork in Music.
+                    // Like clicking the artwork in Music. Two fingers
+                    // sideways slide the next or last tune in.
                     Button {
                         store.toggleNowPlaying()
                     } label: {
-                        HStack(alignment: .firstTextBaseline, spacing: 6) {
-                            Text(track.title).font(.headline)
-                            Text(track.shownAuthor).foregroundStyle(.secondary)
-                        }
+                        BarTitleStrip(
+                            previous: store.previousUp?.barTitles,
+                            current: BarTitles(title: track.title, author: track.shownAuthor),
+                            next: store.nextUp?.barTitles,
+                            drag: drag,
+                            width: $titleWidth
+                        )
                     }
                     .buttonStyle(.plain)
                     .help("Show Now Playing")
@@ -125,6 +153,14 @@ struct NowPlayingBar: View {
                     .lineLimit(1)
             }
             ProgressRow()
+        }
+        .onChange(of: store.nowPlaying?.path) { _, path in
+            // The new tune is in: the title is already on it.
+            guard leaving != nil, path != leaving else { return }
+            leaving = nil
+            var instant = Transaction()
+            instant.disablesAnimations = true
+            withTransaction(instant) { drag = 0 }
         }
     }
 
@@ -371,3 +407,4 @@ private struct ProgressRow: View {
         .padding()
         .frame(width: 900)
 }
+

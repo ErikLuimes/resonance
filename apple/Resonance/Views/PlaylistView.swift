@@ -27,6 +27,7 @@ struct PlaylistView: View {
             } else {
                 ListBar(sound: $sound, showsSound: store.rows.contains { fingerprints.fingerprint($0.id) != nil },
                         shown: displayedRows.count, total: store.rows.count) {
+                    ListAddFilesButton { store.isImporting = true }
                     ListFilterField(text: $filter)
                     ListPlayButton { store.play(index: 0) }
                 }

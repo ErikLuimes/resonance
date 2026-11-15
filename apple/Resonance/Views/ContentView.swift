@@ -240,19 +240,14 @@ struct ContentView: View {
             detail
         }
         .toolbar {
+            // Surprise Me and Add Files live in the menus (Controls, File),
+            // the Dock menu, Now Playing and the menu bar player. Under the
+            // Hood is always here and only its tint changes: the toolbar
+            // stays the same (see searchable below).
             ToolbarItem(placement: .primaryAction) {
-                Button("Surprise Me", systemImage: "dice") {
-                    Task { await library.surpriseMe() }
-                }
-                // Menu shortcut included. Only the symbol animates, so the
-                // toolbar itself stays the same (see searchable below).
-                .symbolEffect(.wiggle, value: library.surprises)
-                .help("Play random tunes from all of HVSC")
-                .disabled(!store.hasCollection)
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button("Add Files", systemImage: "plus") { store.isImporting = true }
-                    .help("Add SID files, folders or playlists")
+                Button("Under the Hood", systemImage: "memorychip") { store.toggleUnderTheHood() }
+                    .foregroundStyle(store.isShowingUnderTheHood ? Color.accentColor : Color.primary)
+                    .help(store.isShowingUnderTheHood ? "Hide the tracker" : "Show the tracker, registers, sweeps and pitch trail")
             }
             ToolbarItem(placement: .primaryAction) {
                 Button("Inspector", systemImage: "sidebar.trailing") { showInspector.toggle() }

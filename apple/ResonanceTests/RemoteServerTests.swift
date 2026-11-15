@@ -142,9 +142,11 @@ struct RemoteServerTests {
 
     /// Deleting playlists or opening files stays on the Mac.
     @Test func theNetworkCantReshapePlaylists() {
-        for cmd in ["playlist.delete", "playlist.rename", "playlist.rm", "playlist.mv", "playlist.new", "show", "prints"] {
+        for cmd in ["playlist.delete", "playlist.rename", "playlist.rm", "playlist.mv", "show", "prints"] {
             #expect(!RemoteServer.allowed.contains(cmd))
         }
         #expect(RemoteServer.allowed.contains("play"))
+        // Adding isn't reshaping: Save as Playlist makes a new one.
+        #expect(RemoteServer.allowed.contains("playlist.new"))
     }
 }

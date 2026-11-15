@@ -323,7 +323,7 @@ extension HelpTopic {
                     String(localized: "**Nimbus**: soft balls of smoke in a pale sky, a pair for each voice, roaming round each other, trailing smoke, and swirling together where they meet. A pair swells with its voice's level and jumps on every note, rides higher the higher it plays, and glows from inside in its color. They all drift faster the louder the music is."),
                 ]),
                 .heading(String(localized: "Under the hood")),
-                .paragraph(String(localized: "The chip button in the player bar, or **View → Show Under the Hood**, slides a drawer up over the list, and the button at its top right slides it back down.")),
+                .paragraph(String(localized: "The chip button in the toolbar, or **View → Show Under the Hood**, slides a drawer up over the list, and the button at its top right slides it back down.")),
                 .bullets([
                     String(localized: "**Tracker**: the tune as a tracker would show it, with what's coming below the row you're hearing. A SID file holds code, not patterns, so this is rebuilt from what its player writes to the chip. An instrument here is a waveform and envelope, not necessarily one the composer had in mind, and some tunes have no steady beat to find."),
                     String(localized: "**Registers**: every byte the player writes, lighting up as it changes, with the control bits spelled out."),
@@ -393,7 +393,7 @@ extension HelpTopic {
                 .heading(String(localized: "Favorites")),
                 .paragraph(String(localized: "Click the heart in the inspector or Now Playing to make a tune a favorite, and again to undo it. Favorites keep the order you hearted them in.")),
                 .heading(String(localized: "My Playlist")),
-                .paragraph(String(localized: "My Playlist is where files from outside the library go: the SID files, folders and M3U playlists you drop on the window or add with **⌘O** (**Add Files** in the toolbar). Tunes outside HVSC play the same way; they just don't get STIL's notes.")),
+                .paragraph(String(localized: "My Playlist is where files from outside the library go: the SID files, folders and M3U playlists you drop on the window or add with **⌘O** (**File > Add Files or Folders…**). Tunes outside HVSC play the same way; they just don't get STIL's notes.")),
                 .bullets([
                     String(localized: "Press **Space** in My Playlist to play or pause."),
                     String(localized: "Drag tunes up and down to reorder them, and Control-click to remove them."),

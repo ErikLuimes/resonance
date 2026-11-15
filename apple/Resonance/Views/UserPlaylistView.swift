@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 import PhosphorCore
 
 /// Favorites, or one of your playlists: a header with its name and count, then
@@ -12,6 +13,8 @@ struct UserPlaylistView: View {
     @Environment(LibraryStore.self) private var library
     /// The list's own filter.
     @State private var filter = ""
+    /// The file picker for this playlist's +.
+    @State private var addingFiles = false
 
     private var id: String { playlist?.id ?? PlaylistsStore.favoritesID }
     private var source: PlaybackSource {
@@ -23,6 +26,11 @@ struct UserPlaylistView: View {
             header
             Divider()
             content
+        }
+        .fileImporter(isPresented: $addingFiles, allowedContentTypes: UTType.addable, allowsMultipleSelection: true) { result in
+            guard case .success(let urls) = result, let playlist else { return }
+            FileAccess.shared.keep(urls)
+            Task { await playlists.addFiles(urls, to: .playlist(playlist.id)) }
         }
         .task(id: TaskKey(id: id, loaded: playlists.rows[id] != nil)) {
             if playlists.rows[id] == nil { await playlists.loadRows(id) }
@@ -75,6 +83,10 @@ struct UserPlaylistView: View {
 
     private func listActions(_ rows: [LibraryRow]) -> some View {
         Group {
+            // Files from disk go into one of the person's own playlists.
+            if playlist != nil {
+                ListAddFilesButton { addingFiles = true }
+            }
             ListFilterField(text: $filter)
             ListPlayButton { library.play(rows, from: source) }
         }

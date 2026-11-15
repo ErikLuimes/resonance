@@ -1874,6 +1874,9 @@
     "Hide the inspector" : {
 
     },
+    "Hide the tracker" : {
+
+    },
     "High Voltage SID Collection" : {
 
     },
@@ -2275,6 +2278,9 @@
 
     },
     "My Playlist is where files from outside the library go: the SID files, folders and M3U playlists you drop on the window or add with **⌘O** (**Add Files** in the toolbar). Tunes outside HVSC play the same way; they just don't get STIL's notes." : {
+
+    },
+    "My Playlist is where files from outside the library go: the SID files, folders and M3U playlists you drop on the window or add with **⌘O** (**File > Add Files or Folders…**). Tunes outside HVSC play the same way; they just don't get STIL's notes." : {
 
     },
     "Name" : {
@@ -3870,6 +3876,9 @@
 
     },
     "The chip button in the player bar, or **View → Show Under the Hood**, slides a drawer up over the list, and the button at its top right slides it back down." : {
+
+    },
+    "The chip button in the toolbar, or **View → Show Under the Hood**, slides a drawer up over the list, and the button at its top right slides it back down." : {
 
     },
     "The chosen ones' pictures show the tune that's playing, and so does the one under the pointer. You can also choose from Now Playing itself." : {

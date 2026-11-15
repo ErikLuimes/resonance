@@ -111,7 +111,7 @@ struct NowPlayingView: View {
     private static let dim = Color.white.opacity(0.55)
 
     /// Seconds without the mouse moving before the extras fade out.
-    private static let idleDelay = 3.0
+    private static let idleDelay = 5.0
 
     /// Shows the extras and restarts the idle countdown. They stay while the
     /// mouse rests on one of them.
