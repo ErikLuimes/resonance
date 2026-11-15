@@ -16,15 +16,21 @@ pub struct Header {
 }
 
 /// `field`'s bytes up to the first NUL, as Windows-1252 (Latin-1 is the same
-/// for every letter HVSC's names use).
+/// for every letter HVSC's names use), without HVSC's "<?>" for what isn't
+/// known: a whole field of it is empty, one inside a field is left out, as
+/// the app's own reader does (src/player/sid_file.rs `hvsc_field`).
 fn text(field: &[u8]) -> String {
-    field
-        .iter()
-        .take_while(|b| **b != 0)
-        .map(|b| *b as char)
-        .collect::<String>()
-        .trim()
-        .to_string()
+    let text = field.iter().take_while(|b| **b != 0).map(|b| *b as char).collect::<String>();
+    let trimmed = text.trim();
+    if trimmed == "<?>" {
+        return String::new();
+    }
+    trimmed.replace("<?>", " ").split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// The composer for a line of its own: unknown ones arrive empty.
+pub fn shown_author(author: &str) -> String {
+    if author.is_empty() { "Unknown Composer".to_string() } else { author.to_string() }
 }
 
 pub fn parse(data: &[u8]) -> Option<Header> {
@@ -71,6 +77,18 @@ pub fn parse(data: &[u8]) -> Option<Header> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn hvscs_unknown_mark_is_left_out() {
+        let mut field = [0u8; 32];
+        field[..3].copy_from_slice(b"<?>");
+        assert_eq!(super::text(&field), "");
+        let name = b"Michael (Misfit) <?>";
+        let mut field = [0u8; 32];
+        field[..name.len()].copy_from_slice(name);
+        assert_eq!(super::text(&field), "Michael (Misfit)");
+        assert_eq!(super::shown_author(""), "Unknown Composer");
+    }
+
     use super::*;
 
     fn file(magic: &[u8; 4], version: u8, flags: u8, second: u8, third: u8) -> Vec<u8> {

@@ -2103,7 +2103,7 @@ fn tune_lines(app: &App, rows: u16) -> Vec<Line<'static>> {
     if paused {
         title.push(Span::styled("  paused", dim()));
     }
-    let composer = Line::raw(now.author.clone());
+    let composer = Line::raw(crate::sid::shown_author(&now.author));
     let released = Line::styled(released_line(&now.released), dim());
     let source = status.source.as_ref().map_or("NOW PLAYING".to_string(), |s| format!("PLAYING FROM {}", s.to_uppercase()));
     let mut tags: Vec<String> = app.tags.as_ref().map_or(Vec::new(), |(_, tags)| tags.clone());
@@ -3258,7 +3258,7 @@ fn rail_lines(app: &App, tune: &Tune, width: usize, height: usize) -> Vec<Line<'
         .into_iter()
         .map(|line| Line::styled(line, Style::new().add_modifier(Modifier::BOLD)))
         .collect();
-    about.push(Line::styled(tune.author.clone(), dim()));
+    about.push(Line::styled(crate::sid::shown_author(&tune.author), dim()));
     about.push(Line::styled(format!("{}{length}", tune.released), dim()));
     about.push(Line::raw(""));
     about.push(Line::styled("Sound", label));

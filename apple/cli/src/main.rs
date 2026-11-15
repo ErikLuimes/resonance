@@ -296,7 +296,7 @@ fn run(cli: Cli) -> Result<(), String> {
                 return Ok(());
             }
             println!("Title     {}", plain(&header.title));
-            println!("Composer  {}", plain(&header.author));
+            println!("Composer  {}", if header.author.is_empty() { "Unknown".to_string() } else { plain(&header.author) });
             println!("Released  {}", plain(&header.released));
             println!("Subtunes  {}", header.songs);
             if let Some(model) = header.model {
