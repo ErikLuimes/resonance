@@ -120,6 +120,19 @@ final class ControlCommands {
         /// The device playing instead of the Mac's speakers (Listen on
         /// iPhone), if one is.
         let listening: PlayerStore.Listening?
+        /// What Previous (without its restart) and Next would play.
+        let previous: Neighbor?
+        let next: Neighbor?
+    }
+
+    struct Neighbor: Encodable, Equatable {
+        let title: String
+        let author: String
+
+        init(_ item: PlaylistItem) {
+            title = item.title
+            author = item.author
+        }
     }
 
     struct PlaylistInfo: Encodable {
@@ -392,6 +405,10 @@ final class ControlCommands {
             return done()
         case "prev":
             player.previous()
+            return done()
+        case "prev.tune":
+            // The tune before, as Resonance Remote's swipe shows it coming.
+            player.previousTune()
             return done()
         case "surprise":
             guard library.hasRoot else { throw Failure("Resonance doesn't have the HVSC collection yet.") }
@@ -703,6 +720,12 @@ final class ControlCommands {
         let chips: Int
     }
 
+    /// Files outside the collection the person put in their own lists,
+    /// which a paired device may play.
+    func listedFiles() -> Set<String> {
+        playlists.listedFiles()
+    }
+
     private func playing() throws -> TrackDetails {
         guard let track = player.nowPlaying else { throw Failure("Nothing is playing.") }
         return track
@@ -733,7 +756,9 @@ final class ControlCommands {
             seekPosition: player.seekPosition,
             listsRevision: "\(playlists.revision).\(player.playlistRevision ?? 0)",
             myPlaylistCount: player.rows.count,
-            listening: player.listening
+            listening: player.listening,
+            previous: track == nil ? nil : player.previousUp.map(Neighbor.init),
+            next: track == nil ? nil : player.nextUp.map(Neighbor.init)
         )
     }
 

@@ -276,6 +276,13 @@ final class PlaylistsStore {
 
     func isFavorite(_ path: String) -> Bool { favoriteSet.contains(path) }
 
+    /// Every file in Favorites and the person's playlists: the files outside
+    /// the collection a paired device may still play, as the person put them
+    /// in a list themselves.
+    func listedFiles() -> Set<String> {
+        playlists.reduce(into: favoriteSet) { files, list in files.formUnion(read(list)) }
+    }
+
     func loadFavorites() async {
         let found = await core.favoritePaths()
         favorites = found

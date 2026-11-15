@@ -250,6 +250,7 @@ nonisolated final class PreviewCore: PlayerCoreProtocol {
     func playPause(fallback: UInt32?) {}
     func prevSubtune() {}
     func previous() {}
+    func previousTune() {}
     func remove(indices: [UInt32]) {}
     func setEngine(engine: Engine) {}
     func setOptions(options: PlaybackOptions) {}

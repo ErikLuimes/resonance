@@ -25,6 +25,10 @@ final class PlayerStore {
     private(set) var surpriseActive = false
     /// That list is Shuffle Collection's walk through all of HVSC.
     private(set) var shuffleCollectionActive = false
+    /// What Previous (without its restart) and Next would play, for
+    /// Resonance Remote's mini player to slide in.
+    private(set) var previousUp: PlaylistItem?
+    private(set) var nextUp: PlaylistItem?
     /// Where the playing temporary list came from (whatever started it
     /// says); nil while none plays.
     private(set) var queueSource: PlaybackSource?
@@ -298,6 +302,8 @@ final class PlayerStore {
         }
         update(\.state, s.state)
         update(\.currentIndex, s.currentIndex.map(Int.init))
+        update(\.previousUp, s.previous)
+        update(\.nextUp, s.next)
         // The queue ended, or Surprise Me took over: it's no longer the
         // published playlist that plays. (Not on a still-inactive queue: a
         // queue just started shows up a snapshot later.)
@@ -428,6 +434,8 @@ final class PlayerStore {
     func stop() { core.stop() }
     func next() { core.next() }
     func previous() { core.previous() }
+    /// The tune before, even more than 3 s in.
+    func previousTune() { core.previousTune() }
     func nextSubtune() { core.nextSubtune() }
     func previousSubtune() { core.prevSubtune() }
 

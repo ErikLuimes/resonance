@@ -552,6 +552,32 @@ impl Session {
         }
     }
 
+    /// The tunes Previous (without its restart) and Next would play, worked
+    /// out on a copy so nothing moves: shuffle and repeat as they are. None
+    /// where there's nothing, Next while Surprise Me picks as it goes, and
+    /// Previous when it would be the same tune.
+    pub fn neighbors(&self) -> (Option<PlaylistEntry>, Option<PlaylistEntry>) {
+        let active = self.active();
+        let current = active.current;
+        let mut before = active.clone();
+        let previous = before.prev().filter(|i| Some(*i) != current).and_then(|i| active.entries.get(i).cloned());
+        let next = if self.radio_active() {
+            None
+        } else {
+            let mut after = active.clone();
+            after.next().and_then(|i| active.entries.get(i).cloned())
+        };
+        (previous, next)
+    }
+
+    /// The tune before, even more than 3 s in: what Resonance Remote's swipe
+    /// shows sliding in.
+    pub fn previous_tune(&mut self, now: Instant) {
+        if let Some(idx) = self.active_mut().prev() {
+            self.play_track(idx, now);
+        }
+    }
+
     /// More than 3 s in restarts the current track, like most players
     /// (main.rs `Message::PrevTrack`).
     pub fn previous(&mut self, now: Instant) {

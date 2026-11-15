@@ -25,6 +25,14 @@ struct RemoteServerTests {
         #expect(RemoteServer.pathsAllowed(["/Users/someone/Desktop/new.sid"], root: root, myPlaylist: ["/Users/someone/Desktop/new.sid"]))
     }
 
+    /// A tune of the person's own in Favorites or a playlist plays; a file
+    /// next to it that no list has doesn't.
+    @Test func listedTunesOutsideTheCollectionAreAllowedOthersAreNot() {
+        let listed: Set<String> = ["/Users/someone/Music/Jarre_En_Sync.sid"]
+        #expect(RemoteServer.pathsAllowed(["/Users/someone/Music/Jarre_En_Sync.sid"], root: root, myPlaylist: listed))
+        #expect(!RemoteServer.pathsAllowed(["/Users/someone/Music/Other.sid"], root: root, myPlaylist: listed))
+    }
+
     /// The phone derives the same key from the same digits, and only for this Mac.
     @Test func theCodeKeyDependsOnTheCodeAndTheMac() {
         let key = RemoteServer.codeKey(code: "4819", macID: "28W7VQ6C")

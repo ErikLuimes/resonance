@@ -252,6 +252,7 @@ nonisolated final class FakeCore: PlayerCoreProtocol, @unchecked Sendable {
     func playPause(fallback: UInt32?) { record("playPause \(fallback.map(String.init) ?? "nil")") }
     func prevSubtune() { record("prevSubtune") }
     func previous() { record("previous") }
+    func previousTune() { record("previousTune") }
     func remove(indices: [UInt32]) { record("remove \(indices)") }
     func setEngine(engine: Engine) { record("engine \(engine)") }
     func setOptions(options: PlaybackOptions) { record("options \(options.defaultSongLengthSecs)") }

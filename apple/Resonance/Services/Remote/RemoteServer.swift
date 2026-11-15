@@ -563,7 +563,8 @@ final class RemoteServer {
             connection.send(Self.success(id: id, Empty()))
         case let cmd where Self.allowed.contains(cmd):
             let paths = [args.path, args.start].compactMap(\.self) + (args.paths ?? [])
-            guard Self.pathsAllowed(paths, root: player.hvscRoot, myPlaylist: Set(player.rows.map(\.item.path))) else {
+            let listed = Set(player.rows.map(\.item.path)).union(paths.isEmpty ? [] : commands.listedFiles())
+            guard Self.pathsAllowed(paths, root: player.hvscRoot, myPlaylist: listed) else {
                 connection.send(Self.failure(id: id, "Resonance Remote can only reach tunes in this Mac's collection."))
                 return
             }
@@ -852,18 +853,21 @@ final class RemoteServer {
     /// Every command a connected device may send, sorted, for the welcome.
     nonisolated static let commands: [String] = (allowed.union(["subscribe", "visuals", "listen.start", "listen.stop"])).sorted()
 
-    /// What a paired device may ask: playing and finding, not reshaping
+    /// What a paired device may ask: playing and finding, and adding (a new
+    /// playlist, tunes to one), not reshaping
     /// playlists or opening files.
     nonisolated static let allowed: Set<String> = [
-        "status", "play", "pause", "toggle", "stop", "next", "prev", "seek", "surprise", "fav", "scope",
+        "status", "play", "pause", "toggle", "stop", "next", "prev", "prev.tune", "seek", "surprise", "fav", "scope",
         "search", "like", "drift", "sound", "tune.info", "share.link", "share.open", "describe", "describe.playing", "recent",
         "hvsc.info", "hvsc.authors", "hvsc.tunes", "hvsc.playlist", "hvsc.playlist.play", "hvsc.shuffle",
-        "playlist.list", "playlist.show", "playlist.play", "playlist.add", "myplaylist.show", "myplaylist.play",
+        "playlist.list", "playlist.show", "playlist.play", "playlist.add", "playlist.new", "myplaylist.show", "myplaylist.play",
     ]
 
     /// Paths inside the collection, or already in My Playlist. No control
     /// characters: a NUL ends the path where `open` reads it, not where the
     /// check does. Symbolic links are followed before comparing.
+    /// `myPlaylist`: files the person listed themselves, in My Playlist,
+    /// Favorites or a playlist, allowed wherever they are.
     nonisolated static func pathsAllowed(_ paths: [String], root: String?, myPlaylist: Set<String>) -> Bool {
         let folder = root.map(resolved).map { $0.hasSuffix("/") ? $0 : $0 + "/" }
         return paths.allSatisfy { path in

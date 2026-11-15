@@ -68,6 +68,8 @@ pub(crate) enum Command {
     Stop,
     Next,
     Previous,
+    /// The tune before, without Previous's restart.
+    PreviousTune,
     SetSubtune(u16),
     NextSubtune,
     PrevSubtune,
@@ -120,6 +122,9 @@ pub(crate) struct SessionView {
     pub seek_position: Option<Duration>,
     pub playlist_revision: u64,
     pub track_revision: u64,
+    /// What Previous and Next would play (`Session::neighbors`).
+    pub previous: Option<PlaylistEntry>,
+    pub next: Option<PlaylistEntry>,
 }
 
 pub(crate) struct StartConfig {
@@ -166,6 +171,8 @@ impl Driver {
                 seek_position: None,
                 playlist_revision: 0,
                 track_revision: 0,
+                previous: None,
+                next: None,
             },
             playlist: Arc::new(Vec::new()),
             loading: None,
@@ -698,6 +705,7 @@ impl State {
             Command::Stop => s.stop(),
             Command::Next => s.next(now),
             Command::Previous => s.previous(now),
+            Command::PreviousTune => s.previous_tune(now),
             Command::SetSubtune(song) => s.set_subtune(song, now),
             Command::NextSubtune => s.next_subtune(now),
             Command::PrevSubtune => s.prev_subtune(now),
@@ -869,6 +877,7 @@ impl State {
             .ok()
             .map(|p| progress_text(&p))
             .filter(|p| !p.is_empty());
+        let neighbors = s.neighbors();
         let published = Published {
             session: SessionView {
                 status: s.status.clone(),
@@ -886,6 +895,8 @@ impl State {
                 seek_position: self.player.seek_position(),
                 playlist_revision: s.playlist_revision,
                 track_revision: s.track_revision,
+                previous: neighbors.0,
+                next: neighbors.1,
             },
             playlist: self.published_playlist.1.clone(),
             loading,

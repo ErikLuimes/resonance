@@ -161,6 +161,12 @@ pub struct Snapshot {
     /// That list is Shuffle Collection (`shuffle_collection`).
     pub shuffle_collection_active: bool,
     /// What the player reports it's playing.
+    /// What Previous (without its restart) and Next would play; None where
+    /// there's nothing, or Next while Surprise Me picks as it goes.
+    #[uniffi(default = None)]
+    pub previous: Option<PlaylistItem>,
+    #[uniffi(default = None)]
+    pub next: Option<PlaylistItem>,
     pub track: Option<TrackDetails>,
     pub elapsed_ms: u64,
     /// Length of the current subtune, if known.
@@ -1214,6 +1220,11 @@ impl PlayerCore {
         self.send(Command::Previous);
     }
 
+    /// The tune before, even more than 3 s in.
+    pub fn previous_tune(&self) {
+        self.send(Command::PreviousTune);
+    }
+
     /// 1-based; clamped to the tune's subtune count.
     pub fn set_subtune(&self, song: u16) {
         self.send(Command::SetSubtune(song));
@@ -1315,6 +1326,8 @@ impl PlayerCore {
             seek_position_ms: view.seek_position.map(|d| d.as_millis() as u64),
             playlist_revision: view.playlist_revision,
             track_revision: view.track_revision,
+            previous: view.previous.as_ref().map(PlaylistItem::from),
+            next: view.next.as_ref().map(PlaylistItem::from),
             loading: p.loading.clone(),
             error: p.error.clone(),
             hvsc_indexing: self
