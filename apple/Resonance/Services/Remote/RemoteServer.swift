@@ -15,7 +15,14 @@ import SystemConfiguration
 @Observable
 final class RemoteServer {
     nonisolated static let serviceType = "_resonance._tcp"
+    /// The protocol this Mac speaks (design/PROTOCOL.md in Resonance
+    /// Remote). Raised only for a change older devices can't follow: new
+    /// commands go in the welcome's `commands` instead.
     nonisolated static let version = 1
+    /// The oldest protocol a device may speak and still connect: older
+    /// ones are told to update Resonance Remote. In the advert too, so the
+    /// device can say so before it tries.
+    nonisolated static let oldestRemote = 1
     /// How long a QR code lasts while the page stays open.
     static let qrLifetime: Duration = .seconds(5 * 60)
     /// Failed handshakes while pairing before the typed code stops working.
@@ -409,7 +416,7 @@ final class RemoteServer {
 
     /// Nothing about what's playing: anyone in range can read the record.
     private func service() -> NWListener.Service {
-        let txt = NWTXTRecord(["v": String(Self.version), "id": macID])
+        let txt = NWTXTRecord(["v": String(Self.version), "min": String(Self.oldestRemote), "id": macID])
         return NWListener.Service(name: nil, type: Self.serviceType, domain: nil, txtRecord: txt)
     }
 
@@ -470,6 +477,8 @@ final class RemoteServer {
 
     /// The parts of a request's arguments the remote looks at itself.
     private struct Args: Decodable {
+        /// The device's protocol, in hello, pair and join; 1 when absent.
+        var v: Int?
         var device: String?
         var proof: String?
         var name: String?
@@ -490,6 +499,12 @@ final class RemoteServer {
         let mac: String
         let name: String
         let version: Int
+        /// The oldest protocol this Mac accepts from a device.
+        var min = RemoteServer.oldestRemote
+        /// Every command a connected device may send: what's newer than
+        /// the device's version decides nothing, so it hides what the Mac
+        /// doesn't do yet instead of failing.
+        var commands = RemoteServer.commands
         var device: String?
         var key: String?
     }
@@ -516,6 +531,10 @@ final class RemoteServer {
         let id = head.id ?? 0
         let args = head.args ?? Args()
         guard let device = connection.device else {
+            if ["hello", "pair", "pair.reveal", "join"].contains(head.cmd), (args.v ?? 1) < Self.oldestRemote {
+                connection.send(Self.failure(id: id, "Update Resonance Remote to connect to this Mac."), thenClose: true)
+                return
+            }
             switch head.cmd {
             case "hello": hello(id: id, args, on: connection)
             case "pair": pair(id: id, args, on: connection)
@@ -829,6 +848,9 @@ final class RemoteServer {
     }
 
     // MARK: Rules
+
+    /// Every command a connected device may send, sorted, for the welcome.
+    nonisolated static let commands: [String] = (allowed.union(["subscribe", "visuals", "listen.start", "listen.stop"])).sorted()
 
     /// What a paired device may ask: playing and finding, not reshaping
     /// playlists or opening files.
