@@ -6,9 +6,10 @@ import PhosphorCore
 /// One of your playlists: an M3U file in Resonance's Playlists folder,
 /// named after it.
 nonisolated struct UserPlaylist: Identifiable, Hashable, Sendable {
+    /// Made once and kept through renames, so a shortcut holding it still
+    /// finds the playlist. Not the file name.
+    let id: String
     let url: URL
-    /// The file name, "Late night chill.m3u".
-    var id: String { url.lastPathComponent }
     var name: String { url.deletingPathExtension().lastPathComponent }
 }
 
@@ -48,6 +49,9 @@ final class PlaylistsStore {
     /// Goes up on any change to the playlists, their tunes or Favorites, so
     /// the terminal app knows to read them again.
     @ObservationIgnored private(set) var revision: UInt64 = 0
+    /// Called when a playlist is made, renamed or deleted: Siri's phrases
+    /// hold the names, and only learn new ones when told (AppDelegate).
+    @ObservationIgnored var namesChanged: (() -> Void)?
 
     let player: PlayerStore
     /// Where the M3U files are.
@@ -73,14 +77,37 @@ final class PlaylistsStore {
 
     // MARK: Playlists
 
-    /// Re-read the folder.
+    /// Re-read the folder. A file not seen before (one put there by hand)
+    /// gets its id here.
     func reload() {
         revision &+= 1
-        let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
+        let before = playlists
+        let listed = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
+        let files = (listed ?? []).filter { $0.pathExtension.lowercased() == "m3u" }
+        let known = ids
+        var ids = known
         playlists = files
-            .filter { $0.pathExtension.lowercased() == "m3u" }
-            .map { UserPlaylist(url: $0) }
+            .map { file in
+                let id = ids[file.lastPathComponent] ?? UUID().uuidString
+                ids[file.lastPathComponent] = id
+                return UserPlaylist(id: id, url: file)
+            }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        // Forget the files that are gone, but not when the folder couldn't
+        // be read: that would give every playlist a new id.
+        if listed != nil {
+            let present = Set(files.map(\.lastPathComponent))
+            ids = ids.filter { present.contains($0.key) }
+        }
+        if ids != known { self.ids = ids }
+        if playlists != before { namesChanged?() }
+    }
+
+    /// Each playlist's id, by its file name. The files stay plain M3U, so
+    /// the ids are kept here.
+    private var ids: [String: String] {
+        get { defaults.dictionary(forKey: Pref.playlistIDs) as? [String: String] ?? [:] }
+        set { defaults.set(newValue, forKey: Pref.playlistIDs) }
     }
 
     func playlist(_ id: String) -> UserPlaylist? { playlists.first { $0.id == id } }
@@ -105,13 +132,15 @@ final class PlaylistsStore {
             candidate = "\(base) \(n)"
             n += 1
         }
-        let playlist = UserPlaylist(url: folder.appending(path: candidate + ".m3u"))
+        let playlist = UserPlaylist(id: UUID().uuidString, url: folder.appending(path: candidate + ".m3u"))
         guard write([], to: playlist) else { return nil }
+        ids[playlist.url.lastPathComponent] = playlist.id
         reload()
         return playlist
     }
 
-    /// Rename `playlist`; nil when the name is empty or taken.
+    /// Rename `playlist`, which keeps its id; nil when the name is empty or
+    /// taken.
     @discardableResult
     func rename(_ playlist: UserPlaylist, to name: String) -> UserPlaylist? {
         guard let name = Self.cleaned(name) else { return nil }
@@ -120,7 +149,7 @@ final class PlaylistsStore {
             error = String(localized: "There's already a playlist called “\(name)”.")
             return nil
         }
-        let renamed = UserPlaylist(url: folder.appending(path: name + ".m3u"))
+        let renamed = UserPlaylist(id: playlist.id, url: folder.appending(path: name + ".m3u"))
         do {
             try FileManager.default.moveItem(at: playlist.url, to: renamed.url)
         } catch {
@@ -128,9 +157,10 @@ final class PlaylistsStore {
             self.error = error.localizedDescription
             return nil
         }
-        paths[renamed.id] = paths.removeValue(forKey: playlist.id)
-        rows[renamed.id] = rows.removeValue(forKey: playlist.id)
-        touch(renamed.id, replacing: playlist.id)
+        var ids = self.ids
+        ids[playlist.url.lastPathComponent] = nil
+        ids[renamed.url.lastPathComponent] = playlist.id
+        self.ids = ids
         reload()
         return renamed
     }
@@ -335,9 +365,9 @@ final class PlaylistsStore {
         return playlist
     }
 
-    private func touch(_ id: String, replacing old: String? = nil) {
+    private func touch(_ id: String) {
         var order = defaults.stringArray(forKey: Pref.playlistsRecent) ?? []
-        order.removeAll { $0 == id || $0 == old }
+        order.removeAll { $0 == id }
         order.insert(id, at: 0)
         defaults.set(Array(order.prefix(50)), forKey: Pref.playlistsRecent)
     }

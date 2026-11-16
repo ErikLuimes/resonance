@@ -3,8 +3,8 @@ import Testing
 @testable import Resonance
 
 struct ResonanceIntentsTests {
-    private let lists = [UserPlaylist(url: URL(filePath: "/p/Late night.m3u")),
-                         UserPlaylist(url: URL(filePath: "/p/Galway.m3u"))]
+    private let lists = [UserPlaylist(id: "id-1", url: URL(filePath: "/p/Late night.m3u")),
+                         UserPlaylist(id: "id-2", url: URL(filePath: "/p/Galway.m3u"))]
 
     @Test func favoritesComeBeforeYourPlaylists() {
         #expect(PlaylistEntity.all(in: lists).map(\.name) == ["Favorites", "Late night", "Galway"])
@@ -21,10 +21,13 @@ struct ResonanceIntentsTests {
         #expect(PlaylistEntity.favorites.source == .favorites)
     }
 
-    @Test func aPlaylistIsItsFile() {
+    /// Its id, not its file name: a shortcut holds it, and a rename moves
+    /// the file.
+    @Test func aPlaylistGoesByItsID() {
         let entity = PlaylistEntity(lists[0])
-        #expect(entity.storeID == "Late night.m3u")
-        #expect(entity.source == .playlist(id: "Late night.m3u", name: "Late night"))
+        #expect(entity.id == "id-1")
+        #expect(entity.storeID == "id-1")
+        #expect(entity.source == .playlist(id: "id-1", name: "Late night"))
     }
 
     /// Siri only accepts a phrase that holds the app's name, and only ten

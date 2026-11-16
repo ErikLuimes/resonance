@@ -9,10 +9,15 @@ struct PlaylistsStoreTests {
     let fake = FakeCore()
     let folder = FileManager.default.temporaryDirectory.appending(path: "ResonancePlaylists-\(UUID().uuidString)")
 
-    private func makeStore() -> PlaylistsStore {
+    private func makeDefaults() -> UserDefaults {
         let suite = "ResonanceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
+        return defaults
+    }
+
+    private func makeStore(defaults: UserDefaults? = nil) -> PlaylistsStore {
+        let defaults = defaults ?? makeDefaults()
         let player = PlayerStore(defaults: defaults, defaultHvscRoot: nil) { _ in fake }
         return PlaylistsStore(player: player, folder: folder, defaults: defaults)
     }
@@ -30,7 +35,8 @@ struct PlaylistsStoreTests {
 
     @Test func addsWithoutDuplicatesAndRemoves() async throws {
         defer { try? FileManager.default.removeItem(at: folder) }
-        let store = makeStore()
+        let defaults = makeDefaults()
+        let store = makeStore(defaults: defaults)
         let playlist = try #require(store.create(named: "Mix"))
         await store.add(["/a.sid", "/b.sid"], to: .playlist(playlist.id))
         await store.add(["/b.sid", "/c.sid"], to: .playlist(playlist.id))
@@ -38,7 +44,7 @@ struct PlaylistsStoreTests {
 
         store.remove(["/b.sid"], from: playlist)
         // Read back from the file, not the cache.
-        let reread = makeStore()
+        let reread = makeStore(defaults: defaults)
         #expect(reread.read(try #require(reread.playlist(playlist.id))) == ["/a.sid", "/c.sid"])
     }
 
@@ -175,6 +181,70 @@ struct PlaylistsStoreTests {
 
         store.delete(renamed)
         #expect(store.playlist(renamed.id) == nil)
+    }
+
+    /// What a shortcut holds is the id, so a rename mustn't change it.
+    @Test func aRenameKeepsTheIDAndWhatHangsOffIt() async throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let store = makeStore()
+        let other = try #require(store.create(named: "Other"))
+        let mix = try #require(store.create(named: "Mix"))
+        await store.add(["/x.sid"], to: .playlist(other.id))
+        await store.add(["/a.sid"], to: .playlist(mix.id))
+        var told = 0
+        store.namesChanged = { told += 1 }
+
+        let renamed = try #require(store.rename(mix, to: "Late night"))
+        #expect(renamed.id == mix.id)
+        #expect(store.playlist(mix.id)?.name == "Late night")
+        #expect(store.paths[mix.id] == ["/a.sid"], "its tunes are still read")
+        #expect(store.recentlyUsed.map(\.name) == ["Late night", "Other"])
+        #expect(told == 1, "Siri learns the new name")
+    }
+
+    @Test func aNameUsedBeforeGetsANewID() throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let store = makeStore()
+        let first = try #require(store.create(named: "Mix"))
+        _ = try #require(store.rename(first, to: "Old mix"))
+        let second = try #require(store.create(named: "Mix"))
+        #expect(second.id != first.id)
+        #expect(store.playlist(first.id)?.name == "Old mix")
+
+        store.delete(second)
+        let third = try #require(store.create(named: "Mix"))
+        #expect(third.id != second.id, "a deleted playlist's id is gone")
+    }
+
+    /// An M3U put in the folder by hand, or edited by another player.
+    @Test func aFileFromOutsideGetsAnIDAndKeepsIt() throws {
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let defaults = makeDefaults()
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let file = folder.appending(path: "Dropped.m3u")
+        try "#EXTM3U\n/a.sid\n".write(to: file, atomically: true, encoding: .utf8)
+
+        let id = try #require(makeStore(defaults: defaults).playlists.first?.id)
+        #expect(id != "Dropped.m3u")
+        try "/b.sid\n".write(to: file, atomically: true, encoding: .utf8)
+        let again = makeStore(defaults: defaults)
+        #expect(again.playlists.map(\.id) == [id])
+        #expect(try String(contentsOf: file, encoding: .utf8) == "/b.sid\n", "the file is left as it is")
+    }
+
+    @Test func aFolderThatCantBeReadForgetsNoIDs() throws {
+        let defaults = makeDefaults()
+        let store = makeStore(defaults: defaults)
+        let mix = try #require(store.create(named: "Mix"))
+        let away = folder.deletingLastPathComponent().appending(path: folder.lastPathComponent + "-away")
+        try FileManager.default.moveItem(at: folder, to: away)
+        defer { try? FileManager.default.removeItem(at: folder) }
+
+        store.reload()
+        #expect(store.playlists.isEmpty)
+        try FileManager.default.moveItem(at: away, to: folder)
+        store.reload()
+        #expect(store.playlists.map(\.id) == [mix.id])
     }
 
     @Test func theLastPlaylistAddedToComesFirst() async throws {

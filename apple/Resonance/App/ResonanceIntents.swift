@@ -143,7 +143,7 @@ nonisolated struct PlaylistEntity: AppEntity, Identifiable {
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Playlist")
     static let defaultQuery = PlaylistEntityQuery()
     /// Favorites' id here: in the store it's empty, which an entity's can't
-    /// usefully be. Playlists' ids are file names ending .m3u, so never this.
+    /// usefully be. Playlists' ids are UUIDs, so never this.
     static let favoritesID = "favorites"
 
     let id: String

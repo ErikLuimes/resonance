@@ -940,9 +940,7 @@ private struct UserPlaylistRow: View {
 
     private func commit() {
         guard playlists.renaming == playlist.id else { return }
-        if let renamed = playlists.rename(playlist, to: name), selection == .userPlaylist(playlist.id) {
-            selection = .userPlaylist(renamed.id)
-        }
+        playlists.rename(playlist, to: name)
         playlists.renaming = nil
     }
 

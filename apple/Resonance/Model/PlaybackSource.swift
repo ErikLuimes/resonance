@@ -8,7 +8,7 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
     /// The playlist Resonance keeps between launches.
     case myPlaylist
     case favorites
-    /// One of your playlists, by its file name.
+    /// One of your playlists, by its id.
     case playlist(id: String, name: String)
     /// One of Phosphor's published playlists.
     case curated(HvscPlaylist)

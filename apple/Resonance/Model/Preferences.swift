@@ -36,6 +36,8 @@ nonisolated enum Pref {
     static let homeShownForRoot = "homeShownForRoot"
     static let homeSeenRelease = "homeSeenRelease"
     static let playlistsRecent = "playlistsRecent"
+    /// Each playlist's id, by its file name.
+    static let playlistIDs = "playlistIDs"
     /// Per extractor version: a set of another version's fingerprints doesn't count.
     static let fingerprintSetImported = "fingerprintSetImported.x2"
     static let menuBarPlayer = "menuBarPlayer"
