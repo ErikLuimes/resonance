@@ -79,21 +79,20 @@ struct ClipBench {
         let reader = try AVAssetReader(asset: asset)
         let output = AVAssetReaderTrackOutput(track: track, outputSettings: [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange])
-        reader.add(output)
+        let frames = reader.outputProvider(for: output)
         let url = FileManager.default.temporaryDirectory.appending(path: "clip-bench-\(UUID().uuidString).mp4")
         let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
         let input = AVAssetWriterInput(mediaType: .video,
                                        outputSettings: ClipWriter.videoSettings(size: size, encoding: .h264(bitRate: bitRate)))
-        input.expectsMediaDataInRealTime = false
-        writer.add(input)
-        reader.startReading()
-        writer.startWriting()
+        let receiver = writer.inputReceiver(for: input)
+        try reader.start()
+        try writer.start()
         writer.startSession(atSourceTime: .zero)
-        while let sample = output.copyNextSampleBuffer() {
-            while !input.isReadyForMoreMediaData { try await Task.sleep(for: .milliseconds(1)) }
-            input.append(sample)
+        // Waits for the input to be ready, then appends.
+        while let sample = try await frames.next() {
+            try await receiver.append(sample)
         }
-        input.markAsFinished()
+        receiver.finish()
         await writer.finishWriting()
         if let error = writer.error ?? reader.error { throw error }
         return url
@@ -101,25 +100,31 @@ struct ClipBench {
 
     /// Luma SSIM of every `every`th frame of `b` against `a`.
     nonisolated static func ssim(_ a: URL, _ b: URL, every: Int) async throws -> (mean: Double, worst: Double) {
-        func open(_ url: URL) async throws -> (AVAssetReader, AVAssetReaderTrackOutput) {
+        typealias Frames = AVAssetReaderOutput.Provider<CMReadySampleBuffer<CMSampleBuffer.DynamicContent>>
+        func open(_ url: URL) async throws -> (AVAssetReader, Frames) {
             let asset = AVURLAsset(url: url)
             let track = try await asset.loadTracks(withMediaType: .video)[0]
             let reader = try AVAssetReader(asset: asset)
             let output = AVAssetReaderTrackOutput(track: track, outputSettings: [
                 kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange])
-            reader.add(output)
-            reader.startReading()
-            return (reader, output)
+            let frames = reader.outputProvider(for: output)
+            try reader.start()
+            return (reader, frames)
         }
-        let (readerA, outputA) = try await open(a)
-        let (readerB, outputB) = try await open(b)
+        let (readerA, framesA) = try await open(a)
+        let (readerB, framesB) = try await open(b)
         var scores: [Double] = []
         var n = 0
-        while let x = outputA.copyNextSampleBuffer(), let y = outputB.copyNextSampleBuffer() {
+        while let x = try await framesA.next(), let y = try await framesB.next() {
             defer { n += 1 }
-            guard n % every == 0, let px = CMSampleBufferGetImageBuffer(x), let py = CMSampleBufferGetImageBuffer(y)
-            else { continue }
-            scores.append(ssim(luma(px), luma(py), width: CVPixelBufferGetWidth(px), height: CVPixelBufferGetHeight(px)))
+            guard n % every == 0 else { continue }
+            let score: Double? = x.withUnsafeSampleBuffer { x in
+                y.withUnsafeSampleBuffer { y in
+                    guard let px = CMSampleBufferGetImageBuffer(x), let py = CMSampleBufferGetImageBuffer(y) else { return nil }
+                    return ssim(luma(px), luma(py), width: CVPixelBufferGetWidth(px), height: CVPixelBufferGetHeight(px))
+                }
+            }
+            if let score { scores.append(score) }
         }
         _ = (readerA, readerB)
         return (scores.reduce(0, +) / Double(max(scores.count, 1)), scores.min() ?? 0)

@@ -439,9 +439,8 @@ struct ClipCard: View {
 @MainActor
 final class ClipWriter {
     private let writer: AVAssetWriter
-    private let video: AVAssetWriterInput
-    private let audio: AVAssetWriterInput
-    private let adaptor: AVAssetWriterInputPixelBufferAdaptor
+    private let video: AVAssetWriterInput.PixelBufferReceiver
+    private let audio: AVAssetWriterInput.SampleBufferReceiver
     private let format: CMAudioFormatDescription
 
     /// The video input's settings; the bench re-encodes its master with
@@ -473,22 +472,26 @@ final class ClipWriter {
 
     init(url: URL, size: CGSize, plan: ClipMaker.Plan, encoding: ClipMaker.Encoding) throws {
         writer = try AVAssetWriter(outputURL: url, fileType: encoding == .master ? .mov : .mp4)
-        video = AVAssetWriterInput(mediaType: .video, outputSettings: Self.videoSettings(size: size, encoding: encoding))
-        video.expectsMediaDataInRealTime = false
-        adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: video, sourcePixelBufferAttributes: [
+        // Neither input is real-time (the default): each takes data as
+        // fast as the encoder does.
+        let videoInput = AVAssetWriterInput(mediaType: .video,
+                                            outputSettings: Self.videoSettings(size: size, encoding: encoding))
+        let pixels: [String: any Sendable] = [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
             kCVPixelBufferWidthKey as String: Int(size.width),
             kCVPixelBufferHeightKey as String: Int(size.height),
             kCVPixelBufferMetalCompatibilityKey as String: true,
-            kCVPixelBufferIOSurfacePropertiesKey as String: [String: Any](),
-        ])
-        audio = AVAssetWriterInput(mediaType: .audio, outputSettings: [
+            kCVPixelBufferIOSurfacePropertiesKey as String: [String: any Sendable](),
+        ]
+        guard let pixelAttributes = CVPixelBufferCreationAttributes(CVPixelBufferAttributes(rawAttributes: pixels)) else {
+            throw ClipMaker.Failure(String(localized: "The clip couldn't be written."))
+        }
+        let audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: [
             AVFormatIDKey: kAudioFormatMPEG4AAC,
             AVSampleRateKey: ClipMaker.sampleRate,
             AVNumberOfChannelsKey: 2,
             AVEncoderBitRateKey: ClipMaker.audioBitRate,
         ])
-        audio.expectsMediaDataInRealTime = false
         var asbd = AudioStreamBasicDescription(
             mSampleRate: Float64(ClipMaker.sampleRate), mFormatID: kAudioFormatLinearPCM,
             mFormatFlags: kLinearPCMFormatFlagIsFloat | kLinearPCMFormatFlagIsPacked, mBytesPerPacket: 8,
@@ -499,10 +502,12 @@ final class ClipWriter {
         guard let made else { throw ClipMaker.Failure(String(localized: "The clip's audio couldn't be set up.")) }
         format = made
         if encoding != .master { writer.metadata = Self.metadata(plan) }
-        writer.add(video)
-        writer.add(audio)
-        guard writer.startWriting() else {
-            throw writer.error ?? ClipMaker.Failure(String(localized: "The clip couldn't be written."))
+        video = writer.inputPixelBufferReceiver(for: videoInput, pixelBufferAttributes: pixelAttributes)
+        audio = writer.inputReceiver(for: audioInput)
+        do {
+            try writer.start()
+        } catch {
+            throw writer.error ?? error
         }
         writer.startSession(atSourceTime: .zero)
     }
@@ -535,20 +540,19 @@ final class ClipWriter {
     // while the other is behind. So nothing waits on one input while the
     // other has data queued; a frame and its audio queue up and go in as
     // each input takes them.
-    private var pendingVideo: [(CVPixelBuffer, CMTime)] = []
-    private var pendingAudio: [CMSampleBuffer] = []
+    private var pendingVideo: [(CVReadOnlyPixelBuffer, CMTime)] = []
+    private var pendingAudio: [CMReadySampleBuffer<CMSampleBuffer.DynamicContent>] = []
     /// Two seconds of frames: well past the writer's half-second
     /// interleave, small enough to stay a few hundred megabytes at most.
     private let queueLimit = ClipMaker.framesPerSecond * 2
 
     /// Frame `n`, drawn by `draw` into a buffer from the writer's pool.
     func append(frame n: Int, fps: Int, draw: (CVPixelBuffer) -> Void) async throws {
-        guard let pool = adaptor.pixelBufferPool else { throw writerFailure }
-        var buffer: CVPixelBuffer?
-        CVPixelBufferPoolCreatePixelBuffer(nil, pool, &buffer)
-        guard let buffer else { throw writerFailure }
-        draw(buffer)
-        pendingVideo.append((buffer, CMTime(value: CMTimeValue(n), timescale: CMTimeScale(fps))))
+        guard let pool = video.pixelBufferPool, let buffer = try? pool.makeMutablePixelBuffer() else {
+            throw writerFailure
+        }
+        buffer.withUnsafeBuffer { draw($0) }
+        pendingVideo.append((CVReadOnlyPixelBuffer(buffer), CMTime(value: CMTimeValue(n), timescale: CMTimeScale(fps))))
         try await drain(until: queueLimit)
     }
 
@@ -568,7 +572,7 @@ final class ClipWriter {
             presentationTimeStamp: CMTime(value: CMTimeValue(start), timescale: CMTimeScale(ClipMaker.sampleRate)),
             packetDescriptions: nil, sampleBufferOut: &sample)
         guard let sample else { throw writerFailure }
-        pendingAudio.append(sample)
+        pendingAudio.append(CMReadySampleBuffer(unsafeBuffer: sample))
         try await drain(until: queueLimit)
     }
 
@@ -577,11 +581,11 @@ final class ClipWriter {
         try await drain(until: 0) {
             // An input with nothing left is finished, which lets the other
             // one take the rest.
-            if self.pendingVideo.isEmpty && !videoDone { self.video.markAsFinished(); videoDone = true }
-            if self.pendingAudio.isEmpty && !audioDone { self.audio.markAsFinished(); audioDone = true }
+            if self.pendingVideo.isEmpty && !videoDone { self.video.finish(); videoDone = true }
+            if self.pendingAudio.isEmpty && !audioDone { self.audio.finish(); audioDone = true }
         }
-        if !videoDone { video.markAsFinished() }
-        if !audioDone { audio.markAsFinished() }
+        if !videoDone { video.finish() }
+        if !audioDone { audio.finish() }
         await writer.finishWriting()
         guard writer.status == .completed else { throw writerFailure }
     }
@@ -594,15 +598,18 @@ final class ClipWriter {
         while true {
             if writer.status == .failed { throw writerFailure }
             var moved = false
-            while let next = pendingVideo.first, video.isReadyForMoreMediaData {
-                guard adaptor.append(next.0, withPresentationTime: next.1) else { throw writerFailure }
-                pendingVideo.removeFirst()
-                moved = true
-            }
-            while let sample = pendingAudio.first, audio.isReadyForMoreMediaData {
-                guard audio.append(sample) else { throw writerFailure }
-                pendingAudio.removeFirst()
-                moved = true
+            // Each returns false while its input isn't ready for more.
+            do {
+                while let next = pendingVideo.first, try video.appendImmediately(next.0, with: next.1) {
+                    pendingVideo.removeFirst()
+                    moved = true
+                }
+                while let sample = pendingAudio.first, try audio.appendImmediately(sample) {
+                    pendingAudio.removeFirst()
+                    moved = true
+                }
+            } catch {
+                throw writer.error ?? error
             }
             if pendingVideo.count <= limit && pendingAudio.count <= limit { return }
             if moved { stalled = .now; continue }
