@@ -1,0 +1,68 @@
+{
+  "version": 2,
+  "skills": {
+    "app-intents-27": {
+      "source": "hechen/apple-platforms-27-skills",
+      "sourceType": "github",
+      "skillPath": "skills/app-intents-27/SKILL.md",
+      "computedHash": "4563d787ca8a66f28f88dcddee55e45f816474adadbbae6a0ac38fefe998ac26",
+      "installMode": "copy"
+    },
+    "apple-platforms-27": {
+      "source": "hechen/apple-platforms-27-skills",
+      "sourceType": "github",
+      "skillPath": "skills/apple-platforms-27/SKILL.md",
+      "computedHash": "d05d4f7020f2fcf3aece5c3d3fb60fdcfaadf39e319600e3db5dc68f588024c4",
+      "installMode": "copy"
+    },
+    "core-ai-27": {
+      "source": "hechen/apple-platforms-27-skills",
+      "sourceType": "github",
+      "skillPath": "skills/core-ai-27/SKILL.md",
+      "computedHash": "a756bc38d24888288240e73ad7651a5d037df081ca357f2b7cc083bde81877f6",
+      "installMode": "copy"
+    },
+    "foundation-models-27": {
+      "source": "hechen/apple-platforms-27-skills",
+      "sourceType": "github",
+      "skillPath": "skills/foundation-models-27/SKILL.md",
+      "computedHash": "04c58d1778b9896cf21e2ae5e393725444a6e41013038ea695605448bd2ec2d6",
+      "installMode": "copy"
+    },
+    "ios-27-development": {
+      "source": "hechen/apple-platforms-27-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ios-27-development/SKILL.md",
+      "computedHash": "0573ea8336bd3ba3b30c7bb9bd939e2f815278f0bba1eabe0850eb7e923d0784",
+      "installMode": "copy"
+    },
+    "ipados-27-development": {
+      "source": "hechen/apple-platforms-27-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ipados-27-development/SKILL.md",
+      "computedHash": "75fb853beefbf759ab3674d927dcbca02c8abf73130951c386e87fc49e827216",
+      "installMode": "copy"
+    },
+    "ipados-design-guidelines": {
+      "source": "ehmo/platform-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ipados/SKILL.md",
+      "computedHash": "d65eeabf0bf79f4dd6900df479ef2aea0aed5fb23650f4f4b8c98f3f2abc5b99",
+      "installMode": "copy"
+    },
+    "macos-27-development": {
+      "source": "hechen/apple-platforms-27-skills",
+      "sourceType": "github",
+      "skillPath": "skills/macos-27-development/SKILL.md",
+      "computedHash": "6bf2d67b18f728e6e7fe7e93429fcac33a75554543013e3d860772c367debc78",
+      "installMode": "copy"
+    },
+    "swiftui-27-adoption": {
+      "source": "hechen/apple-platforms-27-skills",
+      "sourceType": "github",
+      "skillPath": "skills/swiftui-27-adoption/SKILL.md",
+      "computedHash": "d02f4cebd72ad7a6c7073c11d5f68af0f077841be3d0452f52c4a26a71fa4107",
+      "installMode": "copy"
+    }
+  }
+}
