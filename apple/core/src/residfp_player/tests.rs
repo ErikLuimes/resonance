@@ -3,6 +3,7 @@
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use std::thread;
 use std::time::{Duration, Instant};
 
 use crossbeam_channel::{Receiver, Sender};
@@ -22,6 +23,32 @@ fn tune_file(chips: u8, tag: &str) -> PathBuf {
     path
 }
 
+/// Quits a player when its test ends and waits for its thread, so no test's
+/// player is still rendering when the test process exits: the engine's
+/// statics are gone by then, and a call into them aborts.
+struct QuitAtEnd {
+    cmds: Sender<PlayerCmd>,
+    thread: Option<thread::JoinHandle<()>>,
+}
+
+impl QuitAtEnd {
+    fn new(cmds: &Sender<PlayerCmd>, thread: thread::JoinHandle<()>) -> Self {
+        Self {
+            cmds: cmds.clone(),
+            thread: Some(thread),
+        }
+    }
+}
+
+impl Drop for QuitAtEnd {
+    fn drop(&mut self) {
+        let _ = self.cmds.try_send(PlayerCmd::Quit);
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
+    }
+}
+
 struct Rig {
     cmds: Sender<PlayerCmd>,
     statuses: Receiver<PlayerStatus>,
@@ -29,6 +56,7 @@ struct Rig {
     seeker: Seeker,
     /// Every block the fake output was given.
     tap: Receiver<Vec<f32>>,
+    _quit: QuitAtEnd,
 }
 
 impl Rig {
@@ -39,7 +67,7 @@ impl Rig {
     fn with_chip(chip: Chip) -> Self {
         let feed = Arc::new(Mutex::new(VizFeed::new()));
         let (tap_tx, tap) = crossbeam_channel::unbounded();
-        let (cmds, statuses, _device, seeker) = spawn_with(
+        let (cmds, statuses, _device, seeker, thread) = spawn_with(
             feed.clone(),
             chip,
             Output::Fake {
@@ -50,6 +78,7 @@ impl Rig {
             },
         );
         Self {
+            _quit: QuitAtEnd::new(&cmds, thread),
             cmds,
             statuses,
             feed,
@@ -467,7 +496,7 @@ fn quit_fades_out_before_the_output_closes() {
 fn quit_does_not_wait_for_an_output_that_stopped_asking() {
     // A device that asks once a minute: the fade never gets rendered.
     let feed = Arc::new(Mutex::new(VizFeed::new()));
-    let (cmds, statuses, _device, _seeker) = spawn_with(
+    let (cmds, statuses, _device, _seeker, thread) = spawn_with(
         feed,
         Chip::ReSidFp,
         Output::Fake {
@@ -477,6 +506,7 @@ fn quit_does_not_wait_for_an_output_that_stopped_asking() {
             tap: None,
         },
     );
+    let _quit = QuitAtEnd::new(&cmds, thread);
     let path = tune_file(1, "fade-stuck");
     cmds.send(PlayerCmd::Play {
         path,
@@ -520,7 +550,7 @@ fn listen_for(device: &crate::listen::testing::Device, secs: f64) -> Vec<(u64, V
 
 fn switch_to_a_listener(rate: u32) {
     let feed = Arc::new(Mutex::new(VizFeed::new()));
-    let (cmds, statuses, _device, seeker) = spawn_with(
+    let (cmds, statuses, _device, seeker, thread) = spawn_with(
         feed.clone(),
         Chip::ReSidFp,
         Output::Fake {
@@ -530,6 +560,7 @@ fn switch_to_a_listener(rate: u32) {
             tap: None,
         },
     );
+    let _quit = QuitAtEnd::new(&cmds, thread);
     let rig_statuses = statuses.clone();
     let path = tune_file(1, &format!("listen-{rate}"));
     cmds.send(PlayerCmd::Play {
@@ -630,11 +661,12 @@ fn a_tune_at_another_rate_moves_to_a_listening_device() {
 #[test]
 fn a_listening_device_hears_the_tune_again_after_a_pause() {
     let feed = Arc::new(Mutex::new(VizFeed::new()));
-    let (cmds, statuses, _device, seeker) = spawn_with(
+    let (cmds, statuses, _device, seeker, thread) = spawn_with(
         feed,
         Chip::ReSidFp,
         Output::Fake { rate: 48_000, block: 480, period: Duration::from_millis(10), tap: None },
     );
+    let _quit = QuitAtEnd::new(&cmds, thread);
     cmds.send(PlayerCmd::Play {
         path: tune_file(1, "listen-pause"),
         song: 1,
@@ -682,11 +714,12 @@ fn a_listening_device_hears_the_tune_again_after_a_pause() {
 #[test]
 fn visualizer_frames_follow_a_new_tune_while_listening() {
     let feed = Arc::new(Mutex::new(VizFeed::new()));
-    let (cmds, statuses, _device, seeker) = spawn_with(
+    let (cmds, statuses, _device, seeker, thread) = spawn_with(
         feed.clone(),
         Chip::ReSidFp,
         Output::Fake { rate: 48_000, block: 480, period: Duration::from_millis(10), tap: None },
     );
+    let _quit = QuitAtEnd::new(&cmds, thread);
     let play = |tag: &str| PlayerCmd::Play {
         path: tune_file(1, tag),
         song: 1,

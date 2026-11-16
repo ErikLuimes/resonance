@@ -170,7 +170,9 @@ pub(crate) fn spawn(
     Receiver<DeviceConfigEvent>,
     Seeker,
 ) {
-    spawn_with(viz, chip_for(engine).unwrap_or_default(), Output::Device)
+    let (cmds, statuses, device, seeker, _thread) =
+        spawn_with(viz, chip_for(engine).unwrap_or_default(), Output::Device);
+    (cmds, statuses, device, seeker)
 }
 
 pub(crate) fn spawn_with(
@@ -182,6 +184,7 @@ pub(crate) fn spawn_with(
     Receiver<PlayerStatus>,
     Receiver<DeviceConfigEvent>,
     Seeker,
+    thread::JoinHandle<()>,
 ) {
     let (cmd_tx, cmd_rx) = bounded::<PlayerCmd>(64);
     let (status_tx, status_rx) = bounded::<PlayerStatus>(16);
@@ -191,7 +194,7 @@ pub(crate) fn spawn_with(
     let seeking = Arc::new(AtomicBool::new(false));
     let position_ms = Arc::new(AtomicU64::new(0));
     let (flag, position) = (seeking.clone(), position_ms.clone());
-    thread::Builder::new()
+    let thread = thread::Builder::new()
         .name("resonance-residfp".into())
         .spawn(move || {
             Control::new(status_tx, device_tx, viz, chip, output, flag, position)
@@ -208,6 +211,7 @@ pub(crate) fn spawn_with(
             position_ms,
             listen: listen_tx,
         },
+        thread,
     )
 }
 
@@ -509,10 +513,32 @@ impl Source {
     }
 }
 
-/// The open output: dropping it ends the audio thread and its stream.
+/// The open output: dropping it ends the audio thread and its stream, and
+/// waits for that thread, so nothing is rendering the engine afterward.
 struct Sink {
     rate: u32,
-    _stop: Sender<()>,
+    stop: Option<Sender<()>>,
+    thread: Option<thread::JoinHandle<()>>,
+}
+
+impl Sink {
+    fn new(rate: u32, stop: Sender<()>, thread: thread::JoinHandle<()>) -> Self {
+        Self {
+            rate,
+            stop: Some(stop),
+            thread: Some(thread),
+        }
+    }
+}
+
+impl Drop for Sink {
+    fn drop(&mut self) {
+        // Each output's thread ends when this disconnects.
+        self.stop = None;
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
+    }
 }
 
 fn open_sink(output: &Output, mut source: Source) -> Result<Sink, String> {
@@ -520,7 +546,7 @@ fn open_sink(output: &Output, mut source: Source) -> Result<Sink, String> {
     match output {
         Output::Device => {
             let (ready_tx, ready_rx) = bounded::<Result<u32, String>>(1);
-            thread::Builder::new()
+            let thread = thread::Builder::new()
                 .name("residfp-audio".into())
                 .spawn(move || {
                     let opened = (|| -> Result<(cpal::Stream, u32), String> {
@@ -571,10 +597,7 @@ fn open_sink(output: &Output, mut source: Source) -> Result<Sink, String> {
             let rate = ready_rx
                 .recv()
                 .map_err(|_| "audio thread died before reporting".to_string())??;
-            Ok(Sink {
-                rate,
-                _stop: stop_tx,
-            })
+            Ok(Sink::new(rate, stop_tx, thread))
         }
         Output::Network(listener) => {
             let listener = Arc::clone(listener);
@@ -584,14 +607,11 @@ fn open_sink(output: &Output, mut source: Source) -> Result<Sink, String> {
                 .set_bitrate(opus::Bitrate::Bits(listen::BITRATE))
                 .map_err(|e| format!("Opus bitrate: {e}"))?;
             source.set_rate(listen::RATE);
-            thread::Builder::new()
+            let thread = thread::Builder::new()
                 .name("residfp-listen".into())
                 .spawn(move || stream(source, encoder, &listener, &stop_rx))
                 .map_err(|e| format!("spawn listening thread: {e}"))?;
-            Ok(Sink {
-                rate: listen::RATE,
-                _stop: stop_tx,
-            })
+            Ok(Sink::new(listen::RATE, stop_tx, thread))
         }
         Output::Fake {
             rate,
@@ -601,7 +621,7 @@ fn open_sink(output: &Output, mut source: Source) -> Result<Sink, String> {
         } => {
             let (rate, block, period, tap) = (*rate, *block, *period, tap.clone());
             source.set_rate(rate);
-            thread::Builder::new()
+            let thread = thread::Builder::new()
                 .name("residfp-fake-audio".into())
                 .spawn(move || {
                     let mut buf = vec![0f32; block * 2];
@@ -615,10 +635,7 @@ fn open_sink(output: &Output, mut source: Source) -> Result<Sink, String> {
                     }
                 })
                 .map_err(|e| format!("spawn fake audio thread: {e}"))?;
-            Ok(Sink {
-                rate,
-                _stop: stop_tx,
-            })
+            Ok(Sink::new(rate, stop_tx, thread))
         }
     }
 }
