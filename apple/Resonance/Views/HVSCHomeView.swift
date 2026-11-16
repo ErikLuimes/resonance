@@ -185,11 +185,15 @@ private struct CollectionHome: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// The release seen before this one, while its update animates; nil
     /// otherwise.
-    @State private var previous: ReleaseCounts?
+    ///
+    /// These three get their first values in `init`, so they have none here
+    /// (`Optional<>` spelled out, since `?` would mean nil): with `@State` a
+    /// macro, a value given here would win over the one `init` assigns.
+    @State private var previous: Optional<ReleaseCounts>
     /// The hero has switched to the new release.
-    @State private var heroSettled = true
+    @State private var heroSettled: Bool
     /// The Browse tiles have rolled to the new counts.
-    @State private var tilesSettled = true
+    @State private var tilesSettled: Bool
     /// The tiles' bars drain to 0 and refill.
     @State private var barScale = 1.0
     /// How far the light has crossed the hero, -1 to 1.
@@ -202,9 +206,13 @@ private struct CollectionHome: View {
         // Decided before the first frame, which then shows the old counts.
         let seen = ReleaseCounts.seen()
         if let seen, let now = ReleaseCounts(info), now.version > seen.version {
-            _previous = State(initialValue: seen)
-            _heroSettled = State(initialValue: false)
-            _tilesSettled = State(initialValue: false)
+            self.previous = seen
+            self.heroSettled = false
+            self.tilesSettled = false
+        } else {
+            self.previous = nil
+            self.heroSettled = true
+            self.tilesSettled = true
         }
     }
     /// The content's width, which picks the column counts below: what the

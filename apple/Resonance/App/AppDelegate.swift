@@ -95,8 +95,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         jobs = JobWatcher(store: store, library: library, fingerprints: fingerprints)
         jobs?.start()
-        // So Siri knows your playlists' names, as of this launch.
+        // So Siri knows your playlists' names: now, and whenever one is
+        // made, renamed or deleted.
         ResonanceShortcuts.updateAppShortcutParameters()
+        playlists.namesChanged = { ResonanceShortcuts.updateAppShortcutParameters() }
         spotlight = SpotlightIndex(store: store)
         spotlight?.start()
         startControl()
