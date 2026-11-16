@@ -111,6 +111,22 @@ Press `c`, or run `resonance credits`, for the credits, with a nod to the demosc
 is playing they start your Favorites, or Surprise Me if that can't play, and they name the tune
 playing. They close by themselves, or with `esc`.
 
+### Headless
+
+`resonance --headless` starts the app with no window and no Dock icon, so the terminal is
+all of Resonance; the menu bar player still shows. It only matters when the tool starts the
+app: if Resonance is already running with its window, the tool says so and stops. `RESONANCE_HEADLESS=1` in your shell does
+the same for every command.
+
+While it's headless, a shared tune link you open anywhere comes to the terminal app, which
+asks over whatever is showing: `↵` plays the tune, `a` adds it to My Playlist and `esc`
+leaves it. If the terminal app isn't open, the app shows its window and asks there. Opening the app
+from Finder or Spotlight brings its window and Dock icon back for the rest of the run.
+
+Quitting the terminal app quits a headless app too, so the music stops with it; closing
+the terminal's window does the same within a couple of seconds. An app with its window
+plays on, as always. `resonance quit` quits the app from anywhere, headless or not.
+
 ## Commands
 
 ```text
@@ -121,7 +137,7 @@ resonance surprise               resonance info file.sid
 resonance fav [--off]            resonance show file.sid
 resonance now                    resonance drift [file]
 resonance guess [--practice]     resonance recent [--limit N]
-resonance credits
+resonance credits                resonance quit
 ```
 
 ```text

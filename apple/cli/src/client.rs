@@ -6,6 +6,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 const BUNDLE_ID: &str = "app.useresonance.resonance";
@@ -14,6 +15,9 @@ const BUNDLE_ID: &str = "app.useresonance.resonance";
 const APP_GROUP: &str = "R4D8QN85WK.resonance";
 /// A cold launch, with the collection's indexes, can take this long.
 const LAUNCH_WAIT: Duration = Duration::from_secs(20);
+
+/// The app went away mid-question.
+pub const LOST: &str = "Lost touch with Resonance.";
 
 pub struct Client {
     reader: BufReader<UnixStream>,
@@ -57,6 +61,15 @@ pub fn own_app() -> Option<PathBuf> {
     exe.ancestors().find(|p| p.extension().is_some_and(|e| e == "app")).map(PathBuf::from)
 }
 
+/// Start the app without its window or Dock icon, if this tool starts it.
+static HEADLESS: AtomicBool = AtomicBool::new(false);
+
+/// `--headless`: the terminal is all of Resonance. An app that's already
+/// running stays as it is.
+pub fn start_headless() {
+    HEADLESS.store(true, Ordering::Relaxed);
+}
+
 fn launch() -> Result<(), String> {
     let mut open = Command::new("/usr/bin/open");
     open.arg("-g");
@@ -64,6 +77,12 @@ fn launch() -> Result<(), String> {
         Some(app) => open.arg(app),
         None => open.args(["-b", BUNDLE_ID]),
     };
+    if HEADLESS.load(Ordering::Relaxed) || std::env::var_os("RESONANCE_HEADLESS").is_some() {
+        // Headless.swift reads the first; an app from before headless starts
+        // as usual. The second keeps macOS from reopening the window that was
+        // open at the last quit, which the app can't stop by itself.
+        open.args(["--args", "-headlessForTerminal", "YES", "-ApplePersistenceIgnoreState", "YES"]);
+    }
     let done = open.stdout(Stdio::null()).stderr(Stdio::null()).status();
     match done {
         Ok(status) if status.success() => Ok(()),
@@ -77,6 +96,11 @@ impl Client {
             let stream = UnixStream::connect(path).ok()?;
             Some(Client { reader: BufReader::new(stream.try_clone().ok()?), writer: stream, next_id: 1 })
         })
+    }
+
+    /// The app if it's running; never starts it.
+    pub fn running() -> Option<Client> {
+        Self::try_connect()
     }
 
     /// Connect, starting the app (in the background) if it isn't running.
@@ -104,12 +128,12 @@ impl Client {
         self.next_id += 1;
         let mut line = json!({ "id": id, "cmd": cmd, "args": args }).to_string();
         line.push('\n');
-        let lost = |_| "Lost touch with Resonance.".to_string();
+        let lost = |_| LOST.to_string();
         self.writer.write_all(line.as_bytes()).map_err(lost)?;
         let mut answer = String::new();
         let read = self.reader.read_line(&mut answer).map_err(lost)?;
         if read == 0 {
-            return Err("Lost touch with Resonance.".into());
+            return Err(LOST.into());
         }
         let mut answer: Value =
             serde_json::from_str(&answer).map_err(|_| "Resonance's answer couldn't be read.".to_string())?;

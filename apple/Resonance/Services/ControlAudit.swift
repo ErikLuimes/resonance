@@ -115,13 +115,14 @@ nonisolated enum ControlAudit {
         "play", "pause", "seek", "toggle", "stop", "next", "prev", "surprise", "fav", "show",
         "hvsc.playlist.play", "hvsc.shuffle", "myplaylist.play",
         "playlist.play", "playlist.new", "playlist.add", "playlist.rm", "playlist.mv",
-        "playlist.rename", "playlist.delete",
+        "playlist.rename", "playlist.delete", "link.answer", "quit",
+        "terminal.closed",
     ]
 
     /// ControlCommands.Args's fields.
     static let argumentNames: Set<String> = [
         "text", "limit", "path", "paths", "start", "name", "to", "before", "on", "play", "count",
-        "detail", "chip", "seconds",
+        "detail", "chip", "seconds", "links", "link", "choice",
     ]
 
     // MARK: The peer

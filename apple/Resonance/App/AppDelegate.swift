@@ -65,6 +65,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillFinishLaunching(_ notification: Notification) {
         guard !Self.isRunningTests else { return }
         AppAppearance.saved().apply()
+        Headless.start()
+        if Headless.asked {
+            // SwiftUI answers a link by opening a window, any window, and
+            // putting the app back in the Dock, all before `application(_:open:)`
+            // hears of it. Taking the link's Apple event first keeps SwiftUI out.
+            NSAppleEventManager.shared().setEventHandler(
+                self, andSelector: #selector(openLink(_:reply:)),
+                forEventClass: AEEventClass(kInternetEventClass), andEventID: AEEventID(kAEGetURL)
+            )
+            quitWithTheTerminalApp()
+        }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -128,6 +139,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let files = urls.filter(\.isFileURL)
         Log.app.notice("Opening \(files.count, privacy: .public) files and \(urls.count - files.count, privacy: .public) links: \(urls.map(\.absoluteString), privacy: .private)")
         FileAccess.shared.keep(files)
+        // SwiftUI shows the window for an opened file, so that ends headless.
+        if !files.isEmpty { Headless.leave() }
         let tunes = files.filter { !PlaylistsStore.isPlaylistFile($0) }
         if !tunes.isEmpty {
             store.add(tunes, playFirst: true)
@@ -138,10 +151,60 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.activate()
             MiniPlayer.openMainWindow?()
         }
-        if let link = urls.last(where: { !$0.isFileURL }), store.openShared(link) {
-            NSApp.activate()
-            MiniPlayer.openMainWindow?()
+        if let url = urls.last(where: { !$0.isFileURL }), let link = SharedTuneLink(url: url) {
+            openShared(link)
         }
+    }
+
+    /// While headless the terminal app is all of Resonance: when it goes,
+    /// so does the app, and the music with it. Quitting it says so at once
+    /// (`terminal.closed`); this is for when its window was closed or it
+    /// was killed, noticed by its questions stopping.
+    private func quitWithTheTerminalApp() {
+        Task {
+            while Headless.isOn {
+                try? await Task.sleep(for: .seconds(1))
+                if Headless.isOn, TerminalLinks.shared.hasGone {
+                    Log.app.notice("The terminal app has gone: quitting, as headless")
+                    NSApp.terminate(nil)
+                }
+            }
+        }
+    }
+
+    @objc private func openLink(_ event: NSAppleEventDescriptor, reply: NSAppleEventDescriptor) {
+        guard let text = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue, let url = URL(string: text) else { return }
+        application(NSApp, open: [url])
+    }
+
+    /// A shared tune link: asked about in the window, or in the terminal app
+    /// while that's all there is of Resonance (Headless).
+    private func openShared(_ link: SharedTuneLink) {
+        guard Headless.isOn, TerminalLinks.shared.isWatched else { return showShared(link) }
+        Headless.giveFocusBack()
+        Task { [weak self, store] in
+            await TerminalLinks.shared.offer(link, player: store) { link in
+                // Still headless, the app is about to quit with the terminal app.
+                if !Headless.isOn { self?.showShared(link) }
+            }
+        }
+    }
+
+    private func showShared(_ link: SharedTuneLink) {
+        store.openShared(link)
+        NSApp.activate()
+        MiniPlayer.openMainWindow?()
+    }
+
+    /// Opened again, from Finder or Spotlight: a headless app gets its Dock
+    /// icon back, and its window.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        if Headless.isOn { MiniPlayer.openMainWindow?() }
+        return true
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        Headless.becameActive()
     }
 
     /// A shared link opened from anywhere, or a tune clicked in Spotlight:
@@ -150,9 +213,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                      restorationHandler: @escaping ([any NSUserActivityRestoring]) -> Void) -> Bool {
         if let link = SharedTuneLink(activity: userActivity) {
             Log.sharing.notice("Opening a shared tune link")
-            store.openShared(link)
-            NSApp.activate()
-            MiniPlayer.openMainWindow?()
+            openShared(link)
             return true
         }
         guard let path = SpotlightTunes.path(from: userActivity),

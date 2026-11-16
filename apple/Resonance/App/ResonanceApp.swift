@@ -18,6 +18,10 @@ struct ResonanceApp: App {
                 .voiceThemed()
         }
         .defaultSize(width: 1100, height: 680)
+        // Headless, for the terminal app: no window until it's asked for.
+        // The one open at the last quit would still come back, so the
+        // command line tool also starts the app with its saved state ignored.
+        .defaultLaunchBehavior(Headless.asked ? .suppressed : .automatic)
         // At least as wide as ContentView's minimum, so the bottom bar never
         // collapses.
         .windowResizability(.contentMinSize)

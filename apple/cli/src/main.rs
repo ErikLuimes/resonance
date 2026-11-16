@@ -39,6 +39,9 @@ struct Cli {
     /// The terminal app's keys; otherwise RESONANCE_KEYS, then your editor, then Emacs
     #[arg(long, global = true, value_enum, value_name = "SET")]
     keys: Option<keys::KeyScheme>,
+    /// If this starts the app, start it with no window or Dock icon; or set RESONANCE_HEADLESS
+    #[arg(long, global = true)]
+    headless: bool,
     /// Print the licenses of the open-source software in Resonance and this tool
     #[arg(long)]
     licenses: bool,
@@ -60,6 +63,8 @@ enum Cmd {
     Toggle,
     /// Stop
     Stop,
+    /// Quit the Resonance app
+    Quit,
     /// Next tune
     Next,
     /// Previous tune
@@ -268,6 +273,17 @@ fn run(cli: Cli) -> Result<(), String> {
     if cli.licenses {
         return print_licenses();
     }
+    if cli.headless {
+        // Headless is how the app starts. One that's running with its window
+        // can't become it, and going ahead would look like headless not working.
+        if let Some(mut app) = Client::running() {
+            let status = app.call("status", json!({}))?;
+            if status["headless"] != json!(true) {
+                return Err("Resonance is already running with its window. Quit it first, or leave out --headless.".into());
+            }
+        }
+        client::start_headless();
+    }
     let json_out = cli.json;
     let keys = keys::Choice::resolve(cli.keys);
     let show = |value: &Value| {
@@ -311,6 +327,15 @@ fn run(cli: Cli) -> Result<(), String> {
             println!("Format    {}", header.format);
             return Ok(());
         }
+        // Never starts the app just to quit it. The app may go before its
+        // answer arrives, which is the answer.
+        Cmd::Quit => {
+            return match Client::running().map(|mut app| app.call("quit", json!({}))) {
+                None | Some(Ok(_)) => Ok(()),
+                Some(Err(error)) if error == client::LOST => Ok(()),
+                Some(Err(error)) => Err(error),
+            };
+        }
         Cmd::Tui => return tui::run(keys, false),
         Cmd::Credits => return tui::run(keys, true),
         // Connects when first asked to do something.
@@ -320,7 +345,7 @@ fn run(cli: Cli) -> Result<(), String> {
 
     let mut client = Client::connect()?;
     match command {
-        Cmd::Tui | Cmd::Credits | Cmd::Mcp | Cmd::Completions { .. } | Cmd::Info { .. } => unreachable!("handled above"),
+        Cmd::Tui | Cmd::Credits | Cmd::Mcp | Cmd::Quit | Cmd::Completions { .. } | Cmd::Info { .. } => unreachable!("handled above"),
         Cmd::Play { files } => {
             let paths = paths(&files);
             if paths.is_empty() {

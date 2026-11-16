@@ -95,6 +95,18 @@ pub struct Now {
     pub songs: u32,
 }
 
+/// A shared tune link the app got while headless, for the terminal app to ask about.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SharedLink {
+    pub id: u64,
+    pub title: String,
+    pub author: String,
+    /// Why the app's collection can't play it, if it can't.
+    #[serde(default)]
+    pub problem: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Status {
@@ -123,6 +135,12 @@ pub struct Status {
     /// How many tunes My Playlist has; `None` from an app before it.
     #[serde(default)]
     pub my_playlist_count: Option<u32>,
+    /// The app has no window or Dock icon; an app before headless didn't say.
+    #[serde(default)]
+    pub headless: bool,
+    /// A shared tune link to ask about; only a headless app sends one.
+    #[serde(default)]
+    pub link: Option<SharedLink>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

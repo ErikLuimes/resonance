@@ -11,7 +11,7 @@ use crate::header;
 use crate::keys::{edit_line, Choice, KeyMap, KeyScheme};
 #[cfg_attr(not(test), allow(unused_imports))]
 use crate::model::HvscPlaylist;
-use crate::model::{clock, Described, HvscOverview, TrackerPosition, TrackerSong, PlaylistInfo, Print, Scope, Status, Tune};
+use crate::model::{clock, Described, HvscOverview, TrackerPosition, TrackerSong, PlaylistInfo, Print, Scope, SharedLink, Status, Tune};
 use crate::palette::{self, dim};
 use crate::skull::{terminal_has_truecolor, Skull};
 use crate::sphere::Sphere;
@@ -397,6 +397,12 @@ pub struct App {
     pub query: String,
     pub status: Option<Status>,
     pub message: Option<String>,
+    /// A shared tune link the app passed on, being asked about over whatever
+    /// else is showing.
+    pub link: Option<SharedLink>,
+    /// The last link answered, as the app may send it once more before it
+    /// hears the answer.
+    link_answered: Option<u64>,
     pub quit: bool,
     hvsc: Option<HvscOverview>,
     describing: DescribeState,
@@ -466,6 +472,8 @@ impl App {
             query: String::new(),
             status: None,
             message: None,
+            link: None,
+            link_answered: None,
             quit: false,
             hvsc: None,
             describing: DescribeState::default(),
@@ -927,6 +935,7 @@ impl App {
                     }
                 }
                 self.status_at = self.now;
+                self.follow_link();
                 self.follow_lists();
                 self.start_credits_music();
             }
@@ -1251,6 +1260,9 @@ impl App {
             self.quit = true;
             return;
         }
+        if let Some(link) = self.link.take() {
+            return self.key_link(key, link);
+        }
         // Letters are for typing in these, so only ⌃G and ⌃N mean anything.
         if matches!(self.mode, Mode::Search | Mode::NewPlaylist(_) | Mode::Jump(_) | Mode::Describing(_)) {
             let key = match key.code {
@@ -1294,6 +1306,33 @@ impl App {
             Mode::Browser(browser) => self.key_browser(key, browser),
             Mode::Help | Mode::Search | Mode::NewPlaylist(_) | Mode::Jump(_) | Mode::Describing(_) => unreachable!("handled above"),
         }
+    }
+
+    /// The app's link shows until it's answered here, or the app takes it back.
+    fn follow_link(&mut self) {
+        let waiting = self.status.as_ref().and_then(|s| s.link.clone());
+        self.link = waiting.filter(|link| Some(link.id) != self.link_answered);
+    }
+
+    /// The same keys in every key set, as the question is over everything.
+    fn key_link(&mut self, key: KeyEvent, link: SharedLink) {
+        let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+        let choice = match key.code {
+            KeyCode::Esc | KeyCode::Char('n') => "decline",
+            KeyCode::Char('g') if ctrl => "decline",
+            KeyCode::Enter | KeyCode::Char('p') if link.problem.is_none() => "play",
+            KeyCode::Char('a') if link.problem.is_none() => "add",
+            // With nothing to choose, Return closes it too.
+            KeyCode::Enter => "decline",
+            _ => return self.link = Some(link),
+        };
+        self.link_answered = Some(link.id);
+        let message = match choice {
+            "play" => Some(format!("Playing {}.", link.title)),
+            "add" => Some(format!("Added {} to My Playlist.", link.title)),
+            _ => None,
+        };
+        self.ack(message, choice == "add", "link.answer", json!({ "link": link.id, "choice": choice }));
     }
 
     fn move_cursor(&mut self, by: isize) {
@@ -1710,6 +1749,9 @@ fn count(tunes: usize) -> String {
 
 pub fn draw(frame: &mut Frame, app: &App) {
     draw_screen(frame, app);
+    if let Some(link) = &app.link {
+        draw_link(frame, link);
+    }
     palette::paint(frame.buffer_mut());
 }
 
@@ -3501,6 +3543,30 @@ fn draw_add_to(frame: &mut Frame, app: &App, cursor: usize) {
     frame.render_stateful_widget(List::new(items).block(pane(title, true)), area, &mut state);
 }
 
+/// A shared tune link, over whatever is showing: the music and the credits too.
+fn draw_link(frame: &mut Frame, link: &SharedLink) {
+    let block = pane(" Shared tune ".into(), true);
+    let width = 58.min(frame.area().width);
+    let inner = usize::from(width.saturating_sub(4));
+    let mut lines = vec![Line::styled(link.title.clone(), Style::new().fg(palette::text()).add_modifier(Modifier::BOLD))];
+    if !link.author.is_empty() {
+        lines.push(Line::styled(link.author.clone(), dim()));
+    }
+    lines.push(Line::default());
+    let key = |key: &'static str, what: &'static str| [Span::styled(key, Style::new().fg(palette::text())), Span::styled(format!(" {what}   "), dim())];
+    match &link.problem {
+        None => lines.push(Line::from([key("↵", "play"), key("a", "add to My Playlist"), key("esc", "not now")].concat())),
+        Some(problem) => {
+            lines.extend(wrapped(problem, inner).into_iter().map(Line::raw));
+            lines.push(Line::default());
+            lines.push(Line::from(key("esc", "close").to_vec()));
+        }
+    }
+    let area = centered(frame.area(), width, lines.len() as u16 + 2);
+    frame.render_widget(Clear, area);
+    frame.render_widget(Paragraph::new(lines).block(block.padding(ratatui::widgets::Padding::horizontal(1))), area);
+}
+
 fn draw_prompt(frame: &mut Frame, title: &str, text: &str) {
     let area = centered(frame.area(), 46, 3);
     frame.render_widget(Clear, area);
@@ -3654,6 +3720,12 @@ pub fn run(keys: Choice, only_credits: bool) -> Result<(), String> {
     let mut terminal = ratatui::init();
     let result = event_loop(&mut terminal, keys, only_credits, &slow, &bulk, &fast, &replies);
     ratatui::restore();
+    // A headless app is nothing without this, so it quits too, and the music
+    // with it. An app with its window stays, and an older one doesn't know
+    // the command.
+    if let Some(mut app) = Client::running() {
+        let _ = app.call("terminal.closed", json!({}));
+    }
     result.map_err(|e| e.to_string())
 }
 
@@ -3708,7 +3780,7 @@ fn event_loop(
         if !status_pending && now.duration_since(last_status) >= STATUS_EVERY {
             last_status = now;
             status_pending = true;
-            let _ = fast.tx.send(Request { tag: Tag::Status, cmd: "status", args: json!({}) });
+            let _ = fast.tx.send(Request { tag: Tag::Status, cmd: "status", args: json!({ "links": true }) });
         }
         if app.wants_position() && !position_pending && now.duration_since(last_position) >= POSITION_EVERY {
             last_position = now;
@@ -4045,6 +4117,8 @@ mod tests {
             seek_position: None,
             lists_revision: None,
             my_playlist_count: None,
+            headless: false,
+            link: None,
         });
         let shown = screen(&app);
         for expected in ["Favorites", "Late Night", "Recently Played", "COMPOSER", "♪ B", "subtune 1 of 3", "1:24 / 4:12", "♥"] {
@@ -4070,6 +4144,8 @@ mod tests {
             seek_position: None,
             lists_revision: None,
             my_playlist_count: None,
+            headless: false,
+            link: None,
         });
         let shown = screen(&app);
         assert!(shown.contains("  ○ A "), "{shown}");
@@ -5941,5 +6017,63 @@ mod tests {
         press(&mut app, KeyCode::Char('q'));
         assert!(!app.quit);
         assert!(matches!(app.mode, Mode::Normal));
+    }
+
+    fn status_with_link(id: u64, problem: Option<&str>) -> Value {
+        json!({ "state": "stopped", "elapsed": 0.0, "hasCollection": true, "favorite": false,
+                "link": { "id": id, "title": "Commando", "author": "Rob Hubbard", "problem": problem } })
+    }
+
+    #[test]
+    fn a_shared_link_asks_over_whatever_is_showing_and_return_plays_it() {
+        let mut app = app();
+        app.mode = Mode::Visual;
+        app.reply(Tag::Status, Ok(status_with_link(3, None)));
+        let shown = screen(&app);
+        assert!(shown.contains("Shared tune") && shown.contains("Commando") && shown.contains("add to My Playlist"), "{shown}");
+        // Any other key waits: `q` doesn't quit from under the question.
+        press(&mut app, KeyCode::Char('q'));
+        assert!(!app.quit && app.link.is_some());
+        press(&mut app, KeyCode::Enter);
+        assert_eq!(sent(&mut app), [("link.answer", json!({ "link": 3, "choice": "play" }))]);
+        assert!(app.link.is_none() && matches!(app.mode, Mode::Visual));
+        // The app may send it once more before it hears the answer.
+        app.reply(Tag::Status, Ok(status_with_link(3, None)));
+        assert!(app.link.is_none());
+        // The next one asks again.
+        app.reply(Tag::Status, Ok(status_with_link(4, None)));
+        assert!(app.link.is_some());
+    }
+
+    #[test]
+    fn a_shared_link_can_be_added_or_turned_down() {
+        let mut app = app();
+        app.reply(Tag::Status, Ok(status_with_link(1, None)));
+        press(&mut app, KeyCode::Char('a'));
+        assert_eq!(sent(&mut app), [("link.answer", json!({ "link": 1, "choice": "add" }))]);
+        app.reply(Tag::Status, Ok(status_with_link(2, None)));
+        press(&mut app, KeyCode::Esc);
+        assert_eq!(sent(&mut app), [("link.answer", json!({ "link": 2, "choice": "decline" }))]);
+        assert!(!app.quit);
+    }
+
+    #[test]
+    fn a_shared_link_the_collection_lacks_says_why_and_only_closes() {
+        let mut app = app();
+        app.reply(Tag::Status, Ok(status_with_link(1, Some("This Mac's collection doesn't have this tune."))));
+        let shown = screen(&app);
+        assert!(shown.contains("doesn't have this tune") && !shown.contains("add to My Playlist"), "{shown}");
+        press(&mut app, KeyCode::Char('a'));
+        assert!(app.link.is_some() && sent(&mut app).is_empty());
+        press(&mut app, KeyCode::Enter);
+        assert_eq!(sent(&mut app), [("link.answer", json!({ "link": 1, "choice": "decline" }))]);
+    }
+
+    #[test]
+    fn a_link_the_app_took_back_stops_asking() {
+        let mut app = app();
+        app.reply(Tag::Status, Ok(status_with_link(1, None)));
+        app.reply(Tag::Status, Ok(status_with("1.1", 0)));
+        assert!(app.link.is_none());
     }
 }

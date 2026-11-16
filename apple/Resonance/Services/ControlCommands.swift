@@ -38,6 +38,11 @@ final class ControlCommands {
         var detail: Bool?
         var chip: Int?
         var seconds: Double?
+        /// With `status`, from the terminal app: it shows shared links.
+        var links: Bool?
+        /// With `link.answer`: the link's ID, and "play", "add" or "decline".
+        var link: Int?
+        var choice: String?
     }
 
     struct Failure: Error {
@@ -123,6 +128,10 @@ final class ControlCommands {
         /// What Previous (without its restart) and Next would play.
         let previous: Neighbor?
         let next: Neighbor?
+        /// The app has no window or Dock icon (Headless).
+        let headless: Bool
+        /// A shared tune link for the terminal app to ask about (TerminalLinks).
+        let link: TerminalLinks.Offer?
     }
 
     struct Neighbor: Encodable, Equatable {
@@ -331,8 +340,11 @@ final class ControlCommands {
     private let library: LibraryStore
     private let fingerprints: FingerprintStore
     private let playlists: PlaylistsStore
+    private let links: TerminalLinks
 
-    init(player: PlayerStore, library: LibraryStore, fingerprints: FingerprintStore, playlists: PlaylistsStore) {
+    init(player: PlayerStore, library: LibraryStore, fingerprints: FingerprintStore, playlists: PlaylistsStore,
+         links: TerminalLinks = .shared) {
+        self.links = links
         self.player = player
         self.library = library
         self.fingerprints = fingerprints
@@ -371,7 +383,8 @@ final class ControlCommands {
         switch request.cmd {
         // MARK: Playback
         case "status":
-            return answer(status())
+            if args.links == true { links.asked() }
+            return answer(status(link: args.links == true ? links.waiting?.offer : nil))
         case "play":
             if let paths = args.paths, !paths.isEmpty {
                 let source: PlaybackSource = if let title = args.name {
@@ -399,6 +412,16 @@ final class ControlCommands {
             return done()
         case "stop":
             player.stop()
+            return done()
+        case "quit":
+            // After this answer is on its way. A headless app has no other
+            // way out from the terminal.
+            DispatchQueue.main.async { NSApp.terminate(nil) }
+            return done()
+        case "terminal.closed":
+            // The terminal app quit. While headless it was all of Resonance,
+            // so the app goes too, and the music with it.
+            if Headless.isOn { DispatchQueue.main.async { NSApp.terminate(nil) } }
             return done()
         case "next":
             player.next()
@@ -520,21 +543,27 @@ final class ControlCommands {
                   let link = SharedTuneLink(url: url) ?? SharedTuneLink(url: url, shareBase: SharedTuneLink.universalLinkBase)
             else { throw Failure("That isn't a link to a tune.") }
             let (outcome, _) = await player.resolve(link)
-            switch outcome {
-            case .play(let path, _, _):
-                let item = await player.core.tunesFromFiles(paths: [path]).first
-                if args.play == true { player.playShared(path: path, subtune: link.subtune) }
-                return answer(OpenedShare(path: path, title: item?.title ?? link.title ?? URL(filePath: path).deletingPathExtension().lastPathComponent,
-                                          author: item?.author ?? link.author ?? "", subtune: link.subtune))
-            case .download:
-                throw Failure("This Mac has no collection yet. Download HVSC in Resonance first.")
-            case .update(let release):
-                throw Failure("This Mac's collection doesn't have this tune. HVSC \(release) does: update the collection in Resonance on the Mac.")
-            case .checkForUpdate(let release):
-                throw Failure("This tune was shared from HVSC \(release), newer than this Mac's collection. Check for an update in Resonance on the Mac.")
-            case .notFound:
-                throw Failure("This Mac's collection doesn't have this tune.")
+            guard case .play(let path, _, _) = outcome else {
+                throw Failure(Self.problem(outcome) ?? "This Mac's collection doesn't have this tune.")
             }
+            let item = await player.core.tunesFromFiles(paths: [path]).first
+            if args.play == true { player.playShared(path: path, subtune: link.subtune) }
+            return answer(OpenedShare(path: path, title: item?.title ?? link.title ?? URL(filePath: path).deletingPathExtension().lastPathComponent,
+                                      author: item?.author ?? link.author ?? "", subtune: link.subtune))
+        case "link.answer":
+            // What the terminal app chose for a shared link the app handed
+            // it while headless (TerminalLinks).
+            guard let waiting = links.take(args.link) else { throw Failure("That link is no longer waiting.") }
+            guard args.choice == "play" || args.choice == "add" else { return done() }
+            guard let path = waiting.path else {
+                throw Failure(waiting.offer.problem ?? "This Mac's collection doesn't have this tune.")
+            }
+            if args.choice == "play" {
+                player.playShared(path: path, subtune: waiting.link.subtune)
+            } else {
+                player.add([URL(filePath: path)])
+            }
+            return done()
         case "prints":
             // Only tunes with a fingerprint are in the answer.
             let paths = args.paths ?? []
@@ -726,13 +755,24 @@ final class ControlCommands {
         playlists.listedFiles()
     }
 
+    /// Why a shared tune can't play from this collection; nil when it can.
+    nonisolated static func problem(_ outcome: SharedTuneOutcome) -> String? {
+        switch outcome {
+        case .play: nil
+        case .download: "This Mac has no collection yet. Download HVSC in Resonance first."
+        case .update(let release): "This Mac's collection doesn't have this tune. HVSC \(release) does: update the collection in Resonance on the Mac."
+        case .checkForUpdate(let release): "This tune was shared from HVSC \(release), newer than this Mac's collection. Check for an update in Resonance on the Mac."
+        case .notFound: "This Mac's collection doesn't have this tune."
+        }
+    }
+
     private func playing() throws -> TrackDetails {
         guard let track = player.nowPlaying else { throw Failure("Nothing is playing.") }
         return track
     }
 
     /// Also Resonance Remote's status event.
-    func status() -> Status {
+    func status(link: TerminalLinks.Offer? = nil) -> Status {
         let track = player.nowPlaying
         let state = switch player.state {
         case .playing: "playing"
@@ -758,7 +798,9 @@ final class ControlCommands {
             myPlaylistCount: player.rows.count,
             listening: player.listening,
             previous: track == nil ? nil : player.previousUp.map(Neighbor.init),
-            next: track == nil ? nil : player.nextUp.map(Neighbor.init)
+            next: track == nil ? nil : player.nextUp.map(Neighbor.init),
+            headless: Headless.isOn,
+            link: link
         )
     }
 

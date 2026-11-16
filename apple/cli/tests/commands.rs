@@ -81,6 +81,38 @@ fn transport_commands_say_what_they_are() {
 }
 
 #[test]
+fn quit_asks_a_running_app_and_never_starts_one() {
+    let app = FakeApp::start(json!({}));
+    assert!(app.run(&["quit"]).status.success());
+    assert_eq!(app.last()["cmd"], "quit");
+    // With no app there's nothing to quit: connecting would have failed here.
+    let output = Command::new(env!("CARGO_BIN_EXE_resonance"))
+        .arg("quit")
+        .env("RESONANCE_SOCKET", "/tmp/resonance-nothing-here.sock")
+        .env("RESONANCE_NO_LAUNCH", "1")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert!(output.stderr.is_empty());
+}
+
+#[test]
+fn headless_refuses_an_app_running_with_its_window() {
+    // An app before headless doesn't say, and has a window.
+    let windowed = FakeApp::start(json!({}));
+    let output = windowed.run(&["--headless", "pause"]);
+    assert!(!output.status.success());
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        "resonance: Resonance is already running with its window. Quit it first, or leave out --headless.\n"
+    );
+    assert_eq!(windowed.last()["cmd"], "status");
+    let headless = FakeApp::start(json!({ "headless": true }));
+    assert!(headless.run(&["--headless", "pause"]).status.success());
+    assert_eq!(headless.last()["cmd"], "pause");
+}
+
+#[test]
 fn search_pipes_as_tabs_with_the_path_first() {
     let app = FakeApp::start(tunes());
     let output = app.run(&["search", "com", "ando"]);
