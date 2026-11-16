@@ -2,28 +2,46 @@ import SwiftUI
 import PhosphorCore
 import KSCrashRecording
 
-/// Settings: a sidebar of focused pages, in groups. The selected page is
-/// remembered. The window is a fixed size and its title never changes, because
-/// a split view whose constraints or toolbar change mid-layout has crashed the
-/// main window: each page's name is in the pane, and long pages scroll.
+/// Settings: a sidebar of focused pages, in groups, with a search field above
+/// them. The selected page is remembered. The window resizes, from a constant
+/// minimum, and its title never changes, because a split view whose
+/// constraints or toolbar change mid-layout has crashed the main window: each
+/// page's name is in the pane, and long pages scroll.
 struct SettingsView: View {
     @AppStorage(Pref.settingsTab) private var page = SettingsPage.updates
     @Environment(Updater.self) private var updater
+    @State private var search: String
+
+    /// Nil while the search field is empty.
+    private var found: [SettingsPage]? { SettingsSearch.pages(matching: search) }
+
+    /// A search to start with, for previews.
+    init(search: String = "") {
+        _search = State(initialValue: search)
+    }
 
     var body: some View {
         NavigationSplitView {
             List(selection: Binding(get: { page }, set: { if let next = $0 { page = next } })) {
                 ForEach(SettingsPage.groups) { group in
-                    Section(group.title) {
-                        ForEach(group.pages) { item in
-                            SettingsSidebarRow(
-                                page: item,
-                                isSelected: item == page,
-                                failed: item == .updates && updater.lastFailure != nil
-                            )
-                            .tag(item)
+                    let pages = group.pages.filter { found?.contains($0) ?? true }
+                    if !pages.isEmpty {
+                        Section(group.title) {
+                            ForEach(pages) { item in
+                                SettingsSidebarRow(
+                                    page: item,
+                                    isSelected: item == page,
+                                    failed: item == .updates && updater.lastFailure != nil
+                                )
+                                .tag(item)
+                            }
                         }
                     }
+                }
+            }
+            .overlay {
+                if found?.isEmpty == true {
+                    ContentUnavailableView.search(text: search)
                 }
             }
             // The frame sets the width: the split view alone gives this column
@@ -40,11 +58,33 @@ struct SettingsView: View {
                 Form { pageContent }
                     .formStyle(.grouped)
             }
-            .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            // A grouped form stops widening at its rows' readable width and
+            // centers them; capped together, the title stays above them.
+            .frame(maxWidth: Self.pageWidth, maxHeight: .infinity, alignment: .topLeading)
+            .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .navigationTitle("Settings")
-        .frame(width: 796, height: 580)
+        // Constant, like Help's: the toolbar never changes.
+        .searchable(text: $search, placement: .sidebar, prompt: "Search Settings")
+        // A search that leaves the shown page out moves to its first match,
+        // as in Help, so typing alone gets there.
+        .onChange(of: search) {
+            if let first = found?.first, found?.contains(page) != true {
+                page = first
+            }
+        }
+        // Constant bounds, so the split view's limits never change: the
+        // sidebar is fixed and the page takes the rest.
+        .frame(minWidth: Self.minSize.width, maxWidth: .infinity, minHeight: Self.minSize.height, maxHeight: .infinity)
     }
+
+    /// Room for the sidebar and a page's rows without clipping their labels.
+    static let minSize = CGSize(width: 700, height: 460)
+    /// A grouped form's widest rows, 703 points measured on macOS 27, plus
+    /// its 20-point margins.
+    static let pageWidth: CGFloat = 743
+    /// What the window opens at the first time.
+    static let defaultSize = CGSize(width: 796, height: 580)
 
     @ViewBuilder private var pageContent: some View {
         switch page {
@@ -1330,6 +1370,14 @@ private struct ThemeSettings: View {
 
 #Preview {
     SettingsView()
+        .environment(PlayerStore.preview)
+        .environment(LibraryStore(player: .preview))
+        .environment(FingerprintStore(player: .preview))
+        .environment(Updater())
+}
+
+#Preview("Searching") {
+    SettingsView(search: "download")
         .environment(PlayerStore.preview)
         .environment(LibraryStore(player: .preview))
         .environment(FingerprintStore(player: .preview))

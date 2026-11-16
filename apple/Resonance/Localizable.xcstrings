@@ -1826,6 +1826,9 @@
     "HVSC Note" : {
 
     },
+    "HVSC Trash" : {
+      "comment" : "Settings search: other words for the downloaded collection"
+    },
     "HVSC and CSDb know" : {
 
     },
@@ -1879,6 +1882,9 @@
     },
     "High Voltage SID Collection" : {
 
+    },
+    "High Voltage SID Collection download update version" : {
+      "comment" : "Settings search: other words for the collection"
     },
     "History" : {
 
@@ -2148,6 +2154,9 @@
     },
     "Loose" : {
 
+    },
+    "MCP AI Claude Code" : {
+      "comment" : "Settings search: other words for assistants"
     },
     "Made with %@" : {
 
@@ -2886,6 +2895,9 @@
     "Puts the cursor in the search field." : {
 
     },
+    "QR code pairing" : {
+      "comment" : "Settings search: other words for pairing a device"
+    },
     "Question" : {
 
     },
@@ -3111,6 +3123,9 @@
     "Resonance Help" : {
 
     },
+    "Resonance Remote network" : {
+      "comment" : "Settings search: other words for the remote"
+    },
     "Resonance Website" : {
 
     },
@@ -3286,6 +3301,9 @@
     "Scene Pulse and composers' CSDb details. Resonance only contacts csdb.dk while this is on." : {
 
     },
+    "Scene Pulse demoscene" : {
+      "comment" : "Settings search: other words for CSDb"
+    },
     "Scope" : {
 
     },
@@ -3305,6 +3323,9 @@
 
     },
     "Search Help" : {
+
+    },
+    "Search Settings" : {
 
     },
     "Search tunes, composers and games" : {
@@ -4437,6 +4458,9 @@
     "Why does the sound stop for a moment when I scrub?" : {
 
     },
+    "Wikipedia" : {
+      "comment" : "Settings search: other words for composer photos"
+    },
     "Wide" : {
 
     },
@@ -4517,17 +4541,47 @@
     "arpeggios" : {
 
     },
+    "beta alpha stable release" : {
+      "comment" : "Settings search: other words for the update channel"
+    },
     "by composers with fewer than three tunes in HVSC" : {
 
+    },
+    "check now new version" : {
+      "comment" : "Settings search: other words for checking for updates"
+    },
+    "clear history" : {
+      "comment" : "Settings search: other words for recently played"
+    },
+    "colors voices custom palette" : {
+      "comment" : "Settings search: other words for the visualizers' theme"
     },
     "composers" : {
 
     },
+    "crash report bug GitHub delete" : {
+      "comment" : "Settings search: other words for crash reports"
+    },
     "credit fixes" : {
 
     },
+    "dark mode light auto" : {
+      "comment" : "Settings search: other words for light and dark"
+    },
+    "data folder Finder disk space size" : {
+      "comment" : "Settings search: other words for Resonance's folder"
+    },
     "demos" : {
 
+    },
+    "download fingerprints" : {
+      "comment" : "Settings search: other words for the published fingerprint set"
+    },
+    "emulation SID chip" : {
+      "comment" : "Settings search: other words for an engine"
+    },
+    "everything start fresh erase delete" : {
+      "comment" : "Settings search: other words for resetting Resonance"
     },
     "fast arpeggios" : {
 
@@ -4547,11 +4601,23 @@
     "hvsc.c64.org" : {
 
     },
+    "iCloud Keychain" : {
+      "comment" : "Settings search: other words for joining through the Apple Account"
+    },
     "iPhones and iPads signed in to the same Apple Account, with iCloud Keychain on, connect without a code. A new device can take a few minutes to get it." : {
 
     },
+    "keyboard shortcuts vim emacs" : {
+      "comment" : "Settings search: other words for the key scheme"
+    },
+    "location path choose" : {
+      "comment" : "Settings search: other words for the collection folder"
+    },
     "macOS owns these switches, so Resonance links to them." : {
 
+    },
+    "menubar status mini player" : {
+      "comment" : "Settings search: other words for the menu bar player"
     },
     "new SIDs added" : {
 
@@ -4562,11 +4628,29 @@
     "noise drums" : {
 
     },
+    "open launch home" : {
+      "comment" : "Settings search: other words for the start page"
+    },
+    "pause resume start scan" : {
+      "comment" : "Settings search: other words for the fingerprint scan"
+    },
+    "progress Sounds Like" : {
+      "comment" : "Settings search: other words for the fingerprint scan's progress"
+    },
     "pulse bass" : {
 
     },
     "rating, votes" : {
 
+    },
+    "rebuild fingerprints" : {
+      "comment" : "Settings search: other words for the fingerprint database"
+    },
+    "remove sign out" : {
+      "comment" : "Settings search: other words for paired devices"
+    },
+    "reset SIDs heard count" : {
+      "comment" : "Settings search: other words for heard tunes"
     },
     "ring modulation" : {
 
@@ -4586,11 +4670,17 @@
     "song lengths" : {
 
     },
+    "songlengths duration seconds silence" : {
+      "comment" : "Settings search: other words for the default song length"
+    },
     "subtune %lld" : {
 
     },
     "sync leads" : {
 
+    },
+    "terminal CLI install PATH shell" : {
+      "comment" : "Settings search: other words for the command line tool"
     },
     "the update" : {
 
@@ -4609,6 +4699,9 @@
     },
     "vibrato" : {
 
+    },
+    "visualizer scope spectrum" : {
+      "comment" : "Settings search: other words for the visualizers"
     },
     "with %@" : {
 

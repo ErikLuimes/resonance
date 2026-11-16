@@ -77,6 +77,9 @@ struct ResonanceApp: App {
                 .environment(appDelegate.remote)
                 .voiceThemed()
         }
+        .defaultSize(width: SettingsView.defaultSize.width, height: SettingsView.defaultSize.height)
+        // Stretches from the view's minimum size.
+        .windowResizability(.contentMinSize)
 
         #if DEBUG
         // Listed in the Window menu.
