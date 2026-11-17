@@ -250,7 +250,7 @@ final class FingerprintStore {
     func playSimilar(to track: TrackDetails, with library: LibraryStore) async -> Bool {
         await loadSimilar(track.path)
         guard let found = similar[track.path], !found.isEmpty else { return false }
-        library.play(found.map { LibraryRow(item: $0.item) }, from: .soundsLike(title: track.displayTitle))
+        library.play(found.map { LibraryRow(item: $0.item) }, from: .soundsLike(title: track.displayTitle, seed: track.path))
         return true
     }
 
@@ -268,7 +268,7 @@ final class FingerprintStore {
         guard let seed else { return false }
         drift?.stop()
         let title = seed.title.isEmpty ? URL(filePath: seed.path).deletingPathExtension().lastPathComponent : seed.title
-        let next = SoundDrift(player: player, library: library, title: title) { [weak self] in self?.drift = nil }
+        let next = SoundDrift(player: player, library: library, title: title, seed: seed.path) { [weak self] in self?.drift = nil }
         guard await next.start(seed: seed, playsSeed: path != nil) else { return false }
         drift = next
         return true

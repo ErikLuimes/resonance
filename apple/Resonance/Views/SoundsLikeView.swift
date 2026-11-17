@@ -105,7 +105,7 @@ struct SoundsLikeView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             VStack(alignment: .trailing, spacing: 6) {
-                Button("Play All") { library.play(rows, from: .soundsLike(title: seed.title)) }
+                Button("Play All") { library.play(rows, from: .soundsLike(title: seed.title, seed: seed.path)) }
                     .buttonStyle(.borderedProminent)
                     .disabled(rows.isEmpty)
                 Button("Drift From Here") {

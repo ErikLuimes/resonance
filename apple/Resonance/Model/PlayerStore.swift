@@ -69,6 +69,8 @@ final class PlayerStore {
     private(set) var error: String?
     /// Changes on every track or subtune switch.
     private(set) var trackRevision: UInt64 = 0
+    /// Where each tune played from (`play_sources.json`).
+    @ObservationIgnored let sourceHistory = SourceHistory()
     /// HVSC categories whose search index is being built.
     private(set) var hvscIndexing: [HvscCategory] = []
     /// Changes when the collection folder changes on disk (a new root, or
@@ -325,6 +327,14 @@ final class PlayerStore {
         update(\.seekPosition, s.seekPositionMs.map { TimeInterval($0) / 1000 })
         update(\.loading, s.loading)
         update(\.error, s.error)
+        if s.trackRevision != trackRevision, let path = s.track?.path {
+            // Where it plays from, for Recently Played to go back to. A list
+            // just started isn't active in the core for a snapshot yet, so
+            // its own source (set when it was started) counts when the tune
+            // is in it.
+            let from = queueSource.flatMap { started in queue.contains { $0.path == path } ? started : nil } ?? source
+            if let from { sourceHistory.record(path: path, source: from.recipe) }
+        }
         update(\.trackRevision, s.trackRevision)
         update(\.hvscIndexing, s.hvscIndexing)
         update(\.hvscTreeRevision, s.hvscTreeRevision)

@@ -64,6 +64,9 @@ final class ControlCommands {
         var score: Double?
         /// When it was last played, in seconds since 1970, in Recently Played.
         var playedAt: UInt64?
+        /// In Recently Played, the list it played from then: "Sounds like
+        /// Commando". Nil when that wasn't recorded.
+        var from: String?
 
         init(_ item: PlaylistItem) {
             path = item.path
@@ -72,6 +75,16 @@ final class ControlCommands {
             released = item.released
             songs = Int(item.songs)
             secs = item.durationSecs.map(Int.init)
+        }
+
+        /// A tune the player's temporary list knows only by name.
+        init(_ queued: QueuedTune) {
+            path = queued.path
+            title = queued.title
+            author = queued.author
+            released = ""
+            songs = 1
+            secs = nil
         }
 
         init(_ item: HvscTuneItem, score: Double? = nil, playedAt: UInt64? = nil) {
@@ -84,6 +97,17 @@ final class ControlCommands {
             self.score = score
             self.playedAt = playedAt
         }
+    }
+
+    /// The list the player is playing from, and what it's called: a
+    /// drift, a search, Sounds Like, a playlist, My Playlist.
+    struct PlayingList: Encodable {
+        /// As "Playing from" names it: "Drifting from Commando", "Search
+        /// “hubbard”", "My Playlist". Nil when nothing plays.
+        let source: String?
+        /// What kind of list: "Sound Drift", "Search", "Your playlist".
+        let kind: String?
+        let tunes: [Tune]
     }
 
     struct Status: Encodable {
@@ -490,7 +514,7 @@ final class ControlCommands {
             guard !found.isEmpty else { throw Failure("Resonance hasn't fingerprinted this tune yet.") }
             if args.play == true {
                 library.play(found.map { LibraryRow(item: $0.item) },
-                             from: .soundsLike(title: player.nowPlaying?.displayTitle ?? "this tune"))
+                             from: .soundsLike(title: player.nowPlaying?.displayTitle ?? "this tune", seed: seed))
             }
             return answer(found.map { Tune($0.item, score: Double(max(0, $0.score))) })
         case "drift":
@@ -583,7 +607,19 @@ final class ControlCommands {
             return answer(try await describePlaying())
         case "recent":
             let recent = try await player.core.recentlyPlayed()
-            return answer(recent.prefix(Self.limit(args.limit, or: 100)).map { Tune($0.item, playedAt: $0.playedAt) })
+            return answer(recent.prefix(Self.limit(args.limit, or: 100)).map { tune in
+                var row = Tune(tune.item, playedAt: tune.playedAt)
+                // Only a list it can go back into: a single file, Surprise
+                // Me or a shared link has none.
+                if let recipe = player.sourceHistory.source(of: tune.item.path, playedAt: Double(tune.playedAt)), recipe.kind != .other {
+                    row.from = recipe.name
+                }
+                return row
+            })
+        case "recent.play":
+            guard let path = args.path else { throw Failure("Which tune?") }
+            try await playInItsList(path)
+            return done()
 
         // MARK: HVSC
         case "hvsc.info":
@@ -624,6 +660,21 @@ final class ControlCommands {
                 throw Failure("There's no tune there in My Playlist.")
             }
             player.play(index: index)
+            return done()
+        case "playing.show":
+            return answer(await playingList())
+        case "playing.play":
+            guard let path = args.path else { throw Failure("Which tune?") }
+            if player.queueActive, let source = player.queueSource, player.queue.contains(where: { $0.path == path }) {
+                // The same list from that tune, under the same name: a
+                // drift goes on drifting.
+                player.playQueue(player.queue.map { URL(filePath: $0.path) }, startAt: URL(filePath: path),
+                                 from: source, tunes: player.queue)
+            } else if let index = player.rows.firstIndex(where: { $0.item.path == path }) {
+                player.play(index: index)
+            } else {
+                throw Failure("That tune isn't in the list playing anymore.")
+            }
             return done()
         case "playlist.show":
             return answer(try await tunes(of: try target(args.name)))
@@ -877,6 +928,93 @@ final class ControlCommands {
         let magic = (try? handle.read(upToCount: 4)) ?? Data()
         return magic.elementsEqual("PSID".utf8) || magic.elementsEqual("RSID".utf8)
             || (path as NSString).pathExtension.lowercased() == "mus"
+    }
+
+    /// How many tunes either side of the one playing `playing.show` sends:
+    /// Shuffle Collection's list is all of HVSC.
+    static let playingBefore = 50, playingAfter = 150
+
+    private func playingList() async -> PlayingList {
+        let source = player.source
+        let all: [Tune]
+        if player.queueActive {
+            let queue = player.queue
+            let at = player.nowPlaying.flatMap { now in queue.firstIndex { $0.path == now.path } } ?? 0
+            let window = Array(queue[max(0, at - Self.playingBefore)..<min(queue.count, at + Self.playingAfter)])
+            // Each with its year and length where the collection knows it.
+            let found = await player.core.tunesFromFiles(paths: window.map(\.path))
+            let byPath = Dictionary(found.map { ($0.path, $0) }, uniquingKeysWith: { first, _ in first })
+            all = window.map { queued in byPath[queued.path].map { Tune($0) } ?? Tune(queued) }
+        } else {
+            all = player.rows.map { Tune($0.item) }
+        }
+        return PlayingList(source: source?.name, kind: source?.kind, tunes: all)
+    }
+
+    /// Plays `path` again inside the list it last played from, at that tune,
+    /// so Next carries on there: the playlist (by id, through a rename),
+    /// the curated list, the folder, the search, Sounds Like for its seed.
+    /// A drift can't be walked again, so a new one sets off from the tune.
+    /// Otherwise, or when the tune has left that list, it plays alone.
+    private func playInItsList(_ path: String) async throws {
+        let recipe = player.sourceHistory.source(of: path)
+        switch recipe?.kind {
+        case .myPlaylist:
+            if let index = player.rows.firstIndex(where: { $0.item.path == path }) {
+                player.play(index: index)
+                return
+            }
+        case .favorites, .playlist:
+            let id = recipe?.kind == .favorites ? PlaylistsStore.favoritesID : (recipe?.key ?? "")
+            if let list = recipe?.kind == .favorites ? Target(name: "Favorites", playlist: nil)
+                : playlists.playlist(id).map({ Target(name: $0.name, playlist: $0) }) {
+                let tunes = try await tunes(of: list)
+                if tunes.contains(where: { $0.path == path }) {
+                    try play(tunes.map(\.path), start: path, from: list.source)
+                    return
+                }
+            }
+        case .curated:
+            if let file = recipe?.key, let playlist = try? await curated(file) {
+                let urls = player.publishedPlaylistTunes(playlist)
+                if let start = urls.first(where: { $0.path == path }) {
+                    player.playQueue(urls, startAt: start, from: .curated(playlist))
+                    return
+                }
+            }
+        case .folder:
+            if let folder = recipe?.key {
+                await library.loadTunes(authorPath: folder)
+                let rows = library.tunes[folder] ?? []
+                if let start = rows.first(where: { $0.item.path == path }) {
+                    let source = PlaybackSource.folder(name: recipe?.name ?? "", category: library.category(of: path) ?? .musicians, path: folder)
+                    library.play(rows, startAt: start, from: source)
+                    return
+                }
+            }
+        case .search:
+            if let query = recipe?.key {
+                let found = try await search(query).map(\.path)
+                if found.contains(path) {
+                    try play(found, start: path, from: .search(query: query))
+                    return
+                }
+            }
+        case .soundsLike:
+            if let seed = recipe?.key,
+               let found = try? await player.core.similarTunes(path: seed, subtune: nil, limit: 200),
+               found.contains(where: { $0.item.path == path }) {
+                let title = await player.core.tunesFromFiles(paths: [seed]).first?.title ?? recipe?.name ?? ""
+                library.play(found.map { LibraryRow(item: $0.item) }, startAt: LibraryRow(item: found.first { $0.item.path == path }!.item),
+                             from: .soundsLike(title: title, seed: seed))
+                return
+            }
+        case .drift:
+            if await fingerprints.startDrift(from: nil, path: path, with: library) { return }
+        case .other, nil:
+            break
+        }
+        try play([path], start: path, from: .files)
     }
 
     private func play(_ paths: [String], start: String?, from source: PlaybackSource) throws {

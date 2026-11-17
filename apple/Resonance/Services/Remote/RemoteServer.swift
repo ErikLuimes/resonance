@@ -861,6 +861,7 @@ final class RemoteServer {
         "search", "like", "drift", "sound", "tune.info", "share.link", "share.open", "describe", "describe.playing", "recent",
         "hvsc.info", "hvsc.authors", "hvsc.tunes", "hvsc.playlist", "hvsc.playlist.play", "hvsc.shuffle",
         "playlist.list", "playlist.show", "playlist.play", "playlist.add", "playlist.new", "myplaylist.show", "myplaylist.play",
+        "playing.show", "playing.play", "recent.play",
     ]
 
     /// Paths inside the collection, or already in My Playlist. No control

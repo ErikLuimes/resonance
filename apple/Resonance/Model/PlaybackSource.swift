@@ -12,14 +12,15 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
     case playlist(id: String, name: String)
     /// One of Phosphor's published playlists.
     case curated(HvscPlaylist)
-    /// A composer's tunes, or a game's or demo's folder.
-    case folder(name: String, category: HvscCategory)
+    /// A composer's tunes, or a game's or demo's folder; `path` is the
+    /// folder's, when it has one (credited tunes have none).
+    case folder(name: String, category: HvscCategory, path: String? = nil)
     case search(query: String)
     case recentlyPlayed
-    /// A tune's Sounds Like list, by the tune's title.
-    case soundsLike(title: String)
-    /// Sound Drift, by the tune it set off from.
-    case drift(title: String)
+    /// A tune's Sounds Like list, by the tune's title; `seed` is its path.
+    case soundsLike(title: String, seed: String? = nil)
+    /// Sound Drift, by the tune it set off from; `seed` is its path.
+    case drift(title: String, seed: String? = nil)
     /// A Smart Playlist not saved, by its title.
     case smart(title: String)
     case surprise
@@ -42,11 +43,11 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .favorites: String(localized: "Favorites")
         case .playlist(_, let name): name
         case .curated(let playlist): playlist.name
-        case .folder(let name, _): name
+        case .folder(let name, _, _): name
         case .search(let query): String(localized: "Search “\(query)”")
         case .recentlyPlayed: String(localized: "Recently Played")
-        case .soundsLike(let title): String(localized: "Sounds like \(title)")
-        case .drift(let title): String(localized: "Drifting from \(title)")
+        case .soundsLike(let title, _): String(localized: "Sounds like \(title)")
+        case .drift(let title, _): String(localized: "Drifting from \(title)")
         case .smart(let title): title
         case .surprise: String(localized: "Surprise Me")
         case .shuffleCollection: String(localized: "Shuffle Collection")
@@ -62,7 +63,7 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
     /// The name after its kind ("Sounds like: Commando"), where the kind
     /// already says what `name` would repeat.
     var shortName: String {
-        if case .soundsLike(let title) = self { return title }
+        if case .soundsLike(let title, _) = self { return title }
         return name
     }
 
@@ -72,7 +73,7 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .myPlaylist, .playlist: String(localized: "Your playlist")
         case .favorites: String(localized: "Your favorites")
         case .curated: String(localized: "Curated playlist")
-        case .folder(_, let category): category == .musicians ? String(localized: "Composer") : category.displayName
+        case .folder(_, let category, _): category == .musicians ? String(localized: "Composer") : category.displayName
         case .search: String(localized: "Search")
         case .recentlyPlayed: String(localized: "History")
         case .soundsLike: String(localized: "Sounds like")
@@ -93,7 +94,7 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .myPlaylist, .playlist: "music.note.list"
         case .favorites: "heart"
         case .curated: "list.star"
-        case .folder(_, let category): category.symbolName
+        case .folder(_, let category, _): category.symbolName
         case .search: "magnifyingglass"
         case .recentlyPlayed: "clock"
         case .soundsLike: "waveform"
@@ -126,6 +127,26 @@ nonisolated enum PlaybackSource: Equatable, Sendable {
         case .csdbDownloads: .csdbDownloads
 #endif
         default: nil
+        }
+    }
+}
+
+extension PlaybackSource {
+    /// How to find this list again later, for Recently Played: a playlist
+    /// by its id (it survives a rename), a curated list by its file, a
+    /// folder by its path, a search by its words, Sounds Like and Sound
+    /// Drift by their seed. Random and one-off lists have nothing to find.
+    var recipe: SourceRecipe {
+        switch self {
+        case .myPlaylist: SourceRecipe(kind: .myPlaylist, key: nil, name: name)
+        case .favorites: SourceRecipe(kind: .favorites, key: nil, name: name)
+        case .playlist(let id, _): SourceRecipe(kind: .playlist, key: id, name: name)
+        case .curated(let playlist): SourceRecipe(kind: .curated, key: playlist.file, name: name)
+        case .folder(_, _, let path?): SourceRecipe(kind: .folder, key: path, name: name)
+        case .search(let query): SourceRecipe(kind: .search, key: query, name: name)
+        case .soundsLike(_, let seed?): SourceRecipe(kind: .soundsLike, key: seed, name: name)
+        case .drift(_, let seed?): SourceRecipe(kind: .drift, key: seed, name: name)
+        default: SourceRecipe(kind: .other, key: nil, name: name)
         }
     }
 }

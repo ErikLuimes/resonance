@@ -107,13 +107,13 @@ nonisolated enum ControlAudit {
         "status", "scope", "tracker.position", "tracker.song", "search", "like", "drift", "sound",
         "prints", "prints.composers", "guess.pool", "describe", "describe.playing", "recent",
         "hvsc.info", "hvsc.authors", "hvsc.tunes", "hvsc.playlist",
-        "playlist.list", "playlist.show", "myplaylist.show",
+        "playlist.list", "playlist.show", "myplaylist.show", "playing.show",
     ]
 
     /// Commands that play, change a list, or bring the window up.
     static let changing: Set<String> = [
         "play", "pause", "seek", "toggle", "stop", "next", "prev", "surprise", "fav", "show",
-        "hvsc.playlist.play", "hvsc.shuffle", "myplaylist.play",
+        "hvsc.playlist.play", "hvsc.shuffle", "myplaylist.play", "playing.play", "recent.play",
         "playlist.play", "playlist.new", "playlist.add", "playlist.rm", "playlist.mv",
         "playlist.rename", "playlist.delete", "link.answer", "quit",
         "terminal.closed",

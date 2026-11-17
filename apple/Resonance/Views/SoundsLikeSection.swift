@@ -86,7 +86,7 @@ struct SoundsLikeSection: View {
                 .controlSize(.small)
                 .help("Tunes across the collection that sound like this one, closest first")
                 Button("Play These") {
-                    library.play(similar.map { LibraryRow(item: $0.item) }, from: .soundsLike(title: seedTitle))
+                    library.play(similar.map { LibraryRow(item: $0.item) }, from: .soundsLike(title: seedTitle, seed: path))
                 }
                 .controlSize(.small)
                 .help("Play these tunes, most alike first")

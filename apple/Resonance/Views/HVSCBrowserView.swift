@@ -322,7 +322,7 @@ struct AuthorTunes: View {
         .onChange(of: library.revealedTune) { filter = "" }
     }
 
-    private var source: PlaybackSource { .folder(name: authorName, category: category) }
+    private var source: PlaybackSource { .folder(name: authorName, category: category, path: authorPath) }
 }
 
 // MARK: - Credited tunes

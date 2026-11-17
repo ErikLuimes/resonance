@@ -21,6 +21,8 @@ final class SoundDrift {
     private let player: PlayerStore
     private let library: LibraryStore
     private var title: String
+    /// The path of the tune it set off from.
+    private let seed: String
     private var chain: [HvscTuneItem] = []
     private var visited = Set<String>()
     private var next: [HvscTuneItem]?
@@ -31,10 +33,11 @@ final class SoundDrift {
     private var underway = false
     private let onEnd: () -> Void
 
-    init(player: PlayerStore, library: LibraryStore, title: String, onEnd: @escaping () -> Void) {
+    init(player: PlayerStore, library: LibraryStore, title: String, seed: String, onEnd: @escaping () -> Void) {
         self.player = player
         self.library = library
         self.title = title
+        self.seed = seed
         self.onEnd = onEnd
     }
 
@@ -45,7 +48,7 @@ final class SoundDrift {
         let first = await walk(from: seed, count: Self.stretch)
         guard !first.isEmpty else { return false }
         chain = (playsSeed ? [seed] : []) + first
-        library.play(chain.map(LibraryRow.init), startAt: chain.first.map(LibraryRow.init), from: .drift(title: title))
+        library.play(chain.map(LibraryRow.init), startAt: chain.first.map(LibraryRow.init), from: .drift(title: title, seed: self.seed))
         observe()
         return true
     }
@@ -124,7 +127,7 @@ final class SoundDrift {
             next = nil
             chain = Array((chain + more).suffix(Self.kept + more.count))
             player.playQueue(chain.map { URL(filePath: $0.path) }, startAt: URL(filePath: path),
-                             from: .drift(title: title), tunes: chain.map { QueuedTune(path: $0.path, title: $0.title, author: $0.author) })
+                             from: .drift(title: title, seed: seed), tunes: chain.map { QueuedTune(path: $0.path, title: $0.title, author: $0.author) })
         }
     }
 }
