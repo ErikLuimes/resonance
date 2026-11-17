@@ -92,6 +92,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         activity = PlaybackActivity(store: store)
         outputLatency = OutputLatencyMonitor { [store] latency in
             store.visualizer.setOutputLatency(latency)
+        } onOutput: { [store] output in
+            store.setOutput(output)
         }
         jobs = JobWatcher(store: store, library: library, fingerprints: fingerprints)
         jobs?.start()

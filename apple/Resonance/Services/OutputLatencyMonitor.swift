@@ -10,9 +10,15 @@ import Foundation
 /// can't see it: the engine plays through cpal. Kept for the app's lifetime.
 final class OutputLatencyMonitor {
     private let onChange: (Duration) -> Void
+    /// What the output is, whenever it changes: for Resonance Remote.
+    private let onOutput: (PlayerStore.Output?) -> Void
+    /// The device whose data source (speakers or the headphone jack) is
+    /// watched, so plugging in headphones reports too.
+    private var watched: AudioObjectID?
 
-    init(onChange: @escaping (Duration) -> Void) {
+    init(onChange: @escaping (Duration) -> Void, onOutput: @escaping (PlayerStore.Output?) -> Void = { _ in }) {
         self.onChange = onChange
+        self.onOutput = onOutput
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioHardwarePropertyDefaultOutputDevice,
             mScope: kAudioObjectPropertyScopeGlobal,
@@ -26,6 +32,48 @@ final class OutputLatencyMonitor {
 
     private func report() {
         onChange(Self.defaultOutputLatency() ?? .zero)
+        let device = Self.uint32(AudioObjectID(kAudioObjectSystemObject), kAudioHardwarePropertyDefaultOutputDevice)
+        if let device, device != watched {
+            watched = device
+            var address = Self.address(kAudioDevicePropertyDataSource, kAudioObjectPropertyScopeOutput)
+            AudioObjectAddPropertyListenerBlock(device, &address, .main) { [weak self] _, _ in
+                MainActor.assumeIsolated { self?.report() }
+            }
+        }
+        onOutput(device.map(Self.output(of:)))
+    }
+
+    /// What `device` is, by its transport and, for Bluetooth, its name: the
+    /// name is what tells AirPods, AirPods Pro and AirPods Max apart.
+    static func output(of device: AudioDeviceID) -> PlayerStore.Output {
+        let name = string(device, kAudioObjectPropertyName) ?? ""
+        let lower = name.lowercased()
+        let kind: String
+        switch uint32(device, kAudioDevicePropertyTransportType) {
+        case kAudioDeviceTransportTypeBuiltIn:
+            // 'hdpn' is the headphone jack; 'ispk' the internal speakers.
+            kind = uint32(device, kAudioDevicePropertyDataSource, scope: kAudioObjectPropertyScopeOutput) == 0x6864_706E
+                ? "headphones" : "speakers"
+        case kAudioDeviceTransportTypeBluetooth, kAudioDeviceTransportTypeBluetoothLE:
+            kind = lower.contains("airpods max") ? "airpodsMax"
+                : lower.contains("airpods pro") ? "airpodsPro"
+                : lower.contains("airpods") ? "airpods"
+                : lower.contains("beats") ? "beats"
+                : "bluetooth"
+        case kAudioDeviceTransportTypeAirPlay: kind = "airplay"
+        case kAudioDeviceTransportTypeUSB: kind = "usb"
+        case kAudioDeviceTransportTypeHDMI, kAudioDeviceTransportTypeDisplayPort: kind = "display"
+        default: kind = "other"
+        }
+        return PlayerStore.Output(kind: kind, name: name)
+    }
+
+    private static func string(_ object: AudioObjectID, _ selector: AudioObjectPropertySelector) -> String? {
+        var address = address(selector, kAudioObjectPropertyScopeGlobal)
+        var value: Unmanaged<CFString>?
+        var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        guard AudioObjectGetPropertyData(object, &address, 0, nil, &size, &value) == noErr else { return nil }
+        return value?.takeRetainedValue() as String?
     }
 
     /// The device's latency, safety offset, I/O buffer and stream latency.

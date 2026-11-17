@@ -461,6 +461,23 @@ final class PlayerStore {
     /// The device listening, while one is (Listen on iPhone).
     private(set) var listening: Listening?
 
+    /// What the Mac's own sound comes out of: its speakers, the headphone
+    /// jack, AirPods, AirPlay. Resonance Remote shows it with the Mac.
+    struct Output: Encodable, Equatable {
+        /// "speakers", "headphones", "airpods", "airpodsPro", "airpodsMax",
+        /// "beats", "bluetooth", "airplay", "usb", "display" or "other".
+        let kind: String
+        /// The device's own name: "Erik's AirPods Pro", "MacBook Pro Speakers".
+        let name: String
+    }
+
+    /// The default output, from `OutputLatencyMonitor`.
+    private(set) var output: Output?
+
+    func setOutput(_ output: Output?) {
+        if self.output != output { self.output = output }
+    }
+
     /// Play into `device` over the network from now on; the speakers go
     /// quiet and the tune keeps playing from where it was. Returns the UDP port
     /// the stream comes from; `key` seals every packet.

@@ -149,6 +149,9 @@ final class ControlCommands {
         /// The device playing instead of the Mac's speakers (Listen on
         /// iPhone), if one is.
         let listening: PlayerStore.Listening?
+        /// What the Mac's own sound comes out of: speakers, headphones,
+        /// AirPods and which, AirPlay.
+        let output: PlayerStore.Output?
         /// What Previous (without its restart) and Next would play.
         let previous: Neighbor?
         let next: Neighbor?
@@ -848,6 +851,7 @@ final class ControlCommands {
             listsRevision: "\(playlists.revision).\(player.playlistRevision ?? 0)",
             myPlaylistCount: player.rows.count,
             listening: player.listening,
+            output: player.output,
             previous: track == nil ? nil : player.previousUp.map(Neighbor.init),
             next: track == nil ? nil : player.nextUp.map(Neighbor.init),
             headless: Headless.isOn,
