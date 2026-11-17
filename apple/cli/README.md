@@ -44,6 +44,19 @@ All of this looks best on a terminal with millions of colors, such as iTerm2, Gh
 or Kitty. Notes are inferred from the voices' sound, so they can be off on a very low
 note or a filtered one.
 
+### Sounds Like and scrubbing
+
+`l` shows what sounds like the tune under the cursor, across the collection. Press it again on
+one of those to go on from there: the title keeps the way you came, and `esc` goes back along
+it instead of quitting.
+
+`t` picks a point in the tune: `← →` move 5 seconds, with `⇧` 30, `0`–`9` jump to that tenth,
+`↵` goes there, and `esc` or `t` cancels. As in the app, the bar fills in gray to where you're
+going while the playhead catches up. It works on the reSIDfp and SIDLite direct engines.
+
+The terminal app uses the accent color you chose in System Settings, only for what's chosen or
+playing: a ● on the tune that plays, a ❯ at the cursor, and the played part of the bar.
+
 ### Under the hood
 
 `u` slides up a tracker over the list. It shows what the player writes to the chip, with the

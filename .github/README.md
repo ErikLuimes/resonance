@@ -43,10 +43,14 @@ is played.
 ### Discover by sound
 
 - **Sounds Like.** Resonance listens to every tune in HVSC in the background and keeps a
-  fingerprint of how it sounds: its waveforms, arpeggios, filter sweeps, drums and bass. Play
-  anything and the inspector lists the tunes that sound most like it, each a click away.
-- **Find Similar and Sound filters.** Sort any list by likeness to one tune, or keep only the
-  tunes with arpeggios, filter sweeps, noise drums, ring mod, sync leads or digi samples.
+  fingerprint of how it sounds: its waveforms, arpeggios, filter sweeps, drums and bass. The
+  Sounds Like page lists the tunes across HVSC that sound most like the one playing, closest
+  first.
+- **Hop from tune to tune.** **Find Similar** on any row, or <kbd>⌘</kbd><kbd>L</kbd>, shows
+  what sounds like that tune; do it again on a match to go on from there, with the way back
+  kept above the list.
+- **Sort by Likeness and Sound filters.** Sort any list by likeness to one tune, or keep only
+  the tunes with arpeggios, filter sweeps, noise drums, ring mod, sync leads or digi samples.
 - **Composers who sound similar.** Every composer's card names the composers whose music
   sounds most like theirs.
 
@@ -66,8 +70,8 @@ is played.
 
 ### See the music
 
-- **Now Playing.** A full-window player with four visualizers: Halo, Particles, Radial and the
-  Sound Map (<kbd>⇧</kbd><kbd>⌘</kbd><kbd>F</kbd>).
+- **Now Playing.** A full-window player with twelve visualizers, from Halo and Particles to
+  Ink, Ferrofluid and a 3D SID chip opened up (<kbd>⇧</kbd><kbd>⌘</kbd><kbd>F</kbd>).
 - **Sound Map.** Every note the tune plays becomes a point in 3D, placed by its timbre, so
   notes that sound alike gather together and the music draws its own map as it plays.
 - **Every voice, live.** The inspector's visualizer shows each SID voice as a scope, as level
@@ -94,7 +98,14 @@ is played.
   it plays from, Surprise Me and Add to…. Close the window and the music plays on.
 - **A real Mac app.** Now Playing in Control Center, with its position slider and 15-second
   skips, your keyboard's media keys, a Playback menu with shortcuts, and drag and drop for SID
-  files, folders and M3U playlists.
+  files, folders and M3U playlists. Slide two fingers on the playback bar to step to the tune
+  before or after.
+- **Resonance Remote.** Pair an iPhone or iPad in **Settings → Remote** to control the Mac from
+  the couch, or **Listen** on the phone while the Mac does the playing. Commands stay on your
+  network and are encrypted.
+- **The terminal app.** `resonance` in Terminal is the same player in an old BBS look:
+  playlists, search, Sounds Like, scrubbing, and the music full screen as fire or a skull.
+  [More about it](https://github.com/ErikLuimes/resonance/blob/main/apple/cli/README.md).
 
 ### Under the hood
 
@@ -121,7 +132,7 @@ is played.
    in **Settings → Collection**.
 3. **Press <kbd>⇧</kbd><kbd>⌘</kbd><kbd>R</kbd>.** Surprise Me starts the radio. Or drop SID
    files, folders and M3U playlists onto the window. Sounds Like works right away: the first
-   time, Resonance imports the published fingerprint set (about 37 MB) for all of HVSC, and a
+   time, Resonance imports the published fingerprint set (about 42 MB) for all of HVSC, and a
    background scan fills in anything it doesn't cover.
 
 > [!NOTE]
@@ -141,6 +152,7 @@ is played.
 | <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>←</kbd> / <kbd>→</kbd> | Previous / next subtune |
 | <kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>R</kbd> | Surprise Me |
 | <kbd>⇧</kbd> <kbd>⌘</kbd> <kbd>F</kbd> | Show or hide Now Playing |
+| <kbd>⌘</kbd> <kbd>L</kbd> | Find Similar |
 | <kbd>⌃</kbd> <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>P</kbd> | Menu bar player, from any app |
 | <kbd>⌘</kbd> <kbd>↑</kbd> / <kbd>↓</kbd> | Volume up / down |
 | <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>S</kbd> | Shuffle |

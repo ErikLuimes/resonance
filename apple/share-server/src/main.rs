@@ -98,11 +98,19 @@ fn router(app: Arc<App>) -> Router {
         // (remote.useresonance.app) leads there too, from Apache.
         .route("/remote", get(remote_page))
         .route("/remote/", get(remote_page))
+        // The terminal app's page, another folder of the website.
+        .route("/terminal", get(terminal_page))
+        .route("/terminal/", get(terminal_page))
         // The domain's other addresses lead to the website: its root, and
         // anything else typed or linked there. Temporary, so a site of its
         // own can take the root later.
         .fallback(|State(app): State<Arc<App>>| async move { Redirect::temporary(&app.download) })
         .with_state(app)
+}
+
+/// The website's page for the terminal app. Temporary, like the fallback.
+async fn terminal_page(State(app): State<Arc<App>>) -> Redirect {
+    Redirect::temporary(&format!("{}/terminal/", app.download.trim_end_matches('/')))
 }
 
 /// The website's page for Resonance Remote. Temporary, like the fallback.
@@ -233,6 +241,15 @@ mod tests {
             let response = get(path).await;
             assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT, "{path}");
             assert_eq!(response.headers()[header::LOCATION], "https://erikluimes.github.io/resonance/");
+        }
+    }
+
+    #[tokio::test]
+    async fn the_terminal_app_goes_to_its_page_on_the_website() {
+        for path in ["/terminal", "/terminal/"] {
+            let response = get(path).await;
+            assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT, "{path}");
+            assert_eq!(response.headers()[header::LOCATION], "https://erikluimes.github.io/resonance/terminal/");
         }
     }
 

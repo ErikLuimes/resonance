@@ -5,7 +5,8 @@
 #   apple/scripts/us-english.sh
 #
 # Left out: Phosphor's sources outside apple/, the vendored engines, STIL's own
-# words, third-party licenses and release notes already published. A few names
+# words, tunes' own titles in the terminal page's data, third-party licenses and
+# release notes already published. A few names
 # stay on purpose and are allowed below.
 set -euo pipefail
 
@@ -26,6 +27,7 @@ found="$(git grep --untracked -nIiE "$PATTERN" -- apple design README.md .github
     ':!*Cargo.lock' ':!apple/Resonance/Acknowledgments.txt' \
     ':!apple/raycast/package.json' ':!apple/raycast/package-lock.json' \
     ':!*/Fixtures/*' ':!apple/scripts/us-english.sh' \
+    ':!apple/site/js/terminal-data.js' ':!design/site-cli/data.js' \
     | sed -E "s/$ALLOWED//g" | grep -iE "$PATTERN" || true)"
 
 if [ -n "$found" ]; then

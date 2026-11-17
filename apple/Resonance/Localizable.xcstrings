@@ -1050,6 +1050,9 @@
     "Clear…" : {
 
     },
+    "Click **+** before the filter above one of your playlists to add SID files or folders from your Mac." : {
+
+    },
     "Click **+** next to Playlists in the sidebar to make one, and type its name." : {
 
     },
@@ -1131,9 +1134,6 @@
     "Commands stay on your network and are encrypted. The first time you turn this on, macOS asks to let Resonance find devices on your local network." : {
 
     },
-    "Commodore 64 tune" : {
-
-    },
     "Compact model, the original player." : {
 
     },
@@ -1171,6 +1171,9 @@
 
     },
     "Control Center and media keys" : {
+
+    },
+    "Control Resonance from Resonance Remote on your iPhone or iPad, on the same network. Pair a device by scanning the QR code, or by typing the code and allowing it when both screens show the same number. Devices on your Apple Account, with iCloud Keychain on, can connect without a code. Below that, the paired devices; removing one signs it out at once. Commands stay on your network and are encrypted." : {
 
     },
     "Control Resonance from iPhone and iPad" : {
@@ -1835,9 +1838,6 @@
     "HVSC in Resonance's folder · %@" : {
 
     },
-    "HVSC knows" : {
-
-    },
     "HVSC notes" : {
 
     },
@@ -2038,6 +2038,9 @@
 
     },
     "It reacts as you type. When it isn't sure, it says what it did instead. You can also pick **Make a Playlist** in search, or type “like” and a tune's name." : {
+
+    },
+    "It uses the accent color you chose in System Settings, only for what's chosen or playing: a ● on the tune that plays, a ❯ at the cursor, and the played part of the bar." : {
 
     },
     "It's also in %@, and will be taken out of there too." : {
@@ -2286,10 +2289,7 @@
     "My Playlist and Downloads" : {
 
     },
-    "My Playlist is where files from outside the library go: the SID files, folders and M3U playlists you drop on the window or add with **⌘O** (**Add Files** in the toolbar). Tunes outside HVSC play the same way; they just don't get STIL's notes." : {
-
-    },
-    "My Playlist is where files from outside the library go: the SID files, folders and M3U playlists you drop on the window or add with **⌘O** (**File > Add Files or Folders…**). Tunes outside HVSC play the same way; they just don't get STIL's notes." : {
+    "My Playlist is where files from outside the library go: the SID files, folders and M3U playlists you drop on the window, add with **+** before the filter above it, or add with **⌘O** (**File > Add Files or Folders…**). Tunes outside HVSC play the same way; they just don't get STIL's notes." : {
 
     },
     "Name" : {
@@ -2544,6 +2544,9 @@
 
     },
     "On 1 tune" : {
+
+    },
+    "On a trackpad, slide two fingers sideways anywhere on the bar to slide its title to the tune before or after; lift them and that one plays." : {
 
     },
     "On a tune with more than one SID, Registers, Sweeps and Pitch Trail show them all at once where there's room, and otherwise the one you pick. The Tracker always shows the one you pick." : {
@@ -2832,13 +2835,16 @@
     "Press **?** in the main window to see every shortcut on a panel. A key still works with the panel open, so you can try one. Move through the rows with the arrow keys, press **Return** to run one, and press **Esc** to close it." : {
 
     },
-    "Press **?** there for its keys. It fits the window: from 110 columns, a panel beside the list says how the tune under the cursor sounds and what it sounds like, and from 120 columns by 38 rows you get the large header. It looks best in a terminal with millions of colors, such as iTerm2, Ghostty or Kitty." : {
+    "Press **?** there for its keys. It fits the window: from 110 columns, a panel beside the list says how the tune under the cursor sounds and what it sounds like, and from 120 columns by 38 rows you get the large header. It looks best in a terminal with millions of colors, such as iTerm2, Ghostty or Kitty. **i** puts the panel away to give the list its room, and brings it back." : {
 
     },
     "Press **Space** in My Playlist to play or pause." : {
 
     },
     "Press **c** outside the music, or run **resonance credits**. They close by themselves, or with **Esc**." : {
+
+    },
+    "Press **t** to pick a point in the tune: **←** and **→** move 5 seconds, with **⇧** 30, and **0** to **9** jump to that tenth. **Return** goes there, and **Esc** or **t** again cancels. As in the app, the bar fills in gray to where you're going while the playhead catches up. It works on the reSIDfp and SIDLite direct engines." : {
 
     },
     "Press **v** for the music, laid out like Now Playing in the app. The picker and the keys disappear after three seconds without a key press. **v** steps through the views, or go straight to one:" : {
@@ -3051,9 +3057,6 @@
 
     },
     "Removing a device signs it out at once. It needs a new code or a scan to come back, even on your Apple Account. Commands stay on your network and are encrypted." : {
-
-    },
-    "Removing a device signs it out at once. It needs a new code or a scan to come back. Commands stay on your network and are encrypted." : {
 
     },
     "Rename" : {
@@ -3305,6 +3308,9 @@
       "comment" : "Settings search: other words for CSDb"
     },
     "Scope" : {
+
+    },
+    "Scrubbing" : {
 
     },
     "Scrubbing Needs reSIDfp or SIDLite Direct" : {
@@ -3896,10 +3902,7 @@
     "The card at the top of the inspector has three pages. Swipe between them on a trackpad, or click the dots along its bottom edge; Resonance remembers the last one." : {
 
     },
-    "The chip button in the player bar, or **View → Show Under the Hood**, slides a drawer up over the list, and the button at its top right slides it back down." : {
-
-    },
-    "The chip button in the toolbar, or **View → Show Under the Hood**, slides a drawer up over the list, and the button at its top right slides it back down." : {
+    "The chip button in the toolbar, or **View → Show Under the Hood**, slides a drawer up over the list. The button stays tinted while it's open; click it again, or the button at the drawer's top right, to slide it back down." : {
 
     },
     "The chosen ones' pictures show the tune that's playing, and so does the one under the pointer. You can also choose from Now Playing itself." : {
@@ -4458,10 +4461,13 @@
     "Why does the sound stop for a moment when I scrub?" : {
 
     },
+    "Wide" : {
+
+    },
     "Wikipedia" : {
       "comment" : "Settings search: other words for composer photos"
     },
-    "Wide" : {
+    "With **Listen**, chosen in Resonance Remote, the Mac plays into the iPhone or iPad instead of its own speakers, going on from where the tune was. If the device's connection drops, the music pauses before the Mac's speakers take over." : {
 
     },
     "With a command after it, **resonance** does that one thing and returns. Run **resonance --help** for all of them." : {

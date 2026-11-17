@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Resonance in the terminal — the whole collection, one command</title>
+  <meta name="description" content="Resonance for Mac comes with a terminal app. Type resonance for your playlists, 60,000 tunes, Sounds Like and the music full screen in fire, plus commands for scripts, zsh and assistants.">
+  <meta name="theme-color" content="#07080d">
+  <meta name="color-scheme" content="dark">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Resonance in the terminal — the whole collection, one command">
+  <meta property="og:description" content="Resonance for Mac comes with a terminal app: your playlists, 60,000 tunes, what each one sounds like, and the music full screen in fire.">
+  <meta property="og:url" content="https://erikluimes.github.io/resonance/terminal/">
+  <meta property="og:image" content="https://erikluimes.github.io/resonance/assets/og-card.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="icon" type="image/png" sizes="64x64" href="../assets/favicon-64.png">
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <!-- ?v= changes with each site update, so a browser that cached the last
+       one fetches the new files instead of mixing old and new. -->
+  <link rel="stylesheet" href="../styles.css?v=20261115b">
+  <link rel="stylesheet" href="../terminal.css?v=20261115b">
+
+  <script>
+    // Sections fade in as terminal.js reveals them. If it never runs, show
+    // everything rather than an empty page.
+    document.documentElement.classList.add('js');
+    setTimeout(() => { if (!window.resonanceReady) document.documentElement.classList.remove('js'); }, 4000);
+  </script>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3.5v12M7 10.5l5 5 5-5M5 20h14"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  </svg>
+
+  <a class="skip" href="#main">Skip to content</a>
+
+  <div class="aurora" aria-hidden="true">
+    <i class="orb orb-1"></i><i class="orb orb-2"></i><i class="orb orb-3"></i>
+  </div>
+
+  <header class="nav-wrap">
+    <nav class="nav" aria-label="Main">
+      <a class="nav-brand tm-brand" href="#top" aria-label="Resonance in the terminal, top of the page"><i>❯</i><span>resonance<span class="tm-caret" aria-hidden="true"></span></span></a>
+      <div class="nav-links">
+        <a href="#fingerprints">Fingerprints</a>
+        <a href="#visuals">Visuals</a>
+        <a href="#commands">Commands</a>
+        <a href="#keys">Keys</a>
+        <a href="#more">More</a>
+      </div>
+      <a class="nav-cta" href="../">Mac app</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <!-- Hero -->
+    <section class="hero" id="top">
+      <div class="container hero-copy">
+        <p class="eyebrow" data-reveal><span class="eyebrow-dot"></span> The terminal app, included with Resonance for Mac</p>
+        <h1 class="hero-title" data-reveal>The whole collection.<br><span class="grad">One command.</span></h1>
+        <p class="lede" data-reveal>
+          Type <code>resonance</code> and the player on your Mac opens in your terminal: your playlists,
+          60,000 tunes, what each one sounds like, and the music full screen in fire.
+          It's the same player as the window, so the two stay in step.
+        </p>
+        <div class="hero-cta" data-reveal>
+          <span class="tm-prompt"><i>❯</i>resonance<span class="tm-caret" aria-hidden="true"></span></span>
+          <a class="btn btn-glass" href="../#download"><span>Get Resonance for Mac</span><svg class="i"><use href="#i-arrow-right"/></svg></a>
+        </div>
+      </div>
+
+      <div class="container container-wide" data-reveal>
+        <div class="tm-stage">
+          <div class="stage-glow" aria-hidden="true"></div>
+          <div class="term" id="term" tabindex="0" role="application" aria-label="The Resonance terminal app, running in this page. Arrow keys move, Return plays, L finds tunes that sound alike, T scrubs, slash searches, Escape goes back.">
+            <div class="term-bar"><div class="term-lights" aria-hidden="true"><i></i><i></i><i></i></div><b>resonance</b></div>
+            <div class="term-screen" data-screen></div>
+          </div>
+          <div class="tm-under">
+            <span><strong style="color:var(--text)">This one is live.</strong> Click it, then <kbd>↑</kbd> <kbd>↓</kbd> to move, <kbd>↵</kbd> to play, <kbd>L</kbd> to find what sounds alike, and <kbd>t</kbd> then <kbd>0</kbd>–<kbd>9</kbd> to scrub. It makes no sound here.</span>
+            <span class="tm-accents"><span>It wears your Mac's accent color</span>
+              <div data-accents>
+                <button type="button" style="--c:#0a84ff" aria-label="Blue"></button>
+                <button type="button" style="--c:#bf5af2" aria-label="Purple"></button>
+                <button type="button" style="--c:#ff375f" aria-label="Pink"></button>
+                <button type="button" style="--c:#ff453a" aria-label="Red"></button>
+                <button type="button" style="--c:#ff9f0a" aria-label="Orange" aria-pressed="true"></button>
+                <button type="button" style="--c:#ffd60a" aria-label="Yellow"></button>
+                <button type="button" style="--c:#32d74b" aria-label="Green"></button>
+                <button type="button" style="--c:#98989d" aria-label="Graphite"></button>
+              </div>
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Fingerprints -->
+    <section class="section" id="fingerprints">
+      <div class="container tm-two">
+        <div data-reveal>
+          <p class="kicker">Fingerprints</p>
+          <h2>See how a tune sounds<br><span class="grad">before you hear it.</span></h2>
+          <p class="section-lede">
+            Resonance listens to every tune once and keeps nine numbers about it. In the terminal they're
+            nine bars, always in the same order and colors, so tunes that sound alike look alike down a list.
+            Press <code>L</code> on one, and you get the tunes closest to it across the whole collection.
+            Press it again on one of those, and keep going.
+          </p>
+        </div>
+        <div class="glass-panel tm-print-panel" data-reveal>
+          <p class="tm-print-of" data-print-of></p>
+          <div class="tm-print" data-print role="group" aria-label="The nine bars of a fingerprint"></div>
+          <div class="tm-print-names" data-print-names aria-hidden="true"></div>
+          <p class="tm-print-say" data-print-say aria-live="polite"></p>
+          <ul class="tm-alike" data-print-alike aria-label="The tunes that sound most like it"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visuals -->
+    <section class="section" id="visuals">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="kicker">Visuals</p>
+          <h2>Then press <span class="mono">v</span>.<br><span class="grad">The music takes the whole window.</span></h2>
+          <p class="section-lede">
+            Five pictures made of nothing but characters, each one moved by the three voices of the tune.
+            It looks best in a terminal with millions of colors, such as iTerm2, Ghostty or Kitty.
+          </p>
+        </div>
+        <div class="term" data-reveal>
+          <div class="term-bar"><div class="term-lights" aria-hidden="true"><i></i><i></i><i></i></div><b>resonance</b></div>
+          <div class="tm-video"><span>Recording coming soon</span></div>
+        </div>
+        <ul class="tm-visuals" data-reveal>
+          <li><strong>Fire <kbd>f</kbd></strong><p>Each voice feeds its own part of the flames, and hits throw sparks.</p></li>
+          <li><strong>Skull <kbd>s</kbd></strong><p>A 3D skull in ASCII. Its eyes glow with the voices and its jaw chomps on the hits.</p></li>
+          <li><strong>Tesla <kbd>t</kbd></strong><p>Three coils. The higher a voice plays, the higher its lightning strikes.</p></li>
+          <li><strong>Water <kbd>w</kbd></strong><p>Every note is a drop in a pool: wide ripples for low notes, tight ones for high.</p></li>
+          <li><strong>Sphere <kbd>o</kbd></strong><p>The app's Particle sphere, turning in points of light.</p></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Commands -->
+    <section class="section" id="commands">
+      <div class="container tm-two">
+        <div data-reveal>
+          <p class="kicker">Commands</p>
+          <h2>A remote control<br><span class="grad">for everything else.</span></h2>
+          <p class="section-lede">
+            Every button in the app is a command too. Play, skip and favorite from a script, describe what
+            you'd like to hear in a sentence, or pipe a search straight into a playlist. Lists print
+            tab-separated when piped, and anything that answers takes <code>--json</code>.
+          </p>
+        </div>
+        <div class="term" data-reveal>
+          <div class="term-bar"><div class="term-lights" aria-hidden="true"><i></i><i></i><i></i></div><b>zsh</b></div>
+<pre class="tm-session"><span class="c"># What's playing?</span>
+<span class="p">❯</span> resonance now
+<span class="o">♪ Commando · Rob Hubbard  1:14 / 3:56</span>
+
+<span class="c"># Say what you'd like to hear</span>
+<span class="p">❯</span> resonance describe fast arpeggios from 1987
+
+<span class="c"># More like this one, please</span>
+<span class="p">❯</span> resonance like --play
+
+<span class="c"># Everything by Hubbard, into a playlist</span>
+<span class="p">❯</span> resonance search hubbard | resonance playlist add Hubbard
+
+<span class="c"># Pick a few by hand, and add those</span>
+<span class="p">❯</span> resonance playlist add "Late Night" $(resonance pick --multi)
+
+<span class="c"># A tune when the build is done</span>
+<span class="p">❯</span> rdone make release</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- Keys -->
+    <section class="section" id="keys">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="kicker">Keys</p>
+          <h2>Your keys.<br><span class="grad">Vim, Emacs, or neither.</span></h2>
+          <p class="section-lede">
+            The terminal app looks at your editor and answers to the keys your hands already know.
+            Choose a set here, and the terminal at the top of the page follows.
+          </p>
+          <div class="tm-seg" data-schemes role="group" aria-label="Keys" style="margin-top:28px">
+            <button type="button" data-scheme="normal" aria-pressed="true">Normal</button>
+            <button type="button" data-scheme="vim" aria-pressed="false">Vim</button>
+            <button type="button" data-scheme="emacs" aria-pressed="false">Emacs</button>
+          </div>
+        </div>
+        <ul class="tm-keys" data-keys data-reveal></ul>
+        <p class="tm-keys-note" data-reveal>It reads <code>$VISUAL</code>, then <code>$EDITOR</code>: Vim and Neovim get Vim keys, Emacs gets Emacs keys. To choose for yourself, run <code>resonance --keys vim</code>, <code>emacs</code> or <code>normal</code>, or set <code>RESONANCE_KEYS</code> for good. Press <kbd>?</kbd> for every key.</p>
+      </div>
+    </section>
+
+    <!-- More -->
+    <section class="section" id="more">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="kicker">And more</p>
+          <h2>It goes <span class="grad">deeper than it looks.</span></h2>
+        </div>
+        <div class="tm-cards" data-reveal>
+          <div class="tm-card"><h3>Under the hood</h3><p>Press <kbd>u</kbd> and a tracker slides up: the notes, instruments, arpeggios and slides the tune is playing, with what's coming below. <kbd>tab</kbd> steps on to the chip's registers, sweeps and pitch.</p></div>
+          <div class="tm-card"><h3>Describe</h3><p>Write “fast arpeggios from 1987” and get a playlist. It says what it understood, and <kbd>n</kbd> saves the list.</p></div>
+          <div class="tm-card"><h3>Scrub</h3><p>Press <kbd>t</kbd> and pick a point with the arrow keys, or press <kbd>0</kbd> to <kbd>9</kbd> for that tenth of the tune. <kbd>↵</kbd> goes there.</p></div>
+          <div class="tm-card"><h3>zsh and Oh My Zsh</h3><p>Completions that know your playlists' names, short commands, and the tune playing in your prompt.</p>
+<pre>rn  <i>next</i>           rp  <i>pause or play</i>
+rs  <i>surprise me</i>    rl  <i>more like this</i>
+rf  <i>favorite</i>       rq  <i>what's playing</i></pre></div>
+          <div class="tm-card"><h3>Claude and other assistants</h3><p>Ask for “something like Commando but darker”. An assistant can search, play and make playlists, but it can't delete one.</p>
+<pre>claude mcp add resonance -- resonance mcp</pre></div>
+          <div class="tm-card"><h3>Credits</h3><p>Press <kbd>c</kbd> for the credits, a small demo of their own with a nod to the demoscene.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Get it -->
+    <section class="section" id="get">
+      <div class="container container-narrow">
+        <div class="glass-panel download" data-reveal>
+          <div class="dl-main">
+            <img class="dl-icon" src="../assets/icon-512.png" alt="Resonance app icon" width="128" height="128">
+            <div>
+              <p class="kicker">Included</p>
+              <h2 style="font-size:clamp(1.9rem,4vw,2.8rem)">It's already in Resonance.</h2>
+              <p class="dl-status">Install it from Settings → Integrations → Command Line Tool. Then type <code>resonance</code> in any terminal.</p>
+              <div class="dl-actions">
+                <a class="btn btn-primary" href="../#download"><svg class="i"><use href="#i-download"/></svg><span>Download for Mac</span></a>
+                <a class="btn btn-glass" href="https://github.com/ErikLuimes/resonance/tree/main/apple/cli"><span>Read the manual</span></a>
+              </div>
+              <ul class="reqs"><li>macOS 27 or later</li><li>Any terminal</li><li>Free &amp; open source</li></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section" id="faq">
+      <div class="container container-narrow">
+        <div class="section-head" data-reveal><p class="kicker">Questions</p><h2>Good to know</h2></div>
+        <div class="faq" data-reveal>
+          <details><summary>Do I need the Mac app?</summary><p>Yes. The command is a remote control: the app plays everything, so the window, the terminal and every shortcut are the same player. If the app isn't running, it starts in the background.</p></details>
+          <details><summary>Which terminals does it work in?</summary><p>All of them. It looks its best with millions of colors, as in iTerm2, Ghostty or Kitty. Terminal has 256, and the app picks the nearest of those.</p></details>
+          <details><summary>Is the terminal on this page the real thing?</summary><p>It's a drawing of it that runs in your browser. The tunes, their fingerprints and what sounds like what are real, taken from Resonance. It knows a few hundred tunes and makes no sound; the real one knows them all.</p></details>
+          <details><summary>What music does it play?</summary><p>The music of the Commodore 64: the 60,000 tunes of the High Voltage SID Collection, the home computer's soundtrack from the 1980s to today.</p></details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <img src="../assets/icon-256.png" alt="" width="40" height="40">
+        <div><strong>Resonance</strong><span>The SID, played and seen</span></div>
+      </div>
+      <div class="footer-links">
+        <a href="../">Resonance for Mac</a>
+        <a href="../remote/">Resonance Remote</a>
+        <a href="https://github.com/ErikLuimes/resonance">GitHub</a>
+        <a href="https://hvsc.c64.org">HVSC</a>
+      </div>
+      <p class="footer-legal">
+        Resonance © <span data-year>2026</span> Erik Luimes. Tunes shown are from the High Voltage SID Collection; their music belongs to their composers.
+      </p>
+    </div>
+  </footer>
+
+  <script src="../js/terminal-data.js?v=20261115b"></script>
+  <script type="module" src="../js/terminal.js?v=20261115b"></script>
+  <!-- Visits, counted without cookies by GoatCounter (it skips localhost). -->
+  <script data-goatcounter="https://erikluimes.goatcounter.com/count"
+          async src="https://gc.zgo.at/count.js"></script>
+</body>
+</html>

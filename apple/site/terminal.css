@@ -1,0 +1,209 @@
+/* Resonance in the terminal: the page's own styles, over styles.css. */
+
+/* The terminal app's colors, from apple/cli/src/palette.rs. The accent is the
+   visitor's to choose, as the app takes it from System Settings. */
+:root {
+  --t-bg: #14161a;
+  --t-text: #d7dae0;
+  --t-muted: #7a808c;
+  --t-sel: #2a3040;
+  --t-bar: #2c313b;
+  --t-bar-focus: #3a404d;
+  --t-faint: #343842;
+  --t-frame: #4d5260;
+  --t-white: #e8e8e8;
+  --t-cyan: #2cc4ea;
+  --t-violet: #a37df5;
+  --t-orange: #f2a154;
+  --t-red: #f07070;
+  --t-green: #6fdc9d;
+  --t-accent: #ff9f0a;
+}
+
+.tm-brand { display: inline-flex; align-items: baseline; gap: 8px; font: 600 15px/1 var(--mono); text-decoration: none; white-space: nowrap; }
+.tm-brand i { font-style: normal; color: var(--t-accent); }
+.tm-caret { display: inline-block; width: 0.55em; height: 1.05em; margin-left: 2px; translate: 0 0.18em; background: currentColor; animation: tm-blink 1.1s steps(1) infinite; }
+@keyframes tm-blink { 50% { opacity: 0; } }
+
+.tm-prompt { display: inline-flex; align-items: center; gap: 12px; padding: 13px 20px; border-radius: 14px; font: 500 16px/1 var(--mono); background: rgba(10, 11, 16, 0.7); border: 1px solid var(--line-2); box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.9); }
+.tm-prompt i { font-style: normal; color: var(--t-accent); }
+
+/* A terminal window. Everything inside is sized in ch and em, and the font
+   follows the window's width, so the grid of characters scales as one. */
+.term { container-type: inline-size; position: relative; border-radius: 14px; background: var(--t-bg); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.10), 0 60px 110px -40px rgba(0, 0, 0, 0.9), 0 24px 50px -24px rgba(0, 0, 0, 0.7); overflow: hidden; text-align: left; }
+.term:focus-visible { outline: 2px solid var(--t-accent); outline-offset: 4px; border-radius: 14px; }
+.term-bar { position: relative; display: flex; align-items: center; height: 34px; padding: 0 14px; background: linear-gradient(#2c2d33, #232429); border-bottom: 1px solid rgba(0, 0, 0, 0.5); }
+.term-bar b { position: absolute; left: 0; right: 0; text-align: center; font: 500 12.5px/1 var(--font); color: #b9bcc6; pointer-events: none; }
+.term-lights { display: flex; gap: 8px; }
+.term-lights i { width: 12px; height: 12px; border-radius: 50%; background: #4a4c55; }
+.term-screen { --cols: 150; padding: 1.4em 1ch 0.7em; font: 400 calc(100cqw / var(--cols) / 0.602) / 1.5 var(--mono); color: var(--t-text); font-variant-ligatures: none; cursor: default; user-select: none; -webkit-user-select: none; }
+.term-screen b { font-weight: 700; color: #fff; }
+.term-screen .m { color: var(--t-muted); }
+.term-screen .ac { color: var(--t-accent); }
+.term-screen .cut { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
+
+/* What's playing, over the panes. */
+.t-now { display: flex; gap: 2ch; padding: 0 1ch; white-space: nowrap; }
+.t-now .grow { flex: 1; min-width: 0; display: flex; gap: 2ch; }
+.t-logo { color: var(--t-muted); letter-spacing: 0.02em; }
+.t-logo i { font-style: normal; }
+.t-time { display: flex; align-items: center; gap: 2ch; padding: 0 1ch; white-space: nowrap; }
+/* The bar, in the app's characters, one to a cell: ▰ played, ● the head, ▱ left. */
+.t-track { flex: 1; min-width: 0; display: flex; overflow: hidden; color: var(--t-muted); }
+.t-track i { flex: none; width: 1ch; font-style: normal; text-align: center; }
+.t-track .p { color: var(--t-accent); }
+.t-track .g { color: color-mix(in srgb, var(--t-accent) 70%, var(--t-white)); }
+.t-track .h { color: var(--t-white); }
+.t-time .pct { width: 4ch; text-align: right; color: var(--t-muted); }
+
+/* The panes: a line across the top, and thin lines down that fade out. */
+.t-panes { display: grid; grid-template-columns: 29ch minmax(0, 1fr) 41ch; margin-top: 0.75em; border-top: 1px solid var(--t-frame); height: 49.5em; }
+.t-pane { padding: 0.75em 1ch 0; min-width: 0; overflow: hidden; border-left: 1px solid; border-image: linear-gradient(to bottom, var(--t-frame) 62%, transparent) 1; }
+.t-pane:last-child { border-right: 1px solid; }
+.t-h { margin: 0 0 0.75em; padding: 0 1ch; background: var(--t-bar); box-shadow: 0 0.78em 0 -0.72em var(--t-faint); font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-h.focus { background: var(--t-bar-focus); }
+.t-h .m { font-weight: 400; }
+.t-list { margin: 1.5em 0 1.5em; padding: 0; list-style: none; }
+.t-list li { display: flex; gap: 1ch; padding: 0 2ch; white-space: nowrap; }
+.t-list li.on { padding-left: 0; }
+.t-list li.on::before { content: "❯"; width: 1ch; color: var(--t-muted); }
+.t-list li span:last-child:not(:first-child) { color: var(--t-muted); }
+.t-list.wide li { justify-content: space-between; }
+
+.t-cols, .t-row { display: grid; grid-template-columns: 2ch 2ch minmax(0, 30fr) minmax(0, 28fr) 10ch 7ch; column-gap: 1ch; padding: 0 1ch 0 0; white-space: nowrap; }
+.t-cols { margin: 1.5em 0; color: var(--t-muted); }
+.t-cols > :last-child, .t-row > :last-child { text-align: right; }
+.t-row { cursor: pointer; }
+.t-row > :nth-child(4), .t-row > :last-child { color: var(--t-muted); }
+.t-row .ring { color: var(--t-muted); }
+.t-row.playing .ring { color: var(--t-accent); }
+.t-row .title { display: flex; gap: 2ch; min-width: 0; }
+.t-row.at .title > span:first-child { text-decoration: underline; text-underline-offset: 0.22em; }
+.t-chip { flex: none; padding: 0 1ch; background: var(--t-sel); color: var(--t-muted); }
+.t-chip b { font-weight: 400; color: var(--t-text); }
+.t-more { padding-left: 5ch; color: var(--t-muted); }
+
+/* Fingerprints: nine bars, always in the same order and colors. */
+.fp { display: inline-flex; align-items: flex-end; width: 9ch; height: 1.5em; vertical-align: top; background: linear-gradient(var(--t-faint), var(--t-faint)) 0 78% / 100% 1px no-repeat; }
+.fp i { width: 1ch; height: calc(var(--h) * 78%); margin-bottom: 0.33em; background: var(--c); }
+.fp.none { background: none; color: var(--t-faint); letter-spacing: 0; }
+.fp-big { display: grid; grid-template-columns: repeat(9, 3ch); height: 4.5em; align-items: end; margin-top: 1.5em; }
+.fp-big i { width: 2ch; height: max(1px, calc(var(--h) * 100%)); background: var(--c); }
+.fp-big.none i { background: var(--t-faint); }
+.fp-names { display: grid; grid-template-columns: repeat(9, 3ch); color: var(--t-muted); }
+.t-mix { display: flex; height: 1.5em; margin-top: 1.5em; }
+.t-mix i { background: var(--c); }
+.t-mixnames { display: flex; gap: 2ch; white-space: nowrap; }
+.t-voices { margin-top: 1.5em; white-space: pre; line-height: 1.5; }
+.t-alike { display: grid; grid-template-columns: 9ch minmax(0, 1fr) 4ch; column-gap: 1ch; white-space: nowrap; }
+.t-alike > :last-child { text-align: right; color: var(--t-muted); }
+
+/* All keys (?), over the panes. */
+.t-panes { position: relative; }
+.t-help { position: absolute; left: 50%; top: 3.75em; translate: -50% 0; width: 102ch; max-width: 100%; padding: 0.75em 0.5ch 0.6em; background: var(--t-bg); border: 1px solid var(--t-frame); display: grid; grid-template-columns: minmax(0, 1fr) 38ch; column-gap: 3ch; white-space: nowrap; }
+.t-help-top { position: absolute; left: 2ch; right: 1ch; top: -0.8em; display: flex; justify-content: space-between; color: var(--t-muted); }
+.t-help-top span { padding: 0 1ch; background: var(--t-bg); }
+.t-help-keys { display: grid; grid-template-columns: 19ch minmax(0, 1fr); white-space: pre; }
+.t-help-keys > :last-child { grid-column: 1 / -1; color: var(--t-muted); }
+.t-help-read i { display: inline-block; width: 1ch; height: 1.5em; margin-right: 1ch; vertical-align: top; background: var(--c); }
+.t-help-read p { margin: 1.5em 0 0; color: var(--t-muted); white-space: normal; }
+
+.t-keys { display: flex; gap: 2ch; margin-top: 0.75em; padding: 0 0.5ch; white-space: nowrap; overflow: hidden; }
+.t-keys button { all: unset; cursor: pointer; color: var(--t-muted); }
+.t-keys button b { font-weight: 400; color: var(--t-text); margin-right: 1ch; }
+.t-keys button:hover, .t-keys button:hover b { color: #fff; }
+.t-keys button:focus-visible { outline: 1px solid var(--t-accent); }
+.t-keys .say { color: var(--t-text); }
+
+/* In a narrow window the app drops the panel, then the sidebar. So does this. */
+@container (max-width: 900px) {
+  .term-screen { --cols: 108; }
+  .t-panes { grid-template-columns: 29ch minmax(0, 1fr); }
+  .t-pane.side, .t-help-read { display: none; }
+  .t-help { grid-template-columns: minmax(0, 1fr); width: 64ch; }
+  .t-pane:nth-child(2) { border-right: 1px solid; }
+}
+@container (max-width: 600px) {
+  .term-screen { --cols: 62; }
+  .t-panes { grid-template-columns: minmax(0, 1fr); height: 36em; }
+  .t-pane.lib { display: none; }
+  .t-cols, .t-row { grid-template-columns: 2ch 2ch minmax(0, 1fr) 10ch 5ch; }
+  .t-cols > :nth-child(4), .t-row > :nth-child(4), .t-chip, .t-logo, .t-now .state { display: none; }
+  .t-keys button:nth-child(n+5) { display: none; }
+}
+
+.tm-stage { position: relative; margin-top: 64px; }
+.tm-under { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 32px; margin: 22px 4px 0; color: var(--muted); font-size: 14.5px; }
+.tm-under kbd, .tm-keys kbd, .tm-card kbd { display: inline-block; min-width: 1.7em; padding: 0.1em 0.45em; border-radius: 6px; font: 500 0.85em/1.5 var(--mono); text-align: center; color: var(--text); background: var(--surface-2); border: 1px solid var(--line-2); }
+.tm-accents { display: flex; align-items: center; gap: 12px; }
+.tm-accents div { display: flex; gap: 7px; }
+.tm-accents button { width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: var(--c); cursor: pointer; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25); }
+.tm-accents button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--c); }
+
+/* Fingerprints, explained. */
+.tm-print { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: clamp(6px, 1.4vw, 16px); align-items: end; height: 240px; padding: 0 clamp(14px, 3vw, 36px); }
+.tm-print button { all: unset; position: relative; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; cursor: pointer; }
+.tm-print button i { display: block; height: max(3px, calc(var(--h) * 100%)); border-radius: 4px 4px 0 0; background: var(--c); opacity: 0.55; transition: opacity 0.2s, filter 0.2s; }
+.tm-print button[aria-pressed="true"] i, .tm-print button:hover i { opacity: 1; filter: drop-shadow(0 0 18px var(--c)); }
+.tm-print button:focus-visible { outline: 2px solid var(--v1); outline-offset: 4px; border-radius: 6px; }
+.tm-print-names { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: clamp(6px, 1.4vw, 16px); padding: 12px clamp(14px, 3vw, 36px) 0; border-top: 1px solid var(--line-2); font: 600 13px/1 var(--mono); color: var(--dim); text-align: center; }
+.tm-print-names span.on { color: var(--text); }
+.tm-print-say { min-height: 3.3em; margin: 22px 0 0; text-align: center; color: var(--muted); }
+.tm-print-say strong { display: block; color: var(--text); font-size: 17px; }
+.tm-print-panel { padding: clamp(22px, 4vw, 40px) clamp(8px, 2vw, 24px) clamp(20px, 3vw, 32px); }
+.tm-print-of { margin: 0 0 22px; text-align: center; font: 500 13px/1.4 var(--mono); color: var(--dim); }
+.tm-alike { margin: 28px 0 0; padding: 0; list-style: none; font: 400 14px/1.9 var(--mono); }
+.tm-alike li { display: grid; grid-template-columns: 9ch minmax(0, 1fr) auto; gap: 2ch; align-items: center; color: var(--muted); white-space: nowrap; }
+.tm-alike li span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; }
+.tm-alike li em { color: var(--text); }
+.tm-alike .fp { height: 1.9em; }
+
+/* The visuals: a recording in a window, and the five to pick from. */
+.tm-visuals { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-top: 28px; padding: 0; list-style: none; }
+.tm-visuals li { padding: 18px 18px 20px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); }
+.tm-visuals strong { display: flex; align-items: center; justify-content: space-between; font-size: 16px; }
+.tm-visuals p { margin: 6px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.tm-video { aspect-ratio: 16 / 10; display: grid; place-items: center; background: var(--t-bg); color: var(--t-muted); font: 400 14px var(--mono); }
+.tm-video video { width: 100%; height: 100%; object-fit: cover; }
+
+/* Commands. */
+.tm-session { margin: 0; padding: 22px 24px 26px; font: 400 clamp(11.5px, 1.25vw, 14px)/1.75 var(--mono); color: var(--t-text); white-space: pre; overflow-x: auto; }
+.tm-session .p { color: var(--t-accent); }
+.tm-session .c { color: var(--t-muted); }
+.tm-session .o { color: #9aa0ad; }
+.tm-two { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(32px, 6vw, 72px); align-items: center; }
+.tm-two .section-lede { margin-inline: 0; }
+.section-lede code, .tm-keys-note code { white-space: nowrap; }
+.tm-two h2, .tm-two .kicker { text-align: left; }
+
+/* Keys. */
+.tm-seg { display: inline-flex; padding: 4px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line-2); }
+.tm-seg button { padding: 8px 20px; border: 0; border-radius: 999px; background: none; font: 600 14px var(--font); color: var(--muted); cursor: pointer; }
+.tm-seg button[aria-pressed="true"] { background: var(--surface-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-2); }
+.tm-keys { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 32px 0 0; padding: 0; list-style: none; }
+.tm-keys li { display: flex; flex-direction: column; gap: 10px; padding: 16px 18px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); color: var(--muted); font-size: 14.5px; }
+.tm-keys li span { display: flex; flex-wrap: wrap; gap: 6px; min-height: 1.9em; }
+.tm-keys-note { margin: 22px auto 0; max-width: 660px; text-align: center; color: var(--dim); font-size: 14.5px; }
+
+/* And more. */
+.tm-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.tm-card { padding: 26px 26px 28px; border-radius: 22px; background: var(--surface); border: 1px solid var(--line); }
+.tm-card h3 { margin: 0 0 8px; font: 650 19px/1.3 var(--display); }
+.tm-card p { margin: 0; color: var(--muted); font-size: 15px; }
+.tm-card pre { margin: 16px 0 0; padding: 12px 14px; border-radius: 12px; font: 400 12.5px/1.6 var(--mono); color: var(--t-text); background: var(--t-bg); border: 1px solid var(--line); overflow-x: auto; }
+.tm-card pre i { font-style: normal; color: var(--t-muted); }
+
+@media (max-width: 980px) {
+  .tm-two { grid-template-columns: minmax(0, 1fr); }
+  .tm-two h2, .tm-two .kicker { text-align: center; }
+  .tm-two .section-lede { margin-inline: auto; text-align: center; }
+  .tm-visuals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tm-keys { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tm-cards { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 620px) {
+  .tm-print { height: 170px; }
+  .tm-print-names { font-size: 10.5px; }
+  .tm-under { justify-content: center; text-align: center; }
+}
+@media (prefers-reduced-motion: reduce) { .tm-caret { animation: none; } }

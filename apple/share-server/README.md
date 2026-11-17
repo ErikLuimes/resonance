@@ -25,6 +25,8 @@ for the start song:
   version can take a day to reach Macs, through Apple's cache.
 - `GET /remote` — redirects (307) to Resonance Remote's page on the website,
   `<DOWNLOAD_URL>/remote/`.
+- `GET /terminal` — redirects (307) to the terminal app's page on the website,
+  `<DOWNLOAD_URL>/terminal/`.
 - `GET /healthz`. Everything else (`/`, `/download`, …) redirects to the website (`DOWNLOAD_URL`), so the domain leads there.
 
 Everything it shows comes from the tune index; it fetches nothing.
