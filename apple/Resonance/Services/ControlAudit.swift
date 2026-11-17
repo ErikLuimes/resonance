@@ -4,7 +4,7 @@ import OSLog
 import Security
 
 /// Who used the control socket and what they asked, in the unified log
-/// (category `control`; design/logging/README.md). This is for finding out
+/// (category `control`). This is for finding out
 /// afterward what happened, not access control: ControlServer's owner and uid
 /// checks are that.
 nonisolated enum ControlAudit {

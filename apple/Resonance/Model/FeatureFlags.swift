@@ -1,5 +1,4 @@
-/// Every feature that isn't in all builds, and how far it may go. The rules and
-/// how to add one: design/feature-flags/README.md.
+/// Every feature that isn't in all builds, and how far it may go.
 ///
 /// Code stays out of a build through `#if` on the feature's compilation flag,
 /// because a hidden setting would still ship the code. This list says what

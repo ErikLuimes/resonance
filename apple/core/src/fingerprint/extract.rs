@@ -237,7 +237,7 @@ impl Running {
 const NOTE_TIME_BINS: usize = 8;
 
 /// The measurements that made "Sounds like" better in the benchmark
-/// (`design/similarity`), chiefly the voices' envelope settings at note start.
+/// (`apple/scripts/similarity-bench`), chiefly the voices' envelope settings at note start.
 #[derive(Default)]
 struct Extras {
     attack: Running,

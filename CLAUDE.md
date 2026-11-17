@@ -13,6 +13,8 @@
 
 ## Design docs
 
+Design docs, mockups and research live outside this public repo, in ~/Repositories/Personal/resonance-brainstorm/design/. The `design/...` paths below are relative to resonance-brainstorm/. Keep new design work there, not here.
+
 Visualizer design reference and roadmap: design/visualizers/ (start with ROADMAP.md).
 
 STIL notes (parser spec, design, reference implementation): design/stil/ (start with README.md); the Swift parser is apple/Packages/STILKit.

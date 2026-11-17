@@ -1,5 +1,5 @@
 //! Clips: a stretch of a tune rendered offline for a video, with the
-//! visualizers' feed to draw its frames from (design/clip-sharing).
+//! visualizers' feed to draw its frames from.
 //!
 //! A clip builds its own engine, the same way the player builds a track
 //! (`build`), runs it silently to where the clip's lead-in starts, as a seek

@@ -4,8 +4,7 @@ import Foundation
 /// Each voice's spectrum, in `bands` log-spaced bands from about 40 Hz to
 /// 10 kHz, 0–1, for the Radial visualizer. An FFT (vDSP) over the last 2048
 /// samples of each voice's tap, Hann-windowed, on a −60…0 dB scale, with
-/// a fast rise and slow fall so the bars stay calm
-/// (design/visualizers/IMPLEMENTATION_NOTES.md).
+/// a fast rise and slow fall so the bars stay calm.
 nonisolated final class VoiceSpectrum {
     static let size = 2048
     static let bands = 64

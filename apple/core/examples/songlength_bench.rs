@@ -1,6 +1,5 @@
 //! Scores the detection Resonance ships against HVSC's own song lengths: runs
 //! a random sample of tunes, never looking at their lengths, and compares.
-//! See design/songlengths/README.md.
 //!
 //!     cargo run --release -p phosphor-apple --example songlength_bench -- <hvsc> <count> <seed> [out.csv]
 //!

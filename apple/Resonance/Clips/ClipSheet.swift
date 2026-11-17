@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 
 
 /// Share Clip…: a short video of Now Playing's visualizer with its sound,
-/// to post or send (design/clip-sharing, mockup.html beside it). Choose the
+/// to post or send. Choose the
 /// shape, the length and the part, make it, then save or share it.
 struct ClipSheet: View {
     let visual: NowPlayingVisual

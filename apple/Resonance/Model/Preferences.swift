@@ -20,7 +20,7 @@ nonisolated enum Pref {
     static let nowPlayingVisualizer = "nowPlayingVisualizer"
     /// The visualizers Now Playing offers (`NowPlayingVisual.lineup`).
     static let nowPlayingLineup = "nowPlayingLineup"
-    /// Share Clip…'s shape and length (design/clip-sharing).
+    /// Share Clip…'s shape and length.
     static let clipShape = "clipShape"
     static let clipLength = "clipLength"
     static let theme = "theme"

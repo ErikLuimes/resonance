@@ -1,5 +1,5 @@
 #!/bin/bash
-# Feature flags, for scripts. The rules: design/feature-flags/README.md.
+# Feature flags, for scripts.
 #
 #   feature-flags.sh conditions <stage>   The Swift flags a Release build of this
 #                                         release stage gets: ALPHA for "alpha.7",

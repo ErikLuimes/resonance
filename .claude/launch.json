@@ -25,7 +25,7 @@
         "--bind",
         "127.0.0.1",
         "--directory",
-        "design"
+        "/Users/erik/Repositories/Personal/resonance-brainstorm/design"
       ],
       "port": 8643
     },

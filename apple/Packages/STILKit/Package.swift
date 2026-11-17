@@ -1,6 +1,6 @@
 // swift-tools-version:5.9
 // STILKit — parse, reflow and enrich HVSC STIL.txt for Resonance.
-// Port of design/stil/reference/stil_reference.py. Tests compare against its golden output.
+// Port of a Python reference parser, stil_reference.py (kept outside this repo). Tests compare against its golden output.
 import PackageDescription
 
 let package = Package(
@@ -13,7 +13,7 @@ let package = Package(
         .testTarget(
             name: "STILKitTests",
             dependencies: ["STILKit"],
-            // Regenerate with design/stil/reference/make_fixtures.py
+            // Regenerate with make_fixtures.py, beside the reference parser
             // (or point FIXTURES_DIR elsewhere; see FixtureTests.swift).
             resources: [.copy("Fixtures")]
         ),

@@ -952,7 +952,7 @@ final class ControlCommands {
     }
 
     /// Plays `path` again inside the list it last played from, at that tune,
-    /// so Next carries on there: the playlist (by id, through a rename),
+    /// so Next goes on from there: the playlist (by id, through a rename),
     /// the curated list, the folder, the search, Sounds Like for its seed.
     /// A drift can't be walked again, so a new one sets off from the tune.
     /// Otherwise, or when the tune has left that list, it plays alone.

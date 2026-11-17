@@ -3,8 +3,8 @@ using namespace metal;
 
 // The 1702's tube (MonitorView.swift), over the glass of the rendered case.
 // One quad, this fragment function; the picture is the 384×272 frame
-// MonitorScreen draws, as a mipmapped texture. Measurements and reasons in
-// design/crt-monitor/README.md; the shader is the mockup's, line for line.
+// MonitorScreen draws, as a mipmapped texture. The shader is the approved
+// mockup's, line for line.
 
 struct MonitorUniforms {
     float2 quad;        // the view's size in photo pixels
@@ -160,7 +160,7 @@ fragment float4 monitorFragment(MonitorVertex in [[stage_in]],
 // material and the room), and the spill onto the bezel (a light in front
 // of the screen). The texture covers the screen mesh's front, which is a
 // little larger than the glass that shows inside the bezel, and is sRGB, so
-// what's written is linear. Same as design/crt-monitor/mockup-3d.html.
+// what's written is linear. Same as the 3D mockup.
 
 struct TubeUniforms {
     float2 meshHalf;    // half the screen mesh's front, in scene units

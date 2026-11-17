@@ -7,7 +7,7 @@ import ResonanceVisuals
 
 
 /// What a clip's frame is drawn from: the clip's feed at one point in the
-/// tune (design/clip-sharing).
+/// tune.
 struct ClipMoment {
     let feed: VisualizerFeed
     /// Seconds into the subtune: the end of the frame's audio.
@@ -106,7 +106,7 @@ enum ClipPainters {
 
     /// The lead-in for `visual`, in seconds: what runs before the clip's
     /// first frame, drawn and not kept, so the first frame looks as it
-    /// would have live (design/clip-sharing, Pre-roll).
+    /// would have live.
     static func leadIn(_ visual: NowPlayingVisual) -> Double {
         switch visual {
         case .notes, .silicon: 0

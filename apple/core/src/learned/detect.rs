@@ -1,6 +1,5 @@
 //! Works out how long a subtune lasts by running it, for tunes HVSC's
-//! Songlengths database doesn't list. Method and measurements:
-//! design/songlengths/README.md; change it only against
+//! Songlengths database doesn't list. Change it only against
 //! `core/examples/songlength_bench.rs`.
 
 use std::collections::HashMap;

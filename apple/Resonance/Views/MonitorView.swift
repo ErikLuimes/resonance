@@ -25,7 +25,7 @@ enum MonitorPowerCue {
 /// power button: then it warms up, a C64 boots and runs the player, live,
 /// answering the app's own keys while About is in front. The case is a photo;
 /// the glass is Shaders/Monitor.metal over it, and the picture on it is
-/// MonitorScreen.swift's. Measurements and reasons in design/crt-monitor/README.md.
+/// MonitorScreen.swift's.
 /// The monitor at any size: the photo, the glass over it, the LED and the
 /// power button. `live` draws the tube with Metal; otherwise the glass is a
 /// plain dark shape, for previews without a device.
@@ -38,9 +38,9 @@ struct MonitorCase: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var powerHovered = false
 
-    /// The render's geometry, in its own pixels (design/crt-monitor/README.md):
+    /// The render's geometry, in its own pixels:
     /// a Commodore 1702 from dark_igorek's CC BY 4.0 model, rendered straight
-    /// on in Blender by design/crt-monitor/blender/render.py.
+    /// on in Blender by render.py (kept outside this repo).
     static let photo = CGSize(width: 2400, height: 2000)
     static var aspect: CGFloat { photo.height / photo.width }
     /// The glass as it shows, inside the black bezel.

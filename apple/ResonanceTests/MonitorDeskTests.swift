@@ -5,8 +5,8 @@ import Testing
 @testable import Resonance
 
 /// The 3D desk in About: the scene has the parts the app moves, and the tube
-/// on the glass lands on the reference colors (design/crt-monitor/README.md:
-/// border `#9e8be1`, background `#654db6`) once the room's reflection is in.
+/// on the glass lands on the reference colors (border `#9e8be1`,
+/// background `#654db6`) once the room's reflection is in.
 @MainActor
 @Suite(.serialized)
 struct MonitorDeskTests {

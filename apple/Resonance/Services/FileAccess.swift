@@ -2,7 +2,7 @@ import Foundation
 
 /// The folders and files the user handed the sandboxed app (a panel, Finder's
 /// Open With, a drop), opened again at every launch from security-scoped
-/// bookmarks: design/sandbox/README.md. Everything else keeps using paths.
+/// bookmarks. Everything else keeps using paths.
 nonisolated final class FileAccess: @unchecked Sendable {
     static let shared = FileAccess(defaults: .standard, container: NSHomeDirectory())
 

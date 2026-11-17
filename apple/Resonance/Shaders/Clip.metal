@@ -1,7 +1,7 @@
 #include <metal_stdlib>
 using namespace metal;
 
-// A clip's frame (design/clip-sharing): the visualizer's picture over the
+// A clip's frame: the visualizer's picture over the
 // theme's background, then the overlays (Silicon's vignette, the burned-in
 // card), all premultiplied, into the video's pixel buffer.
 

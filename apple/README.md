@@ -283,7 +283,7 @@ release.
   same release (`scripts/similarity-bench/embed_all.py`, then
   `export_embeddings.py`). A tune without one, such as a tune new in a later
   HVSC release, goes by its fingerprint alone, so re-run those after an HVSC
-  update when convenient. See `../design/similarity/`.
+  update when convenient.
 - `Cargo.toml` turns off overflow checks for `resid-rs` in debug builds: its
   resampler overflows an `i32` multiply (`sampler.rs:297`), which release
   builds wrap silently but debug builds turn into a panic on the reSID
@@ -351,8 +351,7 @@ useresonance.app, and its parts take it as a prefix: `.quicklook`, `.cli`,
 the Spotlight index under it. Builds up to alpha.5 used `nl.luimes.resonance`;
 Sparkle updates them to the new identifier because it finds the update by
 its file name, `Resonance.app`, and its EdDSA signature. Nothing else carries
-over: the same release is the first sandboxed one, which starts fresh
-(`design/sandbox/README.md`).
+over: the same release is the first sandboxed one, which starts fresh.
 
 One setup, once the Apple Developer membership is active:
 
@@ -376,9 +375,8 @@ team, so to test them from Xcode, sign your Debug builds with a
 that turns on the `CSDB` compilation flag, so neither releases nor builds from
 source include CSDb's features, while their use is still to be agreed with its
 admins.
-Every build runs in the App Sandbox, with `Config/Resonance.entitlements`;
-`design/sandbox/README.md` explains what that changes. Universal links are the
-one thing that needs a provisioning profile, for
+Every build runs in the App Sandbox, with `Config/Resonance.entitlements`.
+Universal links are the one thing that needs a provisioning profile, for
 `Config/Resonance-Links.entitlements` (the same plus the associated domain).
 The Resonance target takes both from `RESONANCE_ENTITLEMENTS` and
 `RESONANCE_PROFILE`, because a build with that entitlement and no profile

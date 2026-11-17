@@ -7,7 +7,7 @@ import PhosphorCore
 @testable import Resonance
 
 
-/// Clip sharing (design/clip-sharing): real clips of a real tune, through
+/// Clip sharing: real clips of a real tune, through
 /// every visualizer Now Playing offers. Needs HVSC on this Mac; skipped
 /// without it.
 @MainActor
@@ -98,7 +98,7 @@ struct ClipTests {
     /// clip from 2 s lines up with the tune rendered from 0 within a
     /// quarter of a millisecond (measured: 3 samples, 0.06 ms, against a
     /// video frame's 16.7 ms). Not sample for sample: the filter and
-    /// resampler settle after the skip (design/scrubbing).
+    /// resampler settle after the skip.
     @Test(.enabled(if: hasTune))
     func audioStartsWhereTheClipDoes() async throws {
         func samples(from ms: UInt64, frames: Int) throws -> [Float] {

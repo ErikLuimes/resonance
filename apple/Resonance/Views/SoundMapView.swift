@@ -87,8 +87,7 @@ final class SoundMapRenderer: NSObject, MTKViewDelegate {
     private(set) var onScreen: Float = 1
 
     // The look, from the mockup the user tuned.
-    // Timings measured from the user's reference recording
-    // (design/visualizers/IMPLEMENTATION_NOTES.md, Sound Map).
+    // Timings measured from the user's reference recording.
     static let bloom: Float = 0.35
     /// Seconds a new node stays white and fully lit.
     static let freshSeconds = 1.0

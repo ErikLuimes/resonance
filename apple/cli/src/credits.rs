@@ -2,7 +2,7 @@
 //! same 3D space as a starfield, drawn in half blocks. "Thanks for listening to", calm;
 //! the camera starts to move; "Resonance" arrives and the letters start to turn; the
 //! rest passes in that motion; the stars settle; then the names, as plain text; and last
-//! the stars fall into a heart that beats and fades. The reasoning is in design/credits/README.md, with the mockups this follows.
+//! the stars fall into a heart that beats and fades.
 
 use crate::model::Now;
 use crate::palette;

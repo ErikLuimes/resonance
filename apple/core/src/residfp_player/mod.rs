@@ -24,7 +24,7 @@
 //! engine back and the worker runs it the rest of the way; backward, a
 //! fresh instance with the track's power-on delay starts from the top.
 //! The audio is silent meanwhile, elapsed time shows the target at once,
-//! and `Seeker::seeking` tells the UI. See design/scrubbing/README.md.
+//! and `Seeker::seeking` tells the UI.
 
 use crate::logging::{self, Category};
 use std::path::{Path, PathBuf};

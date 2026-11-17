@@ -38,7 +38,7 @@ where something belongs, report it here and it'll be passed on.
   `source=Notarized Developer ID`.
 - **Sandboxed.** The app runs in the App Sandbox: it reads only its own
   folder and the files and folders you give it. Its few exceptions are listed
-  in [`design/sandbox/README.md`](../design/sandbox/README.md).
+  in [`apple/Config/Resonance.entitlements`](../apple/Config/Resonance.entitlements).
 - **Signed updates.** Updates are checked against the app's EdDSA key before
   they're installed, as well as Apple's signature.
 - **SID tunes are emulated.** A SID file is a small Commodore 64 program; it

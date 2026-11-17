@@ -1,7 +1,7 @@
 //! Song lengths Resonance worked out itself, for tunes HVSC's Songlengths
 //! database doesn't list: CSDb downloads, and tunes added from elsewhere.
 //!
-//! They're estimates (design/songlengths/README.md) and live in their own
+//! They're estimates and live in their own
 //! file: an HVSC update replaces Songlengths.md5, and its lengths always win,
 //! so a tune that later joins HVSC gets its official length. The file looks
 //! like Songlengths.md5, with `-` for a subtune that gave no answer and `?`

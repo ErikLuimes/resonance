@@ -3,7 +3,7 @@ import XCTest
 
 /// Whole-corpus parity with the Python reference. Opt-in:
 ///   STIL_TXT=/path/STIL.txt DUMP_OUT=/tmp/swift_all.json swift test --filter ParityTests
-///   python3 design/stil/reference/compare_dump.py /path/STIL.txt /tmp/swift_all.json
+///   python3 compare_dump.py /path/STIL.txt /tmp/swift_all.json   (beside the reference parser, outside this repo)
 final class ParityTests: XCTestCase {
     func testDumpAllEntries() throws {
         guard let path = ProcessInfo.processInfo.environment["STIL_TXT"],

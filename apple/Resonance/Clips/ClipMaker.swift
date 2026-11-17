@@ -8,7 +8,7 @@ import SwiftUI
 
 
 /// Makes a clip: a stretch of the playing tune with its visualizer, as an
-/// .mp4 to post or send (design/clip-sharing).
+/// .mp4 to post or send.
 ///
 /// A `ClipRenderer` (core/src/residfp_player/clip.rs) plays the stretch
 /// silently on an engine of its own, one video frame at a time. The
@@ -39,13 +39,13 @@ final class ClipMaker {
     }
 
     /// Seconds. Never more than 30: a clip is an excerpt, credited, not a
-    /// way to take the tune (design/clip-sharing, Music rights).
+    /// way to take the tune.
     static let lengths = [6, 15, 30]
     static let defaultLength = 15
     nonisolated static let framesPerSecond = 60
     static let sampleRate = 48_000
     /// H.264's bits a second for `visual`, at 1080 lines and 60 fps.
-    /// Measured (design/clip-sharing, Bitrate; `ClipBench.bitrates`): 8
+    /// Measured (`ClipBench.bitrates`): 8
     /// keeps the rest at SSIM 0.98 or more in both shapes; these three
     /// don't get there even at 12 (fine detail moving everywhere), so they
     /// get 12, the most that was measured.
@@ -373,7 +373,7 @@ private struct SiliconVignette: View {
 /// What's burned into every frame, bottom left: the title, the composer
 /// and the tune's link, over a gradient that keeps them readable on any
 /// visualizer (Nimbus's sky is pale); the Resonance mark bottom right.
-/// Sizes are shares of the clip's height (design/clip-sharing).
+/// Sizes are shares of the clip's height.
 struct ClipCard: View {
     let title: String
     let composer: String

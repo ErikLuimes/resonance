@@ -13,7 +13,7 @@
 
 // ── Logging ──────────────────────────────────────────────────────────────────
 
-/// The unified log (design/logging/README.md). Declared before everything
+/// The unified log. Declared before everything
 /// below so its macros are in scope there.
 pub(crate) mod logging;
 

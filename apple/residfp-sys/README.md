@@ -69,8 +69,8 @@ versions.
   envelopes only (libresidfp's `clockDigital`), which leaves the chip's
   digital state identical at about half the cost, the filter and resampler
   settling within a second; `RSFP_SKIP_NONE` runs the C64 alone and leaves
-  the chips' state behind. `design/scrubbing/README.md` has the
-  measurements, from `examples/seek_bench.rs`.
+  the chips' state behind. The measurements come from
+  `examples/seek_bench.rs`.
 
 Every SID is a `sidemu` of this crate's own (`VizEmu` in `shim.cpp`, with
 a subclass per chip) around libresidfp's `SID` or SIDLite's, the same way

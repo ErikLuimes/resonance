@@ -1,6 +1,6 @@
 // Resonance in the terminal: the page's terminal, which works, and the sections
 // that explain it. The tunes come from js/terminal-data.js, made from the running
-// app by design/site-cli/make-data.py.
+// app by make-data.py (kept outside this repo).
 
 document.documentElement.classList.add('js');
 window.resonanceReady = true;

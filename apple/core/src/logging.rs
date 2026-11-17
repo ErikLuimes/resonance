@@ -1,5 +1,5 @@
-//! The core's logging, into macOS's unified log under the app's subsystem
-//! (design/logging/README.md). `oslog.c` does the writing.
+//! The core's logging, into macOS's unified log under the app's subsystem.
+//! `oslog.c` does the writing.
 //!
 //! ```ignore
 //! logging::error!(Category::Library, "saving learned song lengths: {e}");

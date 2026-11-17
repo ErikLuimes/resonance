@@ -136,7 +136,7 @@ else
     NAME="Resonance-$VERSION-unsigned"
 fi
 
-# Feature flags (design/feature-flags/README.md). The release stage alone decides
+# Feature flags. The release stage alone decides
 # what's compiled in, set here so a Mac's own Signing.local.xcconfig can't add
 # anything. The tests run as this build will, and as a beta or final build would,
 # so work with a flag on can't break a build without it unnoticed.

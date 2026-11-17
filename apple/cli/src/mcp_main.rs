@@ -1,7 +1,7 @@
 //! `resonance-mcp`: the MCP server alone, in the App Sandbox. An assistant
 //! drives it, and tune text reaches the assistant, so this part gets no more
 //! than the socket to the app: no files, no terminal. `resonance mcp` hands
-//! over to it. design/sandbox/README.md has the reasoning.
+//! over to it.
 
 // Shared with `resonance`, which uses more of it.
 #[allow(dead_code)]

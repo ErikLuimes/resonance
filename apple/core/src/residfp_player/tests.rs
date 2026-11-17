@@ -576,7 +576,7 @@ fn switch_to_a_listener(rate: u32) {
     let deadline = Instant::now() + Duration::from_secs(5);
     while rig_statuses.recv_deadline(deadline).expect("a status").elapsed < Duration::from_millis(300) {}
     // A minute in: building an engine at the new rate and running it here
-    // would take about a second (design/scrubbing/README.md).
+    // would take about a second.
     seeker.targets.send(Duration::from_secs(60)).unwrap();
     let deadline = Instant::now() + Duration::from_secs(10);
     let mut before = Duration::ZERO;

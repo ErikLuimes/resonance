@@ -11,8 +11,8 @@ import simd
 /// blocks are placed by eye on his photograph of the R5, which shows the
 /// same arrangement: three voices side by side, each with its
 /// oscillator's columns above its envelope generator, and the filter
-/// along one edge. Both are turned half a turn to match the layers
-/// (design/visualizers/silicon/README.md). The pads are found on each
+/// along one edge. Both are turned half a turn to match the layers.
+/// The pads are found on each
 /// metal layer.
 ///
 /// Ours, not the chip's: which way the bits run within a block (they're

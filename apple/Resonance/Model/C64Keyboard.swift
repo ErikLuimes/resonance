@@ -2,7 +2,7 @@ import AppKit
 import Carbon.HIToolbox
 
 /// The 66 keys of the C64 on the desk in About (MonitorDesk.swift). Each is
-/// a node of the 3D model named `key_<rawValue>` (design/crt-monitor/blender/scene.py).
+/// a node of the 3D model named `key_<rawValue>`.
 /// The Mac's keyboard presses them as an emulator would map it, and a click
 /// presses one; what a key then does on the monitor is `action`.
 nonisolated enum C64Key: String, CaseIterable, Sendable {
@@ -110,7 +110,7 @@ nonisolated enum C64Key: String, CaseIterable, Sendable {
     }
 
     /// What a clicked key does in the player, in the app's own terms: the
-    /// breadbin mapping of design/crt-monitor/README.md. Space plays and
+    /// breadbin mapping. Space plays and
     /// pauses; CRSR down and right move and skip, with SHIFT up and back;
     /// RETURN plays the picked row; f1 and f2 change the subtune; + and −
     /// the volume; RUN/STOP stops; CLR/HOME goes to the top; S and R are

@@ -22,7 +22,7 @@ public struct HaloVoice: Sendable {
 
 /// The Halo's rings: each voice's radius at `samples` angles around the
 /// center, rebuilt every display frame from its waveform, pulse width, note
-/// and envelope (design/visualizers/reference/Halo.dc.html). The shader
+/// and envelope. The shader
 /// draws them; this decides their shape.
 ///
 /// A ring's wobble comes from its waveform's harmonics — saw: every

@@ -4,7 +4,7 @@
 //! the tune once with the capture-only SID, as the fingerprint scan does, and works out
 //! notes, a row grid, instruments and effects from the register writes. Because it sees
 //! each write rather than the end of each frame, it catches a gate closed and reopened
-//! within one frame. Why it works this way: `design/visualizers/TRACKER.md`.
+//! within one frame.
 //! Change it only against `examples/tracker_bench.rs`.
 
 use sidplayfp_sys::Player;

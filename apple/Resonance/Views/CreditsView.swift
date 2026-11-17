@@ -6,8 +6,7 @@ import PhosphorCore
 /// 3D space as the Starfield theme's stars: "Thanks for listening to", calm; the camera
 /// starts to move; "Resonance" arrives and the letters start to turn; the rest passes in
 /// that motion; the stars settle; then the names; and last the stars fall into a heart
-/// that beats and fades. The reasoning is in
-/// design/credits/README.md, with the mockups this follows.
+/// that beats and fades.
 struct CreditsView: View {
     static let windowID = "credits"
 

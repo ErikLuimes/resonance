@@ -5,7 +5,7 @@ import Testing
 import PhosphorCore
 @testable import Resonance
 
-/// The clip measurements in design/clip-sharing: which H.264 bitrate keeps
+/// The clip measurements: which H.264 bitrate keeps
 /// every visualizer at SSIM 0.98 or more against a ProRes master, and
 /// whether the short-memory visualizers' lead-ins are long enough. Slow
 /// (about half an hour), so they run only when asked:

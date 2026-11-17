@@ -5,8 +5,7 @@ import PhosphorCore
 /// Now Playing: the main window's second mode, sliding up over the library
 /// like Music's player. A big visualizer (one of the three chosen in
 /// Settings, picked at the top and remembered), with the playing tune, its
-/// voices and the transport over it
-/// (design/visualizers/reference/AppNowPlaying.dc.html).
+/// voices and the transport over it.
 /// Full screen when the window is.
 ///
 /// Toggled from the player bar (its button or the track title) and View ›
@@ -201,8 +200,8 @@ struct NowPlayingView: View {
     }
 
     /// Below this width the centered picker would meet Share Clip… and
-    /// Visualizers… (design/clip-sharing: half the picker, both buttons, the
-    /// gaps and the margin, each side of the middle).
+    /// Visualizers… (half the picker, both buttons, the gaps and the margin,
+    /// each side of the middle).
     private static let clipButtonRoom: CGFloat = 920
 
     #if ALPHA

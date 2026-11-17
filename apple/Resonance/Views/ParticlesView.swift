@@ -5,8 +5,7 @@ import ResonanceVisuals
 
 /// The Particle sphere: 24,000 points over a turning sphere, a third per
 /// voice, rippling with each voice's envelope and sending a wave across from
-/// the voice's pole on every new note
-/// (design/visualizers/reference/Particles.dc.html). `ParticleSphere` keeps
+/// the voice's pole on every new note. `ParticleSphere` keeps
 /// the per-voice state on the CPU; Shaders/Particles.metal moves and draws
 /// the points, so the CPU does the same small amount of work at any count.
 /// Each point eases toward its place rather than jumping to it, so the

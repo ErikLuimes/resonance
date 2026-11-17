@@ -5,7 +5,6 @@ import QuartzCore
 
 // The picture on the 1084S (MonitorView.swift): a C64 boot, then a 40×25
 // player drawn from PlayerStore and the visualizer feed, in two colors.
-// design/crt-monitor/README.md has the layout and the reasons.
 
 /// Our own 8×8 glyphs in the spirit of the C64's upper-case set, eight row
 /// bytes each, MSB left. The Commodore character ROM isn't ours to ship.

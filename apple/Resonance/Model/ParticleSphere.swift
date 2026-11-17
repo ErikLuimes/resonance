@@ -1,8 +1,7 @@
 import Foundation
 import PhosphorCore
 
-/// The Particle sphere's state, advanced every display frame
-/// (design/visualizers/reference/Particles.dc.html): each voice's smoothed
+/// The Particle sphere's state, advanced every display frame: each voice's smoothed
 /// envelope, how fast its points ripple (from its note), and when its last
 /// note started, which sends a wave across the sphere from that voice's own
 /// pole. The points themselves are displaced on the GPU

@@ -3,13 +3,13 @@ import SceneKit
 import SwiftUI
 
 /// The live 3D desk in About Resonance: dark_igorek's Commodore 1702, C64,
-/// 1541 and joystick (CC BY 4.0, prepared by design/crt-monitor/blender/scene.py
-/// into Scenes/Desk.usdz), the tube drawn into a texture on the 1702's glass
-/// by Shaders/Monitor.metal, the keys pressed as the C64 types and as you
+/// 1541 and joystick (CC BY 4.0, prepared into Scenes/Desk.usdz by a
+/// Blender script, scene.py, kept outside this repo), the tube drawn into a
+/// texture on the 1702's glass by Shaders/Monitor.metal, the keys pressed as
+/// the C64 types and as you
 /// type or click them, the camera gliding to the monitor on power. The
 /// picture and its timing are MonitorModel's, as in the 2D MonitorCase,
-/// which stays as the fallback. Reasons and measurements in
-/// design/crt-monitor/README.md; the reference is design/crt-monitor/mockup-3d.html.
+/// which stays as the fallback.
 struct MonitorDesk: NSViewRepresentable {
     let store: PlayerStore
     let showsPowerHint: Bool

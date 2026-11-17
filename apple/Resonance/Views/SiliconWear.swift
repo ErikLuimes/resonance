@@ -15,7 +15,7 @@ import SceneKit
 /// one scale with nothing to line up.
 nonisolated enum SiliconWear {
     /// The file the wear texture ships in (Scenes/SiliconWear.lzfse), made
-    /// by design/visualizers/silicon/make-wear.swift: red is grain, green
+    /// by make-wear.swift (kept outside this repo): red is grain, green
     /// scratches, blue blotches, alpha specks. `SiliconAssets` loads it.
     static let file = "SiliconWear"
 

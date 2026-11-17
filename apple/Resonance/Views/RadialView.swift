@@ -3,8 +3,7 @@ import PhosphorCore
 
 /// The Radial spectrum: a ring of bars per voice, each bar one band of that
 /// voice's spectrum (`VoiceSpectrum`), mirrored left and right so the low
-/// bands meet at the top and the highs at the bottom
-/// (design/visualizers/reference/RadialBars.dc.html). The rings turn
+/// bands meet at the top and the highs at the bottom. The rings turn
 /// slowly, neighbors opposite ways.
 ///
 /// Shows the first chip, like the Halo.

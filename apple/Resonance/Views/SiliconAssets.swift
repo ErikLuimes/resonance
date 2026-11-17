@@ -44,7 +44,7 @@ nonisolated enum SiliconAssets {
         }.value
     }
 
-    /// Packed layers (design/visualizers/silicon/pack-layers.swift) as a
+    /// Packed layers (by pack-layers.swift, kept outside this repo) as a
     /// texture with all its smaller copies.
     static func load(_ url: URL?, device: MTLDevice?) -> MTLTexture? {
         guard let url, let device, let file = try? Data(contentsOf: url), file.count > 8 else { return nil }

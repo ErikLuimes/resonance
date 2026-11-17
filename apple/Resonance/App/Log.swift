@@ -2,7 +2,7 @@ import Foundation
 import OSLog
 
 /// The app's loggers, one per category, all in the unified log under the
-/// app's subsystem (design/logging/README.md). Paths, names and search text go
+/// app's subsystem. Paths, names and search text go
 /// in `.private`; command names, counts and error kinds `.public`.
 nonisolated enum Log {
     static let subsystem = "app.useresonance.resonance"

@@ -4,7 +4,7 @@ import PhosphorCore
 /// The Sounds Like page: the tunes across the collection that sound most like
 /// one, closest first. It follows what's playing until Find Similar picks a
 /// tune, and each Find Similar from here is a hop along a trail, which leads
-/// back the way it came. Approved as design/sounds-like/mockup.html.
+/// back the way it came.
 struct SoundsLikeView: View {
     @Environment(LibraryStore.self) private var library
     @Environment(PlayerStore.self) private var store

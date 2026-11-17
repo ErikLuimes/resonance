@@ -1,6 +1,6 @@
 //! How the smart playlist recipes behave over many picks. There is no
-//! reference for "chill" or "different", so these are proxies: see
-//! `design/smart-playlists`. Change `smart.rs` only against this.
+//! reference for "chill" or "different", so these are proxies.
+//! Change `smart.rs` only against this.
 //!
 //!     cp ~/Library/Application\ Support/Resonance/{fingerprints.sqlite,heard.txt} "$TMPDIR/resonance-smart-bench/"
 //!     cargo run -p phosphor-apple --release --example smart_bench -- <collection folder> [picks]

@@ -7,7 +7,7 @@ use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Color;
 
-/// The voices' samples come at about this rate (design/visualizers/ROADMAP.md).
+/// The voices' samples come at about this rate.
 const SAMPLE_RATE: f32 = 44_800.0;
 /// Below this a voice is silent, not quiet.
 const QUIETEST: f32 = 0.02;

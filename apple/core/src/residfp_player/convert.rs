@@ -3,7 +3,7 @@
 //! Moving a tune to a listening device (48 kHz, Opus's rate) from speakers
 //! at 44.1 kHz, or back, used to build a fresh engine at the new rate and
 //! run it from the top to the same place: 16 ms per second of tune on
-//! reSIDfp (design/scrubbing/README.md), so 2 s of silence two minutes in.
+//! reSIDfp (`residfp-sys/examples/seek_bench.rs`), so 2 s of silence two minutes in.
 //! Converting keeps the engine playing, and the switch takes one output
 //! buffer. The next tune starts at the output's own rate, without this.
 //!

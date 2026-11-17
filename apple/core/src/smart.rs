@@ -2,7 +2,7 @@
 //! works on plain `Tune` values, so it's tested without a collection; `ffi`
 //! fills them in from the library, the fingerprints and the heard list.
 //!
-//! `design/smart-playlists` has the reasoning and how intensity was checked.
+//! `examples/smart_bench.rs` checks how intensity is chosen.
 
 use rand::seq::SliceRandom;
 use rand::Rng;

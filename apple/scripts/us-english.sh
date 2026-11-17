@@ -22,12 +22,12 @@ PATTERN="$STEMS|$WORDS|$ISE|$PHRASES"
 # and names people may type, which are accepted in either spelling.
 ALLOWED='isCancelled|\.cancelled([^a-z]|$)|NSURLErrorCancelled|labelledby|\["favourites", "favorites"\]|"favorite", "favourite"\]'
 
-found="$(git grep --untracked -nIiE "$PATTERN" -- apple design README.md .github/README.md \
+found="$(git grep --untracked -nIiE "$PATTERN" -- apple README.md .github/README.md \
     ':!apple/residfp-sys/csrc' ':!apple/release-notes/0.1.0-alpha.[1-7].md' ':!apple/site/appcast.xml' \
     ':!*Cargo.lock' ':!apple/Resonance/Acknowledgments.txt' \
     ':!apple/raycast/package.json' ':!apple/raycast/package-lock.json' \
     ':!*/Fixtures/*' ':!apple/scripts/us-english.sh' \
-    ':!apple/site/js/terminal-data.js' ':!design/site-cli/data.js' \
+    ':!apple/site/js/terminal-data.js' \
     | sed -E "s/$ALLOWED//g" | grep -iE "$PATTERN" || true)"
 
 if [ -n "$found" ]; then

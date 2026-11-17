@@ -40,7 +40,7 @@ final class SourceHistory {
     }
 
     /// `path` started playing from `source`. A tune that starts again
-    /// straight away (a subtune, a restart) keeps one entry.
+    /// right away (a subtune, a restart) keeps one entry.
     func record(path: String, source: SourceRecipe, at date: Date = .now) {
         let entry = Entry(path: path, playedAt: date.timeIntervalSince1970, source: source)
         if entries.first?.path == path {
