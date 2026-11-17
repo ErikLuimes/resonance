@@ -179,17 +179,16 @@ open apple/build/DD/Build/Products/Debug/Resonance.app
 Or open `apple/Resonance.xcodeproj` and run the **Resonance** scheme. The first build compiles
 the Rust engine and takes a few minutes; after that Xcode rebuilds it incrementally.
 
-How the app, the Rust bridge and the engine fit together, how to run the tests, and how to pull
-in Phosphor updates is all in the [developer guide](https://github.com/ErikLuimes/resonance/blob/main/apple/README.md).
+How the app, the Rust bridge and the engine fit together, and how to run the tests, is all in the
+[developer guide](https://github.com/ErikLuimes/resonance/blob/main/apple/README.md).
 
 ## Built on Phosphor
 
 Resonance stands on the shoulders of
 **[Phosphor](https://github.com/sandlbn/Phosphor)**, Marcin Spoczynski's open-source SID
 player for macOS, Windows and Linux, written in Rust with an Iced interface. Resonance doesn't
-reimplement SID playback: it compiles Phosphor's engine **unchanged** and talks to it through
-[UniFFI](https://github.com/mozilla/uniffi-rs), so improvements upstream flow straight into the
-Mac app.
+reimplement SID playback: it started from Phosphor's engine, keeps its own copy of it, and talks to
+it through [UniFFI](https://github.com/mozilla/uniffi-rs).
 
 ```
 Resonance.app            SwiftUI · Swift 6 · Liquid Glass
@@ -203,7 +202,7 @@ This repository is based on Phosphor's, so you'll find both here:
 | Path | What it is |
 | --- | --- |
 | [`apple/`](https://github.com/ErikLuimes/resonance/tree/main/apple) | **Resonance**: the SwiftUI app, the Rust bridge and the website |
-| `src/`, `Cargo.toml` | Phosphor's engine and Iced app, kept identical to upstream |
+| `src/`, `Cargo.toml` | Phosphor's engine and Iced app: Resonance's own copy, changed as little as possible |
 | `README.md`, `docs/` | Phosphor's own README and website |
 
 **Want real hardware?** Phosphor plays through a

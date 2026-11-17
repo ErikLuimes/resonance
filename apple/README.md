@@ -2,8 +2,9 @@
 
 A SwiftUI app for macOS 27 (Apple silicon) that plays SID music through the
 Phosphor engine, and through its own libsidplayfp player: reSIDfp, the
-default, and SIDLite direct. The Rust engine is shared with the Iced app;
-nothing under `../src` was changed to make this work.
+default, and SIDLite direct. The Rust engine in `../src` started as
+Phosphor's and is still shared with its Iced app. Resonance owns that copy
+now, doesn't take Phosphor's updates, and changes it as little as possible.
 
 ## Build and run
 
@@ -56,14 +57,15 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
           └ engine modules  compiled from ../src via #[path]         ../src/
 ```
 
-- **`core/`** (`phosphor-apple`). `lib.rs` compiles the upstream engine sources
-  in place with `#[path]` (player, SID engines, playlist, config, DSP, …), so
-  upstream changes flow in with no merge conflicts. On top of that:
+- **`core/`** (`phosphor-apple`). `lib.rs` compiles the engine sources in
+  `../src` in place with `#[path]` (player, SID engines, playlist, config,
+  DSP, …), so there's one copy of the engine, shared with the Iced app. On top
+  of that:
   - `session/` — the player logic the Iced app keeps in `src/main.rs`
     (play, auto-advance, subtunes, songlengths), ported as a plain state
     machine with unit tests. Each block names its `main.rs` origin. One
     addition of its own: a temporary play queue. Tunes played from the HVSC
-    library go there instead of into the playlist (as they do upstream), and
+    library go there instead of into the playlist (as they do in the Iced app), and
     transport walks the queue until a playlist row is played. Surprise Me
     is the queue as a radio: the session asks for a random pick one tune
     ahead, the driver's loader picks it from all of HVSC (skipping anything
@@ -73,7 +75,7 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
     and loads the Songlengths/STIL databases (`databases.rs`). It publishes
     an immutable snapshot after every step.
   - `library.rs` — the HVSC collection: authors, tunes, fuzzy search and
-    random picks, wrapping upstream's `hvsc_browser` model (one per
+    random picks, wrapping the engine's `hvsc_browser` model (one per
     category) and its index cache. Index builds wait for the databases and
     run detached, so a canceled search can't leave one stuck.
   - `ffi.rs` — `PlayerCore`, the UniFFI object Swift talks to. Playback calls
@@ -83,7 +85,7 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
   - `residfp_player.rs` — the **reSIDfp** and **SIDLite direct** engines,
     Resonance's own: a libsidplayfp with libresidfp or its own SIDLite chip
     (from `../residfp-sys`) rendered from the audio output callback instead
-    of upstream's wall-clock-paced player thread, speaking the same
+    of the engine's wall-clock-paced player thread, speaking the same
     `PlayerCmd` / `PlayerStatus` protocol so the session can't tell the
     difference. Elapsed time is the samples
     rendered; the chips report their registers, envelopes and waveforms, so
@@ -93,8 +95,8 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
     default engine; Settings lists it and SIDLite direct. The older SIDLite
     and reSID engines are retired from Settings, and their code goes in the
     next alpha.
-  - `build.rs` — reads upstream's version from the root `Cargo.toml`, so
-    `phosphor_version()` (shown in About Resonance) follows upstream merges.
+  - `build.rs` — reads the engine's version from the root `Cargo.toml` for
+    `phosphor_version()`, shown in About Resonance.
 - **`residfp-sys/`** — libsidplayfp 3.1.2 (with its SIDLite chip) and
   libresidfp 1.2.3, vendored and built with `cc` behind a small C shim (its README has the details,
   including the symbol renaming that keeps it apart from `sidplayfp-sys`'s
@@ -116,12 +118,12 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
   My Playlist (`session.m3u`), your playlists (`Playlists/`), the fingerprints,
   and the files the engine sources keep in their config folder — favorites,
   play history, the HVSC search-index cache, the curated playlists cache and
-  `phosphor-debug.log`. `core/src/config.rs` points upstream's `config_dir()`
+  `phosphor-debug.log`. `core/src/config.rs` points the engine's `config_dir()`
   there, without changing `src/`. Settings are in its own user defaults
   (`app.useresonance.resonance`).
-- The curated playlists are Phosphor's published playlists, from the
-  `playlists/` folder at the top of this repository (it merges in from
-  upstream): `core/src/curated.rs` brings them up to date at launch from
+- The curated playlists started as Phosphor's published playlists and live
+  in the `playlists/` folder at the top of this repository, which Resonance
+  keeps itself: `core/src/curated.rs` brings them up to date at launch from
   this repository's `main` on GitHub, not Phosphor's. The app also ships
   the folder, which fills an empty cache on the first launch, offline too.
   Edit, add or remove a playlist there (with `index.json`, whose `sha256`
@@ -130,7 +132,7 @@ Resonance.app            SwiftUI (Swift 6, main-actor by default)    Resonance/
   the collection there. Song lengths and STIL come from the collection's own
   `DOCUMENTS` folder.
 - Resonance never reads Phosphor's `~/Library/Application Support/phosphor/`;
-  the sandbox wouldn't let it. Upstream's HTTP clients would take a proxy from
+  the sandbox wouldn't let it. The engine's HTTP clients would take a proxy from
   Phosphor's `config.json`; the shim's `apply_proxy` leaves them on the
   system's settings instead.
 - Running both apps at once is safe; they don't write each other's files.
@@ -151,17 +153,19 @@ wired up yet. The core only includes the modules it needs, and the `usb`
 feature is never enabled, so the USB bridge daemon and its admin prompt
 can't be reached.
 
-## Pulling in upstream changes
+## Changing the engine
 
-After merging upstream into this fork:
+Resonance owns its copy of Phosphor's engine in `../src` and no longer merges
+Phosphor's changes. Put new work in `apple/` and keep changes to `../src` as
+small as possible. After changing it:
 
 1. `cd apple && cargo test -p phosphor-apple` — compile errors mean drift:
    a new module or dependency used by an included file (add a `#[path]`
    module to `core/src/lib.rs` or the dependency to `core/Cargo.toml`, using
    the root `Cargo.toml`'s version), or a changed engine type.
-2. Two small mirrors of upstream code: the `SortDirection` stand-in in
+2. Two small mirrors of engine code: the `SortDirection` stand-in in
    `core/src/lib.rs` (from `src/ui/mod.rs`) and `display_name` in
-   `core/src/ffi.rs` (upstream's private `derive_display_name` in
+   `core/src/ffi.rs` (the engine's private `derive_display_name` in
    `src/hvsc_browser.rs`). Update them if those change.
 3. If `src/main.rs` changed `play_track`, `play_cmd`, `poll_status` or
    `update_entry_subtune`, carry the change into `core/src/session/`.
@@ -169,7 +173,7 @@ After merging upstream into this fork:
 ## Website
 
 `site/` is Resonance's GitHub Pages site: static HTML, CSS and ES modules,
-no build step. Upstream's Phosphor site stays in `../docs`. Shared tune
+no build step. Phosphor's own site stays in `../docs`. Shared tune
 links aren't part of it: `share-server/` serves them at useresonance.app,
 whose other addresses redirect here (see Sharing tunes).
 
