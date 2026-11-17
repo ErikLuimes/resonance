@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Resonance — SID music, native to your Mac</title>
-  <meta name="description" content="Resonance is a native macOS player for Commodore 64 SID music. All of the High Voltage SID Collection, Smart Playlists from a sentence, Sounds Like discovery from each tune's sound fingerprint, Now Playing visualizers, playlists and Liquid Glass. Its own app, built on Phosphor's open-source engine.">
+  <title>Resonance — find music by how it sounds</title>
+  <meta name="description" content="A free, native Mac music player that knows how every tune sounds. Play one you love and find the ones like it, starting with all 60,000 Commodore 64 SID tunes.">
   <meta name="theme-color" content="#07080d">
   <meta name="color-scheme" content="dark">
 
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Resonance — SID music, native to your Mac">
-  <meta property="og:description" content="A native Mac player for Commodore 64 music. Browse all of HVSC, find tunes that sound alike, and watch every voice of the SID chip.">
+  <meta property="og:title" content="Resonance — find music by how it sounds">
+  <meta property="og:description" content="Play a tune you love and find the ones that sound like it. A native Mac music player, starting with all 60,000 Commodore 64 tunes.">
   <meta property="og:url" content="https://erikluimes.github.io/resonance/">
-  <meta property="og:image" content="https://erikluimes.github.io/resonance/assets/og-card.jpg">
+  <meta property="og:image" content="https://erikluimes.github.io/resonance/assets/og-card.jpg?v=20261117">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
@@ -21,8 +21,8 @@
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <!-- ?v= changes with each site update, so a browser that cached the last
        one fetches the new files instead of mixing old and new. -->
-  <link rel="stylesheet" href="styles.css?v=20261112a">
-  <link rel="modulepreload" href="js/main.js?v=20261112a">
+  <link rel="stylesheet" href="styles.css?v=20261117d">
+  <link rel="modulepreload" href="js/main.js?v=20261117e">
   <script>
     // Sections fade in as main.js reveals them. If it never runs (a failed
     // or stale script), show everything rather than an empty page.
@@ -86,8 +86,8 @@
         <span>Resonance</span>
       </a>
       <div class="nav-links">
-        <a href="#smart">Smart Playlists</a>
         <a href="#sound">Sounds Like</a>
+        <a href="#smart">Smart Playlists</a>
         <a href="#now-playing">Visualizers</a>
         <a href="#features">Features</a>
         <a href="#integrations">Integrations</a>
@@ -102,13 +102,13 @@
     <section class="hero" id="top">
       <div class="container hero-copy">
         <p class="eyebrow" data-reveal>
-          <span class="eyebrow-dot"></span> A native Mac player for Commodore&nbsp;64 music
+          <span class="eyebrow-dot"></span> A native music player for the Mac
         </p>
-        <h1 class="hero-title" data-reveal>Every C64 tune.<br><span class="grad">Say what you'd like to hear.</span></h1>
+        <h1 class="hero-title" data-reveal>Play a tune you love.<br><span class="grad">Find the ones that sound&nbsp;like&nbsp;it.</span></h1>
         <p class="lede" data-reveal>
-          All 60,000 tunes of the High Voltage SID Collection. Describe what you're in the mood for and
-          get the playlist, or find the tunes that sound like the one playing, from a fingerprint of how
-          every tune sounds. Then watch the chip play it, twelve ways.
+          Resonance knows how every tune sounds. Play one and it finds the closest across the collection;
+          describe a mood and it builds the playlist. It starts with the Commodore&nbsp;64: all 60,000 tunes
+          of its music archive, played on an emulation of the chip and shown as they play.
         </p>
         <div class="hero-cta" data-reveal>
           <a class="btn btn-primary" href="#download" data-download>
@@ -119,25 +119,57 @@
           </a>
         </div>
         <p class="fine" data-reveal>
-          <span data-release-line>Free and open source</span> · macOS 27 or later · Apple silicon
+          <span data-release-line>Free and open source</span>, for Macs with Apple silicon on macOS&nbsp;27 or later.
         </p>
       </div>
 
       <div class="container container-wide hero-stage tour" id="tour" data-reveal>
         <div class="stage-glow" aria-hidden="true"></div>
-        <figure class="media media-tour">
+        <figure class="media media-tour" id="tour-media" role="tabpanel">
           <div class="media-soon" aria-hidden="true">
             <svg class="i"><use href="#i-waveform"/></svg>
             <span data-tour-placeholder>Sounds Like</span>
             <small>Video coming soon</small>
           </div>
           <video data-tour-video muted playsinline preload="none" aria-label="A tour of Resonance"></video>
-          <figcaption class="tour-caption" aria-live="polite">
-            <strong data-tour-title>Sounds Like</strong>
-            <span data-tour-text>Play a tune, and see the ones in HVSC that sound most like it.</span>
-          </figcaption>
         </figure>
         <div class="tour-tabs" role="tablist" aria-label="Tour chapters" data-tour-tabs></div>
+        <!-- Below the video, not over it: the recordings have the app's own transport bar there. -->
+        <div class="tour-caption" aria-live="polite">
+          <strong data-tour-title>Sounds Like</strong>
+          <span data-tour-text>Play a tune, and see the ones in the collection that sound most like it.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sounds Like -->
+    <section class="section" id="sound">
+      <div class="container showcase">
+        <div class="showcase-copy" data-reveal>
+          <h2>Every tune has a fingerprint.<br><span class="h-soft">Follow it from tune to tune.</span></h2>
+          <p class="section-lede">
+            Resonance knows how every tune in the collection sounds: the shape of its sound, its fast
+            arpeggios and sweeping filters, its drums and its bass. The fingerprints for the whole collection download with it, and any tune
+            they don't cover is learned in the background. Then it can tell you what else sounds like the
+            tune you love, across all 60,000 of them.
+          </p>
+          <ul class="checks">
+            <li><svg class="i"><use href="#i-check"/></svg>Sounds Like: a page of the tunes across the collection closest to the one playing</li>
+            <li><svg class="i"><use href="#i-check"/></svg><span>Find Similar on any row, or <kbd>⌘</kbd><kbd>L</kbd>, then hop from tune to tune, with the way back kept</span></li>
+            <li><svg class="i"><use href="#i-check"/></svg>Filter by the chip's signature tricks: arpeggios, filter sweeps, noise drums, ring mod, sync leads, digi samples</li>
+            <li><svg class="i"><use href="#i-check"/></svg>Every composer's card names the composers who sound most like them</li>
+          </ul>
+        </div>
+        <figure class="media" data-reveal>
+            <div class="media-soon" aria-hidden="true">
+              <svg class="i"><use href="#i-waveform"/></svg>
+              <span>Sounds Like</span>
+              <small>Video coming soon</small>
+            </div>
+            <video data-video muted loop playsinline preload="none" poster="media/sounds-like.jpg" aria-label="Sounds Like in Resonance">
+              <source src="media/sounds-like.mp4" type="video/mp4">
+            </video>
+          </figure>
       </div>
     </section>
 
@@ -145,11 +177,10 @@
     <section class="section" id="smart">
       <div class="container showcase">
         <div class="showcase-copy" data-reveal>
-          <p class="kicker">Smart Playlists</p>
-          <h2>Say what you'd like to hear.<br><span class="grad">Get the playlist.</span></h2>
+          <h2>Say what you'd like to hear.<br><span class="h-soft">Get the playlist.</span></h2>
           <p class="section-lede">
-            Type a sentence in your own words. Resonance reads it on your Mac and builds the list
-            from all of HVSC, using how each tune actually sounds.
+            Type a sentence in your own words and get a Smart Playlist. Resonance reads it on your Mac
+            and builds the list from the whole collection, using how each tune actually sounds.
           </p>
           <ul class="checks">
             <li><svg class="i"><use href="#i-check"/></svg>“Intense dual SID from the 2020s”</li>
@@ -171,52 +202,21 @@
       </div>
     </section>
 
-    <!-- Sounds Like -->
-    <section class="section" id="sound">
-      <div class="container showcase">
-        <div class="showcase-copy" data-reveal>
-          <p class="kicker">Discover by sound</p>
-          <h2>Every tune has a fingerprint.<br><span class="grad">Find the ones that sound alike.</span></h2>
-          <p class="section-lede">
-            In the background, Resonance plays every tune in HVSC silently and learns how it sounds:
-            its waveforms, its arpeggios and filter sweeps, its drums and its bass. Then it can tell you
-            what else sounds like the tune you love, across all 60,000 of them.
-          </p>
-          <ul class="checks">
-            <li><svg class="i"><use href="#i-check"/></svg>Sounds Like: a page of the tunes across HVSC closest to the one playing</li>
-            <li><svg class="i"><use href="#i-check"/></svg>Find Similar on any row, or <kbd>⌘</kbd><kbd>L</kbd>, then hop from tune to tune, with the way back kept</li>
-            <li><svg class="i"><use href="#i-check"/></svg>Sound filters: arpeggios, filter sweeps, noise drums, ring mod, sync leads, digi samples</li>
-            <li><svg class="i"><use href="#i-check"/></svg>Every composer's card names the composers who sound most like them</li>
-          </ul>
-        </div>
-        <figure class="media" data-reveal>
-            <div class="media-soon" aria-hidden="true">
-              <svg class="i"><use href="#i-waveform"/></svg>
-              <span>Sounds Like</span>
-              <small>Video coming soon</small>
-            </div>
-            <video data-video muted loop playsinline preload="none" poster="media/sounds-like.jpg" aria-label="Sounds Like in Resonance">
-              <source src="media/sounds-like.mp4" type="video/mp4">
-            </video>
-          </figure>
-      </div>
-    </section>
     <!-- Visualizers: three featured with the whole Now Playing window, nine more as bare recordings. -->
     <section class="section" id="now-playing">
       <div class="container">
         <div class="section-head" data-reveal>
-          <p class="kicker">Visualizers</p>
           <h2>Twelve ways<br><span class="grad">to watch the music.</span></h2>
           <p class="section-lede">
             Press <kbd>⇧</kbd><kbd>⌘</kbd><kbd>F</kbd> and the window becomes a player: the tune, its
-            composer and a visualizer driven by the SID's own registers, frame by frame. Keep three
+            composer and a visualizer driven by what the chip is doing, frame by frame. Keep three
             at hand and swap them in Settings → Appearance.
           </p>
         </div>
       </div>
       <div class="container container-wide tour vz-stage" id="vz-stage" data-reveal>
         <div class="stage-glow" aria-hidden="true"></div>
-        <figure class="media media-tour">
+        <figure class="media media-tour" id="vz-media" role="tabpanel">
           <div class="media-soon" aria-hidden="true">
             <svg class="i"><use href="#i-sparkles-tv"/></svg>
             <span data-vz-placeholder>Ink</span>
@@ -360,18 +360,16 @@
       </div>
     </section>
 
-
     <!-- The chip -->
     <section class="section" id="voices">
       <div class="container">
         <div class="section-head" data-reveal>
-          <p class="kicker">The chip</p>
-          <h2>Three voices.<br><span class="grad">That's the whole band.</span></h2>
+          <h2>Three voices.<br><span class="h-soft">That's the whole band.</span></h2>
           <p class="section-lede">
             The SID chip inside the Commodore 64 had three oscillators, four waveforms and one resonant
             filter. Composers built whole soundtracks from that: arpeggios flickering fast enough to pass
             for chords, bass and drums taking turns on a single voice. Resonance shows you how — the level,
-            note and waveform of every voice, decoded from the chip's registers as the tune plays. Here's a
+            note and waveform of every voice, read straight from the chip as the tune plays. Here's a
             tune doing just that, silently.
           </p>
         </div>
@@ -423,66 +421,49 @@
       </div>
     </section>
 
-    <!-- The collection -->
-    <section class="section" id="collection">
-      <div class="container showcase showcase-flip">
-        <div class="showcase-copy" data-reveal>
-          <p class="kicker">The collection</p>
-          <h2>All of HVSC.<br><span class="grad">Kept current for you.</span></h2>
-          <p class="section-lede">
-            No collection yet? Click the download arrow next to Collection and Resonance fetches the High Voltage SID Collection.
-            When a new release comes out, it says so, updates in one click, and shows what the release
-            added: new tunes, new composers, new STIL notes.
-          </p>
-          <ul class="checks">
-            <li><svg class="i"><use href="#i-check"/></svg>The Home: the release, what's new, and the tunes you played last</li>
-            <li><svg class="i"><use href="#i-check"/></svg>Curated playlists, from HVSC's Top 100 to the Grand Tour</li>
-            <li><svg class="i"><use href="#i-check"/></svg>A card for each composer, with STIL's notes and all their tunes a click away</li>
-            <li><svg class="i"><use href="#i-check"/></svg>STIL's stories and covers set to read, and HVSC's known bugs on the tunes it names</li>
-            <li><svg class="i"><use href="#i-check"/></svg>Song lengths and STIL from the release you have</li>
-            <li><svg class="i"><use href="#i-check"/></svg>Songlengths moves on at the right moment; for tunes outside it, Resonance figures out the length in the background</li>
-          </ul>
-        </div>
-        <figure class="media" data-reveal>
-            <div class="media-soon" aria-hidden="true">
-              <svg class="i"><use href="#i-download"/></svg>
-              <span>Updating HVSC</span>
-              <small>Video coming soon</small>
+    <!-- Download -->
+    <section class="section" id="download">
+      <div class="container">
+        <div class="download glass-panel" data-reveal>
+          <div class="dl-main">
+            <img class="dl-icon" src="assets/icon-512.png" alt="Resonance app icon" width="128" height="128">
+            <div>
+              <h2>Get Resonance.</h2>
+              <p class="dl-status" data-release-status>Checking for the latest release…</p>
+              <div class="dl-actions">
+                <a class="btn btn-primary" href="#build" data-download>
+                  <svg class="i"><use href="#i-download"/></svg><span data-download-label>Download for Mac</span>
+                </a>
+                <a class="btn btn-glass" href="https://github.com/ErikLuimes/resonance">
+                  <svg class="i i-fill"><use href="#i-github"/></svg><span>Source on GitHub</span>
+                </a>
+              </div>
+              <ul class="reqs">
+                <li>macOS 27 or later</li>
+                <li>Apple silicon</li>
+                <li>Free &amp; open source</li>
+              </ul>
             </div>
-            <video data-video muted loop playsinline preload="none" poster="media/hvsc-update.jpg" aria-label="Updating HVSC in Resonance">
-              <source src="media/hvsc-update.mp4" type="video/mp4">
-            </video>
-          </figure>
-      </div>
-    </section>
-
-    <!-- Playlists -->
-    <section class="section" id="playlists">
-      <div class="container showcase">
-        <div class="showcase-copy" data-reveal>
-          <p class="kicker">Your music</p>
-          <h2>Playlists and favorites.<br><span class="grad">Right where you need them.</span></h2>
-          <p class="section-lede">
-            Heart a tune into Favorites. Make as many playlists as you like, drag
-            tunes onto them from anywhere, and reorder them by hand. And wherever the music comes from,
-            Resonance says so: “Playing from Rob Hubbard”, one click back to it.
-          </p>
-          <ul class="checks">
-            <li><svg class="i"><use href="#i-check"/></svg>Add to… finds a playlist as you type, or makes a new one</li>
-            <li><svg class="i"><use href="#i-check"/></svg>Drag a tune, or a whole selection, onto a sidebar playlist</li>
-            <li><svg class="i"><use href="#i-check"/></svg>Playlists are plain M3U files that other players open too</li>
-          </ul>
-        </div>
-        <figure class="media" data-reveal>
-          <div class="media-soon" aria-hidden="true">
-            <svg class="i"><use href="#i-rows"/></svg>
-            <span>Playlists</span>
-            <small>Video coming soon</small>
           </div>
-          <video data-video muted loop playsinline preload="none" poster="media/playlists.jpg" aria-label="Playlists in Resonance">
-            <source src="media/playlists.mp4" type="video/mp4">
-          </video>
-        </figure>
+
+          <ol class="steps">
+            <li>
+              <span class="step-n">1</span>
+              <h3>Install</h3>
+              <p>Open the download and drag Resonance into Applications.</p>
+            </li>
+            <li>
+              <span class="step-n">2</span>
+              <h3>Get the collection</h3>
+              <p>No collection yet? Click the download arrow next to Collection in Resonance's sidebar. Already have the High Voltage SID Collection (HVSC)? Choose its folder in Settings → HVSC.</p>
+            </li>
+            <li>
+              <span class="step-n">3</span>
+              <h3>Press <kbd>⇧</kbd><kbd>⌘</kbd><kbd>R</kbd></h3>
+              <p>Surprise Me starts the radio. Or drop SID files, folders and M3U playlists onto the window.</p>
+            </li>
+          </ol>
+        </div>
       </div>
     </section>
 
@@ -490,8 +471,7 @@
     <section class="section" id="features">
       <div class="container">
         <div class="section-head" data-reveal>
-          <p class="kicker">Features</p>
-          <h2>Forty-year-old chip.<br><span class="grad">Brand-new Mac app.</span></h2>
+          <h2>Forty-year-old chip.<br><span class="h-soft">Brand-new Mac app.</span></h2>
         </div>
 
         <div class="bento">
@@ -539,6 +519,100 @@
             <p>Control Center's position slider and 15-second skips, your keyboard's media keys, and every command in a Playback menu.</p>
           </article>
         </div>
+
+        <details class="others" id="shortcuts" data-reveal>
+          <summary>Every shortcut</summary>
+          <p class="fold-lede">Every Playback command has a shortcut. Press one here and watch it light up.</p>
+          <div class="keys">
+            <div class="key-row" data-shortcut="play"><span class="caps"><kbd class="wide">Space</kbd></span><span>Play / Pause</span></div>
+            <div class="key-row" data-shortcut="stop"><span class="caps"><kbd>⌘</kbd><kbd>.</kbd></span><span>Stop</span></div>
+            <div class="key-row" data-shortcut="track"><span class="caps"><kbd>⌘</kbd><kbd>←</kbd><kbd>→</kbd></span><span>Previous / Next track</span></div>
+            <div class="key-row" data-shortcut="subtune"><span class="caps"><kbd>⌥</kbd><kbd>⌘</kbd><kbd>←</kbd><kbd>→</kbd></span><span>Previous / Next subtune</span></div>
+            <div class="key-row" data-shortcut="surprise"><span class="caps"><kbd>⇧</kbd><kbd>⌘</kbd><kbd>R</kbd></span><span>Surprise Me</span></div>
+            <div class="key-row" data-shortcut="nowplaying"><span class="caps"><kbd>⇧</kbd><kbd>⌘</kbd><kbd>F</kbd></span><span>Now Playing</span></div>
+            <div class="key-row" data-shortcut="miniplayer"><span class="caps"><kbd>⌃</kbd><kbd>⌥</kbd><kbd>⌘</kbd><kbd>P</kbd></span><span>Menu bar player <small>from any app</small></span></div>
+            <div class="key-row" data-shortcut="volume"><span class="caps"><kbd>⌘</kbd><kbd>↑</kbd><kbd>↓</kbd></span><span>Volume up / down</span></div>
+            <div class="key-row" data-shortcut="shuffle"><span class="caps"><kbd>⌥</kbd><kbd>⌘</kbd><kbd>S</kbd></span><span>Shuffle</span></div>
+            <div class="key-row" data-shortcut="add"><span class="caps"><kbd>⌘</kbd><kbd>O</kbd></span><span>Add files or folders</span></div>
+            <div class="key-row" data-shortcut="settings"><span class="caps"><kbd>⌘</kbd><kbd>,</kbd></span><span>Settings</span></div>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- Your library: the collection, playlists and search, one tab each (the Integrations pattern). -->
+    <section class="section" id="library">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <h2>Your library.<br><span class="h-soft">All of it, a click away.</span></h2>
+        </div>
+
+        <div class="integrations library-tabs" data-integrations data-reveal>
+          <div class="integration-list" role="tablist" aria-label="Your library" aria-orientation="vertical">
+            <button type="button" role="tab" id="tab-collection" aria-controls="panel-collection" aria-selected="true"><strong>The collection</strong><span>All of HVSC, kept current for you</span></button>
+            <button type="button" role="tab" id="tab-playlists" aria-controls="panel-playlists" aria-selected="false" tabindex="-1"><strong>Playlists and favorites</strong><span>Right where you need them</span></button>
+            <button type="button" role="tab" id="tab-search" aria-controls="panel-search" aria-selected="false" tabindex="-1"><strong>Search</strong><span>60,000 tunes, one search field</span></button>
+          </div>
+
+          <div class="integration-panels">
+            <div class="integration-panel" role="tabpanel" id="panel-collection" aria-labelledby="tab-collection">
+              <figure class="media">
+                <div class="media-soon" aria-hidden="true">
+                  <svg class="i"><use href="#i-download"/></svg>
+                  <span>Updating HVSC</span>
+                  <small>Video coming soon</small>
+                </div>
+                <video data-video muted loop playsinline preload="none" poster="media/hvsc-update.jpg" aria-label="Updating HVSC in Resonance">
+                  <source src="media/hvsc-update.mp4" type="video/mp4">
+                </video>
+              </figure>
+              <p>Resonance downloads the High Voltage SID Collection (HVSC), the archive of Commodore&nbsp;64 music the scene keeps up to date. When a new release comes out, it says so, updates in one click, and shows what the release added: new tunes, new composers, and new notes in STIL, HVSC's list of the stories behind the tunes.</p>
+              <ul class="checks">
+                <li><svg class="i"><use href="#i-check"/></svg>The Home: the release, what's new, and the tunes you played last</li>
+                <li><svg class="i"><use href="#i-check"/></svg>Curated playlists, from HVSC's Top 100 to the Grand Tour</li>
+                <li><svg class="i"><use href="#i-check"/></svg>A card for each composer, with STIL's notes and all their tunes a click away</li>
+                <li><svg class="i"><use href="#i-check"/></svg>Each tune moves on when it ends, using HVSC's song lengths; for tunes outside HVSC, Resonance works out the length in the background</li>
+              </ul>
+            </div>
+            <div class="integration-panel" role="tabpanel" id="panel-playlists" aria-labelledby="tab-playlists" hidden>
+              <figure class="media">
+                <div class="media-soon" aria-hidden="true">
+                  <svg class="i"><use href="#i-rows"/></svg>
+                  <span>Playlists</span>
+                  <small>Video coming soon</small>
+                </div>
+                <video data-video muted loop playsinline preload="none" poster="media/playlists.jpg" aria-label="Playlists in Resonance">
+                  <source src="media/playlists.mp4" type="video/mp4">
+                </video>
+              </figure>
+              <p>Heart a tune into Favorites. Make as many playlists as you like, drag tunes onto them from anywhere, and reorder them by hand. And wherever the music comes from, Resonance says so: “Playing from Rob Hubbard”, one click back to it.</p>
+              <ul class="checks">
+                <li><svg class="i"><use href="#i-check"/></svg>Add to… finds a playlist as you type, or makes a new one</li>
+                <li><svg class="i"><use href="#i-check"/></svg>Drag a tune, or a whole selection, onto a sidebar playlist</li>
+                <li><svg class="i"><use href="#i-check"/></svg>Playlists are plain M3U files that other players open too</li>
+              </ul>
+            </div>
+            <div class="integration-panel" role="tabpanel" id="panel-search" aria-labelledby="tab-search" hidden>
+              <figure class="media">
+                <div class="media-soon" aria-hidden="true">
+                  <svg class="i"><use href="#i-search"/></svg>
+                  <span>Searching HVSC</span>
+                  <small>Video coming soon</small>
+                </div>
+                <video data-video muted loop playsinline preload="none" poster="media/library.jpg" aria-label="Searching HVSC in Resonance">
+                  <source src="media/library.mp4" type="video/mp4">
+                </video>
+              </figure>
+              <p>Musicians, Games and Demos live in the sidebar, composers by handle and real name, with their tune count and years. Or just type, from anywhere: the top result and the first tunes, then composers, games, demos and playlists from all of HVSC, and typos still find their tune.</p>
+              <ul class="checks">
+                <li><svg class="i"><use href="#i-check"/></svg>Composers by name or handle, in any order: “tel jeroen”</li>
+                <li><svg class="i"><use href="#i-check"/></svg>Spelled either way: “second reality” finds 2nd Reality</li>
+                <li><svg class="i"><use href="#i-check"/></svg>Accent-insensitive: “hulsbeck” finds Hülsbeck</li>
+                <li><svg class="i"><use href="#i-check"/></svg>Clear the search and you're back where you were</li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -546,8 +620,7 @@
     <section class="section" id="integrations">
       <div class="container">
         <div class="section-head" data-reveal>
-          <p class="kicker">Integrations</p>
-          <h2>Resonance, from anywhere<br><span class="grad">on your Mac.</span></h2>
+          <h2>Resonance, from anywhere<br><span class="h-soft">on your Mac.</span></h2>
           <p class="section-lede">The app plays everything. All of these reach the same player, so the window, the terminal and every shortcut stay in step.</p>
         </div>
 
@@ -641,75 +714,16 @@ resonance playlist add "Late Night" $(resonance pick --multi)</code></pre>
       </div>
     </section>
 
-    <!-- Library -->
-    <section class="section" id="library">
-      <div class="container library">
-        <div class="library-copy" data-reveal>
-          <p class="kicker">The library</p>
-          <h2>60,000 tunes.<br><span class="grad">One search field.</span></h2>
-          <p class="section-lede">
-            Musicians, Games and Demos live in the sidebar, composers by handle and real name, with
-            their tune count and years. Or just type, from anywhere: the top result and the first tunes, then composers,
-            games, demos and playlists from all of HVSC, and typos still find their tune.
-          </p>
-          <ul class="checks">
-            <li><svg class="i"><use href="#i-check"/></svg>Composers by name or handle, in any order: “tel jeroen”</li>
-            <li><svg class="i"><use href="#i-check"/></svg>The most prolific first: “jeroen” puts Jeroen Tel on top</li>
-            <li><svg class="i"><use href="#i-check"/></svg>Spelled either way: “second reality” finds 2nd Reality</li>
-            <li><svg class="i"><use href="#i-check"/></svg>Accent-insensitive: “hulsbeck” finds Hülsbeck</li>
-            <li><svg class="i"><use href="#i-check"/></svg>Clear the search and you're back where you were</li>
-          </ul>
-        </div>
-
-        <figure class="media" data-reveal>
-          <div class="media-soon" aria-hidden="true">
-            <svg class="i"><use href="#i-search"/></svg>
-            <span>Searching HVSC</span>
-            <small>Video coming soon</small>
-          </div>
-          <video data-video muted loop playsinline preload="none" poster="media/library.jpg" aria-label="Searching HVSC in Resonance">
-            <source src="media/library.mp4" type="video/mp4">
-          </video>
-        </figure>
-      </div>
-    </section>
-
-    <!-- Shortcuts -->
-    <section class="section" id="shortcuts">
-      <div class="container">
-        <div class="section-head" data-reveal>
-          <p class="kicker">Keyboard</p>
-          <h2>Hands on the keys.</h2>
-          <p class="section-lede">Every Playback command has a shortcut. Press one here and watch it light up.</p>
-        </div>
-        <div class="keys" data-reveal>
-          <div class="key-row" data-shortcut="play"><span class="caps"><kbd class="wide">Space</kbd></span><span>Play / Pause</span></div>
-          <div class="key-row" data-shortcut="stop"><span class="caps"><kbd>⌘</kbd><kbd>.</kbd></span><span>Stop</span></div>
-          <div class="key-row" data-shortcut="track"><span class="caps"><kbd>⌘</kbd><kbd>←</kbd><kbd>→</kbd></span><span>Previous / Next track</span></div>
-          <div class="key-row" data-shortcut="subtune"><span class="caps"><kbd>⌥</kbd><kbd>⌘</kbd><kbd>←</kbd><kbd>→</kbd></span><span>Previous / Next subtune</span></div>
-          <div class="key-row" data-shortcut="surprise"><span class="caps"><kbd>⇧</kbd><kbd>⌘</kbd><kbd>R</kbd></span><span>Surprise Me</span></div>
-          <div class="key-row" data-shortcut="nowplaying"><span class="caps"><kbd>⇧</kbd><kbd>⌘</kbd><kbd>F</kbd></span><span>Now Playing</span></div>
-          <div class="key-row" data-shortcut="miniplayer"><span class="caps"><kbd>⌃</kbd><kbd>⌥</kbd><kbd>⌘</kbd><kbd>P</kbd></span><span>Menu bar player <small>from any app</small></span></div>
-          <div class="key-row" data-shortcut="volume"><span class="caps"><kbd>⌘</kbd><kbd>↑</kbd><kbd>↓</kbd></span><span>Volume up / down</span></div>
-          <div class="key-row" data-shortcut="shuffle"><span class="caps"><kbd>⌥</kbd><kbd>⌘</kbd><kbd>S</kbd></span><span>Shuffle</span></div>
-          <div class="key-row" data-shortcut="add"><span class="caps"><kbd>⌘</kbd><kbd>O</kbd></span><span>Add files or folders</span></div>
-          <div class="key-row" data-shortcut="settings"><span class="caps"><kbd>⌘</kbd><kbd>,</kbd></span><span>Settings</span></div>
-        </div>
-      </div>
-    </section>
-
     <!-- Under the hood -->
     <section class="section" id="under-the-hood">
       <div class="container">
         <div class="section-head" data-reveal>
-          <p class="kicker">Under the hood</p>
-          <h2>Its own app.<br><span class="grad">Phosphor's engine, libsidplayfp's sound.</span></h2>
+          <h2>Its own app.<br><span class="h-soft">Phosphor's engine, libsidplayfp's sound.</span></h2>
           <p class="section-lede">
-            Resonance is its own app, but it doesn't reinvent the library. It compiles the engine of
+            Resonance is its own app, but it doesn't reinvent the library. It started from the engine of
             <a href="https://sandlbn.github.io/Phosphor/">Phosphor</a>, Marcin Spoczynski's open-source
-            Rust player, without changing a line, and talks to it through UniFFI, so improvements upstream
-            flow straight into the Mac app. For the sound it adds its own player around libsidplayfp's
-            reSIDfp, rendered straight into the audio output.
+            Rust player, and keeps its own copy of it, compiled in and called through UniFFI. For the sound
+            it adds its own player around libsidplayfp's reSIDfp, rendered straight into the audio output.
           </p>
         </div>
 
@@ -724,123 +738,75 @@ resonance playlist add "Late Night" $(resonance pick --multi)</code></pre>
           </article>
         </div>
 
-        <div class="hood">
-          <ol class="stack" data-reveal>
-            <li style="--c: var(--v1)">
-              <span class="layer-name">Resonance.app</span>
-              <span class="layer-desc">SwiftUI · Swift 6 · Observation · Liquid Glass</span>
-              <span class="layer-note">Polls a snapshot at 20 Hz, a visualizer frame every display frame</span>
-            </li>
-            <li style="--c: var(--v2)">
-              <span class="layer-name">PhosphorCore.framework</span>
-              <span class="layer-desc">UniFFI-generated Swift bindings</span>
-              <span class="layer-note">Library calls are async: Swift awaits, Rust runs them off the main thread</span>
-            </li>
-            <li style="--c: var(--v3)">
-              <span class="layer-name">libphosphor_apple</span>
-              <span class="layer-desc">Rust · session state machine · driver thread · libsidplayfp player · FFI</span>
-              <span class="layer-note">One thread owns playback and publishes an immutable snapshot after every step; reSIDfp and SIDLite direct render in the audio callback</span>
-            </li>
-            <li style="--c: #8e93a8">
-              <span class="layer-name">Phosphor engine</span>
-              <span class="layer-desc">reSID · SIDLite · playlists · HVSC · Songlengths · STIL</span>
-              <span class="layer-note">Compiled straight from upstream's sources — unchanged</span>
-            </li>
-          </ol>
-        </div>
+        <details class="others fold-dev" data-reveal>
+          <summary>For developers and the scene</summary>
+          <div class="hood">
+            <ol class="stack">
+              <li style="--c: var(--v1)">
+                <span class="layer-name">Resonance.app</span>
+                <span class="layer-desc">SwiftUI · Swift 6 · Observation · Liquid Glass</span>
+                <span class="layer-note">Polls a snapshot at 20 Hz, a visualizer frame every display frame</span>
+              </li>
+              <li style="--c: var(--v2)">
+                <span class="layer-name">PhosphorCore.framework</span>
+                <span class="layer-desc">UniFFI-generated Swift bindings</span>
+                <span class="layer-note">Library calls are async: Swift awaits, Rust runs them off the main thread</span>
+              </li>
+              <li style="--c: var(--v3)">
+                <span class="layer-name">libphosphor_apple</span>
+                <span class="layer-desc">Rust · session state machine · driver thread · libsidplayfp player · FFI</span>
+                <span class="layer-note">One thread owns playback and publishes an immutable snapshot after every step; reSIDfp and SIDLite direct render in the audio callback</span>
+              </li>
+              <li style="--c: #8e93a8">
+                <span class="layer-name">Phosphor engine</span>
+                <span class="layer-desc">reSID · SIDLite · playlists · HVSC · Songlengths · STIL</span>
+                <span class="layer-note">Resonance's own copy of Phosphor's engine, compiled in</span>
+              </li>
+            </ol>
+          </div>
+          <h3 class="fold-head">Compare with Phosphor and other Mac SID players</h3>
+            <div class="compare glass-panel">
+              <p class="dim">Checked in November 2026 against each one's own site: <a href="https://sandlbn.github.io/Phosphor/">Phosphor</a>, whose engine Resonance runs; <a href="https://www.sidmusic.org/sidplay/mac/">SIDPLAY</a>, the classic Mac app, last released in 2016 and kept building by a <a href="https://github.com/Alexco500/sidplay5">community port</a>; <a href="https://flipsid.thealumni.fi/">flipSID</a>, new in 2026; and <a href="https://haendel.ddns.net/">JSIDPlay2</a>, the Java one. In the browser there's also <a href="https://deepsid.chordian.net/">DeepSID</a>.</p>
+              <div class="others-scroll">
+                <table>
+                  <thead><tr><th></th><th>Resonance</th><th>Phosphor</th><th>SIDPLAY</th><th>flipSID</th><th>JSIDPlay2</th></tr></thead>
+                  <tbody>
+                  <tr><td>Made for</td><td>The Mac, in SwiftUI</td><td>macOS, Windows, Linux, in Iced</td><td>The Mac, in Cocoa</td><td>Windows, Mac, Linux</td><td>Java; also the browser</td></tr>
+                  <tr><td>Apple silicon</td><td class="yes">✓</td><td class="yes">✓</td><td>Through a community port</td><td class="yes">✓</td><td>With OpenJDK 21</td></tr>
+                  <tr><td>SID emulation</td><td>reSIDfp, SIDLite</td><td>SIDLite, reSID</td><td>libsidplayfp</td><td>reSIDfp, reSID, resid-fp</td><td>reSID, reSIDfp</td></tr>
+                  <tr><td>HVSC download, Songlengths &amp; STIL</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+                  <tr><td>Playlists &amp; favorites</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+                  <tr><td>Sounds Like</td><td class="yes">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+                  <tr><td>Visualizers</td><td>Twelve, from Halo to Silicon, the SID’s own die</td><td>Bars, Scope, Tracker</td><td>Oscilloscope</td><td class="no">—</td><td>Oscilloscope</td></tr>
+                  <tr><td>Small player</td><td>In the menu bar, from any app</td><td>A compact window</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+                  <tr><td>Control Center &amp; media keys</td><td class="yes">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+                  <tr><td>Share links</td><td class="yes">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+                  <tr><td>Real SID hardware</td><td class="no">—</td><td>USBSID-Pico, Ultimate 64</td><td>ASID over MIDI, SIDBlaster</td><td>Ultimate 64, HardSID</td><td>HardSID, SIDBlaster, ExSID</td></tr>
+                  <tr><td>Also</td><td>Siri and Shortcuts, Spotlight, Quick Look, a terminal app</td><td>Pedalboard FX, web remote, karaoke, Assembly64</td><td class="no">—</td><td>STIL search, filter curves</td><td>Up to 15 SIDs, NetworkSID</td></tr>
+                  <tr><td>Last release</td><td data-release-cell>0.1.0-alpha.10, 2026</td><td>0.4.7, 2026</td><td>4.2, 2016</td><td>0.3.0, November 2026</td><td>4.14 beta</td></tr>
+                  <tr><td>License</td><td>MIT; GPL as built</td><td>MIT</td><td>GPL</td><td>GPL</td><td>GPL</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          <div class="build" id="build">
+            <div>
+              <h3>Build it yourself</h3>
+              <p>You'll need Xcode 27 and Rust (<code>brew install rustup && rustup default stable</code>). The first build compiles the Rust engine and takes a few minutes; after that Xcode rebuilds it incrementally.</p>
+            </div>
+            <div class="code">
+              <button class="copy" type="button" aria-label="Copy commands"><svg class="i"><use href="#i-copy"/></svg><span>Copy</span></button>
+  <pre><code><span class="c"># Get the source</span>
+  git clone https://github.com/ErikLuimes/resonance.git
+  cd resonance
 
-        <details class="others" data-reveal>
-          <summary>Compare with Phosphor and other Mac SID players</summary>
-          <div class="compare glass-panel">
-            <p class="dim">Checked in November 2026 against each one's own site: <a href="https://sandlbn.github.io/Phosphor/">Phosphor</a>, whose engine Resonance runs; <a href="https://www.sidmusic.org/sidplay/mac/">SIDPLAY</a>, the classic Mac app, last released in 2016 and kept building by a <a href="https://github.com/Alexco500/sidplay5">community port</a>; <a href="https://flipsid.thealumni.fi/">flipSID</a>, new in 2026; and <a href="https://haendel.ddns.net/">JSIDPlay2</a>, the Java one. In the browser there's also <a href="https://deepsid.chordian.net/">DeepSID</a>.</p>
-            <div class="others-scroll">
-              <table>
-                <thead><tr><th></th><th>Resonance</th><th>Phosphor</th><th>SIDPLAY</th><th>flipSID</th><th>JSIDPlay2</th></tr></thead>
-                <tbody>
-                <tr><td>Made for</td><td>The Mac, in SwiftUI</td><td>macOS, Windows, Linux, in Iced</td><td>The Mac, in Cocoa</td><td>Windows, Mac, Linux</td><td>Java; also the browser</td></tr>
-                <tr><td>Apple silicon</td><td class="yes">✓</td><td class="yes">✓</td><td>Through a community port</td><td class="yes">✓</td><td>With OpenJDK 21</td></tr>
-                <tr><td>SID emulation</td><td>reSIDfp, SIDLite</td><td>SIDLite, reSID</td><td>libsidplayfp</td><td>reSIDfp, reSID, resid-fp</td><td>reSID, reSIDfp</td></tr>
-                <tr><td>HVSC download, Songlengths &amp; STIL</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
-                <tr><td>Playlists &amp; favorites</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
-                <tr><td>Sounds Like</td><td class="yes">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
-                <tr><td>Visualizers</td><td>Twelve, from Halo to Silicon, the SID’s own die</td><td>Bars, Scope, Tracker</td><td>Oscilloscope</td><td class="no">—</td><td>Oscilloscope</td></tr>
-                <tr><td>Small player</td><td>In the menu bar, from any app</td><td>A compact window</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
-                <tr><td>Control Center &amp; media keys</td><td class="yes">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
-                <tr><td>Share links</td><td class="yes">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
-                <tr><td>Real SID hardware</td><td class="no">—</td><td>USBSID-Pico, Ultimate 64</td><td>ASID over MIDI, SIDBlaster</td><td>Ultimate 64, HardSID</td><td>HardSID, SIDBlaster, ExSID</td></tr>
-                <tr><td>Also</td><td>Siri and Shortcuts, Spotlight, Quick Look, a terminal app</td><td>Pedalboard FX, web remote, karaoke, Assembly64</td><td class="no">—</td><td>STIL search, filter curves</td><td>Up to 15 SIDs, NetworkSID</td></tr>
-                <tr><td>Last release</td><td>0.1.0-alpha.11, 2026</td><td>0.4.7, 2026</td><td>4.2, 2016</td><td>0.3.0, November 2026</td><td>4.14 beta</td></tr>
-                <tr><td>License</td><td>MIT; GPL as built</td><td>MIT</td><td>GPL</td><td>GPL</td><td>GPL</td></tr>
-                </tbody>
-              </table>
+  <span class="c"># Build and launch</span>
+  xcodebuild -project apple/Resonance.xcodeproj -scheme Resonance \
+    -derivedDataPath apple/build/DD build
+  open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
             </div>
           </div>
         </details>
-      </div>
-    </section>
-
-    <!-- Download -->
-    <section class="section" id="download">
-      <div class="container">
-        <div class="download glass-panel" data-reveal>
-          <div class="dl-main">
-            <img class="dl-icon" src="assets/icon-512.png" alt="Resonance app icon" width="128" height="128">
-            <div>
-              <p class="kicker">Download</p>
-              <h2>Get Resonance.</h2>
-              <p class="dl-status" data-release-status>Checking for the latest release…</p>
-              <div class="dl-actions">
-                <a class="btn btn-primary" href="#build" data-download>
-                  <svg class="i"><use href="#i-download"/></svg><span data-download-label>Download for Mac</span>
-                </a>
-                <a class="btn btn-glass" href="https://github.com/ErikLuimes/resonance">
-                  <svg class="i i-fill"><use href="#i-github"/></svg><span>Source on GitHub</span>
-                </a>
-              </div>
-              <ul class="reqs">
-                <li>macOS 27 or later</li>
-                <li>Apple silicon</li>
-                <li>Free &amp; open source</li>
-              </ul>
-            </div>
-          </div>
-
-          <ol class="steps">
-            <li>
-              <span class="step-n">1</span>
-              <h3>Install</h3>
-              <p>Open the download and drag Resonance into Applications.</p>
-            </li>
-            <li>
-              <span class="step-n">2</span>
-              <h3>Get the collection</h3>
-              <p>No HVSC yet? Click the download arrow next to Collection in the sidebar. Already have it? Choose its folder in Settings → HVSC.</p>
-            </li>
-            <li>
-              <span class="step-n">3</span>
-              <h3>Press <kbd>⇧</kbd><kbd>⌘</kbd><kbd>R</kbd></h3>
-              <p>Surprise Me starts the radio. Or drop SID files, folders and M3U playlists onto the window.</p>
-            </li>
-          </ol>
-        </div>
-
-        <div class="build" id="build" data-reveal>
-          <div>
-            <h3>Build it yourself</h3>
-            <p>You'll need Xcode 27 and Rust (<code>brew install rustup && rustup default stable</code>). The first build compiles the Rust engine and takes a few minutes; after that Xcode rebuilds it incrementally.</p>
-          </div>
-          <div class="code">
-            <button class="copy" type="button" aria-label="Copy commands"><svg class="i"><use href="#i-copy"/></svg><span>Copy</span></button>
-<pre><code><span class="c"># Get the source</span>
-git clone https://github.com/ErikLuimes/resonance.git
-cd resonance
-
-<span class="c"># Build and launch</span>
-xcodebuild -project apple/Resonance.xcodeproj -scheme Resonance \
-  -derivedDataPath apple/build/DD build
-open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
-          </div>
-        </div>
       </div>
     </section>
 
@@ -848,7 +814,6 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
     <section class="section" id="faq">
       <div class="container container-narrow">
         <div class="section-head" data-reveal>
-          <p class="kicker">Questions</p>
           <h2>Good to know.</h2>
         </div>
         <div class="faq" data-reveal>
@@ -887,6 +852,19 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
         </div>
       </div>
     </section>
+
+    <!-- The close: the promise once more, and the download. -->
+    <section class="section closing" id="get">
+      <div class="container" data-reveal>
+        <h2>Play a tune you love.<br><span class="h-soft">Find the ones that sound like it.</span></h2>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="#download" data-download>
+            <svg class="i"><use href="#i-download"/></svg><span data-download-label>Download for Mac</span>
+          </a>
+        </div>
+        <p class="fine"><span data-release-line>Free and open source</span>, for Macs with Apple silicon on macOS&nbsp;27 or later.</p>
+      </div>
+    </section>
   </main>
 
   <footer class="footer">
@@ -895,7 +873,7 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
         <img src="assets/icon-256.png" alt="" width="40" height="40">
         <div>
           <strong>Resonance</strong>
-          <span>The SID, played and seen</span>
+          <span>Find music by how it sounds</span>
         </div>
       </div>
       <div class="footer-links">
@@ -906,13 +884,13 @@ open apple/build/DD/Build/Products/Debug/Resonance.app</code></pre>
         <a href="https://hvsc.c64.org">HVSC</a>
       </div>
       <p class="footer-legal">
-        Resonance © <span data-year>2026</span> Erik Luimes, MIT License. Phosphor © 2026 Marcin Spoczynski, MIT License.
+        Resonance © <span data-year>2026</span> Erik Luimes. Its source is MIT-licensed; the app as built is under the GPL, version 3, for the SID emulators inside. Phosphor © 2026 Marcin Spoczynski, MIT License.
         Tunes shown are from the High Voltage SID Collection; their music belongs to their composers.
       </p>
     </div>
   </footer>
 
-  <script type="module" src="js/main.js?v=20261112a"></script>
+  <script type="module" src="js/main.js?v=20261117e"></script>
   <!-- Visits, counted without cookies by GoatCounter (it skips localhost). -->
   <script data-goatcounter="https://erikluimes.goatcounter.com/count"
           async src="https://gc.zgo.at/count.js"></script>

@@ -34,3 +34,6 @@ Thumbs.db
 AGENTS.md
 .codex/
 .agents/
+
+# Impeccable design-tool state (critique snapshots, ignore list)
+.impeccable/

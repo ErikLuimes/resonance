@@ -23,10 +23,10 @@ let soundOn = false;
 // placeholder stands in for a few seconds.
 
 const CHAPTERS = [
+  { slug: 'sounds-like', title: 'Sounds Like', text: 'Play a tune, and see the ones in the collection that sound most like it.' },
   { slug: 'smart-playlists', title: 'Smart Playlists', text: 'Say what you\'d like to hear, and get the playlist.' },
-  { slug: 'sounds-like', title: 'Sounds Like', text: 'Play a tune, and see the ones in HVSC that sound most like it.' },
   { slug: 'now-playing', title: 'Now Playing', text: 'Twelve visualizers, driven by the chip itself.' },
-  { slug: 'library', title: 'All of HVSC', text: '60,000 tunes, composers by name, one search for everything.' },
+  { slug: 'library', title: 'The collection', text: '60,000 tunes, composers by name, one search for everything.' },
   { slug: 'playlists', title: 'Your playlists', text: 'Favorites, playlists, and drag and drop from anywhere.' },
 ];
 const PLACEHOLDER_SECS = 6;
@@ -35,7 +35,7 @@ const tourVideo = $('[data-tour-video]');
 const tourMedia = tourVideo.closest('.media');
 const tourTabs = $('[data-tour-tabs]');
 tourTabs.innerHTML = CHAPTERS.map((c, i) => `
-  <button type="button" role="tab" class="tour-tab" data-chapter="${i}" aria-selected="false">
+  <button type="button" role="tab" class="tour-tab" data-chapter="${i}" aria-selected="false" aria-controls="tour-media">
     <span>${escapeHtml(c.title)}</span><i class="tour-bar"><b></b></i>
   </button>`).join('');
 const tabButtons = $$('[data-chapter]', tourTabs);
@@ -161,10 +161,16 @@ function flash(id) {
   pressTimers[id] = setTimeout(() => row.classList.remove('is-pressed'), 650);
 }
 
+// Only while the keys are on screen: folded away, they leave the browser's shortcuts alone.
+let keysVisible = false;
+new IntersectionObserver(([entry]) => { keysVisible = entry.isIntersecting; }).observe($('#shortcuts .keys'));
 addEventListener('keydown', (e) => {
   if (e.target.closest?.('input, textarea, select, [contenteditable]')) return;
   const id = shortcutFor(e);
-  if (id) flash(id);
+  if (!id) return;
+  flash(id);
+  // The section invites pressing them: ⌘← shouldn't go Back, ⇧⌘R shouldn't reload.
+  if (keysVisible && id !== 'play') e.preventDefault();
 });
 
 // ---------------------------------------------------------------------------
@@ -197,11 +203,15 @@ async function loadRelease() {
     if (!release) throw new Error('no build yet');
     const asset = appAsset(release);
     const version = release.tag_name || release.name;
-    const when = (release.prerelease ? ' · pre-release' : '')
-      + (release.published_at ? ` · released ${relativeDate(new Date(release.published_at))}` : '');
-    const size = asset ? ` · ${(asset.size / 1_048_576).toFixed(1)} MB` : '';
-    status.innerHTML = `Version <strong>${escapeHtml(version)}</strong>${when}${size} · <a href="${escapeHtml(release.html_url)}">release notes</a>`;
-    textOf('[data-release-line]', `Free and open source · ${version}`);
+    const shown = version.replace(/^v(?=\d)/, '');
+    const when = (release.prerelease ? ', a pre-release' : '')
+      + (release.published_at ? `, released ${relativeDate(new Date(release.published_at))}` : '');
+    const size = asset ? ` (${(asset.size / 1_048_576).toFixed(1)} MB)` : '';
+    status.innerHTML = `Version <strong>${escapeHtml(shown)}</strong>${when}${size}. <a href="${escapeHtml(release.html_url)}">Release notes</a>`;
+    textOf('[data-release-line]', `Free and open source, version ${shown}`);
+    // The compare table's "Last release" follows the same build.
+    const year = release.published_at ? `, ${new Date(release.published_at).getFullYear()}` : '';
+    textOf('[data-release-cell]', `${shown}${year}`);
     // A release that isn't final says so on the button: "Download alpha".
     const stage = /-(alpha|beta)\b/i.exec(version)?.[1].toLowerCase();
     const label = stage ? `Download ${stage}` : null;
@@ -211,14 +221,29 @@ async function loadRelease() {
     }
   } catch {
     status.innerHTML = 'There\'s no public build yet — <a href="#build">build it from source</a> in a few minutes.';
-    const [heroButton, downloadButton] = $$('a[data-download]');
-    heroButton.href = '#download';
-    heroButton.querySelector('[data-download-label]').textContent = 'Get Resonance';
-    downloadButton.href = '#build';
-    downloadButton.querySelector('[data-download-label]').textContent = 'Build from source';
+    // The download panel's button goes to the build steps; the others go to the panel.
+    for (const a of $$('a[data-download]')) {
+      const inPanel = a.closest('#download');
+      a.href = inPanel ? '#build' : '#download';
+      a.querySelector('[data-download-label]').textContent = inPanel ? 'Build from source' : 'Get Resonance';
+    }
   }
 }
 loadRelease();
+
+// A link into folded content (the build steps, the shortcuts) opens the fold
+// before the browser scrolls to it, and so does arriving with such a hash.
+function openFoldFor(id) {
+  const fold = id && document.getElementById(id)?.closest('details');
+  if (!fold || fold.open) return false;
+  fold.open = true;
+  return true;
+}
+addEventListener('click', (event) => {
+  const link = event.target.closest?.('a[href^="#"]');
+  if (link) openFoldFor(link.hash.slice(1));
+});
+if (openFoldFor(location.hash.slice(1))) document.getElementById(location.hash.slice(1)).scrollIntoView();
 
 // ---------------------------------------------------------------------------
 // Scroll reveal, the nav's current section, tile spotlights, copy buttons.
@@ -275,7 +300,7 @@ const vzVideo = $('[data-vz-video]');
 const vzMedia = vzVideo.closest('.media');
 const vzTabs = $('[data-vz-tabs]');
 vzTabs.innerHTML = FEATURED.map((f, i) => `
-  <button type="button" role="tab" class="tour-tab" data-featured="${i}" aria-selected="false">
+  <button type="button" role="tab" class="tour-tab" data-featured="${i}" aria-selected="false" aria-controls="vz-media">
     <span>${escapeHtml(f.title)}</span><i class="tour-bar"><b></b></i>
   </button>`).join('');
 const vzButtons = $$('[data-featured]', vzTabs);
@@ -504,7 +529,7 @@ for (const list of $$('[data-integrations] [role="tablist"]')) {
 const allVideos = $$('video');
 for (const media of $$('.media')) {
   media.insertAdjacentHTML('beforeend', `
-    <button type="button" class="media-sound" data-sound aria-pressed="false">
+    <button type="button" class="media-sound" data-sound aria-pressed="false" aria-label="Video sound">
       <svg class="i i-fill"><use href="#i-mute"/></svg><span>Sound on</span>
     </button>`);
 }

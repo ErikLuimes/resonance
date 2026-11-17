@@ -80,8 +80,8 @@ SITE_CARDS = {
 <div class="shade-left"></div>
 <div style="position:absolute; left:72px; top:70px; bottom:64px; display:flex; flex-direction:column; justify-content:space-between; width:600px">
   <div class="brand"><img src="{ICON}">Resonance</div>
-  <p class="headline">Every C64 tune.<br><span class="grad">Say what you'd like to hear.</span></p>
-  <div class="small">A Mac player for SID music</div>
+  <p class="headline">Play a tune you love.<br><span class="grad">Find the ones that sound like it.</span></p>
+  <div class="small">Starting with all 60,000 C64 tunes</div>
 </div>""",
     # B: three visualizers side by side.
     "site-b": f"""
