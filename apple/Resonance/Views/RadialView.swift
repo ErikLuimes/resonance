@@ -164,7 +164,9 @@ final class RadialNSView: FrameLinkedNSView {
             let paths = (0..<Self.steps).map { _ in CGMutablePath() }
             for side in [-1.0, 1.0] {
                 for j in 0..<n {
-                    let level = CGFloat(levels[v * n + j])
+                    // Int(_:) traps on NaN, so a level that isn't a number draws as silence.
+                    let raw = levels[v * n + j]
+                    let level = raw.isFinite ? CGFloat(raw) : 0
                     let theta = -Double.pi / 2 + rotation + side * (Double(j) + 0.5) / Double(n) * .pi
                     let dx = CGFloat(cos(theta)), dy = -CGFloat(sin(theta))
                     let inner = r0 + 3

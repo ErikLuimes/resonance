@@ -469,6 +469,12 @@ final class PlayerStore {
         let kind: String
         /// The device's own name: "Erik's AirPods Pro", "MacBook Pro Speakers".
         let name: String
+
+        /// Headphones of any kind, or another Bluetooth device: what only
+        /// the listener hears, so losing it shouldn't send the music out loud.
+        var isPersonal: Bool {
+            ["headphones", "airpods", "airpodsPro", "airpodsMax", "beats", "bluetooth"].contains(kind)
+        }
     }
 
     /// The default output, from `OutputLatencyMonitor`.
@@ -476,6 +482,15 @@ final class PlayerStore {
 
     func setOutput(_ output: Output?) {
         if self.output != output { self.output = output }
+    }
+
+    /// Headphones were unplugged, or Bluetooth ones went away: pause rather
+    /// than play on out loud, as iPhone does. Not while a device listens,
+    /// since the Mac's own output is quiet then.
+    func outputWentAway() {
+        guard listening == nil, isPlaying else { return }
+        Log.playback.info("the headphones went away; pausing")
+        playPause()
     }
 
     /// Play into `device` over the network from now on; the speakers go

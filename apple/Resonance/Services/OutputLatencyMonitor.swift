@@ -12,13 +12,20 @@ final class OutputLatencyMonitor {
     private let onChange: (Duration) -> Void
     /// What the output is, whenever it changes: for Resonance Remote.
     private let onOutput: (PlayerStore.Output?) -> Void
+    /// Headphones were unplugged, or Bluetooth ones went away.
+    private let onUnplugged: () -> Void
     /// The device whose data source (speakers or the headphone jack) is
     /// watched, so plugging in headphones reports too.
     private var watched: AudioObjectID?
+    /// The output at the last report, to tell what changed.
+    private var last: (device: AudioObjectID, output: PlayerStore.Output)?
 
-    init(onChange: @escaping (Duration) -> Void, onOutput: @escaping (PlayerStore.Output?) -> Void = { _ in }) {
+    init(onChange: @escaping (Duration) -> Void,
+         onOutput: @escaping (PlayerStore.Output?) -> Void = { _ in },
+         onUnplugged: @escaping () -> Void = {}) {
         self.onChange = onChange
         self.onOutput = onOutput
+        self.onUnplugged = onUnplugged
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioHardwarePropertyDefaultOutputDevice,
             mScope: kAudioObjectPropertyScopeGlobal,
@@ -40,7 +47,39 @@ final class OutputLatencyMonitor {
                 MainActor.assumeIsolated { self?.report() }
             }
         }
-        onOutput(device.map(Self.output(of:)))
+        let output = device.map(Self.output(of:))
+        if let last, Self.endsPersonalListening(
+            from: last.output, to: output,
+            sameDevice: device == last.device, oldStillThere: Self.isPresent(last.device)
+        ) {
+            onUnplugged()
+        }
+        last = device.flatMap { device in output.map { (device, $0) } }
+        onOutput(output)
+    }
+
+    /// Whether going from `old` to `new` ends listening on headphones, so
+    /// the music would go on out loud: the jack was unplugged (the
+    /// built-in device switched itself to its speakers; macOS gives no other
+    /// way there), or the Bluetooth headphones went away. Choosing another
+    /// output while they're still there doesn't count, as on iPhone.
+    static func endsPersonalListening(from old: PlayerStore.Output, to new: PlayerStore.Output?,
+                                      sameDevice: Bool, oldStillThere: Bool) -> Bool {
+        guard old.isPersonal, new?.isPersonal != true else { return false }
+        return sameDevice || !oldStillThere
+    }
+
+    /// Whether `device` is still connected and working.
+    private static func isPresent(_ device: AudioObjectID) -> Bool {
+        var address = address(kAudioHardwarePropertyDevices, kAudioObjectPropertyScopeGlobal)
+        let system = AudioObjectID(kAudioObjectSystemObject)
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(system, &address, 0, nil, &size) == noErr else { return false }
+        var devices = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
+        guard AudioObjectGetPropertyData(system, &address, 0, nil, &size, &devices) == noErr,
+              devices.contains(device)
+        else { return false }
+        return uint32(device, kAudioDevicePropertyDeviceIsAlive).map { $0 != 0 } ?? false
     }
 
     /// What `device` is, by its transport and, for Bluetooth, its name: the

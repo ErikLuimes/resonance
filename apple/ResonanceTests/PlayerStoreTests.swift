@@ -1127,6 +1127,18 @@ struct VisualizerFeedTests {
         #expect(spectrum.levels.prefix(VoiceSpectrum.bands).max()! > peak * 0.8)
     }
 
+    @Test func spectrumStaysANumberWhenTheClockIsNot() {
+        let spectrum = VoiceSpectrum()
+        let rate: Float = 44_800
+        let sine = (0..<VoiceSpectrum.size).map { sin(2 * Float.pi * 440 * Float($0) / rate) }
+        let start = Date()
+        spectrum.update(voices: [sine], sampleRate: rate, at: start)
+        spectrum.update(voices: [sine], sampleRate: rate, at: Date(timeIntervalSinceReferenceDate: .nan))
+        spectrum.update(voices: [sine], sampleRate: rate, at: start + 1.0 / 60)
+        let finite = spectrum.levels.allSatisfy { $0.isFinite }
+        #expect(finite)
+    }
+
     private func frame(_ index: UInt64, gate: Bool) -> VizSidFrame {
         var v = envelope(.sustain, level: gate ? 1 : 0)
         v.gate = gate

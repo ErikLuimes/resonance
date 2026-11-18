@@ -20,6 +20,10 @@
 // To work on them on your own Mac, not to ship them, add:
 //
 //   SWIFT_ACTIVE_COMPILATION_CONDITIONS = CSDB
+//
+// Resonance Remote's Mac half (Settings › Remote, the listener, its Help)
+// stays out of releases until the iPhone and iPad app is out. Add REMOTE
+// to the same line to work on it, as in CSDB REMOTE.
 CODE_SIGN_STYLE = Manual
 CODE_SIGN_IDENTITY = -
 DEVELOPMENT_TEAM =

@@ -113,4 +113,19 @@ nonisolated enum CrashReportSanitizer {
     private static func normalized(_ key: String) -> String {
         String(key.lowercased().filter(\.isLetter))
     }
+
+    /// The report's `report.timestamp`: KSCrash hands it back as a UTC date
+    /// string ("2026-11-16T21:51:41Z"); a raw report has a number instead,
+    /// microseconds since 1970 (seconds before KSCrash 3.3).
+    static func crashDate(in report: [String: Any]) -> Date? {
+        let stamp = (report["report"] as? [String: Any])?["timestamp"]
+        if let text = stamp as? String {
+            return try? Date(text, strategy: .iso8601)
+        }
+        if let number = stamp as? NSNumber {
+            let value = number.doubleValue
+            return Date(timeIntervalSince1970: value > 1e11 ? value / 1_000_000 : value)
+        }
+        return nil
+    }
 }

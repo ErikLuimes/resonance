@@ -8,8 +8,15 @@ import KSCrashRecording
 /// constraints or toolbar change mid-layout has crashed the main window: each
 /// page's name is in the pane, and long pages scroll.
 struct SettingsView: View {
-    @AppStorage(Pref.settingsTab) private var page = SettingsPage.updates
+    @AppStorage(Pref.settingsTab) private var stored = SettingsPage.updates
     @Environment(Updater.self) private var updater
+
+    /// The page shown: the one last open, unless this build leaves it out of
+    /// the sidebar (Remote without REMOTE), when it's Updates.
+    private var page: SettingsPage {
+        get { SettingsPage.groups.contains { $0.pages.contains(stored) } ? stored : .updates }
+        nonmutating set { stored = newValue }
+    }
     @State private var search: String
 
     /// Nil while the search field is empty.
@@ -190,7 +197,11 @@ nonisolated enum SettingsPage: String, CaseIterable, Identifiable {
 #if CSDB
         library.append(.csdb)
 #endif
-        let mac: [SettingsPage] = [.integrations, .remote, .crashes, .storage]
+        var mac: [SettingsPage] = [.integrations, .crashes, .storage]
+#if REMOTE
+        // Only in builds with REMOTE until Resonance Remote is out.
+        mac.insert(.remote, at: 1)
+#endif
         return [
             Group(title: "Resonance", pages: [.updates, .general, .appearance]),
             Group(title: String(localized: "Sound"), pages: [.engine, .playback]),
@@ -652,6 +663,8 @@ private struct StorageSettings: View {
 /// Crash reports stay on this Mac until the user chooses what to do with them.
 private struct CrashSettings: View {
     @State private var reportIDs: [Int64] = []
+    /// When each report's crash happened, where the report says.
+    @State private var reportDates: [Int64: Date] = [:]
     @State private var confirmingClear = false
     @State private var copiedReportID: Int64?
 
@@ -678,6 +691,7 @@ private struct CrashSettings: View {
                     ForEach(reportIDs, id: \.self) { reportID in
                         CrashReportRow(
                             reportID: reportID,
+                            date: reportDates[reportID],
                             copied: copiedReportID == reportID,
                             copy: { copyReport(reportID) },
                             report: { reportOnGitHub(reportID) },
@@ -720,6 +734,9 @@ private struct CrashSettings: View {
 
     private func reload() {
         reportIDs = KSCrash.shared.reportStore?.reportIDs.map(\.int64Value).reversed() ?? []
+        reportDates = Dictionary(uniqueKeysWithValues: reportIDs.compactMap { id in
+            KSCrash.shared.reportStore?.report(for: id).flatMap { CrashReportSanitizer.crashDate(in: $0.value) }.map { (id, $0) }
+        })
     }
 
     private func copyReport(_ reportID: Int64) {
@@ -789,6 +806,8 @@ private struct CrashSettings: View {
 
 private struct CrashReportRow: View {
     let reportID: Int64
+    /// When it crashed, if the report says.
+    let date: Date?
     let copied: Bool
     let copy: () -> Void
     let report: () -> Void
@@ -799,7 +818,13 @@ private struct CrashReportRow: View {
             Button(action: copy) {
                 HStack(spacing: 10) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(String(localized: "Crash report"))
+                        if let date {
+                            // This Mac's time, as its locale writes it: what someone
+                            // remembers. The copied report keeps KSCrash's UTC time.
+                            Text(date, format: Date.FormatStyle(date: .abbreviated, time: .shortened))
+                        } else {
+                            Text(String(localized: "Crash report"))
+                        }
                         Text(String(localized: "Report #\(reportID)"))
                             .font(.caption)
                             .foregroundStyle(.secondary)

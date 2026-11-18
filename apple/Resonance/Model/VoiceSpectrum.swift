@@ -43,7 +43,11 @@ nonisolated final class VoiceSpectrum {
     /// Advance to `date` with each voice's latest samples (−1…1, oldest
     /// first, any length; missing voices fall silent).
     func update(voices: [[Float]], sampleRate: Float, at date: Date) {
-        let dt = lastUpdate.map { min(max(date.timeIntervalSince($0), 0), 0.1) } ?? 0
+        // A clock that hands over a time that isn't a number (a clip's, before
+        // its first frame) must not reach the levels: one NaN there stays in
+        // every level after it, and Radial can't draw one.
+        let elapsed = lastUpdate.map { date.timeIntervalSince($0) } ?? 0
+        let dt = elapsed.isFinite ? min(max(elapsed, 0), 0.1) : 0
         lastUpdate = date
         // The mockup's per-frame factors (0.45 up, 0.12 down) at 60 fps.
         let rise = Float(1 - pow(1 - 0.45, dt * 60))
@@ -54,6 +58,7 @@ nonisolated final class VoiceSpectrum {
                 let i = v * bandCount + b
                 let t = target?[b] ?? 0
                 levels[i] += (t - levels[i]) * (t > levels[i] ? rise : fall)
+                if !levels[i].isFinite { levels[i] = 0 }
             }
         }
     }

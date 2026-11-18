@@ -27,7 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !Self.isRunningTests {
             // KSCrash only writes reports locally. Nothing leaves the Mac until
             // the user explicitly copies or reports one from Settings.
-            try? KSCrash.shared.install(with: KSCrashConfiguration())
+            try? KSCrash.shared.install(with: Self.crashConfiguration())
         }
         // Before anything below reads a path: the folders and files chosen
         // outside the sandbox, open again.
@@ -94,6 +94,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             store.visualizer.setOutputLatency(latency)
         } onOutput: { [store] output in
             store.setOutput(output)
+        } onUnplugged: { [store] in
+            store.outputWentAway()
         }
         jobs = JobWatcher(store: store, library: library, fingerprints: fingerprints)
         jobs?.start()
@@ -104,7 +106,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         spotlight = SpotlightIndex(store: store)
         spotlight?.start()
         startControl()
+#if REMOTE
+        // Only in builds with REMOTE until Resonance Remote is out: releases
+        // never listen, whatever the remote's setting says.
         remote.start()
+#endif
         #if DEBUG
         VisualizerPictures.openIfAsked(store: store)
         VisualizerStage.openIfAsked(store: store)
@@ -242,6 +248,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         control?.stop()
         promptStatus?.stop()
         store.shutdown()
+    }
+
+    /// KSCrash's defaults without its Termination monitor. On macOS, KSCrash
+    /// 3.9 never marks a quit as clean (its app state tracker only listens
+    /// on iOS and watchOS, and its exit hook returns early without that), so
+    /// the monitor filed every ⌘Q as an "unexplained" SIGKILL at the next
+    /// launch. Crashes, exceptions and hangs have monitors of their own.
+    static func crashConfiguration() -> KSCrashConfiguration {
+        let configuration = KSCrashConfiguration()
+        configuration.monitors.remove(.termination)
+        return configuration
     }
 
     private static var isRunningTests: Bool {

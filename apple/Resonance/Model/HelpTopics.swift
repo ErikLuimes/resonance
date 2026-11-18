@@ -659,10 +659,7 @@ extension HelpTopic {
                 .heading(String(localized: "Integrations")),
                 .paragraph(String(localized: "Install the command line tool and copy the command that connects Claude Code. Below that, what already works without setting up, such as Siri, Spotlight and Quick Look, with links to where macOS keeps their switches.")),
                 .link(.settings(.integrations)),
-                .heading(String(localized: "Remote")),
-                .paragraph(String(localized: "Control Resonance from Resonance Remote on your iPhone or iPad, on the same network. Pair a device by scanning the QR code, or by typing the code and allowing it when both screens show the same number. Devices on your Apple Account, with iCloud Keychain on, can connect without a code. Below that, the paired devices; removing one signs it out at once. Commands stay on your network and are encrypted.")),
-                .paragraph(String(localized: "With **Listen**, chosen in Resonance Remote, the Mac plays into the iPhone or iPad instead of its own speakers, going on from where the tune was. If the device's connection drops, the music pauses before the Mac's speakers take over.")),
-                .link(.settings(.remote)),
+            ] + HelpTopic.remoteHelp + [
                 .heading(String(localized: "Storage and Reset")),
                 .paragraph(String(localized: "**Data Folder** shows how much Resonance's folder holds, and opens it in Finder. **Reset** moves the collection Resonance downloaded to the Trash, or resets everything: Resonance's folder goes to the Trash, its settings are forgotten, and it restarts fresh.")),
                 .link(.settings(.storage)),
@@ -699,4 +696,21 @@ extension HelpTopic {
             related: [.settings, .gettingStarted, .terminal, .assistants]
         ),
     ]
+}
+
+extension HelpTopic {
+    /// Settings' Remote page, in the Settings topic. Only in builds with
+    /// REMOTE: Resonance Remote isn't out yet, so releases leave it out.
+    static var remoteHelp: [HelpBlock] {
+#if REMOTE
+        [
+            .heading(String(localized: "Remote")),
+            .paragraph(String(localized: "Control Resonance from Resonance Remote on your iPhone or iPad, on the same network. Pair a device by scanning the QR code, or by typing the code and allowing it when both screens show the same number. Devices on your Apple Account, with iCloud Keychain on, can connect without a code. Below that, the paired devices; removing one signs it out at once. Commands stay on your network and are encrypted.")),
+            .paragraph(String(localized: "With **Listen**, chosen in Resonance Remote, the Mac plays into the iPhone or iPad instead of its own speakers, going on from where the tune was. If the device's connection drops, the music pauses before the Mac's speakers take over.")),
+            .link(.settings(.remote)),
+        ]
+#else
+        []
+#endif
+    }
 }

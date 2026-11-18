@@ -99,4 +99,15 @@ struct CrashReportSanitizerTests {
         #expect(text.contains("[redacted]"))
         #expect(text.contains("[redacted-path]"))
     }
+
+    @Test func readsTheCrashDate() throws {
+        let fixed = try #require(CrashReportSanitizer.crashDate(in: ["report": ["timestamp": "2026-11-16T21:51:41Z"]]))
+        #expect(fixed == Date(timeIntervalSince1970: 1794865901))
+        let micro = try #require(CrashReportSanitizer.crashDate(in: ["report": ["timestamp": 1794865901_000_000]]))
+        #expect(micro == fixed)
+        let seconds = try #require(CrashReportSanitizer.crashDate(in: ["report": ["timestamp": 1794865901]]))
+        #expect(seconds == fixed)
+        #expect(CrashReportSanitizer.crashDate(in: [:]) == nil)
+    }
 }
+
