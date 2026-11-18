@@ -317,6 +317,8 @@ final class MonitorModel {
         hostFullscreen = false
         holdsCameraForWindowResize = false
         busyUntil = 0
+        // Nothing drawn yet: the next draw isn't a gap after the last one.
+        lastDraw = 0
         resets += 1
     }
 

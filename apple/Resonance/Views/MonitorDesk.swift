@@ -561,7 +561,10 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
 
     // MARK: Attaching to a view
 
-    func attach(to view: DeskView, store: PlayerStore) {
+    /// `startsClock: false` leaves out the display link, so only `update(at:)`
+    /// moves things: for tests that set their own times, which the link would
+    /// otherwise pull back to the real one whenever the main run loop turns.
+    func attach(to view: DeskView, store: PlayerStore, startsClock: Bool = true) {
         if self.view != nil { detach() }
         self.view = view
         self.store = store
@@ -578,6 +581,7 @@ final class DeskScene: NSObject, SCNSceneRendererDelegate {
         view.allowsCameraControl = false
 
         MonitorModel.shared.typed = { [weak self] character in self?.tap(character) }
+        guard startsClock else { return }
         let link = view.displayLink(target: self, selector: #selector(step(_:)))
         // One update per frame SceneKit draws. Left alone, the link follows
         // the display: 120 a second on a ProMotion screen, half of them unseen.
