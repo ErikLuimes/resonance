@@ -21,8 +21,8 @@
   <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
   <!-- ?v= changes with each site update, so a browser that cached the last
        one fetches the new files instead of mixing old and new. -->
-  <link rel="stylesheet" href="../styles.css?v=20261115b">
-  <link rel="stylesheet" href="../terminal.css?v=20261115b">
+  <link rel="stylesheet" href="../styles.css?v=20261118b">
+  <link rel="stylesheet" href="../terminal.css?v=20261118b">
 
   <script>
     // Sections fade in as terminal.js reveals them. If it never runs, show
@@ -34,6 +34,8 @@
 <body>
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3.5v12M7 10.5l5 5 5-5M5 20h14"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M3.5 9.2h3.2L11.4 5v14l-4.7-4.2H3.5z"/><path d="m15 9.5 5 5M20 9.5l-5 5"/></symbol>
+    <symbol id="i-speaker-loud" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M2.5 9.2h3.2L10.4 5v14l-4.7-4.2H2.5z"/><path d="M13.6 9.2a3.8 3.8 0 0 1 0 5.6M16.2 6.8a7.2 7.2 0 0 1 0 10.4M18.8 4.4a10.6 10.6 0 0 1 0 15.2"/></symbol>
     <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
   </svg>
 
@@ -77,24 +79,9 @@
       <div class="container container-wide" data-reveal>
         <div class="tm-stage">
           <div class="stage-glow" aria-hidden="true"></div>
-          <div class="term" id="term" tabindex="0" role="application" aria-label="The Resonance terminal app, running in this page. Arrow keys move, Return plays, L finds tunes that sound alike, T scrubs, slash searches, Escape goes back.">
-            <div class="term-bar"><div class="term-lights" aria-hidden="true"><i></i><i></i><i></i></div><b>resonance</b></div>
-            <div class="term-screen" data-screen></div>
-          </div>
-          <div class="tm-under">
-            <span><strong style="color:var(--text)">This one is live.</strong> Click it, then <kbd>↑</kbd> <kbd>↓</kbd> to move, <kbd>↵</kbd> to play, <kbd>L</kbd> to find what sounds alike, and <kbd>t</kbd> then <kbd>0</kbd>–<kbd>9</kbd> to scrub. It makes no sound here.</span>
-            <span class="tm-accents"><span>It wears your Mac's accent color</span>
-              <div data-accents>
-                <button type="button" style="--c:#0a84ff" aria-label="Blue"></button>
-                <button type="button" style="--c:#bf5af2" aria-label="Purple"></button>
-                <button type="button" style="--c:#ff375f" aria-label="Pink"></button>
-                <button type="button" style="--c:#ff453a" aria-label="Red"></button>
-                <button type="button" style="--c:#ff9f0a" aria-label="Orange" aria-pressed="true"></button>
-                <button type="button" style="--c:#ffd60a" aria-label="Yellow"></button>
-                <button type="button" style="--c:#32d74b" aria-label="Green"></button>
-                <button type="button" style="--c:#98989d" aria-label="Graphite"></button>
-              </div>
-            </span>
+          <div class="tm-media">
+            <video class="tm-window" data-tm-video src="../media/terminal-movie.mp4" poster="../media/terminal-movie.jpg" autoplay muted loop playsinline preload="metadata" aria-label="The terminal app in WezTerm: Favorites, Last Ninja 3 and Chordian, the panel put away, From the 2020s, scrubbing, Sounds Like, then fire and the skull"></video>
+            <button type="button" class="media-sound" data-sound aria-pressed="false" aria-label="Video sound"><svg class="i i-fill"><use href="#i-mute"/></svg><span>Sound on</span></button>
           </div>
         </div>
       </div>
@@ -134,9 +121,9 @@
             It looks best in a terminal with millions of colors, such as iTerm2, Ghostty or Kitty.
           </p>
         </div>
-        <div class="term" data-reveal>
-          <div class="term-bar"><div class="term-lights" aria-hidden="true"><i></i><i></i><i></i></div><b>resonance</b></div>
-          <div class="tm-video"><span>Recording coming soon</span></div>
+        <div class="tm-media" data-reveal>
+          <video class="tm-window" data-tm-video src="../media/terminal-visuals.mp4" poster="../media/terminal-visuals.jpg" autoplay muted loop playsinline preload="metadata" aria-label="The terminal app's visuals, one after another: fire, fire colored by voice, the skull, Tesla coils, water and the sphere"></video>
+          <button type="button" class="media-sound" data-sound aria-pressed="false" aria-label="Video sound"><svg class="i i-fill"><use href="#i-mute"/></svg><span>Sound on</span></button>
         </div>
         <ul class="tm-visuals" data-reveal>
           <li><strong>Fire <kbd>f</kbd></strong><p>Each voice feeds its own part of the flames, and hits throw sparks.</p></li>
@@ -192,7 +179,7 @@
           <h2>Your keys.<br><span class="grad">Vim, Emacs, or neither.</span></h2>
           <p class="section-lede">
             The terminal app looks at your editor and answers to the keys your hands already know.
-            Choose a set here, and the terminal at the top of the page follows.
+            Choose a set to see its keys.
           </p>
           <div class="tm-seg" data-schemes role="group" aria-label="Keys" style="margin-top:28px">
             <button type="button" data-scheme="normal" aria-pressed="true">Normal</button>
@@ -270,7 +257,6 @@ rf  <i>favorite</i>       rq  <i>what's playing</i></pre></div>
       </div>
       <div class="footer-links">
         <a href="../">Resonance for Mac</a>
-        <a href="../remote/">Resonance Remote</a>
         <a href="https://github.com/ErikLuimes/resonance">GitHub</a>
         <a href="https://hvsc.c64.org">HVSC</a>
       </div>
@@ -280,8 +266,8 @@ rf  <i>favorite</i>       rq  <i>what's playing</i></pre></div>
     </div>
   </footer>
 
-  <script src="../js/terminal-data.js?v=20261115b"></script>
-  <script type="module" src="../js/terminal.js?v=20261115b"></script>
+  <script src="../js/terminal-data.js?v=20261118b"></script>
+  <script type="module" src="../js/terminal.js?v=20261118b"></script>
   <!-- Visits, counted without cookies by GoatCounter (it skips localhost). -->
   <script data-goatcounter="https://erikluimes.goatcounter.com/count"
           async src="https://gc.zgo.at/count.js"></script>

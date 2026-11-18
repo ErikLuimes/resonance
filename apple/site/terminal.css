@@ -36,109 +36,13 @@
 .term-bar b { position: absolute; left: 0; right: 0; text-align: center; font: 500 12.5px/1 var(--font); color: #b9bcc6; pointer-events: none; }
 .term-lights { display: flex; gap: 8px; }
 .term-lights i { width: 12px; height: 12px; border-radius: 50%; background: #4a4c55; }
-.term-screen { --cols: 150; padding: 1.4em 1ch 0.7em; font: 400 calc(100cqw / var(--cols) / 0.602) / 1.5 var(--mono); color: var(--t-text); font-variant-ligatures: none; cursor: default; user-select: none; -webkit-user-select: none; }
-.term-screen b { font-weight: 700; color: #fff; }
-.term-screen .m { color: var(--t-muted); }
-.term-screen .ac { color: var(--t-accent); }
-.term-screen .cut { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
-
-/* What's playing, over the panes. */
-.t-now { display: flex; gap: 2ch; padding: 0 1ch; white-space: nowrap; }
-.t-now .grow { flex: 1; min-width: 0; display: flex; gap: 2ch; }
-.t-logo { color: var(--t-muted); letter-spacing: 0.02em; }
-.t-logo i { font-style: normal; }
-.t-time { display: flex; align-items: center; gap: 2ch; padding: 0 1ch; white-space: nowrap; }
-/* The bar, in the app's characters, one to a cell: ▰ played, ● the head, ▱ left. */
-.t-track { flex: 1; min-width: 0; display: flex; overflow: hidden; color: var(--t-muted); }
-.t-track i { flex: none; width: 1ch; font-style: normal; text-align: center; }
-.t-track .p { color: var(--t-accent); }
-.t-track .g { color: color-mix(in srgb, var(--t-accent) 70%, var(--t-white)); }
-.t-track .h { color: var(--t-white); }
-.t-time .pct { width: 4ch; text-align: right; color: var(--t-muted); }
-
-/* The panes: a line across the top, and thin lines down that fade out. */
-.t-panes { display: grid; grid-template-columns: 29ch minmax(0, 1fr) 41ch; margin-top: 0.75em; border-top: 1px solid var(--t-frame); height: 49.5em; }
-.t-pane { padding: 0.75em 1ch 0; min-width: 0; overflow: hidden; border-left: 1px solid; border-image: linear-gradient(to bottom, var(--t-frame) 62%, transparent) 1; }
-.t-pane:last-child { border-right: 1px solid; }
-.t-h { margin: 0 0 0.75em; padding: 0 1ch; background: var(--t-bar); box-shadow: 0 0.78em 0 -0.72em var(--t-faint); font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.t-h.focus { background: var(--t-bar-focus); }
-.t-h .m { font-weight: 400; }
-.t-list { margin: 1.5em 0 1.5em; padding: 0; list-style: none; }
-.t-list li { display: flex; gap: 1ch; padding: 0 2ch; white-space: nowrap; }
-.t-list li.on { padding-left: 0; }
-.t-list li.on::before { content: "❯"; width: 1ch; color: var(--t-muted); }
-.t-list li span:last-child:not(:first-child) { color: var(--t-muted); }
-.t-list.wide li { justify-content: space-between; }
-
-.t-cols, .t-row { display: grid; grid-template-columns: 2ch 2ch minmax(0, 30fr) minmax(0, 28fr) 10ch 7ch; column-gap: 1ch; padding: 0 1ch 0 0; white-space: nowrap; }
-.t-cols { margin: 1.5em 0; color: var(--t-muted); }
-.t-cols > :last-child, .t-row > :last-child { text-align: right; }
-.t-row { cursor: pointer; }
-.t-row > :nth-child(4), .t-row > :last-child { color: var(--t-muted); }
-.t-row .ring { color: var(--t-muted); }
-.t-row.playing .ring { color: var(--t-accent); }
-.t-row .title { display: flex; gap: 2ch; min-width: 0; }
-.t-row.at .title > span:first-child { text-decoration: underline; text-underline-offset: 0.22em; }
-.t-chip { flex: none; padding: 0 1ch; background: var(--t-sel); color: var(--t-muted); }
-.t-chip b { font-weight: 400; color: var(--t-text); }
-.t-more { padding-left: 5ch; color: var(--t-muted); }
-
 /* Fingerprints: nine bars, always in the same order and colors. */
 .fp { display: inline-flex; align-items: flex-end; width: 9ch; height: 1.5em; vertical-align: top; background: linear-gradient(var(--t-faint), var(--t-faint)) 0 78% / 100% 1px no-repeat; }
 .fp i { width: 1ch; height: calc(var(--h) * 78%); margin-bottom: 0.33em; background: var(--c); }
 .fp.none { background: none; color: var(--t-faint); letter-spacing: 0; }
-.fp-big { display: grid; grid-template-columns: repeat(9, 3ch); height: 4.5em; align-items: end; margin-top: 1.5em; }
-.fp-big i { width: 2ch; height: max(1px, calc(var(--h) * 100%)); background: var(--c); }
-.fp-big.none i { background: var(--t-faint); }
-.fp-names { display: grid; grid-template-columns: repeat(9, 3ch); color: var(--t-muted); }
-.t-mix { display: flex; height: 1.5em; margin-top: 1.5em; }
-.t-mix i { background: var(--c); }
-.t-mixnames { display: flex; gap: 2ch; white-space: nowrap; }
-.t-voices { margin-top: 1.5em; white-space: pre; line-height: 1.5; }
-.t-alike { display: grid; grid-template-columns: 9ch minmax(0, 1fr) 4ch; column-gap: 1ch; white-space: nowrap; }
-.t-alike > :last-child { text-align: right; color: var(--t-muted); }
-
-/* All keys (?), over the panes. */
-.t-panes { position: relative; }
-.t-help { position: absolute; left: 50%; top: 3.75em; translate: -50% 0; width: 102ch; max-width: 100%; padding: 0.75em 0.5ch 0.6em; background: var(--t-bg); border: 1px solid var(--t-frame); display: grid; grid-template-columns: minmax(0, 1fr) 38ch; column-gap: 3ch; white-space: nowrap; }
-.t-help-top { position: absolute; left: 2ch; right: 1ch; top: -0.8em; display: flex; justify-content: space-between; color: var(--t-muted); }
-.t-help-top span { padding: 0 1ch; background: var(--t-bg); }
-.t-help-keys { display: grid; grid-template-columns: 19ch minmax(0, 1fr); white-space: pre; }
-.t-help-keys > :last-child { grid-column: 1 / -1; color: var(--t-muted); }
-.t-help-read i { display: inline-block; width: 1ch; height: 1.5em; margin-right: 1ch; vertical-align: top; background: var(--c); }
-.t-help-read p { margin: 1.5em 0 0; color: var(--t-muted); white-space: normal; }
-
-.t-keys { display: flex; gap: 2ch; margin-top: 0.75em; padding: 0 0.5ch; white-space: nowrap; overflow: hidden; }
-.t-keys button { all: unset; cursor: pointer; color: var(--t-muted); }
-.t-keys button b { font-weight: 400; color: var(--t-text); margin-right: 1ch; }
-.t-keys button:hover, .t-keys button:hover b { color: #fff; }
-.t-keys button:focus-visible { outline: 1px solid var(--t-accent); }
-.t-keys .say { color: var(--t-text); }
-
-/* In a narrow window the app drops the panel, then the sidebar. So does this. */
-@container (max-width: 900px) {
-  .term-screen { --cols: 108; }
-  .t-panes { grid-template-columns: 29ch minmax(0, 1fr); }
-  .t-pane.side, .t-help-read { display: none; }
-  .t-help { grid-template-columns: minmax(0, 1fr); width: 64ch; }
-  .t-pane:nth-child(2) { border-right: 1px solid; }
-}
-@container (max-width: 600px) {
-  .term-screen { --cols: 62; }
-  .t-panes { grid-template-columns: minmax(0, 1fr); height: 36em; }
-  .t-pane.lib { display: none; }
-  .t-cols, .t-row { grid-template-columns: 2ch 2ch minmax(0, 1fr) 10ch 5ch; }
-  .t-cols > :nth-child(4), .t-row > :nth-child(4), .t-chip, .t-logo, .t-now .state { display: none; }
-  .t-keys button:nth-child(n+5) { display: none; }
-}
 
 .tm-stage { position: relative; margin-top: 64px; }
-.tm-under { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 32px; margin: 22px 4px 0; color: var(--muted); font-size: 14.5px; }
-.tm-under kbd, .tm-keys kbd, .tm-card kbd { display: inline-block; min-width: 1.7em; padding: 0.1em 0.45em; border-radius: 6px; font: 500 0.85em/1.5 var(--mono); text-align: center; color: var(--text); background: var(--surface-2); border: 1px solid var(--line-2); }
-.tm-accents { display: flex; align-items: center; gap: 12px; }
-.tm-accents div { display: flex; gap: 7px; }
-.tm-accents button { width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: var(--c); cursor: pointer; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25); }
-.tm-accents button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--c); }
+.tm-keys kbd, .tm-card kbd { display: inline-block; min-width: 1.7em; padding: 0.1em 0.45em; border-radius: 6px; font: 500 0.85em/1.5 var(--mono); text-align: center; color: var(--text); background: var(--surface-2); border: 1px solid var(--line-2); }
 
 /* Fingerprints, explained. */
 .tm-print { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: clamp(6px, 1.4vw, 16px); align-items: end; height: 240px; padding: 0 clamp(14px, 3vw, 36px); }
@@ -158,13 +62,17 @@
 .tm-alike li em { color: var(--text); }
 .tm-alike .fp { height: 1.9em; }
 
-/* The visuals: a recording in a window, and the five to pick from. */
+/* The visuals: a recording, and the five to pick from. */
 .tm-visuals { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-top: 28px; padding: 0; list-style: none; }
 .tm-visuals li { padding: 18px 18px 20px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); }
 .tm-visuals strong { display: flex; align-items: center; justify-content: space-between; font-size: 16px; }
 .tm-visuals p { margin: 6px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
-.tm-video { aspect-ratio: 16 / 10; display: grid; place-items: center; background: var(--t-bg); color: var(--t-muted); font: 400 14px var(--mono); }
-.tm-video video { width: 100%; height: 100%; object-fit: cover; }
+/* Recordings of WezTerm's window, its own frame included. The corners round
+   like the window's (31 px on 2100 × 1312), so the black around them stays out. */
+.tm-media { position: relative; display: flex; flex-direction: column; }
+/* The home page's Sound pill, under the window instead of over its time and keys. */
+.tm-media .media-sound { position: static; display: inline-flex; align-self: flex-end; margin-top: 14px; }
+.tm-window { position: relative; display: block; width: 100%; height: auto; aspect-ratio: 2100 / 1312; border-radius: 1.5% / 2.4%; background: var(--t-bg); box-shadow: 0 60px 110px -40px rgba(0, 0, 0, 0.9), 0 24px 50px -24px rgba(0, 0, 0, 0.7); }
 
 /* Commands. */
 .tm-session { margin: 0; padding: 22px 24px 26px; font: 400 clamp(11.5px, 1.25vw, 14px)/1.75 var(--mono); color: var(--t-text); white-space: pre; overflow-x: auto; }
@@ -204,6 +112,5 @@
 @media (max-width: 620px) {
   .tm-print { height: 170px; }
   .tm-print-names { font-size: 10.5px; }
-  .tm-under { justify-content: center; text-align: center; }
 }
 @media (prefers-reduced-motion: reduce) { .tm-caret { animation: none; } }
