@@ -406,8 +406,18 @@ struct MonitorDeskTests {
         #expect(abs(simd_distance(camera.simdWorldPosition, glassCenter) - playerDistance) < 0.4)
         let returned = try picture("credits-returned")
         #expect(abs(returned.blueComponent - player.blueComponent) < 0.15)
-        let returnedStickerPoint = view.projectPoint(sticker.worldPosition)
-        desk.mouseDown(at: CGPoint(x: returnedStickerPoint.x, y: returnedStickerPoint.y), flags: [])
+        // The camera eases back from the tube; under a busy test run it can
+        // still be on its way, so wait until the sticker is under its point.
+        var returnedGrip = CGPoint.zero
+        for _ in 0..<20 {
+            SCNTransaction.flush()
+            _ = view.snapshot()
+            let projected = view.projectPoint(sticker.worldPosition)
+            returnedGrip = CGPoint(x: projected.x, y: projected.y)
+            if desk.isClickable(at: returnedGrip) { break }
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        desk.mouseDown(at: returnedGrip, flags: [])
         #expect(desk.isHoldingSticker)
         desk.mouseUp()
     }

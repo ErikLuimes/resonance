@@ -12,7 +12,8 @@ struct SettingsView: View {
     @Environment(Updater.self) private var updater
 
     /// The page shown: the one last open, unless this build leaves it out of
-    /// the sidebar (Remote without REMOTE), when it's Updates.
+    /// the sidebar, when it's Updates. (A saved page this build hasn't got,
+    /// such as Remote without REMOTE, already reads back as Updates.)
     private var page: SettingsPage {
         get { SettingsPage.groups.contains { $0.pages.contains(stored) } ? stored : .updates }
         nonmutating set { stored = newValue }
@@ -121,8 +122,10 @@ struct SettingsView: View {
 #endif
         case .integrations:
             IntegrationSettings()
+#if REMOTE
         case .remote:
             RemoteSettings()
+#endif
         case .crashes:
             CrashSettings()
         case .storage:
@@ -141,7 +144,10 @@ nonisolated enum SettingsPage: String, CaseIterable, Identifiable {
     case csdb
 #endif
     case integrations
+#if REMOTE
+    // Only in builds with REMOTE until Resonance Remote is out.
     case remote
+#endif
     case crashes, storage
 
     var id: Self { self }
@@ -160,7 +166,9 @@ nonisolated enum SettingsPage: String, CaseIterable, Identifiable {
         case .csdb: "CSDb"
 #endif
         case .integrations: String(localized: "Integrations")
+#if REMOTE
         case .remote: String(localized: "Remote")
+#endif
         case .crashes: String(localized: "Crashes")
         case .storage: String(localized: "Storage and Reset")
         }
@@ -180,7 +188,9 @@ nonisolated enum SettingsPage: String, CaseIterable, Identifiable {
         case .csdb: "antenna.radiowaves.left.and.right"
 #endif
         case .integrations: "puzzlepiece.extension"
+#if REMOTE
         case .remote: "iphone"
+#endif
         case .crashes: "waveform.path.ecg"
         case .storage: "internaldrive"
         }
@@ -199,7 +209,6 @@ nonisolated enum SettingsPage: String, CaseIterable, Identifiable {
 #endif
         var mac: [SettingsPage] = [.integrations, .crashes, .storage]
 #if REMOTE
-        // Only in builds with REMOTE until Resonance Remote is out.
         mac.insert(.remote, at: 1)
 #endif
         return [

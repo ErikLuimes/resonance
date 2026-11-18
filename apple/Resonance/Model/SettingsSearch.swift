@@ -102,6 +102,7 @@ nonisolated extension SettingsPage {
                 item("Notifications"),
                 item("Dock icon"),
             ]
+#if REMOTE
         case .remote:
             [
                 item("Control Resonance from iPhone and iPad", keywords: String(localized: "Resonance Remote network", comment: "Settings search: other words for the remote")),
@@ -109,6 +110,7 @@ nonisolated extension SettingsPage {
                 item("Pair a Device", keywords: String(localized: "QR code pairing", comment: "Settings search: other words for pairing a device")),
                 item("Paired Devices", keywords: String(localized: "remove sign out", comment: "Settings search: other words for paired devices")),
             ]
+#endif
         case .crashes:
             [
                 item("Saved Reports", keywords: String(localized: "crash report bug GitHub delete", comment: "Settings search: other words for crash reports")),
