@@ -3,6 +3,64 @@
     <channel>
         <title>Resonance</title>
         <item>
+            <title>0.1.0-alpha.11</title>
+            <pubDate>Wed, 18 Nov 2026 02:16:26 +0100</pubDate>
+            <sparkle:channel>alpha</sparkle:channel>
+            <sparkle:version>11</sparkle:version>
+            <sparkle:shortVersionString>0.1.0-alpha.11</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>27.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[## Sounds Like, a page of its own
+
+Finding tunes that sound alike was hidden in a tune's right-click menu. It's now the easiest way through the collection.
+
+- **Sounds Like** in the sidebar shows the tunes across HVSC that sound most like the one playing, closest first, with how alike each is. Play them all, drift from there, or save them as a playlist.
+- **Find Similar** sits at the end of the selected row in every list, and **⌘L** does the same, or uses the tune playing when nothing is selected. It's on the inspector's Sounds Like card too.
+- **Hop from tune to tune.** Find Similar on one of the matches goes on from there. The way you came stays above the list, each tune a link back, and **Follow What's Playing** starts over from the music.
+- Sorting a list by how alike its tunes sound is still there, as **Sort by Likeness** in a tune's right-click menu. While a list is sorted that way, the tune it's compared to sits as a barcode over the Fingerprint column, lined up with the rows' barcodes.
+- In the terminal app, the tune under the cursor shows **l find similar**. Each `l` goes on from the last, the title keeps the way you came, and `Esc` goes back along it instead of quitting.
+
+## The playback bar and the toolbar
+
+- **Slide two fingers** sideways anywhere on the playback bar to slide its title to the tune before or after; lift them and that one plays.
+- **Under the Hood** moved from the playback bar to the toolbar, and its button stays tinted while the drawer is open.
+- **Surprise Me** and **Add Files** left the toolbar. They're in the Playback and File menus, with ⇧⌘R and ⌘O as before.
+- My Playlist and your playlists have a **+** before the filter, to add SID files or folders from your Mac.
+
+## A new look for the terminal app
+
+`resonance` in Terminal got a makeover, in the style of an old BBS.
+
+- **Your accent color.** The terminal app now uses the accent you chose in System Settings, and only for what's chosen or playing: a ● on the tune that plays, a ❯ at the cursor, and the played part of the bar.
+- **Sections** sit on gray bars, with thin lines between the columns that fade out toward the bottom.
+- **Tidier lists.** Composer names get the room they need, lengths line up on the right, and long playlist names shorten instead of hiding their count.
+- **Fewer keys at the bottom**, only the ones you use most. `?` still has them all.
+- `i` puts the Sounds Like panel beside the list away, giving the list its room, and brings it back.
+- The skull fills the music page now, however far it turns or opens its jaw.
+- `resonance pick` lists tunes the same way.
+
+## Scrub from the terminal
+
+Press `t` to pick a point in the tune with the arrow keys, or jump to a tenth of it with a number, then `Enter` to go there. As in the app, the bar fills in gray to where you're going while the playhead catches up. It works on the reSIDfp and SIDLite direct engines.
+
+## And more
+
+- **Search Settings** from the field at the top of its sidebar. Type a setting's name, or a word like "dark mode" or "vim", and Settings goes to its page. The Settings window can be made bigger now too.
+- My Playlist is in the terminal app now, after Favorites.
+- Playlists you change in the app update in the terminal app right away, without restarting it.
+- A tune whose length isn't known gets a bar that sweeps across, instead of one that stays empty.
+- **Unplugging your headphones pauses the music**, as on iPhone, instead of playing on through the speakers. So does turning off AirPods or other Bluetooth headphones. Choosing another output yourself keeps it playing.
+
+## Fixes
+
+- Titles and composers with accents, such as "ö", showed as "�" in Now Playing, Control Center and the Lock Screen. Tune text is now read as Latin-1 when it isn't UTF-8, as STIL's notes already were.
+- HVSC's "<?>", its mark for what isn't known, no longer shows in titles and names. A tune with no known composer says **Unknown Composer**, in the app and the terminal app. "198?" years stay as they are. The collection's index is read again once, to pick this up.
+- The inspector's bars and envelope, the Sounds Like sphere, the Home's waves, Radial, Spectrum and the mini player's scope draw with less work for the processor, and Under the Hood's tracker and Now Playing's voice chips only redraw when what they show changes.
+- The MCP server for Claude and other assistants now runs in the App Sandbox.
+- The credits quote "All your base are belong to" correctly now, in the app and the terminal app.
+]]></description>
+            <enclosure url="https://github.com/ErikLuimes/resonance/releases/download/v0.1.0-alpha.11/Resonance-0.1.0-alpha.11.dmg" length="37360906" type="application/octet-stream" sparkle:edSignature="6HEEtfy33Xx8gC3zuTFIqQCyUL2giTOuewuDck8BND3SKtn+Bi8MwyTnFTBLz3S/UPKqBTf0cCmgRg1fPw3/Cw=="/>
+        </item>
+        <item>
             <title>0.1.0-alpha.10</title>
             <pubDate>Wed, 11 Nov 2026 16:43:00 +0100</pubDate>
             <sparkle:channel>alpha</sparkle:channel>
